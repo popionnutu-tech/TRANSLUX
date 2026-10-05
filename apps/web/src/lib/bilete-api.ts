@@ -107,6 +107,8 @@ export interface ComandaPublica {
   from_name: string;
   to_name: string;
   departure_at: string;
+  /** ION-236: ora sosirii din grafic, «HH:MM»; lipsește la panoul vechi. */
+  sosire?: string | null;
   seats: number;
   price_per_seat: number;
   total: number;

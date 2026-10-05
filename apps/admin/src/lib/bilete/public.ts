@@ -26,6 +26,8 @@ export interface ComandaPublica {
   from_name: string;
   to_name: string;
   departure_at: string;
+  /** ION-236: ora sosirii din grafic la oprirea de coborâre, «HH:MM» (Chișinău); null dacă lipsește din nomenclator. */
+  sosire: string | null;
   seats: number;
   price_per_seat: number;
   total: number;
@@ -74,16 +76,20 @@ export async function sincronizeazaComandaDupaCod(cod: string): Promise<void> {
 export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (!COD_RE.test(cod)) return null;
   const db = getSupabase();
-  const { data: c, error: cErr } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon').eq('cod', cod).maybeSingle();
+  const { data: c, error: cErr } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, to_stop_order, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon').eq('cod', cod).maybeSingle();
   if (cErr) throw new BazaIndisponibilaError(cErr.message); // «nu există» ≠ «baza nu răspunde» (Codex X11)
   if (!c) return null;
   const comanda = c as BileteComanda;
-  const [rB, rR] = await Promise.all([
+  const [rB, rR, rS] = await Promise.all([
     db.from('bilete').select('nr, cod_qr, status, urcat_at').eq('comanda_id', comanda.id).order('nr'),
     db.from('crm_routes').select('id, dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', comanda.crm_route_id).maybeSingle(),
+    // ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii (biletul arată plecare → sosire)
+    db.from('crm_stop_fares').select('hour_from_chisinau, hour_from_nord').eq('crm_route_id', comanda.crm_route_id).eq('stop_order', (comanda as { to_stop_order?: number }).to_stop_order ?? -1).maybeSingle(),
   ]);
   if (rB.error) throw new BazaIndisponibilaError(rB.error.message);
   if (rR.error) throw new BazaIndisponibilaError(rR.error.message);
+  const oraSosire = rS.data ? (comanda.going_north ? rS.data.hour_from_chisinau : rS.data.hour_from_nord) : null;
+  const sosire = typeof oraSosire === 'string' && /^\d{1,2}:\d{2}$/.test(oraSosire) ? oraSosire.padStart(5, '0') : null;
   const bilete = rB.data;
   const ruta = rR.data;
   const bileteCuQr = await Promise.all(((bilete || []) as Omit<BiletPublic, 'qr_svg'>[]).map(async (b) => ({
@@ -98,6 +104,7 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
     from_name: comanda.from_name,
     to_name: comanda.to_name,
     departure_at: comanda.departure_at,
+    sosire,
     seats: comanda.seats,
     price_per_seat: Number(comanda.price_per_seat),
     total: Number(comanda.total),

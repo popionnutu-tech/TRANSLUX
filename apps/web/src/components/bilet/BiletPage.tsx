@@ -8,6 +8,9 @@ import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 // Pagina biletului (ION-197): /ro/bilet/<cod>, /ru/bilet/<cod>. Codul din link e secretul comenzii (128 de biți);
 // pagina nu se indexează, nu se cache-uiește, nu trimite referrer (next.config) și nu intră în page_views.
 // Conținutul vine de la panou; aici doar se arată. Fără anulare pe pagină (decizia lui Ion, 03.10: doar prin Telegram).
+// ION-236 (Ion, 05.10: «biletul trebuie să fie frumos, ca aici fix în fix»): biletul plătit e un card ca în aplicațiile
+// de bilete — pastila «BILET ONLINE», ora plecării și a sosirii mari, orașele, locul și prețul, linia de rupere, QR-ul,
+// pastila verde «Achitat online». Un card pe fiecare loc (fiecare cod QR = un loc).
 
 const RED = '#9B1B30';
 const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot';
@@ -18,6 +21,7 @@ const TXT = {
     expirat: 'Plata nu a fost finalizată', eroare: 'Plata nu a putut fi pornită', fara_bilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
     plataNu: 'Plata nu a trecut. Poți încerca din nou de pe site.',
     comanda: 'Comanda nr.', platitaPe: 'plătită pe', cursa: 'Cursa', urcare: 'Urcare', harta: 'pe hartă', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
+    biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: '✓ Achitat online', urcatPastila: '✓ Urcat',
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
     salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     telegramSub: 'Biletul e mereu la îndemână, iar în ziua cursei vezi pe hartă unde e autobuzul tău și când ajunge la tine.',
@@ -29,6 +33,7 @@ const TXT = {
     expirat: 'Оплата не завершена', eroare: 'Не удалось начать оплату', fara_bilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
     plataNu: 'Оплата не прошла. Можно попробовать ещё раз на сайте.',
     comanda: 'Заказ №', platitaPe: 'оплачен', cursa: 'Рейс', urcare: 'Посадка', harta: 'на карте', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
+    biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: '✓ Оплачено онлайн', urcatPastila: '✓ Посадка выполнена',
     arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
     salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
     telegramSub: 'Билет всегда под рукой, а в день поездки на карте видно, где ваш автобус и когда он подъедет.',
@@ -42,6 +47,18 @@ function dataOra(iso: string, locale: Locale): string {
     timeZone: 'Europe/Chisinau', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
+/** «05:40» în ora Chișinăului. */
+function oraHHMM(iso: string): string {
+  return new Date(iso).toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+/** Colțul din dreapta al cardului: «Azi» în ziua cursei, altfel «mar., 14.10». */
+function dataScurta(tripDate: string, locale: Locale, azi: string): string {
+  const aziChisinau = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  if (tripDate === aziChisinau) return azi;
+  const [y, m, d] = tripDate.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' });
+}
+const nfPret = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
 
 function eticheta(c: ComandaPublica, tx: (typeof TXT)[Locale]): { text: string; culoare: string } {
   switch (c.status) {
@@ -64,7 +81,8 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
     <div className="legal-page">
       <style>{`
         .bilet-qr svg { width: 100%; height: auto; display: block; }
-        @media print { .bilet-no-print { display: none !important; } .site-header { display: none !important; } body { background: #fff; } }
+        .bilet-card { break-inside: avoid; page-break-inside: avoid; }
+        @media print { .bilet-no-print { display: none !important; } .site-header { display: none !important; } body { background: #fff; } .bilet-card { box-shadow: none !important; border: 1px solid #ddd; } }
       `}</style>
       <header className="site-header bilet-no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px' }}>
         <a href={`/${locale}`} aria-label="TRANSLUX">
@@ -77,55 +95,92 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
       </header>
 
       <main className="legal-main" style={{ maxWidth: 520 }}>
-        <h1>{tx.titlu}</h1>
+        <h1 className="bilet-no-print">{tx.titlu}</h1>
         {c === 'indisponibil' ? (
           <p>{tx.indisponibil}</p>
         ) : (() => {
           const et = eticheta(c, tx);
           const valide = c.bilete.filter((b) => b.status === 'valid' || b.status === 'urcat');
           const nume = c.ruta ? (locale === 'ru' ? c.ruta.nume_ru : c.ruta.nume_ro) : null;
+          const platit = c.status === 'platita' && valide.length > 0;
           return (
             <>
-              <p style={{ fontWeight: 700, color: et.culoare, fontSize: 16 }}>{et.text}</p>
+              {!platit && <p style={{ fontWeight: 700, color: et.culoare, fontSize: 16 }}>{et.text}</p>}
               {plataNu && c.status === 'noua' && <p style={{ color: RED }}>{tx.plataNu}</p>}
 
-              <div style={{ display: 'grid', gap: 6, padding: 14, borderRadius: 14, background: '#fff', border: '1px solid #eee', fontSize: 14 }}>
-                <div><span style={{ color: '#888' }}>{tx.cursa}: </span><b>{c.from_name} → {c.to_name}</b>{nume && <span style={{ color: '#888' }}> ({nume})</span>}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: RED }}>{dataOra(c.departure_at, locale)}</div>
-                {c.punct_urcare && (
-                  <div><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? c.punct_urcare.nume_ru : c.punct_urcare.nume_ro}</b>{' '}
-                    <a href={linkHarta(c.punct_urcare)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a></div>
-                )}
-                <div><span style={{ color: '#888' }}>{tx.pasager}: </span>{c.passenger_name}</div>
-                <div><span style={{ color: '#888' }}>{tx.locuri}: </span>{c.seats} · <span style={{ color: '#888' }}>{tx.total}: </span><b>{Number(c.total).toFixed(2)} lei</b></div>
-                {/* ION-235 (cerințele maib): numărul comenzii și data plății pe pagina de după plată. */}
-                {c.numar && <div><span style={{ color: '#888' }}>{tx.comanda} </span><b>{c.numar}</b>{c.paid_at && <span style={{ color: '#888' }}> · {tx.platitaPe} {dataOra(c.paid_at, locale)}</span>}</div>}
-              </div>
+              {!platit && (
+                <div style={{ display: 'grid', gap: 6, padding: 14, borderRadius: 14, background: '#fff', border: '1px solid #eee', fontSize: 14 }}>
+                  <div><span style={{ color: '#888' }}>{tx.cursa}: </span><b>{c.from_name} → {c.to_name}</b>{nume && <span style={{ color: '#888' }}> ({nume})</span>}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: RED }}>{dataOra(c.departure_at, locale)}</div>
+                  {c.punct_urcare && (
+                    <div><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? c.punct_urcare.nume_ru : c.punct_urcare.nume_ro}</b>{' '}
+                      <a href={linkHarta(c.punct_urcare)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a></div>
+                  )}
+                  <div><span style={{ color: '#888' }}>{tx.pasager}: </span>{c.passenger_name}</div>
+                  <div><span style={{ color: '#888' }}>{tx.locuri}: </span>{c.seats} · <span style={{ color: '#888' }}>{tx.total}: </span><b>{Number(c.total).toFixed(2)} lei</b></div>
+                  {c.numar && <div><span style={{ color: '#888' }}>{tx.comanda} </span><b>{c.numar}</b>{c.paid_at && <span style={{ color: '#888' }}> · {tx.platitaPe} {dataOra(c.paid_at, locale)}</span>}</div>}
+                </div>
+              )}
 
-              {c.status === 'platita' && valide.length > 0 && (
-                <>
-                  <p style={{ fontSize: 13, color: '#555' }}>{tx.arata}</p>
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    {valide.map((b) => (
-                      <div key={b.nr} style={{ padding: 14, borderRadius: 14, background: '#fff', border: '1px solid #eee', textAlign: 'center', breakInside: 'avoid' }}>
-                        {/* Ion, 03.10: pe bilet, pe lângă cod, ruta și de unde încotro — o captură a unui singur cod spune tot. */}
-                        {nume && <div style={{ fontSize: 12, color: '#888' }}>{nume}</div>}
-                        <div style={{ fontSize: 16, fontWeight: 700, color: '#222' }}>{c.from_name} → {c.to_name}</div>
-                        <div style={{ fontSize: 13, color: RED, fontWeight: 600 }}>{dataOra(c.departure_at, locale)}</div>
-                        <div style={{ fontSize: 12, color: '#888' }}>{tx.loc} {b.nr}/{c.seats}{b.status === 'urcat' ? ` · ${tx.urcat}` : ''}</div>
-                        {/* SVG-ul vine de la panou, generat de biblioteca qrcode din codul biletului (nu din text de la utilizator). */}
-                        <div className="bilet-qr" style={{ maxWidth: 260, margin: '8px auto', opacity: b.status === 'urcat' ? 0.35 : 1 }} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />
-                        <code style={{ fontSize: 13, letterSpacing: 1 }}>{b.cod_qr}</code>
+              {platit && (
+                <div style={{ display: 'grid', gap: 18 }}>
+                  {valide.map((b) => {
+                    const urcat = b.status === 'urcat';
+                    return (
+                      <div key={b.nr} className="bilet-card" style={{ background: '#fff', borderRadius: 22, boxShadow: '0 6px 24px rgba(0,0,0,0.10)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#1a1a1a' }}>
+                        {/* Partea de sus: cursa */}
+                        <div style={{ padding: '18px 22px 14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ background: '#fbe9e3', color: '#d9532b', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 800, letterSpacing: 1.2 }}>{tx.biletOnline}</span>
+                            <span style={{ fontSize: 15, color: '#555', fontWeight: 600 }}>{dataScurta(c.trip_date, locale, tx.azi)}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginTop: 16 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                              <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5 }}>{oraHHMM(c.departure_at)}</span>
+                              <span style={{ fontSize: 20, fontWeight: 800, marginTop: 6 }}>{c.from_name}</span>
+                            </div>
+                            <div aria-hidden="true" style={{ flex: 1, borderTop: '3px dotted #c9c9c9', marginTop: 20, minWidth: 24 }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', textAlign: 'right', minWidth: 0 }}>
+                              <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5, color: c.sosire ? '#1a1a1a' : '#bbb' }}>{c.sosire ?? '—:—'}</span>
+                              <span style={{ fontSize: 20, fontWeight: 800, marginTop: 6 }}>{c.to_name}</span>
+                            </div>
+                          </div>
+                          {nume && <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>{nume}</div>}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 4, marginTop: 14, fontSize: 16 }}>
+                            <span style={{ color: '#666' }}>{tx.locul}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{b.nr}</span>
+                            <span style={{ color: '#666' }}>{tx.pret}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{nfPret.format(Number(c.price_per_seat))} MDL</span>
+                          </div>
+                          <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{c.passenger_name}</div>
+                        </div>
+                        {/* Linia de rupere */}
+                        <div style={{ position: 'relative', height: 0, borderTop: '2px dashed #d9d9d9', margin: '0 14px' }}>
+                          <span style={{ position: 'absolute', left: -26, top: -12, width: 24, height: 24, borderRadius: '50%', background: 'var(--bg, #f1efef)' }} />
+                          <span style={{ position: 'absolute', right: -26, top: -12, width: 24, height: 24, borderRadius: '50%', background: 'var(--bg, #f1efef)' }} />
+                        </div>
+                        {/* Partea de jos: QR + pastila */}
+                        <div style={{ padding: '18px 22px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                          {/* SVG-ul vine de la panou, generat de biblioteca qrcode din codul biletului (nu din text de la utilizator). */}
+                          <div className="bilet-qr" style={{ width: '100%', maxWidth: 230, opacity: urcat ? 0.3 : 1 }} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />
+                          <code style={{ fontSize: 13, letterSpacing: 2, color: '#444' }}>{b.cod_qr}</code>
+                          <span style={{ width: '100%', textAlign: 'center', borderRadius: 14, padding: '12px 16px', fontSize: 17, fontWeight: 800, background: urcat ? '#ececec' : '#e3f3e8', color: urcat ? '#666' : '#1b7f3b' }}>
+                            {urcat ? tx.urcatPastila : tx.achitat}
+                          </span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </>
+                    );
+                  })}
+                  <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>
+                  {c.punct_urcare && (
+                    <p style={{ fontSize: 13, color: '#555', margin: 0 }}><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? c.punct_urcare.nume_ru : c.punct_urcare.nume_ro}</b>{' '}
+                      <a href={linkHarta(c.punct_urcare)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a></p>
+                  )}
+                </div>
               )}
 
               {c.status === 'noua' && <AsteaptaPlata locale={locale} />}
 
               {c.status === 'platita' && (
-                <div className="bilet-no-print" style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+                <div className="bilet-no-print" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
                   {/* Momeala spre bot (Ion, 03.10): biletul la îndemână + unde e autobuzul în ziua cursei. */}
                   <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
                     display: 'block', padding: '14px 16px', borderRadius: 14, background: '#229ED9', color: '#fff', textDecoration: 'none',
@@ -138,7 +193,11 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                 </div>
               )}
 
-              <p style={{ fontSize: 12, color: '#888', marginTop: 16 }}>{tx.retur}</p>
+              {/* ION-235 (cerințele maib): numărul comenzii și data plății, sub bilet. */}
+              {platit && c.numar && (
+                <p style={{ fontSize: 12, color: '#888', marginTop: 12 }}>{tx.comanda} <b>{c.numar}</b>{c.paid_at && <> · {tx.platitaPe} {dataOra(c.paid_at, locale)}</>} · {tx.total}: <b>{Number(c.total).toFixed(2)} lei</b></p>
+              )}
+              <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>{tx.retur}</p>
             </>
           );
         })()}

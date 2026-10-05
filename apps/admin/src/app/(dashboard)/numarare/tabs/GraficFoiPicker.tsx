@@ -195,9 +195,7 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
                   <th style={{ ...th, width: '24%' }}>Șofer</th>
                   <th style={{ ...th, width: 92 }}>Mașina</th>
                   <th style={{ ...th, width: 90 }}>Nr. foaie</th>
-                  <th style={{ ...th, width: 84, background: '#c0392b', color: '#fff', textAlign: 'center' }}>
-                    Ziua cursei
-                  </th>
+                  <th style={{ ...th, width: 84 }}>Data foii</th>
                 </tr>
               </thead>
               <tbody>
@@ -220,19 +218,7 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
                       <td style={{ ...cell, background: bg, fontFamily: 'var(--font-mono)' }}>
                         {c.foaie_nr || <span style={{ color: '#f57c00' }}>fără nr.</span>}
                       </td>
-                      {/* Ziua cursei e singura informație care NU se vede în rândul de document
-                          după adăugare fără să cauți coloana DataFoaie — și e exact cea pe care
-                          casierul o confundă. Scoasă din gri, pe roșu, ca să nu fie de ratat. */}
-                      <td style={{
-                        ...cell,
-                        fontFamily: 'var(--font-mono)',
-                        background: taken ? '#e8b4b4' : '#c0392b',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: 12.5,
-                        letterSpacing: 0.3,
-                        textAlign: 'center',
-                      }}>{dmy(c.data_foaie)}</td>
+                      <td style={{ ...cell, background: bg, fontFamily: 'var(--font-mono)' }}>{dmy(c.data_foaie)}</td>
                     </tr>
                   );
                 })}
@@ -256,20 +242,8 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <button type="button" onClick={onClose} className="btn btn-sm" style={{ fontFamily }}>Anulează</button>
-            {/* Bifarea unui rând nu schimbă nimic vizibil în subsol, iar pasul următor e tocmai
-                aici: butonul trece pe roșu ca să arate unde se continuă. */}
-            <button type="button" onClick={handleAdd} className="btn btn-primary btn-sm"
-              disabled={checked.size === 0}
-              style={{
-                fontFamily,
-                ...(checked.size > 0 ? {
-                  background: '#c0392b',
-                  borderColor: '#c0392b',
-                  color: '#fff',
-                  fontWeight: 600,
-                  boxShadow: '0 0 0 3px rgba(192,57,43,0.18)',
-                } : null),
-              }}>
+            <button type="button" onClick={handleAdd} className="btn btn-primary btn-sm" style={{ fontFamily }}
+              disabled={checked.size === 0}>
               Adaugă {checked.size || ''}
             </button>
           </div>

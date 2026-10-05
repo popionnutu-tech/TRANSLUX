@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, lansat: lansatParam });
   }
 
-  const { data: cfg } = await sb.from('app_config').select('key, value').in('key', [ULTIMA, LANSAT]);
+  const { data: cfg } = await sb.from('app_config').select('key, value').in('key', [ULTIMA, LANSAT, LEGARE_ULTIMA, RAPORT_ULTIMA]);
   const val = (k: string) => (cfg ?? []).find(r => r.key === k)?.value?.trim() || null;
   const lansat = val(LANSAT);
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });

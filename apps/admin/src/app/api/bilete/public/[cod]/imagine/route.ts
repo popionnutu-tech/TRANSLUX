@@ -1,0 +1,28 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { BazaIndisponibilaError, biletPublic, plafonPublic } from '@/lib/bilete/public';
+import { imagineBilet } from '@/lib/bilete/bilet-imagine';
+
+// GET /api/bilete/public/<cod>/imagine?nr=N — imaginea PNG a biletului (cardul de pe site, ION-248), pentru chatul
+// Telegram. Același secret ca pagina biletului (codul din link), același plafon pe IP; doar comandă plătită, loc valabil.
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const ANTETE = { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ cod: string }> }) {
+  const { cod } = await params;
+  const nr = Number(req.nextUrl.searchParams.get('nr') ?? '1');
+  if (!/^[0-9a-f]{32}$/i.test(cod) || !Number.isInteger(nr) || nr < 1 || nr > 10) return NextResponse.json({ ok: false }, { status: 404, headers: ANTETE });
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null;
+  if (!(await plafonPublic(ip))) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
+  try {
+    const c = await biletPublic(cod);
+    const png = c ? await imagineBilet(c, nr) : null;
+    if (!png) return NextResponse.json({ ok: false }, { status: 404, headers: ANTETE });
+    return new NextResponse(new Uint8Array(png), { headers: { ...ANTETE, 'Content-Type': 'image/png' } });
+  } catch (e) {
+    if (e instanceof BazaIndisponibilaError) return NextResponse.json({ ok: false }, { status: 503, headers: { ...ANTETE, 'Retry-After': '5' } });
+    throw e;
+  }
+}

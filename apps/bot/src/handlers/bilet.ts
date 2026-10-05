@@ -1,5 +1,6 @@
 import { InlineKeyboard, InputFile } from 'grammy';
 import QRCode from 'qrcode';
+import { config } from '../config.js';
 import type { BotContext, Limba } from '../types.js';
 import { repoBileteClienti, STARI_ACTIVE, type BiletQr, type ComandaClient, type RepoBileteClienti } from '../services/bileteClienti.js';
 import { BUTOANE, buton, TELEFON_DISPECERAT } from './retur-texte.js';
@@ -80,12 +81,22 @@ export function legendaQr(c: Pick<ComandaClient, 'from_name' | 'to_name' | 'depa
     : `🎫 ${c.from_name} → ${c.to_name}\n${cand}\nLocul ${loc}${dinTotal}\nArată acest cod șoferului la urcare.`;
 }
 
+async function imagineDinPanou(cod: string, nr: number): Promise<Buffer | null> {
+  try {
+    const r = await fetch(`${config.adminBaseUrl}/api/bilete/public/${cod}/imagine?nr=${nr}`, { signal: AbortSignal.timeout(10_000) });
+    if (!r.ok || !(r.headers.get('content-type') ?? '').startsWith('image/png')) return null;
+    return Buffer.from(await r.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 async function trimiteQr(ctx: BotContext, c: ComandaClient, bilete: BiletQr[], lang: Limba): Promise<void> {
   const valide = bilete.filter((b) => b.status === 'valid');
   if (!valide.length) return;
-  const poze = await Promise.all(valide.map(async (b) => ({
-    b, png: await QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 2, width: 600 }),
-  })));
+  // ION-248 (Ion: «nu este biletul plin cum pe site»): imaginea întreagă a biletului, desenată de panou; dacă panoul nu
+  // răspunde — doar QR-ul, ca biletul să ajungă oricum în chat.
+  const poze = await Promise.all(valide.map(async (b) => ({ b, png: (await imagineDinPanou(c.cod, b.nr)) ?? await QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 2, width: 600 }) })));
   if (poze.length === 1) {
     await ctx.replyWithPhoto(new InputFile(poze[0].png, 'bilet.png'), { caption: legendaQr(c, poze[0].b, 1, lang) });
     return;

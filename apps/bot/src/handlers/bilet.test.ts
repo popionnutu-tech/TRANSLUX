@@ -85,6 +85,8 @@ describe('legarea și butonul «Returnează» (ION-244)', () => {
 });
 
 describe('ION-248: QR-ul în chat și butonul «🎫 Bilete»', () => {
+  // imaginea biletului vine de la panou; în teste panoul «nu răspunde» → botul trimite QR-ul simplu, fără rețea
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('x', { status: 503 })));
   const ME = 555;
   const COD = 'cd'.repeat(16);
   const comanda = (telegram_id: number | null, status = 'platita', seats = 1) => ({

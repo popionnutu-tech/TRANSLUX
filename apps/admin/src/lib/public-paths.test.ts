@@ -26,7 +26,8 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     // ION-194: NU există anulare publică de pe site — returnarea se cere prin bot și o decide AI-ul (Ion, 03.10).
     // ION-198: punctele de urcare ale unei localități (date publice).
     // ION-239: harta locurilor unei curse (ocupate/rezervate, fără date personale).
-    const subPrefix = ['/api/bilete/public/config', '/api/bilete/public/puncte', '/api/bilete/public/locuri', '/api/bilete/public/0123456789abcdef0123456789abcdef'];
+    // ION-248: imaginea PNG a biletului pentru chatul Telegram (același secret ca pagina).
+    const subPrefix = ['/api/bilete/public/config', '/api/bilete/public/puncte', '/api/bilete/public/locuri', '/api/bilete/public/0123456789abcdef0123456789abcdef', '/api/bilete/public/0123456789abcdef0123456789abcdef/imagine'];
     expect(isPublicPath('/api/bilete/public/0123456789abcdef0123456789abcdef/anulare')).toBe(true); // sub prefix, dar ruta nu există
     for (const p of subPrefix) expect(isPublicPath(p)).toBe(true);
     // ION-244: returnarea din bot — exacte, apărate de BILETE_BOT_API_KEY; nimic altceva sub /api/bilete/retur/.

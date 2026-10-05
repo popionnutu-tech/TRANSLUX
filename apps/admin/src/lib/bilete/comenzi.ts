@@ -1,7 +1,7 @@
 import 'server-only';
 import {
   buildReturAssignmentMap, buildTurAssignmentMap, calculeazaCurse, incarcaCurse, normalizeDriverPhone,
-  parseTimeLabel, PhoneError, type BileteComanda, type CursaCuPret,
+  parseTimeLabel, PhoneError, pretVandabilOnline, SUMA_MINIMA_PLATA_MDL, type BileteComanda, type CursaCuPret,
 } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } from '@/lib/maib/client';
@@ -191,6 +191,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   }
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
+  if (!pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
   if (!sofer) throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
 
   const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);

@@ -62,3 +62,14 @@ export function vanzareDeschisa(args: {
     : Date.parse(args.pornireRutaAt) - args.inchidereTurMin * 60_000;
   return Number.isFinite(limita) && args.nowMs < limita;
 }
+
+/**
+ * Suma minimă a unei plăți cu cardul: 10 MDL (Anexa 1E la contractul maib CU230731015814, «Suma minimă a unei
+ * Operațiuni»; ION-237). Biletul cu prețul pe loc sub minim nu se vinde online (se cumpără la șofer): un singur loc
+ * trebuie să poată fi plătit, altfel butonul ar promite ceva ce banca refuză.
+ */
+export const SUMA_MINIMA_PLATA_MDL = 10;
+
+export function pretVandabilOnline(pretPeLoc: number): boolean {
+  return Number.isFinite(pretPeLoc) && pretPeLoc >= SUMA_MINIMA_PLATA_MDL;
+}

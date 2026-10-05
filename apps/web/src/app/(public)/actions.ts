@@ -14,7 +14,7 @@ import { repereleCautarii, rutele } from '@/lib/cautare-cache';
 // în asistent și în API-ul biletelor online.
 import {
   buildTurAssignmentMap, buildReturAssignmentMap, calculeazaCurse, pickRate,
-  resolveOfferForDate, resolveTariffRates, parseTimeLabel, type DateCurse,
+  resolveOfferForDate, resolveTariffRates, parseTimeLabel, pretVandabilOnline, type DateCurse,
 } from '@translux/db';
 
 const todayChisinau = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -466,7 +466,8 @@ export async function searchTrips(
       price: displayPrice,
       originalPrice: displayOriginal,
       ...bilet,
-      sale_open: displayPrice > 0 && vanzareDeschisaPeSite({
+      // ION-237: sub 10 MDL pe loc nu se vinde online (minimul unei plăți în contractul maib).
+      sale_open: pretVandabilOnline(displayPrice) && vanzareDeschisaPeSite({
         cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
         pornireRuta: pornireRuta(trip.routeId, trip.goingNorth), soferPeZi: graficPeZi, nowMs,
       }),

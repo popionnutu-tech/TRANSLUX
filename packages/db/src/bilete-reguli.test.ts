@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculeazaDepartureAt, vanzareDeschisa, ziuaUrmatoare } from './bilete-reguli';
+import { calculeazaDepartureAt, pretVandabilOnline, vanzareDeschisa, ziuaUrmatoare } from './bilete-reguli';
 
 describe('calculeazaDepartureAt', () => {
   it('ora opririi în aceeași zi, cu offset-ul verii (+03:00)', () => {
@@ -46,5 +46,15 @@ describe('vanzareDeschisa', () => {
 
   it('ora nevalidă → închis', () => {
     expect(vanzareDeschisa({ goingNorth: false, departureAt: 'x', pornireRutaAt: 'x', nowMs: 0, inchidereTurMin: 0, inchidereReturMin: 120 })).toBe(false);
+  });
+});
+
+describe('pretVandabilOnline (minimul maib 10 MDL, ION-237)', () => {
+  it('10 lei și peste → da; sub 10, 0 sau nenumeric → nu', () => {
+    expect(pretVandabilOnline(10)).toBe(true);
+    expect(pretVandabilOnline(283)).toBe(true);
+    expect(pretVandabilOnline(9.99)).toBe(false);
+    expect(pretVandabilOnline(0)).toBe(false);
+    expect(pretVandabilOnline(Number.NaN)).toBe(false);
   });
 });

@@ -86,6 +86,11 @@ export async function handleBiletStart(ctx: BotContext, cod: string, repo: RepoB
     if (aratReturnare(legare, comanda.status)) kb.row().text(buton(BUTOANE.returneaza, lang), `retur:cere:${comanda.cod}`);
     const textBilet = legare === 'alt_cont' ? `${m.text}\n\n${T_ALT_CONT[lang]}` : m.text;
     await ctx.reply(textBilet, { reply_markup: kb });
+    // Butonul de meniu (≡) implicit al botului e «Sarcini» (mini app-ul personalului, setat în BotFather; API-ul nu-l
+    // poate schimba la nivel de bot). Clientul (nu personal, nu șofer) primește în chatul lui butonul simplu de comenzi.
+    if (!ctx.dbUser && repo.esteSofer && !(await repo.esteSofer(fromId))) {
+      await ctx.api.setChatMenuButton({ chat_id: ctx.chat.id, menu_button: { type: 'commands' } }).catch((e) => console.warn('[bilet/start] meniu:', e instanceof Error ? e.message : e));
+    }
   } catch (e) {
     // Ramura clientului nu are voie să rupă botul personalului: jurnal + răspuns scurt.
     console.error('[bilet/start]', e instanceof Error ? e.message : e);

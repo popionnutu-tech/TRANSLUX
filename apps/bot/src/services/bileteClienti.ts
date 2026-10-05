@@ -38,6 +38,8 @@ export interface RepoBileteClienti {
   comenziLegate(telegramId: number, nowMs: number): Promise<ComandaClient[]>;
   /** Telefonul șoferului cursei din graficul zilei (tur/retur cu override), sau null. */
   telefonSofer(c: Pick<ComandaClient, 'trip_date' | 'crm_route_id' | 'going_north'>): Promise<string | null>;
+  /** Contul e al unui șofer activ (are butonul lui de meniu «🎫 Билеты», nu-l atingem). */
+  esteSofer?(telegramId: number): Promise<boolean>;
 }
 
 export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteClienti {
@@ -48,6 +50,10 @@ export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteCl
   }
 
   return {
+    async esteSofer(telegramId) {
+      const { count } = await db().from('drivers').select('id', { count: 'exact', head: true }).eq('telegram_id', telegramId).eq('active', true);
+      return (count ?? 0) > 0;
+    },
     comandaDupaCod,
 
     async leagaComanda(cod, telegramId) {

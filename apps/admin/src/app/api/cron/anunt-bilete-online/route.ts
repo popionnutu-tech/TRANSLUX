@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { sendTelegram, sendTelegramText } from '@/lib/telegram-notify';
+import { alertAdmins, sendTelegram, sendTelegramText } from '@/lib/telegram-notify';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -34,6 +34,47 @@ const TEXT_LEGARE = [
   'Если бот ответил, что номер не найден — скажите диспетчеру.',
 ].join('\n');
 const BUTON_LEGARE = { inline_keyboard: [[{ text: '🔗 Привязать мой Telegram', url: LINK_LEGARE }]] };
+// Ion, 05.10: «dă-mi mie zilnic raport câți șoferi din cei care stabil apar în grafic sunt legați sau nu».
+// Stabil = cel puțin 3 zile cu cursă în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
+// (privatul lui Ion) o dată pe zi, cât timp mai e cineva nelegat.
+const RAPORT_ULTIMA = 'raport_legare_sofer_ultima';
+const ZILE_GRAFIC = 14;
+const PRAG_STABIL = 3;
+
+async function raportLegare(sb: ReturnType<typeof getSupabase>, azi: string): Promise<{ text: string; stabili: number; legati: number } | null> {
+  const de = new Date(`${azi}T00:00:00Z`);
+  de.setUTCDate(de.getUTCDate() - ZILE_GRAFIC);
+  const deLa = de.toISOString().slice(0, 10);
+  const [{ data: da }, { data: dr }] = await Promise.all([
+    sb.from('daily_assignments').select('assignment_date, driver_id, driver_id_retur, crm_route_id, retur_route_id').gte('assignment_date', deLa).lte('assignment_date', azi),
+    sb.from('drivers').select('id, full_name, telegram_id').eq('active', true),
+  ]);
+  if (!da || !dr) return null;
+  const zile = new Map<string, Set<string>>();
+  for (const r of da as { assignment_date: string; driver_id: string | null; driver_id_retur: string | null; crm_route_id: number | null; retur_route_id: number | null }[]) {
+    for (const [d, ruta] of [[r.driver_id, r.crm_route_id], [r.driver_id_retur, r.retur_route_id]] as const) {
+      if (!d || ruta == null) continue;
+      if (!zile.has(d)) zile.set(d, new Set());
+      zile.get(d)!.add(r.assignment_date);
+    }
+  }
+  const soferi = (dr as { id: string; full_name: string; telegram_id: number | null }[])
+    .map(x => ({ ...x, zile: zile.get(x.id)?.size ?? 0 }))
+    .filter(x => x.zile >= PRAG_STABIL)
+    .sort((a, b) => b.zile - a.zile || a.full_name.localeCompare(b.full_name, 'ro'));
+  const legati = soferi.filter(x => x.telegram_id != null);
+  const nelegati = soferi.filter(x => x.telegram_id == null);
+  const [y, m, d] = azi.split('-');
+  const text = [
+    `🔗 <b>Legare Telegram șoferi — ${d}.${m}.${y}</b>`,
+    `În grafic stabil (≥${PRAG_STABIL} zile din ${ZILE_GRAFIC}): <b>${soferi.length}</b> · legați: <b>${legati.length}</b> · nelegați: <b>${nelegati.length}</b>`,
+    '',
+    nelegati.length ? '<b>Nelegați</b> (zile în grafic):' : '✅ Toți șoferii stabili sunt legați.',
+    ...nelegati.map(x => `• ${x.full_name} — ${x.zile}`),
+    legati.length ? `\n<b>Legați:</b> ${legati.map(x => x.full_name).join(', ')}` : '',
+  ].filter(l => l !== '').join('\n');
+  return { text, stabili: soferi.length, legati: legati.length };
+}
 
 const TEXT_ANUNT = [
   '📣 <b>Важное объявление</b>',
@@ -76,7 +117,7 @@ export async function GET(req: NextRequest) {
   const val = (k: string) => (cfg ?? []).find(r => r.key === k)?.value?.trim() || null;
   const lansat = val(LANSAT);
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });
-  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, pana_la: LEGARE_PANA_LA } });
+  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
   const force = q.get('force') === '1';
   const chatId = await graficGroupChatId();
   if (!chatId) return NextResponse.json({ error: 'Grupa Mejgorod nu e legată (/lega_grafic).' }, { status: 500 });
@@ -103,5 +144,17 @@ export async function GET(req: NextRequest) {
   // câți șoferi interurbani activi sunt legați (doar în răspuns, nu în grupă)
   const { data: dr } = await sb.from('drivers').select('telegram_id').eq('active', true).eq('is_lde', false);
   out.soferi = { legati: (dr ?? []).filter(r => r.telegram_id != null).length, activi: (dr ?? []).length };
+
+  // Raportul zilnic pentru Ion: șoferii stabili din grafic, legați / nelegați (o dată pe zi, cât mai e cineva nelegat)
+  if (val(RAPORT_ULTIMA) === azi && !force) out.raport = 'azi';
+  else {
+    const r = await raportLegare(sb, azi);
+    if (!r) out.raport = 'fara_date';
+    else {
+      const ok = await alertAdmins(r.text);
+      if (ok) await sb.from('app_config').upsert({ key: RAPORT_ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
+      out.raport = ok ? { trimis: true, stabili: r.stabili, legati: r.legati } : 'netrimis';
+    }
+  }
   return NextResponse.json({ ok: true, ...out });
 }

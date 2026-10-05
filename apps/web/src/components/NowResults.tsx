@@ -453,8 +453,15 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
   return <div ref={box} className="now-map" role="application" aria-label="Harta" />;
 }
 
-export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
+export function NowResults({ from, to, fromValue, toValue, locale, onClose, incorporat = false, plecareMea }: {
   from: string; to: string; fromValue: string; toValue: string; locale: Locale; onClose: () => void;
+  /**
+   * ION-249 (Ion, 05.10: «harta vizualizare similar ca la site»): fila «Harta» din mini app-ul Telegram e chiar
+   * fereastra aceasta, încorporată — pe tot ecranul deasupra barei de jos, fără fundal întunecat și fără închidere.
+   */
+  incorporat?: boolean;
+  /** Ora cursei din biletul clientului («15:35»): cursa aceasta e aleasă la prima încărcare. */
+  plecareMea?: string;
 }) {
   const tx = TXT[locale];
   const [data, setData] = useState<NowData | null>(null);
@@ -499,6 +506,15 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   const trips = data?.trips ?? [];
   const sel = selected < trips.length ? selected : 0;
 
+  // Cursa din bilet se alege o singură dată, când vin primele date (apoi omul alege ce vrea).
+  const alesMea = useRef(false);
+  useEffect(() => {
+    if (alesMea.current || !plecareMea || !data) return;
+    alesMea.current = true;
+    const k = data.trips.findIndex((t) => t.departure === plecareMea);
+    if (k > 0) setSelected(k);
+  }, [data, plecareMea]);
+
   // Mașina apăsată pe hartă poate sta sub marginea listei (pe telefon lista are 30% din ecran,
   // se văd primele două): lista se derulează singură la cardul ei (Ion, 27.09, ION-100).
   const panel = useRef<HTMLDivElement>(null);
@@ -524,7 +540,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   );
 
   return (
-    <div className="now-overlay" onClick={onClose}>
+    <div className={`now-overlay${incorporat ? ' now-incorporat' : ''}`} onClick={incorporat ? undefined : onClose}>
       <div className={`now-box${showMap ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
         {showMap && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} places={data?.places ?? NO_PLACES} selected={sel} onPick={setSelected} locale={locale} />}
 
@@ -568,6 +584,9 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 
       <style>{`
 .now-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+.now-overlay.now-incorporat{z-index:40;background:none;padding:0;top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 70px)}
+.now-incorporat .now-box{max-width:none;height:100%;border-radius:0;box-shadow:none}
+.now-incorporat .now-close{display:none}
 .now-box{position:relative;width:100%;max-width:1000px;height:min(700px,calc(100vh - 48px));background:#F3F1EF;border-radius:28px;box-shadow:0 30px 80px rgba(40,10,18,.35);overflow:hidden}
 .now-box.no-map{height:auto;max-width:460px;background:#fff;padding-top:84px}
 .now-map{position:absolute;inset:0;isolation:isolate;z-index:0;background:#F3F1EF}

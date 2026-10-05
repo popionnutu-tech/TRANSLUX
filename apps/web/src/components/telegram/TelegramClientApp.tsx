@@ -15,8 +15,7 @@ import { LINE_TEL, LINE_TEXT } from '@/lib/phone';
 import { fereastraHartii, oraChisinau } from '@/lib/telegram-client';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat } from '@/components/bilet/BiletCard';
 import { HomePage } from '@/components/home-page';
-import type { HomePopular } from '@/lib/home-props';
-import { HartaAutobuzului } from './HartaAutobuzului';
+import { NowResults } from '@/components/NowResults';
 import { EcranCompletTelegram } from '@/components/bilet/BiletActiuni';
 import { citesteInitData } from './telegram-webapp';
 
@@ -59,7 +58,7 @@ const TXT = {
 
 type Ecran = { tip: 'pornire' } | { tip: 'fara_telegram' } | { tip: 'incarca' } | { tip: 'gata'; stare: StareBileteleMele };
 
-export function TelegramClientApp({ locale, options, popular = [] }: { locale: Locale; options: HomeOptions; popular?: HomePopular[] }) {
+export function TelegramClientApp({ locale, options }: { locale: Locale; options: HomeOptions }) {
   const tx = TXT[locale];
   const [initData, setInitData] = useState('');
   const [ecran, setEcran] = useState<Ecran>({ tip: 'pornire' });
@@ -125,14 +124,13 @@ ${BILET_CARD_CSS}
           <div className="tg-col">
             <Antet titlu={`📍 ${tx.hartaTitlu}`} />
             <HartaMea ecran={ecran} acum={acum} locale={locale} onCauta={() => alege('cauta')} />
-            <Ajutor locale={locale} />
           </div>
         </div>
       )}
 
       {cautaVazuta && (
         <div className="tg-cauta" style={{ display: fila === 'cauta' ? 'block' : 'none' }}>
-          <HomePage locale={locale} options={options} popular={popular} telegram={{ contact }} />
+          <HomePage locale={locale} options={options} telegram={{ contact }} />
         </div>
       )}
 
@@ -182,28 +180,17 @@ function HartaMea({ ecran, acum, locale, onCauta }: { ecran: Ecran; acum: number
   const tx = TXT[locale];
   if (ecran.tip === 'pornire' || ecran.tip === 'incarca') return <p className="tg-nota" aria-live="polite">{tx.incarca}</p>;
   if (ecran.tip === 'fara_telegram' || !ecran.stare.ok) return <p className="tg-nota">{tx.faraTelegram}</p>;
-  const azi = ecran.stare.bilete.filter((c) => c.status === 'platita' && fereastraHartii(c, acum) !== 'alta_zi');
-  if (azi.length === 0) {
-    return (
-      <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
-        <span>{tx.hartaGol}</span>
-        <button type="button" className="tg-buton" onClick={onCauta}>{tx.spreCautare}</button>
-      </div>
-    );
+  // Cursa de azi încă neîncheiată (cea mai apropiată): fereastra «Acum» de pe site, cu cursa din bilet aleasă.
+  const azi = ecran.stare.bilete.filter((c) => c.status === 'platita' && ['curand', 'activa'].includes(fereastraHartii(c, acum)));
+  if (azi.length > 0) {
+    const c = azi[0];
+    return <NowResults key={c.cod} from={c.from_name} to={c.to_name} fromValue={c.from_name} toValue={c.to_name} locale={locale}
+      onClose={() => {}} incorporat plecareMea={oraChisinau(c.departure_at)} />;
   }
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
-      {azi.map((c) => {
-        const f = fereastraHartii(c, acum);
-        return (
-          <div key={c.cod} style={{ display: 'grid', gap: 10 }}>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>{oraChisinau(c.departure_at)} · {c.from_name} → {c.to_name}</div>
-            {f === 'activa' && <HartaAutobuzului from={c.from_name} to={c.to_name} plecare={oraChisinau(c.departure_at)} locale={locale} />}
-            {f === 'curand' && <p className="tg-nota">📍 {tx.hartaMaiTarziu}</p>}
-            {f === 'incheiata' && <p className="tg-nota">{tx.hartaIncheiata}</p>}
-          </div>
-        );
-      })}
+    <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
+      <span>{tx.hartaGol}</span>
+      <button type="button" className="tg-buton" onClick={onCauta}>{tx.spreCautare}</button>
     </div>
   );
 }

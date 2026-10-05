@@ -209,7 +209,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 
       <div style={{ position: 'relative', zIndex: 1 }}>
 
-        <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
+        {!telegram && <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
           {/* Legăturile interne prin next/link (ION-203): navigare pe client, cu prefetch; tel: și externele rămân <a>. */}
           <Link href={homePath(locale)} aria-label="TRANSLUX">
             <span className="site-logo" style={{
@@ -244,7 +244,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               transition: 'all 0.15s ease',
             }}>RU</Link>
           </div>}
-        </header>
+        </header>}
 
         <section style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -355,8 +355,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             </form>
           </div>
 
-          {/* Popular routes card */}
-          <div className="routes-card" style={{
+          {/* Popular routes card — nu în mini app-ul Telegram (Ion: «doar motorul de căutare, nimic altul») */}
+          {!telegram && <div className="routes-card" style={{
             width: '100%', maxWidth: 720, marginTop: 28,
             background: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
@@ -403,7 +403,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 );
               })}
             </div>
-          </div>
+          </div>}
 
           {/* Toate paginile de direcție (ION-153): orar și preț pe fiecare, pentru oameni și pentru Google. */}
           {routeLinks.length > 0 && (

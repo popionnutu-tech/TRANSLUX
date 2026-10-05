@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { alertAdmins, sendTelegram, sendTelegramText } from '@/lib/telegram-notify';
+import { alertAdmins, pinTelegramMessage, sendTelegram, sendTelegramText } from '@/lib/telegram-notify';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -40,6 +40,16 @@ const BUTON_LEGARE = { inline_keyboard: [
   [{ text: '🔗 Привязать мой Telegram', url: LINK_LEGARE }],
   [{ text: '🎫 Мои билеты', url: LINK_BILETE }],
 ] };
+// Ion, 05.10: «butonul pentru șofer să fie și în Mejgorod, și în bot» → un mesaj FIXAT în grupă cu ambele butoane
+// (legare + «Мои билеты»), trimis o dată cu ?fixeaza=1; id-ul în app_config ca să se poată șterge/înlocui.
+const FIXAT_ID = 'mesaj_fixat_bilete_sofer_id';
+const TEXT_FIXAT = [
+  '🎫 <b>Мои билеты — для водителей</b>',
+  '',
+  '1. Один раз: «Привязать мой Telegram» → «Отправить мой номер».',
+  '2. Каждый день: кнопка «Мои билеты» → список пассажиров с онлайн-билетами на ваш рейс.',
+  '3. При посадке: «Сканировать билет» → навести камеру. Зелёный и оранжевый — садится, красный — нет.',
+].join('\n');
 // Ion, 05.10: «dă-mi mie zilnic raport câți șoferi din cei care stabil apar în grafic sunt legați sau nu».
 // Stabil = cel puțin 3 zile cu cursă în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
 // (privatul lui Ion) o dată pe zi, cât timp mai e cineva nelegat.
@@ -113,6 +123,24 @@ export async function GET(req: NextRequest) {
   const sb = getSupabase();
   const azi = chisinauTodayIso();
   const acum = new Date().toISOString();
+
+  if (q.get('fixeaza') === '1') {
+    const chatId = await graficGroupChatId();
+    if (!chatId) return NextResponse.json({ error: 'Grupa Mejgorod nu e legată (/lega_grafic).' }, { status: 500 });
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) return NextResponse.json({ error: 'fără TELEGRAM_BOT_TOKEN' }, { status: 500 });
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: TEXT_FIXAT, parse_mode: 'HTML', reply_markup: BUTON_LEGARE }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const j = (await resp.json().catch(() => null)) as { ok?: boolean; result?: { message_id?: number }; description?: string } | null;
+    const mid = j?.ok ? j.result?.message_id ?? null : null;
+    if (!mid) return NextResponse.json({ error: j?.description ?? 'Telegram nu a primit mesajul' }, { status: 502 });
+    const fixat = await pinTelegramMessage(chatId, mid);
+    await sb.from('app_config').upsert({ key: FIXAT_ID, value: String(mid), updated_at: acum }, { onConflict: 'key' });
+    return NextResponse.json({ ok: true, message_id: mid, fixat });
+  }
 
   const lansatParam = q.get('lansat');
   if (lansatParam) {

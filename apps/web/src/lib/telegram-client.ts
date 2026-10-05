@@ -72,8 +72,8 @@ export function fereastraHartii(c: CursaBilet, acumMs: number): FereastraHartii 
 }
 
 /**
- * Telegram pune initData și în fragmentul URL-ului (#tgWebAppData=…), chiar dacă telegram-web-app.js nu s-a încărcat.
- * Rezerva aceasta e folosită doar când `Telegram.WebApp.initData` lipsește.
+ * Telegram pune initData în fragmentul URL-ului (#tgWebAppData=…). Site-ul nu încarcă telegram-web-app.js (CSP), deci
+ * aceasta e singura sursă a identității în mini app-ul clientului; serverul panoului o verifică.
  */
 export function initDataDinFragment(hash: string): string {
   const valoare = new URLSearchParams(hash.replace(/^#/, '')).get('tgWebAppData');

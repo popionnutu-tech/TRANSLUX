@@ -4,13 +4,12 @@
 // încotro, ziua — aceeași căutare ca pe prima pagină (searchTrips), apoi aceleași rezultate cu «Cumpără bilet online»
 // (RouteResults + BuyTicketForm). Numele și telefonul vin precompletate din ultima comandă a contului.
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { searchTrips, type TripResult } from '@/app/(public)/actions';
 import type { HomeOptions } from '@/lib/home-props';
 import { t, type Locale } from '@/lib/i18n';
 import type { ContactPrecompletat } from '@/lib/telegram-client';
-import { legaButonInapoi, type TelegramWebApp } from './telegram-webapp';
 
 const RouteResults = dynamic(() => import('@/components/ui/route-results').then((m) => m.RouteResults), { ssr: false });
 const MiniCalendar = dynamic(() => import('@/components/ui/mini-calendar').then((m) => m.MiniCalendar), { ssr: false });
@@ -38,8 +37,8 @@ function peste(zile: number): Date {
 
 interface Rezultate { trips: TripResult[]; from: string; to: string; fromRo: string; toRo: string }
 
-export function CautaBiletNou({ locale, options, contact, webApp }: {
-  locale: Locale; options: HomeOptions; contact: ContactPrecompletat | null; webApp: TelegramWebApp | null;
+export function CautaBiletNou({ locale, options, contact }: {
+  locale: Locale; options: HomeOptions; contact: ContactPrecompletat | null;
 }) {
   const i = t(locale);
   const tx = TXT[locale];
@@ -50,9 +49,6 @@ export function CautaBiletNou({ locale, options, contact, webApp }: {
   const [cauta, setCauta] = useState(false);
   const [eroare, setEroare] = useState(false);
   const [rezultate, setRezultate] = useState<Rezultate | null>(null);
-
-  // Rezultatele deschise: butonul «înapoi» al Telegram le închide (în loc să închidă mini app-ul).
-  useEffect(() => (rezultate ? legaButonInapoi(webApp, () => setRezultate(null)) : undefined), [rezultate, webApp]);
 
   const directia = () => {
     const from = fromRef.current?.value ?? '';

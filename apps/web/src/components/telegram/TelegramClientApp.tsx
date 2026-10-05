@@ -14,7 +14,8 @@ import { fereastraHartii, oraChisinau } from '@/lib/telegram-client';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat } from '@/components/bilet/BiletCard';
 import { CautaBiletNou } from './CautaBiletNou';
 import { HartaAutobuzului } from './HartaAutobuzului';
-import { asteaptaWebApp, citesteInitData, pornesteEcranComplet, type TelegramWebApp } from './telegram-webapp';
+import { EcranCompletTelegram } from '@/components/bilet/BiletActiuni';
+import { citesteInitData } from './telegram-webapp';
 
 const RED = '#9B1B30';
 const FUNDAL = '#f1efef';
@@ -49,7 +50,6 @@ type Ecran = { tip: 'pornire' } | { tip: 'fara_telegram' } | { tip: 'incarca' } 
 
 export function TelegramClientApp({ locale, options }: { locale: Locale; options: HomeOptions }) {
   const tx = TXT[locale];
-  const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);
   const [initData, setInitData] = useState('');
   const [ecran, setEcran] = useState<Ecran>({ tip: 'pornire' });
   const [acum, setAcum] = useState(() => Date.now());
@@ -60,20 +60,12 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
     setEcran({ tip: 'gata', stare });
   }, []);
 
-  // Pornirea: scriptul Telegram, ecranul complet, apoi biletele (doar cu initData).
+  // Biletele se cer doar cu initData din fragmentul pus de Telegram; ecranul complet îl face EcranCompletTelegram.
   useEffect(() => {
-    let viu = true;
-    void (async () => {
-      const w = await asteaptaWebApp();
-      if (!viu) return;
-      if (w) pornesteEcranComplet(w, FUNDAL);
-      const date = citesteInitData(w);
-      setWebApp(w);
-      setInitData(date);
-      if (!date) { setEcran({ tip: 'fara_telegram' }); return; }
-      void incarca(date);
-    })();
-    return () => { viu = false; };
+    const date = citesteInitData();
+    setInitData(date);
+    if (!date) { setEcran({ tip: 'fara_telegram' }); return; }
+    void incarca(date);
   }, [incarca]);
 
   useEffect(() => {
@@ -93,6 +85,7 @@ ${BILET_CARD_CSS}
 .tg-buton{min-height:48px;padding:0 16px;border-radius:12px;border:none;background:${RED};color:#fff;font:700 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .tg-nota{margin:0;padding:12px 14px;border-radius:14px;background:#fff;color:#555;font-size:14px;line-height:1.45}
 `}</style>
+      <EcranCompletTelegram />
       <div className="tg-col">
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span aria-label="TRANSLUX" style={{
@@ -105,7 +98,7 @@ ${BILET_CARD_CSS}
 
         <BileteleMele ecran={ecran} acum={acum} locale={locale} onReincearca={() => initData && void incarca(initData)} />
 
-        <CautaBiletNou locale={locale} options={options} contact={contact} webApp={webApp} />
+        <CautaBiletNou locale={locale} options={options} contact={contact} />
 
         <p style={{ margin: 0, fontSize: 13, color: '#777', textAlign: 'center' }}>
           {tx.ajutor} <a href={LINE_TEL} style={{ color: RED, fontWeight: 700 }}>{LINE_TEXT}</a>

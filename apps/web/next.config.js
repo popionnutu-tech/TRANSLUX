@@ -36,14 +36,15 @@ const nextConfig = {
       },
       {
         // Mini app-ul clientului din Telegram (ION-249). Vine DUPĂ regula generală: la aceeași cheie câștigă ultima.
-        // CSP-ul de aici = cel general + scriptul telegram-web-app.js și încadrarea în Telegram Web (web.telegram.org
-        // deschide mini app-urile într-un iframe; aplicațiile mobile și desktop folosesc un webview și nu au nevoie).
+        // CSP-ul de aici = cel general, cu O SINGURĂ relaxare: încadrarea în Telegram Web (web.telegram.org deschide
+        // mini app-urile într-un iframe; aplicațiile mobile și desktop folosesc un webview și nu au nevoie). Fără
+        // scripturi străine: telegram-web-app.js nu se încarcă (ecranul complet = EcranCompletTelegram, ION-248).
         // frame-ancestors are întâietate față de X-Frame-Options în browserele de azi.
         source: '/:locale(ro|ru)/telegram',
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https://*.supabase.co https://central-hub-md.vercel.app; frame-ancestors 'self' https://web.telegram.org",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https://*.supabase.co https://central-hub-md.vercel.app; frame-ancestors 'self' https://web.telegram.org",
           },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'no-referrer' },

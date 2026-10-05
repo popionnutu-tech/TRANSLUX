@@ -8,6 +8,11 @@ export const config = {
   // ION-241: mini app-ul biletelor online pentru șofer (servit de central-hub, pachetul B din ION-190).
   // Botul doar îl deschide, cu buton inline `web_app` în chat privat; URL-ul se schimbă prin env la nevoie.
   miniAppBileteUrl: process.env.MINI_APP_BILETE_URL || 'https://central-hub-md.vercel.app/mini-app/bilete',
+  // ION-244: returnarea biletului online din bot. Banii și grila stau în panou (central-hub); botul doar cheamă
+  // `/api/bilete/retur/*` cu o cheie SEPARATĂ de cea a site-ului (corectura 8 din plan). Fără cheie → botul
+  // trimite clientul la telefonul dispeceratului, nu încearcă nimic.
+  adminBaseUrl: (process.env.ADMIN_BASE_URL || 'https://central-hub-md.vercel.app').replace(/\/+$/, ''),
+  bileteBotApiKey: process.env.BILETE_BOT_API_KEY || '',
   timezone: 'Europe/Chisinau',
   rateLimitPerMinute: 30,
   photoCaptureTimeoutMs: 2 * 60 * 1000, // 2 minutes

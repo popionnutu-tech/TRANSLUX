@@ -5,6 +5,7 @@ import { POINT_LABELS } from '@translux/db';
 import { codDinPayload, handleBiletStart } from './bilet.js';
 import { esteStartSofer, handleSoferStart } from './sofer.js';
 import { esteStartBileteAzi, handleBileteAzi } from './bilete-azi.js';
+import { handleStartClient } from './retur.js';
 
 export async function handleStart(ctx: BotContext) {
   const telegramId = ctx.from?.id;
@@ -63,6 +64,9 @@ export async function handleStart(ctx: BotContext) {
     await showMainMenu(ctx);
     return;
   }
+
+  // Clientul de bilete online fără cont de personal (ION-244): biletele legate active, cu «Returnează».
+  if (await handleStartClient(ctx)) return;
 
   await ctx.reply('Acces restricționat. Solicită un link de invitație de la Administrator.');
 }

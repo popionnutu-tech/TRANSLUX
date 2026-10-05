@@ -9,6 +9,7 @@ import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
 import { handleSoferContact } from './handlers/sofer.js';
 import { handleBileteAzi } from './handlers/bilete-azi.js';
+import { creeazaHandlerCallbackRetur, creeazaHandlerMesajClient } from './handlers/retur.js';
 
 import { handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
@@ -320,6 +321,10 @@ export function createBot(): Bot<BotContext> {
     await ctx.editMessageText(`${base}\n\n${verdict}`).catch(() => {});
   });
 
+  // ION-244: returnarea biletului online. Callback-urile merg pentru oricine (panoul verifică legarea comenzii de
+  // contul care apasă); telegram_id-ul se ia din callbackQuery.from, nu din callback_data.
+  bot.callbackQuery(/^retur:/, creeazaHandlerCallbackRetur());
+
   // Menu callback handlers
   bot.callbackQuery('menu:report', async (ctx) => {
     await ctx.answerCallbackQuery();
@@ -386,6 +391,10 @@ export function createBot(): Bot<BotContext> {
     const raspuns = await raspundeTraseu(q, r?.from?.id === ctx.me.id ? (r.text ?? r.caption) : undefined);
     await ctx.reply(raspuns, { reply_to_message_id: ctx.message.message_id } as any).catch((err) => console.error('camioane-traseu reply:', err?.message ?? err));
   });
+
+  // ION-244: clienții de bilete online (fără cont de personal, cu bilet legat activ) și cele 4 cifre așteptate, ÎNAINTEA
+  // răspunsului implicit «Acces restricționat». Personalul și cei fără bilete trec mai departe neatinși.
+  bot.on('message', creeazaHandlerMesajClient());
 
   // Fallback for unauthorized users
   bot.on('message', async (ctx) => {

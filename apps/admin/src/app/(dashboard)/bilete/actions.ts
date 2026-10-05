@@ -144,11 +144,16 @@ export async function verificaRefundComanda(id: string): Promise<Rezultat> {
   }
 }
 
-/** ION-244: dezleagă contul Telegram de comandă (link ajuns la altcineva): atomic, cu verificarea cifrelor și contorul. */
+/**
+ * ION-244: dezleagă contul Telegram de comandă (link ajuns la altcineva): contul și verificarea cifrelor dispar, ofertele
+ * deschise se închid (și baza refuză folosirea lor, migr. 503). Contorul greșelilor NU se resetează — un link furat nu
+ * primește încă 5 încercări după fiecare dezlegare.
+ */
 export async function dezleagaTelegram(id: string): Promise<Rezultat> {
   requireRole(await verifySession(), 'ADMIN');
-  const { error } = await getSupabase().from('bilete_comenzi')
-    .update({ telegram_id: null, telegram_verificat_pentru: null, retur_cifre_gresite: 0 }).eq('id', id);
+  const db = getSupabase();
+  const { error } = await db.from('bilete_comenzi').update({ telegram_id: null, telegram_verificat_pentru: null }).eq('id', id);
+  if (!error) await db.from('bilete_retur_oferte').update({ inchisa_la: new Date().toISOString() }).eq('comanda_id', id).is('folosita_la', null).is('inchisa_la', null);
   revalidatePath('/bilete');
   if (error) return { ok: false, eroare: error.message };
   return { ok: true, mesaj: 'contul Telegram a fost dezlegat; următorul care deschide linkul biletului îl leagă din nou' };

@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { ComandaError } from './comenzi';
 import { anuleazaSiReturneaza } from './refund';
 import { trimiteEmailAnulare } from './email';
-import { calculeazaOferta, cifreCorecte, CIFRE_INCERCARI_MAX, stareRetur, type StareRetur } from './retur-bot-reguli';
+import { calculeazaOferta, CIFRE_INCERCARI_MAX, stareRetur, type StareRetur } from './retur-bot-reguli';
 
 // Returnarea biletului din botul Telegram (ION-244). Botul cheamă rutele /api/bilete/retur/* cu BILETE_BOT_API_KEY;
 // aici e toată logica: suma vine din grilă (cod), oferta se ține în bază cu expirare, confirmarea o consumă atomic și
@@ -41,8 +41,8 @@ export type RaspunsOferta =
   | { ok: false; cod: 'cifre_gresite'; ramase: number }
   | { ok: false; cod: 'nelegat' | 'stare' | 'inexistent' | 'indisponibil' };
 
-async function alerta(comandaId: string | null, detalii: string): Promise<boolean> {
-  const { error } = await getSupabase().from('bilete_alerte').insert({ comanda_id: comandaId, tip: 'retur_cerere', detalii: detalii.slice(0, 1000) });
+async function alerta(comandaId: string | null, telegramId: number, detalii: string): Promise<boolean> {
+  const { error } = await getSupabase().from('bilete_alerte').insert({ comanda_id: comandaId, telegram_id: telegramId, tip: 'retur_cerere', detalii: detalii.slice(0, 1000) });
   if (error) { console.error('[retur-bot] alerta:', error.message); return false; }
   return true;
 }
@@ -64,26 +64,35 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', c.id).eq('status', 'urcat');
   if ((urcate ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
 
-  // Cele 4 cifre: o dată pe CONT (17′); 5 greșeli → blocat + dispecerul.
+  // Cele 4 cifre: o dată pe CONT (17′); 5 greșeli → blocat + dispecerul. Verificarea și contorul stau în bază,
+  // cu comanda blocată (migr. 503): cererile paralele nu ocolesc plafonul.
   if (Number(c.telegram_verificat_pentru) !== telegramId) {
     if ((c.retur_cifre_gresite ?? 0) >= CIFRE_INCERCARI_MAX) return { ok: true, tip: 'dispecer', motiv: 'blocat' };
     if (cifreRaw == null || String(cifreRaw).trim() === '') return { ok: true, tip: 'cere_cifre' };
-    if (!cifreCorecte(c.phone, String(cifreRaw))) {
-      const gresite = (c.retur_cifre_gresite ?? 0) + 1;
-      await db.from('bilete_comenzi').update({ retur_cifre_gresite: gresite }).eq('id', c.id);
-      if (gresite >= CIFRE_INCERCARI_MAX) {
-        await alerta(c.id, `returnare din bot blocată: ${gresite} încercări greșite ale cifrelor telefonului (telegram ${telegramId})`);
+    const { data: r, error: eC } = await db.rpc('bilete_retur_cifre', { p_comanda: c.id, p_telegram: telegramId, p_cifre: String(cifreRaw).slice(0, 20), p_max: CIFRE_INCERCARI_MAX });
+    if (eC) {
+      if (/OFERTA_NELEGAT/.test(eC.message)) return { ok: false, cod: 'nelegat' };
+      throw new Error(`bilete_retur_cifre: ${eC.message}`);
+    }
+    const v = r as { ok: boolean; ramase: number; blocat: boolean };
+    if (!v.ok) {
+      if (v.blocat) {
+        if ((c.retur_cifre_gresite ?? 0) < CIFRE_INCERCARI_MAX) { // alerta o singură dată, la blocare
+          await alerta(c.id, telegramId, `returnare din bot blocată: ${CIFRE_INCERCARI_MAX} încercări greșite ale cifrelor telefonului (telegram ${telegramId})`);
+        }
         return { ok: true, tip: 'dispecer', motiv: 'blocat' };
       }
-      return { ok: false, cod: 'cifre_gresite', ramase: CIFRE_INCERCARI_MAX - gresite };
+      return { ok: false, cod: 'cifre_gresite', ramase: v.ramase };
     }
-    await db.from('bilete_comenzi').update({ telegram_verificat_pentru: telegramId, retur_cifre_gresite: 0 }).eq('id', c.id).eq('telegram_id', telegramId);
   }
 
   const calc = calculeazaOferta(c.departure_at, Number(c.total), Date.now());
   if (calc.tip === 'fara_bani') return { ok: true, tip: 'fara_bani', motiv: calc.motiv };
   if (calc.tip === 'dispecer') {
-    await alerta(c.id, `returnare din bot sub minimul băncii (10 MDL) — decide dispecerul (telegram ${telegramId})`);
+    // o alertă deschisă pe comandă ajunge; cererile repetate nu mai inundă dispecerul
+    const { count: deschise } = await db.from('bilete_alerte').select('id', { count: 'exact', head: true })
+      .eq('comanda_id', c.id).eq('tip', 'retur_cerere').is('rezolvat_la', null);
+    if (!deschise) await alerta(c.id, telegramId, `returnare din bot sub minimul băncii (10 MDL) — decide dispecerul (telegram ${telegramId})`);
     return { ok: true, tip: 'dispecer', motiv: 'sub_10' };
   }
   const { data: o, error: eO } = await db.rpc('bilete_retur_oferta_noua', {
@@ -93,6 +102,8 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   if (eO) {
     if (/OFERTA_NELEGAT/.test(eO.message)) return { ok: false, cod: 'nelegat' };
     if (/OFERTA_STARE/.test(eO.message)) return { ok: false, cod: 'stare' };
+    if (/OFERTA_NEVERIFICAT/.test(eO.message)) return { ok: true, tip: 'cere_cifre' };
+    if (/OFERTA_EXPIRARE_GRESITA/.test(eO.message)) return { ok: true, tip: 'fara_bani', motiv: 'sub_4h' };
     throw new Error(`bilete_retur_oferta_noua: ${eO.message}`);
   }
   const of = o as { id: string; expira_la: string };
@@ -148,7 +159,7 @@ export async function confirmaOferta(telegramIdRaw: unknown, ofertaIdRaw: unknow
     rezultat = r.refund === 'creat' ? 'creat' : r.refund === 'necunoscut' ? 'necunoscut' : 'fara_plata';
     if (r.refund !== 'fara_plata') await trimiteEmailAnulare(of.comanda_id, Number(of.suma)).catch(() => 'esuat');
   } catch (e) {
-    rezultat = e instanceof ComandaError ? `refuz:${e.cod}` : 'eroare';
+    rezultat = e instanceof ComandaError ? (e.cod === 'inchis' && /scanat/.test(e.message) ? 'refuz:urcat' : `refuz:${e.cod}`) : 'eroare';
     if (!(e instanceof ComandaError)) console.error('[retur-bot] confirmare:', e instanceof Error ? e.message : e);
   } finally {
     await db.from('bilete_retur_oferte').update({ rezultat }).eq('id', of.id);
@@ -161,7 +172,7 @@ export async function escaladeaza(telegramIdRaw: unknown, codRaw: unknown, textR
   if (!telegramId) return false;
   // Plafon: cel mult 5 cereri în 10 minute pe cont (alertele ajung la oameni).
   const { count } = await getSupabase().from('bilete_alerte').select('id', { count: 'exact', head: true })
-    .eq('tip', 'retur_cerere').ilike('detalii', `%telegram ${telegramId}%`).gt('moment', new Date(Date.now() - 10 * 60_000).toISOString());
+    .eq('tip', 'retur_cerere').eq('telegram_id', telegramId).gt('moment', new Date(Date.now() - 10 * 60_000).toISOString());
   if ((count ?? 0) >= 5) return true; // deja primite; nu mai deranjăm dispecerul
   const motiv = motivRaw === 'vina_noastra' ? 'vina_noastra' : 'altceva';
   const text = String(textRaw ?? '').slice(0, 1000);
@@ -171,5 +182,5 @@ export async function escaladeaza(telegramIdRaw: unknown, codRaw: unknown, textR
     const { data } = await getSupabase().from('bilete_comenzi').select('id').eq('cod', cod).eq('telegram_id', telegramId).maybeSingle();
     comandaId = data?.id ?? null;
   }
-  return alerta(comandaId, `cerere din botul Telegram (${motiv === 'vina_noastra' ? 'clientul spune că e vina noastră' : 'altă cerere'}, telegram ${telegramId}): ${text}`);
+  return alerta(comandaId, telegramId, `cerere din botul Telegram (${motiv === 'vina_noastra' ? 'clientul spune că e vina noastră' : 'altă cerere'}, telegram ${telegramId}): ${text}`);
 }

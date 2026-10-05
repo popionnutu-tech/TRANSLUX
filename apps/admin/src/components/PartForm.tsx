@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useId } from 'react';
-import { savePart, loadPartLookups, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
+import { savePart, verificaDuplicate, loadPartLookups, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
 import { searchParts, searchNewParts } from '@/app/(dashboard)/piese/search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -61,6 +61,10 @@ export default function PartForm({
   });
   const [codes, setCodes] = useState<string[]>(initialCodes.length ? initialCodes : ['']);
   const [error, setError] = useState('');
+  // Piesele existente care se bat cap în cap cu ce se scrie acum (migr. 372). Nu blochează salvarea —
+  // două piese cu același articol sunt uneori legitime. Dar omul trebuie să vadă ce există ÎNAINTE de a
+  // crea încă una: azi catalogul are 164 de grupuri cu articol repetat.
+  const [dupes, setDupes] = useState<{ id: number; nume: string; articol: string; cod_bare: string; motiv: string; stoc: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const set = (k: keyof PartFormValues, v: unknown) => setF((s) => ({ ...s, [k]: v }));
 
@@ -121,6 +125,24 @@ export default function PartForm({
     } catch (e: any) { setError(e?.message || 'Nu am putut copia piesa'); }
     finally { setCopyBusy(false); }
   }
+
+  // Verificarea pleacă DUPĂ ce omul se oprește din tastat, nu la fiecare literă: un cod de bare scanat
+  // intră caracter cu caracter, iar fără pauză ar face 13 căutări pentru un singur bip.
+  const cheieDupes = `${(f.article_code ?? '').trim()}|${filledCodes.join(',')}`;
+  useEffect(() => {
+    const art = (f.article_code ?? '').trim();
+    if (!art && !filledCodes.length) { setDupes([]); return; }
+    let viu = true;
+    const t = setTimeout(() => {
+      verificaDuplicate(art, filledCodes, initial?.id)
+        .then((d) => { if (viu) setDupes(d as typeof dupes); })
+        // Verificarea e un ajutor, nu o condiție: dacă pică, salvarea merge mai departe, iar indicele
+        // unic de pe codul de bare rămâne ultima apărare.
+        .catch(() => { if (viu) setDupes([]); });
+    }, 400);
+    return () => { viu = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cheieDupes, initial?.id]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -276,6 +298,34 @@ export default function PartForm({
       {children}
       <button type="submit" className="btn btn-primary" disabled={loading || !!disabled}>{loading ? 'Se salvează…' : (initial?.id ? 'Salvează' : 'Adaugă piesa')}</button>
       {onCancel && <button type="button" className="btn btn-outline" onClick={onCancel} disabled={loading}>Anulează</button>}
+      {dupes.length > 0 && (
+        <div className="alert warn" style={{ flexBasis: '100%', marginTop: 6 }}>
+          <strong>
+            {dupes.some((d) => d.motiv === 'cod de bare')
+              ? 'Codul de bare e deja folosit de altă piesă'
+              : 'Mai există piese cu același articol'}
+          </strong>
+          <table style={{ marginTop: 6 }}>
+            <thead><tr><th>Piesa</th><th style={{ width: 120 }}>Articol</th><th style={{ width: 140 }}>Cod de bare</th><th style={{ width: 80 }}>Stoc</th></tr></thead>
+            <tbody>
+              {dupes.map((d) => (
+                <tr key={`${d.id}-${d.motiv}`}>
+                  <td>{d.nume} <span className="muted">#{d.id}</span></td>
+                  <td>{d.articol || <span className="muted">—</span>}</td>
+                  <td>{d.cod_bare || <span className="muted">—</span>}</td>
+                  <td>{Number(d.stoc).toLocaleString('ro-RO')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted" style={{ fontSize: 11, margin: '6px 0 0' }}>
+            {dupes.some((d) => d.motiv === 'cod de bare')
+              ? 'Codul de bare e unic în catalog — salvarea va fi refuzată până îl schimbi sau îl scoți de la piesa de mai sus.'
+              : 'Nu e neapărat o greșeală: același articol poate avea ambalaje sau calități diferite. Dar dacă e aceeași piesă, folosește-o pe cea existentă în loc să creezi încă una.'}
+          </p>
+        </div>
+      )}
+
       {error && <p style={{ color: 'var(--danger)', fontSize: 14, margin: '4px 0 0', flexBasis: '100%' }}>{error}</p>}
     </form>
   );

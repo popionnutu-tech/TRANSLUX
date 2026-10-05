@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
 import { createPart, updatePart, setPartLocation,
-  listManufacturers, listCarModels, addManufacturer, addCarModel } from '@/lib/piese-nomenclator';
+  listManufacturers, listCarModels, addManufacturer, addCarModel, cautaDuplicate } from '@/lib/piese-nomenclator';
 import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
 import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
 import { auditWrite, changedFields, type AuditFields } from '@/lib/audit';
@@ -151,4 +151,11 @@ export async function copyPartFields(sourceId: number): Promise<Record<string, u
     model: p.model, unit: p.unit, is_for_sale: p.is_for_sale,
     manufacturer: '', article_code: '', oem_code: '', barcodes: [],
   };
+}
+
+// Verificarea „există deja o piesă cu codul ăsta?" — se cheamă din formular în timp ce omul tastează.
+// Aceleași roluri ca scrierea: cine n-are voie să creeze piese n-are de ce să scaneze catalogul după coduri.
+export async function verificaDuplicate(articol: string, coduri: string[], excludeId?: number) {
+  await requirePartWrite();
+  return cautaDuplicate(articol, coduri, excludeId);
 }

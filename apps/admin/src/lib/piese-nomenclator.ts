@@ -358,3 +358,23 @@ export async function lookupSnapshot(
   if (error || !data) return null;
   return data as any;
 }
+
+// Piesele care se bat cap în cap cu una pe care omul tocmai o scrie (migr. 372).
+//
+// NU interzice nimic. Codul de bare e apărat de un indice unic, dar eroarea de la salvare e tehnică —
+// omul nu află CARE piesă îl folosește deja. Articolul nu e unic deloc, iar uneori se repetă legitim
+// (ambalaje sau calități diferite). Decizia rămâne a omului; noi doar îi arătăm ce există.
+export type Duplicat = {
+  id: number; nume: string; articol: string; cod_bare: string;
+  motiv: 'cod de bare' | 'articol'; stoc: number;
+};
+export async function cautaDuplicate(articol: string, coduri: string[], excludeId?: number): Promise<Duplicat[]> {
+  const art = (articol || '').trim();
+  const cods = (coduri || []).map((c) => String(c || '').trim()).filter(Boolean);
+  if (!art && !cods.length) return [];
+  const { data, error } = await getSupabase().rpc('piese_cauta_duplicate', {
+    p_articol: art || null, p_coduri: cods, p_exclude: excludeId ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return (data as Duplicat[]) || [];
+}

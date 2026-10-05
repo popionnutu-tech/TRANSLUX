@@ -5,7 +5,7 @@ import { BiletPage } from '@/components/bilet/BiletPage';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Biletul tău', robots: { index: false, follow: false } };
 
-export default async function Page({ params, searchParams }: { params: Promise<{ cod: string }>; searchParams: Promise<{ plata?: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ cod: string }>; searchParams: Promise<{ plata?: string; doar?: string }> }) {
   const [{ cod }, sp] = await Promise.all([params, searchParams]);
-  return <BiletPage cod={cod} locale="ro" plataNu={sp.plata === 'nu'} />;
+  return <BiletPage cod={cod} locale="ro" plataNu={sp.plata === 'nu'} doar={sp.doar === '1'} />;
 }

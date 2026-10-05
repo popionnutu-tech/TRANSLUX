@@ -79,7 +79,9 @@ function eticheta(c: ComandaPublica, tx: (typeof TXT)[Locale]): { text: string; 
   }
 }
 
-export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale: Locale; plataNu: boolean }) {
+// ION-248 (Ion, 05.10: «când se deschide biletul actual trebuie să fie doar biletul — fără toată informația adițională»):
+// `?doar=1` (butonul «🎫 Bilete» din bot) arată doar cardul (cardurile) cu QR — fără antet, cardul Telegram, retur, firmă.
+export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: string; locale: Locale; plataNu: boolean; doar?: boolean }) {
   const tx = TXT[locale];
   const c = await biletPublic(cod);
   if (c === null) notFound();
@@ -91,7 +93,7 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
         .bilet-card { break-inside: avoid; page-break-inside: avoid; }
         @media print { .bilet-no-print { display: none !important; } .site-header { display: none !important; } body { background: #fff; } .bilet-card { box-shadow: none !important; border: 1px solid #ddd; } }
       `}</style>
-      <header className="site-header bilet-no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px' }}>
+      {!doar && <header className="site-header bilet-no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px' }}>
         <a href={`/${locale}`} aria-label="TRANSLUX">
           <span style={{
             display: 'inline-block', height: 30, aspectRatio: '1318/192', backgroundColor: RED,
@@ -99,10 +101,10 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
             maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
           }} />
         </a>
-      </header>
+      </header>}
 
       <main className="legal-main" style={{ maxWidth: 520 }}>
-        <h1 className="bilet-no-print">{tx.titlu}</h1>
+        {!doar && <h1 className="bilet-no-print">{tx.titlu}</h1>}
         {c === 'indisponibil' ? (
           <p>{tx.indisponibil}</p>
         ) : (() => {
@@ -187,8 +189,8 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                       </div>
                     );
                   })}
-                  <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>
-                  {c.punct_urcare && (
+                  {!doar && <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>}
+                  {!doar && c.punct_urcare && (
                     <p style={{ fontSize: 13, color: '#555', margin: 0 }}><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? c.punct_urcare.nume_ru : c.punct_urcare.nume_ro}</b>{' '}
                       <a href={linkHarta(c.punct_urcare)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a></p>
                   )}
@@ -197,7 +199,7 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
 
               {c.status === 'noua' && <AsteaptaPlata locale={locale} />}
 
-              {c.status === 'platita' && (
+              {!doar && c.status === 'platita' && (
                 <div className="bilet-no-print" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
                   {/* Toți spre Telegram (Ion, 05.10, ION-238): cardul e pasul principal de după plată; butonul rămâne cel de până acum. */}
                   <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: '#eef6fb', border: '2px solid #1b7fb0' }}>
@@ -216,16 +218,16 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
               )}
 
               {/* ION-235 (cerințele maib): numărul comenzii și data plății, sub bilet. */}
-              {platit && c.numar && (
+              {!doar && platit && c.numar && (
                 <p style={{ fontSize: 12, color: '#888', marginTop: 12 }}>{tx.comanda} <b>{c.numar}</b>{c.paid_at && <> · {tx.platitaPe} {dataOra(c.paid_at, locale)}</>} · {tx.total}: <b>{Number(c.total).toFixed(2)} lei</b></p>
               )}
-              <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>{tx.retur}</p>
+              {!doar && <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>{tx.retur}</p>}
             </>
           );
         })()}
-        <p className="bilet-no-print"><a href={`/${locale}`} style={{ color: RED }}>{tx.acasa}</a></p>
+        {!doar && <p className="bilet-no-print"><a href={`/${locale}`} style={{ color: RED }}>{tx.acasa}</a></p>}
         {/* ION-235: datele firmei și logourile plăților (cerințele maib). */}
-        <div style={{ marginTop: 16 }}><FirmaSiPlati locale={locale} /></div>
+        {!doar && <div style={{ marginTop: 16 }}><FirmaSiPlati locale={locale} /></div>}
       </main>
     </div>
   );

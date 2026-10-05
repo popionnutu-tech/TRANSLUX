@@ -1,6 +1,7 @@
-import { InlineKeyboard } from 'grammy';
+import { InlineKeyboard, InputFile } from 'grammy';
+import QRCode from 'qrcode';
 import type { BotContext, Limba } from '../types.js';
-import { repoBileteClienti, STARI_ACTIVE, type RepoBileteClienti } from '../services/bileteClienti.js';
+import { repoBileteClienti, STARI_ACTIVE, type BiletQr, type ComandaClient, type RepoBileteClienti } from '../services/bileteClienti.js';
 import { BUTOANE, buton, TELEFON_DISPECERAT } from './retur-texte.js';
 
 // Clientul care vine din pagina biletului (ION-199, pasul E0): `/start bilet_<cod>`.
@@ -67,6 +68,33 @@ const T_ALT_CONT = {
   ru: `Билет привязан к другому аккаунту Telegram; возврат может запросить этот аккаунт или диспетчер: ${TELEFON_DISPECERAT}.`,
 };
 
+/** Legenda imaginii QR a unui loc (pur, testat). */
+export function legendaQr(c: Pick<ComandaClient, 'from_name' | 'to_name' | 'departure_at'>, b: Pick<BiletQr, 'nr' | 'loc_nr'>, total: number, lang: Limba): string {
+  const cand = new Date(c.departure_at).toLocaleString(lang === 'ru' ? 'ru-RU' : 'ro-RO', {
+    timeZone: 'Europe/Chisinau', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+  const loc = b.loc_nr ?? b.nr;
+  const dinTotal = total > 1 ? (lang === 'ru' ? ` (билет ${b.nr} из ${total})` : ` (biletul ${b.nr} din ${total})`) : '';
+  return lang === 'ru'
+    ? `🎫 ${c.from_name} → ${c.to_name}\n${cand}\nМесто ${loc}${dinTotal}\nПокажите этот код водителю при посадке.`
+    : `🎫 ${c.from_name} → ${c.to_name}\n${cand}\nLocul ${loc}${dinTotal}\nArată acest cod șoferului la urcare.`;
+}
+
+async function trimiteQr(ctx: BotContext, c: ComandaClient, bilete: BiletQr[], lang: Limba): Promise<void> {
+  const valide = bilete.filter((b) => b.status === 'valid');
+  if (!valide.length) return;
+  const poze = await Promise.all(valide.map(async (b) => ({
+    b, png: await QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 2, width: 600 }),
+  })));
+  if (poze.length === 1) {
+    await ctx.replyWithPhoto(new InputFile(poze[0].png, 'bilet.png'), { caption: legendaQr(c, poze[0].b, 1, lang) });
+    return;
+  }
+  await ctx.replyWithMediaGroup(poze.slice(0, 10).map(({ b, png }) => ({
+    type: 'photo' as const, media: new InputFile(png, `bilet-${b.nr}.png`), caption: legendaQr(c, b, poze.length, lang),
+  })));
+}
+
 export async function handleBiletStart(ctx: BotContext, cod: string, repo: RepoBileteClienti = repoBileteClienti): Promise<void> {
   if (ctx.chat?.type !== 'private') return;
   const fromId = ctx.from?.id;
@@ -86,13 +114,19 @@ export async function handleBiletStart(ctx: BotContext, cod: string, repo: RepoB
     if (aratReturnare(legare, comanda.status)) kb.row().text(buton(BUTOANE.returneaza, lang), `retur:cere:${comanda.cod}`);
     const textBilet = legare === 'alt_cont' ? `${m.text}\n\n${T_ALT_CONT[lang]}` : m.text;
     await ctx.reply(textBilet, { reply_markup: kb });
+    // ION-248 (Ion, 05.10: «biletul trebuie QR codul odată cumpărat să apară și în telegram chat»): pe comanda proprie,
+    // plătită, botul trimite în chat imaginea QR a fiecărui loc. Biletul altui cont — fără QR (codul e al pasagerului).
+    if (aratReturnare(legare, comanda.status) && repo.bileteQr) {
+      await trimiteQr(ctx, comanda, await repo.bileteQr(comanda.cod), lang).catch((e) => console.warn('[bilet/start] qr:', e instanceof Error ? e.message : e));
+    }
     // Butonul de meniu (≡) implicit al botului e «Sarcini» (mini app-ul personalului, setat în BotFather; API-ul nu-l
     // poate schimba la nivel de bot). Clientul (nu personal, nu șofer) primește în chatul lui «🎫 Biletul meu», care
     // deschide pagina biletului cu QR (Ion, 05.10: «eu ca client nu am buton biletul meu»); biletul altui cont — comenzi.
     if (!ctx.dbUser && repo.esteSofer && !(await repo.esteSofer(fromId))) {
+      // ION-248: «🎫 Bilete», și deschide doar biletul (`?doar=1`: cardul cu QR, fără restul paginii).
       const meniu = legare === 'alt_cont'
         ? { type: 'commands' as const }
-        : { type: 'web_app' as const, text: lang === 'ru' ? '🎫 Мой билет' : '🎫 Biletul meu', web_app: { url: m.url } };
+        : { type: 'web_app' as const, text: lang === 'ru' ? '🎫 Билеты' : '🎫 Bilete', web_app: { url: `${m.url}?doar=1` } };
       await ctx.api.setChatMenuButton({ chat_id: ctx.chat.id, menu_button: meniu }).catch((e) => console.warn('[bilet/start] meniu:', e instanceof Error ? e.message : e));
     }
   } catch (e) {

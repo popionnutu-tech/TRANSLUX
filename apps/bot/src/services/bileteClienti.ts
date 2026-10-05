@@ -40,7 +40,11 @@ export interface RepoBileteClienti {
   telefonSofer(c: Pick<ComandaClient, 'trip_date' | 'crm_route_id' | 'going_north'>): Promise<string | null>;
   /** Contul e al unui șofer activ (are butonul lui de meniu «🎫 Билеты», nu-l atingem). */
   esteSofer?(telegramId: number): Promise<boolean>;
+  /** ION-248: biletele (locurile) valabile ale comenzii, cu codul QR, în ordinea locurilor. */
+  bileteQr?(cod: string): Promise<BiletQr[]>;
 }
+
+export interface BiletQr { nr: number; loc_nr: number | null; cod_qr: string; status: string }
 
 export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteClienti {
   async function comandaDupaCod(cod: string): Promise<ComandaClient | null> {
@@ -50,6 +54,12 @@ export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteCl
   }
 
   return {
+    async bileteQr(cod) {
+      const { data, error } = await db().from('bilete').select('nr, loc_nr, cod_qr, status, bilete_comenzi!inner(cod)')
+        .eq('bilete_comenzi.cod', cod).in('status', ['valid', 'urcat']).order('nr');
+      if (error) throw new Error(`bilete: ${error.message}`);
+      return (data ?? []).map((b) => ({ nr: b.nr, loc_nr: b.loc_nr, cod_qr: b.cod_qr, status: b.status })) as BiletQr[];
+    },
     async esteSofer(telegramId) {
       const { count } = await db().from('drivers').select('id', { count: 'exact', head: true }).eq('telegram_id', telegramId).eq('active', true);
       return (count ?? 0) > 0;

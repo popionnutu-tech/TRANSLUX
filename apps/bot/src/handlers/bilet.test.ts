@@ -83,3 +83,69 @@ describe('legarea și butonul «Returnează» (ION-244)', () => {
     expect(replies[0].butoane).toEqual([`https://translux.md/ro/bilet/${COD}`]);
   });
 });
+
+describe('ION-248: QR-ul în chat și butonul «🎫 Bilete»', () => {
+  const ME = 555;
+  const COD = 'cd'.repeat(16);
+  const comanda = (telegram_id: number | null, status = 'platita', seats = 1) => ({
+    cod: COD, status, lang: 'ro', from_name: 'Briceni', to_name: 'Chișinău', departure_at: '2026-10-14T05:45:00+03:00', seats,
+    telegram_id, trip_date: '2026-10-14', crm_route_id: 8, going_north: false,
+  });
+  const bilet = (nr: number, status = 'valid') => ({ nr, loc_nr: 10 + nr, cod_qr: `TLX-${nr}-ABCDEFGH`, status });
+
+  async function porneste(o: { legat: number | null; status?: string; bilete?: ReturnType<typeof bilet>[]; personal?: boolean; sofer?: boolean }) {
+    const { handleBiletStart } = await import('./bilet.js');
+    const poze: { caption?: string }[] = [];
+    const grup: { caption?: string }[][] = [];
+    const meniu: unknown[] = [];
+    const repo = {
+      comandaDupaCod: vi.fn(async () => comanda(o.legat, o.status ?? 'platita', o.bilete?.length ?? 1)),
+      leagaComanda: vi.fn(async () => o.legat),
+      comenziLegate: vi.fn(async () => []),
+      telefonSofer: vi.fn(async () => null),
+      esteSofer: vi.fn(async () => !!o.sofer),
+      bileteQr: vi.fn(async () => o.bilete ?? [bilet(1)]),
+    };
+    const ctx = {
+      chat: { type: 'private', id: ME }, from: { id: ME }, dbUser: o.personal ? { id: 'u1' } : undefined,
+      reply: vi.fn(async () => {}),
+      replyWithPhoto: vi.fn(async (_f: unknown, extra?: { caption?: string }) => { poze.push(extra ?? {}); }),
+      replyWithMediaGroup: vi.fn(async (m: { caption?: string }[]) => { grup.push(m); }),
+      api: { setChatMenuButton: vi.fn(async (a: unknown) => { meniu.push(a); }) },
+    };
+    await handleBiletStart(ctx as never, COD, repo);
+    return { poze, grup, meniu };
+  }
+
+  it('biletul propriu plătit, 1 loc → o poză QR cu cursa și locul', async () => {
+    const { poze } = await porneste({ legat: ME });
+    expect(poze).toHaveLength(1);
+    expect(poze[0].caption).toMatch(/Briceni → Chișinău/);
+    expect(poze[0].caption).toMatch(/Locul 11/);
+    expect(poze[0].caption).toMatch(/Arată acest cod șoferului/);
+  });
+  it('3 locuri → album cu 3 QR-uri, «biletul 2 din 3»', async () => {
+    const { grup, poze } = await porneste({ legat: ME, bilete: [bilet(1), bilet(2), bilet(3)] });
+    expect(poze).toHaveLength(0);
+    expect(grup[0]).toHaveLength(3);
+    expect(grup[0][1].caption).toMatch(/biletul 2 din 3/);
+  });
+  it('biletul altui cont → fără QR, meniul de comenzi', async () => {
+    const { poze, grup, meniu } = await porneste({ legat: 999 });
+    expect(poze).toHaveLength(0);
+    expect(grup).toHaveLength(0);
+    expect(meniu[0]).toMatchObject({ menu_button: { type: 'commands' } });
+  });
+  it('comanda anulată / locurile deja urcate → fără QR', async () => {
+    expect((await porneste({ legat: ME, status: 'anulata' })).poze).toHaveLength(0);
+    expect((await porneste({ legat: ME, bilete: [bilet(1, 'urcat')] })).poze).toHaveLength(0);
+  });
+  it('butonul de meniu al clientului: «🎫 Bilete», doar biletul (?doar=1)', async () => {
+    const { meniu } = await porneste({ legat: ME });
+    expect(meniu[0]).toMatchObject({ chat_id: ME, menu_button: { type: 'web_app', text: '🎫 Bilete', web_app: { url: `https://translux.md/ro/bilet/${COD}?doar=1` } } });
+  });
+  it('personalul și șoferii își păstrează butonul de meniu', async () => {
+    expect((await porneste({ legat: ME, personal: true })).meniu).toHaveLength(0);
+    expect((await porneste({ legat: ME, sofer: true })).meniu).toHaveLength(0);
+  });
+});

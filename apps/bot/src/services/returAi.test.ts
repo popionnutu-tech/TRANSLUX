@@ -9,6 +9,12 @@ describe('parseazaClasificare (validare strictă)', () => {
     expect(parseazaClasificare(' {"intentie":"retur","lang":"ro"}\n')).toEqual({ intentie: 'retur', lang: 'ro' });
     expect(parseazaClasificare('{"lang":"ru","intentie":"intarziat"}')).toEqual({ intentie: 'intarziat', lang: 'ru' });
   });
+  it('JSON între ```json … ``` (cum răspunde des Haiku) → clasificarea; alt text în ambalaj → null', () => {
+    expect(parseazaClasificare('```json\n{"intentie":"retur","lang":"ro"}\n```')).toEqual({ intentie: 'retur', lang: 'ro' });
+    expect(parseazaClasificare('```\n{"intentie":"plangere","lang":"ru"}\n```')).toEqual({ intentie: 'plangere', lang: 'ru' });
+    expect(parseazaClasificare('```json\n{"intentie":"retur","lang":"ro","suma":500}\n```')).toBeNull();
+    expect(parseazaClasificare('Iată: ```json\n{"intentie":"retur","lang":"ro"}\n```')).toBeNull();
+  });
   it('orice altceva → null: intenție/limbă necunoscută, chei în plus, text în jur, ne-obiect', () => {
     expect(parseazaClasificare('{"intentie":"refund","lang":"ro"}')).toBeNull();
     expect(parseazaClasificare('{"intentie":"retur","lang":"en"}')).toBeNull();

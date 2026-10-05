@@ -67,7 +67,11 @@ describe('stareRetur — tabelul 16′/16″', () => {
     expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: null, refund_status: 'Necunoscut' } }).stare).toBe('necunoscut');
     expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: null, refund_status: 'Pending' } }).stare).toBe('in_curs');
   });
-  it('folosită, fără rezultat, comanda încă plătită → nedeterminat', () => {
-    expect(stareRetur({ oferta: of(true), comanda: { status: 'platita' }, checkout: { refund_id: null, refund_status: null } }).stare).toBe('nedeterminat');
+  it('folosită, fără rezultat, comanda încă plătită: sub 2 min → in_curs (dublu clic), peste → nedeterminat', () => {
+    const d = { oferta: of(true), comanda: { status: 'platita' }, checkout: { refund_id: null, refund_status: null } };
+    const folosita = Date.parse('2026-12-13T10:00:00Z');
+    expect(stareRetur(d, folosita + 30_000).stare).toBe('in_curs');
+    expect(stareRetur(d, folosita + 3 * 60_000).stare).toBe('nedeterminat');
+    expect(stareRetur({ ...d, oferta: of(true, 'eroare') }, folosita + 30_000).stare).toBe('nedeterminat');
   });
 });

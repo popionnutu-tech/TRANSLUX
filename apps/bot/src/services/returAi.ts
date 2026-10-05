@@ -45,9 +45,11 @@ export function mesajPentruModel(text: string): string {
  */
 export function parseazaClasificare(text: string | null | undefined): ClasificareRetur | null {
   if (typeof text !== 'string') return null;
+  // Haiku pune des JSON-ul între ```json … ``` (testul de 480 de mesaje, 05.10: 72 % așa) — acceptăm DOAR acest ambalaj.
+  const curat = text.trim().replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/i, '$1').trim();
   let o: unknown;
   try {
-    o = JSON.parse(text.trim());
+    o = JSON.parse(curat);
   } catch {
     return null;
   }

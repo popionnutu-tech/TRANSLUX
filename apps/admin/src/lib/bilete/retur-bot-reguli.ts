@@ -44,7 +44,10 @@ export interface DateStare {
 }
 
 /** Tabelul stărilor din plan (16′ + 16″), în ordinea de evaluare. */
-export function stareRetur(d: DateStare): { stare: StareRetur; motiv?: string } {
+/** Cât timp o ofertă consumată, încă fără rezultat, e «în curs» (confirmarea rulează); după — «nedeterminat» (împăcarea C2 alertează). */
+export const CONFIRMARE_IN_CURS_MS = 2 * 60_000;
+
+export function stareRetur(d: DateStare, nowMs: number = Date.now()): { stare: StareRetur; motiv?: string } {
   if (!d.oferta.folosita_la) return { stare: 'neatinsa' };
   if (d.oferta.rezultat?.startsWith('refuz:')) return { stare: 'refuz', motiv: d.oferta.rezultat.slice(6) };
   if (d.comanda.status === 'returnata') return { stare: 'finalizat' };
@@ -55,5 +58,7 @@ export function stareRetur(d: DateStare): { stare: StareRetur; motiv?: string } 
     if (d.checkout?.refund_id) return { stare: 'creat' };
     return { stare: 'in_curs' };
   }
+  // a doua apăsare cât prima încă rulează (dublu clic): nu «nedeterminat», ci «în curs»
+  if (!d.oferta.rezultat && nowMs - Date.parse(d.oferta.folosita_la) < CONFIRMARE_IN_CURS_MS) return { stare: 'in_curs' };
   return { stare: 'nedeterminat' };
 }

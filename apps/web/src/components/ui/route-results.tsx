@@ -50,6 +50,14 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  // Data cursei în antet (ION-238): omul vede ziua înainte să plătească.
+  const dataCursei = React.useMemo(() => {
+    const d = trips[0]?.trip_date;
+    if (!d) return null;
+    const t = new Date(`${d}T12:00:00Z`);
+    return t.toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  }, [trips, locale]);
+
   const isNearby = (i: number) =>
     i >= selectedIdx - 2 && i <= selectedIdx + 2 && i !== selectedIdx;
 
@@ -96,10 +104,10 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
           position: "relative",
         }}>
           <button
-            onClick={onClose}
+            onClick={() => (cumpara !== null ? setCumpara(null) : onClose())}
             style={{
-              position: "absolute", right: 14, top: 14,
-              width: 28, height: 28, borderRadius: "50%",
+              position: "absolute", right: 10, top: 10,
+              width: 44, height: 44, borderRadius: "50%",
               border: "none", background: "rgba(0,0,0,0.05)",
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
               color: "#999", fontSize: 16,
@@ -117,10 +125,13 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
               {from.toUpperCase()} &rarr; {to.toUpperCase()}
             </span>
           </div>
-          <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, letterSpacing: "0.02em" }}>
-            {trips.length > 0
-              ? (locale === "ru" ? `${trips.length} рейсов найдено` : `${trips.length} curse găsite`)
-              : (locale === "ru" ? "Рейсы не найдены" : "Nu s-au găsit curse")}
+          <div style={{ fontSize: 14, color: "#555", fontWeight: 600, marginTop: 3 }}>
+            {dataCursei && <span>{dataCursei}</span>}
+            {cumpara === null && (
+              <span>{dataCursei ? " · " : ""}{trips.length > 0
+                ? (locale === "ru" ? `${trips.length} рейсов` : `${trips.length} curse`)
+                : (locale === "ru" ? "Рейсы не найдены" : "Nu s-au găsit curse")}</span>
+            )}
           </div>
         </div>
 
@@ -145,116 +156,57 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
             </div>
           )}
           {trips.map((trip, i) => {
+            // ION-238: după «Cumpără» rămâne doar cursa aleasă, până la «Renunță» sau «×».
+            if (cumpara !== null && i !== cumpara) return null;
             const isSelected = i === selectedIdx;
             const near = isNearby(i);
+            const deschis = cumpara === i;
             // Mereu +373 (Ion, 23.09): din străinătate «069…» nu sună, iar linkul fără «+» nici el.
             const displayPhone = trip.phone ? phoneText(trip.phone) : null;
+            const hasOffer = trip.originalPrice != null && trip.originalPrice > 0;
             return (
-              <React.Fragment key={`${trip.time}-${i}`}>
               <div
+                key={`${trip.time}-${i}`}
                 ref={isSelected ? selectedRef : undefined}
                 className="trip-card"
                 style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: isSelected
-                    ? "rgba(155,27,48,0.04)"
-                    : "#fff",
-                  border: isSelected
-                    ? "1px solid rgba(155,27,48,0.15)"
-                    : near
-                      ? "1px solid rgba(155,27,48,0.08)"
-                      : "1px solid #eee",
+                  display: "grid", gridTemplateColumns: "56px minmax(0, 1fr) auto", columnGap: 10, rowGap: 8,
+                  alignItems: "center", padding: "12px",
+                  borderRadius: 12,
+                  background: isSelected && !deschis ? "rgba(155,27,48,0.04)" : "#fff",
+                  border: deschis
+                    ? `2px solid #9B1B30`
+                    : isSelected
+                      ? "1px solid rgba(155,27,48,0.2)"
+                      : near
+                        ? "1px solid rgba(155,27,48,0.1)"
+                        : "1px solid #e6e6e6",
                   transition: "all 0.15s",
                 }}
               >
-                {/* Time */}
+                {/* Ora */}
                 <div style={{
+                  gridRow: deschis ? "1" : "1 / 3", alignSelf: "start",
                   fontVariantNumeric: "tabular-nums",
                   fontFamily: "var(--font-opensans), Open Sans, sans-serif",
-                  flexShrink: 0, textAlign: "center", minWidth: 55,
+                  textAlign: "center",
                 }}>
-                  <div style={{
-                    fontWeight: 700, fontSize: 18, lineHeight: 1,
-                    color: isSelected || near ? "#9B1B30" : "#333",
-                  }}>
+                  <div style={{ fontWeight: 700, fontSize: 20, lineHeight: 1.1, color: isSelected || near ? "#9B1B30" : "#222" }}>
                     {trip.time}
                   </div>
                   {trip.arrivalTime && (
-                    <div style={{
-                      fontSize: 10, marginTop: 2,
-                      color: isSelected || near ? "rgba(155,27,48,0.5)" : "#999",
-                    }}>
-                      &rarr; {trip.arrivalTime}
-                    </div>
+                    <div style={{ fontSize: 13, marginTop: 2, color: "#666" }}>&rarr; {trip.arrivalTime}</div>
                   )}
                 </div>
 
-                {/* Driver + plate, or "driver coming soon" placeholder for far-future dates */}
-                <div style={{
-                  flex: 1, minWidth: 0,
-                }}>
-                  {trip.isAwaitingDriver ? (
-                    <div style={{
-                      fontSize: 12, color: "#888", fontStyle: "italic",
-                      lineHeight: 1.3,
-                    }}>
-                      {locale === "ru"
-                        ? "Данные водителя будут доступны ближе к дате отправления"
-                        : "Datele șoferului vor fi disponibile mai aproape de data plecării"}
-                    </div>
-                  ) : trip.driver ? (
-                    <>
-                      <div style={{
-                        fontSize: 13, fontWeight: 500, color: "#333",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>
-                        {trip.driver}
-                      </div>
-                      {trip.vehicle_plate && (
-                        <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>
-                          {trip.vehicle_plate}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "#ccc" }}>&mdash;</div>
-                  )}
-                </div>
-
-                {/* Price badge */}
-                {trip.price > 0 && (() => {
-                  const hasOffer = trip.originalPrice != null && trip.originalPrice > 0;
-                  return (
-                    <div style={{
-                      flexShrink: 0,
-                      background: hasOffer ? "#16a34a" : "#9B1B30",
-                      color: "#fff",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      padding: "4px 10px",
-                      borderRadius: 20,
-                      fontFamily: "var(--font-opensans), Open Sans, sans-serif",
-                      whiteSpace: "nowrap",
-                    }}>
-                      {hasOffer && (
-                        <span style={{
-                          fontSize: 10,
-                          textDecoration: "line-through",
-                          opacity: 0.7,
-                          marginRight: 4,
-                        }}>
-                          {trip.originalPrice}
-                        </span>
-                      )}
-                      {trip.price} lei
-                    </div>
-                  );
-                })()}
-
-                {/* Phone */}
-                {displayPhone && (
+                {/* Telefonul șoferului, cu numele sub el (ION-238, fără numărul mașinii) */}
+                {trip.isAwaitingDriver ? (
+                  <div style={{ fontSize: 13, color: "#666", fontStyle: "italic", lineHeight: 1.3, minWidth: 0 }}>
+                    {locale === "ru"
+                      ? "Данные водителя будут доступны ближе к дате отправления"
+                      : "Datele șoferului vor fi disponibile mai aproape de data plecării"}
+                  </div>
+                ) : displayPhone ? (
                   <a
                     href={phoneTel(trip.phone!)}
                     onClick={(e) => {
@@ -268,46 +220,63 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
                       });
                     }}
                     className="call-btn"
-                    style={{
-                      flexShrink: 0, display: "flex", alignItems: "center", gap: 6,
-                      textDecoration: "none",
-                    }}
-                    aria-label={`Sună ${trip.driver}`}
+                    style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", minWidth: 0, minHeight: 44 }}
+                    aria-label={`Sună ${trip.driver ?? ""}`}
                   >
                     <span style={{
-                      width: 36, height: 36, borderRadius: "50%",
-                      background: "#22c55e", display: "flex", alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow: "0 2px 6px rgba(34,197,94,0.25)",
+                      width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+                      background: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 2px 6px rgba(22,163,74,0.25)",
                     }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                     </span>
-                    <span style={{
-                      fontSize: 13, fontWeight: 600, color: "#333",
-                      whiteSpace: "nowrap",
-                    }}>
-                      {displayPhone}
+                    <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: "#222", whiteSpace: "nowrap" }}>{displayPhone}</span>
+                      {trip.driver && (
+                        <span style={{ fontSize: 13, color: "#555", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{trip.driver}</span>
+                      )}
                     </span>
                   </a>
+                ) : (
+                  <div style={{ fontSize: 13, color: "#999" }}>{trip.driver ?? "—"}</div>
                 )}
+
+                {/* Prețul */}
+                {trip.price > 0 ? (
+                  <div style={{
+                    justifySelf: "end",
+                    background: hasOffer ? "#16a34a" : "#9B1B30",
+                    color: "#fff", fontSize: 15, fontWeight: 700,
+                    padding: "6px 12px", borderRadius: 20,
+                    fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+                    whiteSpace: "nowrap",
+                  }}>
+                    {hasOffer && (
+                      <span style={{ fontSize: 12, textDecoration: "line-through", opacity: 0.75, marginRight: 4 }}>{trip.originalPrice}</span>
+                    )}
+                    {trip.price} lei
+                  </div>
+                ) : <span />}
+
+                {/* Biletele online (ION-197): doar când panoul spune că se vinde acum pe cursa asta. */}
+                {trip.sale_open && fromRo && toRo && (deschis ? (
+                  <div style={{ gridColumn: "1 / 4", borderTop: "1px solid #eee", paddingTop: 12 }}>
+                    <BuyTicketForm trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCumpara(i)}
+                    style={{
+                      gridColumn: "2 / 4", minHeight: 48, borderRadius: 12,
+                      border: "none", background: "#9B1B30", color: "#fff",
+                      fontWeight: 700, fontSize: 16, cursor: "pointer",
+                    }}
+                  >
+                    {locale === "ru" ? "Купить билет онлайн" : "Cumpără bilet online"}
+                  </button>
+                ))}
               </div>
-              {/* Biletele online (ION-197): doar când panoul spune că se vinde acum pe cursa asta. */}
-              {trip.sale_open && fromRo && toRo && (cumpara === i ? (
-                <BuyTicketForm trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCumpara(i)}
-                  style={{
-                    alignSelf: "flex-end", marginTop: -2, padding: "7px 14px", borderRadius: 20,
-                    border: "1px solid #9B1B30", background: "#fff", color: "#9B1B30",
-                    fontWeight: 700, fontSize: 13, cursor: "pointer",
-                  }}
-                >
-                  {locale === "ru" ? "Купить билет" : "Cumpără bilet"}
-                </button>
-              ))}
-              </React.Fragment>
             );
           })}
         </div>

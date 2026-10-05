@@ -26,6 +26,9 @@ const TXT = {
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
     salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     telegramSub: 'Biletul e mereu la îndemână, iar în ziua cursei vezi pe hartă unde e autobuzul tău și când ajunge la tine.',
+    tgTitlu: 'Pasul următor: ia biletul în Telegram',
+    tgMotive: ['biletul cu codul QR mereu în telefon', 'cu 12 ore și cu o oră înainte îți amintim de cursă', 'vezi pe hartă unde e autobuzul și când ajunge'],
+    tgStart: 'Se deschide Telegram: apasă START și biletul apare acolo.',
     retur: 'Returnarea se cere prin botul nostru din Telegram sau la telefon +373 60 401 010: integral cu peste 24 de ore înainte de plecare, apoi tot mai puțin; cu mai puțin de 4 ore nu se restituie. Detalii: translux.md/ro/conditii-vanzare.',
     indisponibil: 'Biletul nu poate fi afișat acum. Reîncarcă pagina peste un minut.', acasa: '← Pagina principală',
   },
@@ -38,6 +41,9 @@ const TXT = {
     arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
     salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
     telegramSub: 'Билет всегда под рукой, а в день поездки на карте видно, где ваш автобус и когда он подъедет.',
+    tgTitlu: 'Следующий шаг: билет в Telegram',
+    tgMotive: ['билет с QR-кодом всегда в телефоне', 'за 12 часов и за час напомним о поездке', 'на карте видно, где автобус и когда он подъедет'],
+    tgStart: 'Откроется Telegram: нажмите START, и билет появится там.',
     retur: 'Возврат — через наш бот в Telegram или по телефону +373 60 401 010: полностью более чем за 24 часа до отправления, затем меньше; менее чем за 4 часа не возвращается. Подробно: translux.md/ru/conditii-vanzare.',
     indisponibil: 'Билет сейчас недоступен. Обновите страницу через минуту.', acasa: '← Главная',
   },
@@ -184,14 +190,18 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
 
               {c.status === 'platita' && (
                 <div className="bilet-no-print" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                  {/* Momeala spre bot (Ion, 03.10): biletul la îndemână + unde e autobuzul în ziua cursei. */}
-                  <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
-                    display: 'block', padding: '14px 16px', borderRadius: 14, background: '#229ED9', color: '#fff', textDecoration: 'none',
-                    boxShadow: '0 4px 14px rgba(34,158,217,0.3)',
-                  }}>
-                    <div style={{ fontWeight: 700, fontSize: 16 }}>{tx.telegram}</div>
-                    <div style={{ fontSize: 13, opacity: 0.92, marginTop: 4, lineHeight: 1.4 }}>{tx.telegramSub}</div>
-                  </a>
+                  {/* Toți spre Telegram (Ion, 05.10, ION-238): cardul e pasul principal de după plată; butonul rămâne cel de până acum. */}
+                  <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: '#eef6fb', border: '2px solid #1b7fb0' }}>
+                    <div style={{ fontWeight: 700, fontSize: 17, color: '#17364a' }}>{tx.tgTitlu}</div>
+                    <div style={{ display: 'grid', gap: 6, fontSize: 15, color: '#24485e' }}>
+                      {tx.tgMotive.map((m) => <span key={m}>✓ {m}</span>)}
+                    </div>
+                    <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 56, padding: '0 14px', borderRadius: 12,
+                      background: '#1b7fb0', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 16, textAlign: 'center',
+                    }}>{tx.telegram}</a>
+                    <div style={{ fontSize: 14, color: '#24485e' }}>{tx.tgStart}</div>
+                  </div>
                   <SalveazaBilet text={tx.salveaza} />
                 </div>
               )}

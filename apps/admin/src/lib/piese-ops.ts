@@ -416,3 +416,16 @@ export async function donorIntake(p: {
   const r = data as any;
   return { docId: Number(r.doc_id), lines: Number(r.lines), total: Number(r.total) };
 }
+
+// Cecul unei vânzări (migr. 373-374). `warehouse_id` vine odată cu el, ca apelantul să poată verifica
+// dreptul de acces fără încă o citire.
+export async function cecVanzare(docId: number) {
+  const { data, error } = await getSupabase().rpc('piese_cec', { p_doc: docId });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Vânzarea nu există.');
+  return data as {
+    doc_id: number; serie: string; numar: string; data: string; client: string; depozit: string;
+    warehouse_id: number; total: number;
+    linii: { nume: string; articol: string; um: string; cant: number; pret: number; suma: number }[];
+  };
+}

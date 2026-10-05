@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { submitSale } from './actions';
+import { submitSale, incarcaCec } from './actions';
+import CecModal, { type Cec } from './CecModal';
 import SearchSelect from '@/components/SearchSelect';
 
 interface PartOpt { id: number; label: string; price: number }
@@ -23,6 +24,10 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
   const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1, unit_price: 0 }]);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<{ docId: number; total: number } | null>(null);
+  // Cecul se cere DUPĂ vânzare, la apăsare — nu odată cu ea: dacă citirea lui ar cădea, vânzarea e deja
+  // scrisă și nu are voie să pară eșuată. Clientul primește bonul la o a doua apăsare, nu marfa înapoi.
+  const [cec, setCec] = useState<Cec | null>(null);
+  const [cecBusy, setCecBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -66,7 +71,21 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         <strong>Total: {total.toFixed(2)} lei</strong>
       </div>
       {err && <div className="alert danger" style={{ marginTop: 12 }}>{err}</div>}
-      {receipt && <div className="alert ok" style={{ marginTop: 12 }}>Чек #{receipt.docId} emis. Total {receipt.total.toFixed(2)} lei. (factura fiscală: vezi tab e-Factura)</div>}
+      {receipt && (
+        <div className="alert ok" style={{ marginTop: 12 }}>
+          Чек #{receipt.docId} emis. Total {receipt.total.toFixed(2)} lei. (factura fiscală: vezi tab e-Factura)
+          <button className="btn btn-primary" style={{ marginLeft: 10, padding: '3px 12px' }} disabled={cecBusy}
+            onClick={async () => {
+              setCecBusy(true); setErr(null);
+              try { setCec(await incarcaCec(receipt.docId) as unknown as Cec); }
+              catch (e: any) { setErr(e.message); }
+              finally { setCecBusy(false); }
+            }}>
+            {cecBusy ? 'Se pregătește…' : '🧾 Tipărește cecul'}
+          </button>
+        </div>
+      )}
+      {cec && <CecModal cec={cec} onClose={() => setCec(null)} />}
       <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={submit}>{busy ? 'Se emite…' : 'Emite factură + чек'}</button>
     </div>
   );

@@ -1,0 +1,7 @@
+-- 374: Cecul arată PREȚUL, nu costul.
+--
+-- Migr. 373 lua `unit_cost` din linia de vânzare. Dar linia are DOUĂ coloane: `unit_cost` e costul FIFO al
+-- mărfii, iar `unit_price` e prețul cu care s-a vândut. Pe cec ar fi ajuns costul nostru — adică i-am fi
+-- arătat clientului cât ne-a costat pe noi marfa, cu o sumă care nici nu se potrivea cu ce plătește.
+--
+-- Prins înainte de prima folosire: nu există încă nicio vânzare în bază. Forma finală e în migr. 375.

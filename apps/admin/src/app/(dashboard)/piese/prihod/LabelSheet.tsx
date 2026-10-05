@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, memo } from 'react';
+import PrintPortal from '@/components/PrintPortal';
 import { code128BarsSvg, cleanCode128 } from '@/lib/code128';
 
 export type SheetLabel = {
@@ -59,6 +60,7 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
   const overCap = total > MAX_SHEET;
 
   return (
+    <PrintPortal>
     <div className="label-overlay"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 16px', zIndex: 1100, overflowY: 'auto' }}>
       {/* La tipărire rămâne DOAR foaia. `page-break-inside: avoid` ca o etichetă să nu fie tăiată în două
@@ -71,19 +73,17 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
       <style>{`
         @media print {
           @page { size: 58mm 40mm; margin: 0; }
-          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-          body * { visibility: hidden !important; }
+          /* Ascunderea restului paginii o face PrintPortal, cu display:none. Aici rămâne doar ce ține
+             de FOAIE: fereastra își pierde fundalul și marginile, iar fiecare etichetă e o pagină. */
           .label-overlay { position: static !important; padding: 0 !important; background: none !important;
                            display: block !important; overflow: visible !important; }
           .label-overlay > .card { margin: 0 !important; padding: 0 !important; border: none !important;
                                    box-shadow: none !important; max-width: none !important; }
-          .piese-sheet, .piese-sheet * { visibility: visible !important; }
           .piese-sheet { position: static !important; display: block !important; gap: 0 !important; }
           .piese-sheet .piese-label { border: none !important; page-break-after: always;
                                       break-after: page; page-break-inside: avoid; break-inside: avoid;
                                       margin: 0 !important; width: 58mm !important; height: 40mm !important; }
           .piese-sheet .piese-label:last-child { page-break-after: auto; break-after: auto; }
-          .no-print { display: none !important; }
         }
       `}</style>
 
@@ -162,6 +162,7 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
         )}
       </div>
     </div>
+    </PrintPortal>
   );
 }
 

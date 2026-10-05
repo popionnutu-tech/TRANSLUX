@@ -1,6 +1,7 @@
 'use client';
 
 import { code128BarsSvg, cleanCode128 } from '@/lib/code128';
+import PrintPortal from '@/components/PrintPortal';
 
 export interface LabelData {
   id: number; name: string; manufacturer: string; articleCode: string;
@@ -13,24 +14,35 @@ export interface LabelData {
 export default function LabelModal({ data, onClose }: { data: LabelData; onClose: () => void }) {
   const codeText = cleanCode128(data.barcode);
   const bars = code128BarsSvg(codeText, 60);
-  const priceStr = data.price != null ? `${data.price.toLocaleString('ro-RO')} lei` : '— lei';
+  // `!data.price`, nu `price != null`: vederea întoarce 0 (nu NULL) pentru o piesă fără recepții cu cost,
+  // iar o etichetă cu „0 lei" ar ajunge în mâna clientului. Foaia de recepție trata deja cazul; aici nu.
+  const priceStr = !data.price ? '— lei' : `${data.price.toLocaleString('ro-RO')} lei`;
   const sub = [data.manufacturer, data.articleCode && `Art: ${data.articleCode}`].filter(Boolean).join(' · ');
 
   return (
+    <PrintPortal>
     <div className="label-overlay" onClick={onClose}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '8vh 16px', zIndex: 1100, overflowY: 'auto' }}>
       {/* CSS de tipărire: ascunde tot în afară de etichetă și fixează formatul paginii la mărimea etichetei. */}
       <style>{`
         @media print {
           @page { size: 58mm 40mm; margin: 0; }
-          html, body { margin: 0 !important; padding: 0 !important; }
-          body * { visibility: hidden !important; }
-          .piese-label, .piese-label * { visibility: visible !important; }
-          .piese-label { position: fixed !important; left: 0; top: 0; margin: 0 !important; border: none !important; box-shadow: none !important; }
+          /* Ascunderea restului paginii o face PrintPortal, cu display:none. Varianta de dinainte,
+             cu visibility:hidden, ascundea conținutul dar îi păstra LOCUL: ieșeau 16 pagini, din care
+             doar prima avea eticheta. Acum eticheta curge normal, prima în pagină — fără position:fixed,
+             care o scotea din flux și lăsa paginile goale în urmă. */
+          .label-overlay { position: static !important; padding: 0 !important; background: none !important;
+                           display: block !important; overflow: visible !important; }
+          .label-overlay > .card { margin: 0 !important; padding: 0 !important; border: none !important;
+                                   box-shadow: none !important; gap: 0 !important; }
+          .piese-label { margin: 0 !important; border: none !important; box-shadow: none !important; }
         }
       `}</style>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        {/* `no-print`: înainte erau doar INVIZIBILE la tipărire, dar își păstrau locul. De când eticheta
+            curge normal în pagină, orice element nemarcat chiar se tipărește — antetul împingea eticheta
+            pe o a doua foaie. */}
+        <div className="row no-print" style={{ justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <h2 style={{ margin: 0, fontSize: 16 }}>Etichetă piesă <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>· mărime reală</span></h2>
           <button className="btn btn-outline" style={{ padding: '2px 10px' }} onClick={onClose}>Închide</button>
         </div>
@@ -52,8 +64,9 @@ export default function LabelModal({ data, onClose }: { data: LabelData; onClose
           )}
         </div>
 
-        <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => window.print()}>🖨 Tipărește eticheta</button>
+        <button className="btn btn-primary btn-lg no-print" style={{ width: '100%' }} onClick={() => window.print()}>🖨 Tipărește eticheta</button>
       </div>
     </div>
+    </PrintPortal>
   );
 }

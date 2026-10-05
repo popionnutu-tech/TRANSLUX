@@ -159,7 +159,8 @@ export async function confirmaOferta(telegramIdRaw: unknown, ofertaIdRaw: unknow
     rezultat = r.refund === 'creat' ? 'creat' : r.refund === 'necunoscut' ? 'necunoscut' : 'fara_plata';
     if (r.refund !== 'fara_plata') await trimiteEmailAnulare(of.comanda_id, Number(of.suma)).catch(() => 'esuat');
   } catch (e) {
-    rezultat = e instanceof ComandaError ? (e.cod === 'inchis' && /scanat/.test(e.message) ? 'refuz:urcat' : `refuz:${e.cod}`) : 'eroare';
+    rezultat = e instanceof ComandaError ? (e.cod === 'inchis' && /scanat/.test(e.message) ? 'refuz:urcat'
+      : e.cod === 'maib' && /rămas anulată/.test(e.message) ? 'refuz:maib_anulata' : `refuz:${e.cod}`) : 'eroare';
     if (!(e instanceof ComandaError)) console.error('[retur-bot] confirmare:', e instanceof Error ? e.message : e);
   } finally {
     await db.from('bilete_retur_oferte').update({ rezultat }).eq('id', of.id);

@@ -53,6 +53,8 @@ export type RaspunsOferta =
 
 export const STARI_RETUR = [
   'creat', 'finalizat', 'necunoscut', 'refuz', 'refuz_banca', 'in_curs', 'nedeterminat', 'expirata', 'neatinsa',
+  // panoul răspunde {ok:false, cod:'inexistent'} pentru oferta altui cont / necunoscută (16′: «Nu găsesc cererea»)
+  'inexistent',
 ] as const;
 export type StareRetur = (typeof STARI_RETUR)[number];
 
@@ -130,6 +132,7 @@ export function citesteOferta(corp: unknown): RaspunsOferta | null {
 }
 
 export function citesteStare(corp: unknown): RaspunsStare | null {
+  if (esteObiect(corp) && corp.ok === false && corp.cod === 'inexistent') return { stare: 'inexistent', suma: null };
   if (!esteObiect(corp) || !dinLista(STARI_RETUR, corp.stare)) return null;
   const motiv = typeof corp.motiv === 'string' ? corp.motiv : undefined;
   return { stare: corp.stare, suma: esteNumar(corp.suma) ? corp.suma : null, ...(motiv ? { motiv } : {}) };

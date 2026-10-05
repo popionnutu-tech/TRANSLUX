@@ -133,7 +133,7 @@ export function textOferta(o: OfertaRetur, nowMs: number, sumaSchimbata = false)
     `🎫 ${o.from_name} → ${o.to_name}`,
     `${dataOra(o.departure_at, lang)}`,
     `Primești înapoi ${lei(o.suma)} lei din ${lei(o.total)} lei.`,
-    `Suma e valabilă ${min} minute (până la ${pana}). Banii ajung pe cardul cu care ai plătit.`,
+    `Suma e valabilă ${min === 1 ? '1 minut' : `${min} minute`} (până la ${pana}). Banii ajung pe cardul cu care ai plătit.`,
   ].filter(Boolean).join('\n');
 }
 
@@ -154,7 +154,7 @@ export function textRefuzOferta(cod: CodRefuzOferta, lang: Limba): string {
 export function textCifreGresite(ramase: number, lang: Limba): string {
   return lang === 'ru'
     ? `Цифры не совпадают. Осталось попыток: ${ramase}.`
-    : `Cifrele nu se potrivesc. Mai ai ${ramase} încercări.`;
+    : `Cifrele nu se potrivesc. ${ramase === 1 ? 'Mai ai 1 încercare.' : `Mai ai ${ramase} încercări.`}`;
 }
 
 /** Textul refuzului venit de la executor (`refuz:<motiv>`) și dacă biletele rămân valabile. */
@@ -163,6 +163,9 @@ function textRefuz(motiv: string | undefined, lang: Limba): string {
   if (/urcat/.test(m)) return text('urcat', lang);
   const valabil = lang === 'ru' ? ' Билеты остаются действительными.' : ' Biletele rămân valabile.';
   if (/inchis|sub_4h|4h/.test(m)) return text('faraBani', lang);
+  if (/maib_anulata/.test(m)) {
+    return lang === 'ru' ? 'Банк отказал в возврате. Диспетчер займётся этим и свяжется с вами.' : 'Banca a refuzat returnarea. Dispecerul se ocupă și te contactează.';
+  }
   if (/maib|banca|bank/.test(m)) {
     return (lang === 'ru' ? 'Банк отказал в возврате.' : 'Banca a refuzat returnarea.') + valabil;
   }
@@ -206,6 +209,11 @@ export function textStare(s: { stare: StareRetur; suma: number | null; motiv?: s
       return { text: ru ? 'Время предложения истекло.' : 'Oferta a expirat.', cuVerificare: false };
     case 'neatinsa':
       return { text: ru ? 'Возврат ещё не подтверждён.' : 'Returnarea nu a fost confirmată încă.', cuVerificare: false };
+    case 'inexistent':
+      return {
+        text: ru ? `Не нахожу эту заявку. Откройте билет заново или позвоните ${TELEFON_DISPECERAT}.` : `Nu găsesc cererea. Deschide biletul din nou sau sună la ${TELEFON_DISPECERAT}.`,
+        cuVerificare: false,
+      };
   }
 }
 

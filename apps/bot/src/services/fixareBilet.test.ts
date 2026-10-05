@@ -8,8 +8,10 @@ type ComandaFixare = import('./bileteTelegram.js').ComandaFixare;
 const ACUM = Date.parse('2026-10-14T09:00:00Z');
 const ORA = 60 * 60_000;
 const la = (oreFataDeAcum: number) => new Date(ACUM + oreFataDeAcum * ORA).toISOString();
+/** Comanda fără ora sosirii: sfârșitul = plecarea + 6 h (ca în @translux/db); `o.sfarsit_ms` îl suprascrie. */
 const cmd = (cod: string, oreFataDeAcum: number, o: Partial<ComandaFixare> = {}): ComandaFixare => ({
-  cod, status: 'platita', departure_at: la(oreFataDeAcum), telegram_mesaj_id: 10, telegram_mesaj_fixat_id: null, ...o,
+  cod, status: 'platita', departure_at: la(oreFataDeAcum), sfarsit_ms: ACUM + (oreFataDeAcum + 6) * ORA,
+  telegram_mesaj_id: 10, telegram_mesaj_fixat_id: null, ...o,
 });
 
 describe('comandaDeFixat: cea mai apropiată plecare care n-a trecut', () => {
@@ -21,6 +23,18 @@ describe('comandaDeFixat: cea mai apropiată plecare care n-a trecut', () => {
   });
   it('cursa plecată de peste 6 h (sosirea lipsește) a trecut → următoarea', () => {
     expect(comandaDeFixat([cmd('trecuta', -6.5), cmd('maine', 24)], ACUM)?.cod).toBe('maine');
+  });
+  it('ION-252: cursa cu sosirea în grafic ține până la sosire + 30 min, nu plecare + 6 h', () => {
+    // plecată acum 2 h, sfârșitul (sosire + 30 min) a fost acum 1 minut → pinul trece pe biletul de mâine
+    const sosita = cmd('sosita', -2, { sfarsit_ms: ACUM - 60_000 });
+    expect(comandaDeFixat([sosita, cmd('maine', 24)], ACUM)?.cod).toBe('maine');
+    // aceeași cursă, cu un minut înainte de sfârșit → încă fixată
+    expect(comandaDeFixat([cmd('pe_drum', -2, { sfarsit_ms: ACUM + 60_000 }), cmd('maine', 24)], ACUM)?.cod).toBe('pe_drum');
+    // exact la sfârșit cursa e încheiată
+    expect(comandaDeFixat([cmd('la_limita', -2, { sfarsit_ms: ACUM })], ACUM)).toBeNull();
+  });
+  it('ION-252: cursa încheiată și nimic după → desfixează', () => {
+    expect(decizieFixare([cmd('sosita', -3, { sfarsit_ms: ACUM - 1, telegram_mesaj_fixat_id: 10 })], ACUM)).toEqual({ tip: 'desfixeaza' });
   });
   it('anulată / returnată / neplătită / plătită fără bilet nu se fixează', () => {
     const toate = ['anulata', 'returnata', 'noua', 'platita_fara_bilet'].map((s, i) => cmd(s, i + 1, { status: s }));

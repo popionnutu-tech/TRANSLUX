@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fereastraHartii, initDataDinFragment, oraChisinau, parseazaContact, parseazaIstoric, type CursaBilet } from './telegram-client';
+import { bileteNeincheiate, fereastraHartii, initDataDinFragment, oraChisinau, parseazaContact, parseazaIstoric, type CursaBilet } from './telegram-client';
 
 // Ora Chișinăului în octombrie 2026 = UTC+3.
 const laChisinau = (zi: string, hhmm: string) => Date.parse(`${zi}T${hhmm}:00+03:00`);
@@ -66,5 +66,29 @@ describe('parseazaContact', () => {
     expect(parseazaContact({ nume: 'P', prenume: 'Ion', telefon: '37368263753' })).toBeNull();
     expect(parseazaContact({ nume: 'Pop', prenume: 'Ion', telefon: '068263753' })).toBeNull();
     expect(parseazaContact({ nume: 'Pop', prenume: 42, telefon: '37368263753' })).toBeNull();
+  });
+});
+
+describe('bileteNeincheiate (ION-252): biletul cu cursa încheiată iese din «Biletele mele»', () => {
+  const acum = laChisinau('2026-10-05', '19:00');
+  it('cu ora sosirii: până la sosire + 30 min rămâne, exact la sfârșit iese', () => {
+    const b = { cod: 'x', departure_at: '2026-10-05T14:00:00+03:00', sosire: '18:30' };
+    expect(bileteNeincheiate([b], acum - 60_000)).toHaveLength(1);
+    expect(bileteNeincheiate([b], acum)).toHaveLength(0);
+  });
+  it('fără ora sosirii: plecarea + 6 h', () => {
+    const b = { cod: 'y', departure_at: '2026-10-05T14:00:00+03:00', sosire: null };
+    expect(bileteNeincheiate([b], laChisinau('2026-10-05', '19:59'))).toHaveLength(1);
+    expect(bileteNeincheiate([b], laChisinau('2026-10-05', '20:00'))).toHaveLength(0);
+  });
+  it('peste miezul nopții: cursa de ieri seară rămâne până la sosirea de azi noapte + 30 min', () => {
+    const b = { cod: 'z', departure_at: '2026-10-05T22:00:00+03:00', sosire: '01:30' };
+    expect(bileteNeincheiate([b], laChisinau('2026-10-06', '01:59'))).toHaveLength(1);
+    expect(bileteNeincheiate([b], laChisinau('2026-10-06', '02:00'))).toHaveLength(0);
+  });
+  it('ordinea și biletele viitoare rămân neatinse', () => {
+    const viitor = { cod: 'v', departure_at: '2026-10-07T05:45:00+03:00', sosire: '09:30' };
+    const trecut = { cod: 't', departure_at: '2026-10-05T05:45:00+03:00', sosire: '09:30' };
+    expect(bileteNeincheiate([trecut, viitor], acum).map((b) => b.cod)).toEqual(['v']);
   });
 });

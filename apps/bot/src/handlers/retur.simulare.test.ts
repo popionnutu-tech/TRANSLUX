@@ -20,6 +20,7 @@ const { handleBiletStart } = await import('./bilet.js');
 const { creeazaPanouBilete } = await import('../services/panouBilete.js');
 const { creeazaClasificator, PlafonApeluri, PLAFON_AI_APELURI, PLAFON_AI_FEREASTRA_MS, TEXT_CLIENT_MAX } = await import('../services/returAi.js');
 const { text, TELEFON_DISPECERAT } = await import('./retur-texte.js');
+const { textDupaCursa } = await import('./dupa-cursa-texte.js');
 
 import type { BotContext, Limba, SessionData } from '../types.js';
 import type { ComandaClient, RepoBileteClienti } from '../services/bileteClienti.js';
@@ -1000,15 +1001,22 @@ describe('6. intențiile AI ale clientului cu bilet', () => {
     expect(String(m.panou.apeluri[0].corp?.text)).toHaveLength(TEXT_CLIENT_MAX);
   });
 
-  it.each([
-    ['plangere', 'ro', 'plangere'], ['plangere', 'ru', 'plangere'],
-    ['altceva', 'ro', 'altceva'], ['altceva', 'ru', 'altceva'],
-  ] as Array<[IntentieRetur, Limba, 'plangere' | 'altceva']>)('%s [%s] → textul fix cu telefonul, fără panou', async (intentie, lang, cheie) => {
+  it.each([['ro'], ['ru']] as Array<[Limba]>)('altceva [%s] → textul fix cu telefonul, fără panou', async (lang) => {
     const m = mediu({ comenzi: [comanda()] });
-    m.aiSpune(intentie, lang);
+    m.aiSpune('altceva', lang);
     const client = new Client();
     await client.scrie(m, 'ceva');
-    expect(client.primite).toEqual([{ text: text(cheie, lang), butoane: [] }]);
+    expect(client.primite).toEqual([{ text: text('altceva', lang), butoane: [] }]);
+    expect(m.panou.apeluri).toHaveLength(0);
+  });
+
+  it.each([['ro'], ['ru']] as Array<[Limba]>)('plangere [%s] (ION-252) → botul cere plângerea și o așteaptă, fără panou încă', async (lang) => {
+    const m = mediu({ comenzi: [comanda()] });
+    m.aiSpune('plangere', lang);
+    const client = new Client();
+    await client.scrie(m, 'ceva');
+    expect(client.primite).toEqual([{ text: textDupaCursa('cerePlangere', lang), butoane: [] }]);
+    expect(client.session.plangere).toMatchObject({ cod: COD, lang });
     expect(m.panou.apeluri).toHaveLength(0);
   });
 

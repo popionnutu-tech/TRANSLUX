@@ -1,16 +1,25 @@
+import { cursaIncheiata, DURATA_MAXIMA_CURSA_MS, MARJA_DUPA_SOSIRE_MS } from '@translux/db';
 import { verifyInitData } from '@/lib/telegram/init-data';
 import type { ComandaPublica } from './public';
 
 // Biletele clientului în mini app-ul Telegram de pe translux.md (ION-249). Identitatea = initData-ul Telegram, verificat
 // HMAC cu tokenul botului (aceeași verificare ca mini app-ul șoferului, ION-239/241), prospețime 24 h. Fără initData
-// valid nu pleacă nimic personal. Lista = comenzile plătite legate de telegram_id (ION-244), cu ziua cursei azi sau mai
-// târziu (Chișinău); fiecare comandă vine ca pe pagina biletului (cardul cu QR, ION-236).
+// valid nu pleacă nimic personal. Lista = comenzile plătite legate de telegram_id (ION-244) a căror cursă nu s-a încheiat
+// (ION-252: sosirea din grafic + 30 min; fără oră, plecarea + 6 h — după aceea biletul stă doar în «Istoric»); fiecare
+// comandă vine ca pe pagina biletului (cardul cu QR, ION-236).
 // Modul fără bază și fără Next: accesul la date vine prin RepoBileteClient (client-repo.ts), testat cu un repo fals.
 
 /** Comenzile care au bilet de arătat: plătite (cu QR) sau plătite după expirare (dispecerul le verifică). */
 export const STARI_CLIENT = ['platita', 'platita_fara_bilet'] as const;
 /** Câte comenzi active arată mini app-ul (ca lista botului, ION-244). */
 export const MAX_COMENZI_CLIENT = 10;
+/**
+ * Comenzile citite: plecate de cel mult cât ține cea mai lungă cursă + marja (sfârșitul exact se află din ora sosirii,
+ * după citire). Câteva în plus față de MAX_COMENZI_CLIENT: cele încheiate de curând nu au voie să împingă afară biletele
+ * viitoare.
+ */
+export const FEREASTRA_CITIRE_DUPA_PLECARE_MS = DURATA_MAXIMA_CURSA_MS + MARJA_DUPA_SOSIRE_MS;
+export const CITITE_IN_PLUS = 10;
 
 export interface ComandaContului { cod: string; telegram_id: number | null }
 export interface ContactBrut { passenger_name: string; phone: string; /** cel mai nou e-mail lăsat vreodată (ION-249) */ email?: string | null }
@@ -26,8 +35,8 @@ export interface CalatorieIstoric {
 }
 
 export interface RepoBileteClient {
-  /** Comenzile contului în STARI_CLIENT, cu trip_date ≥ deLaZiua, ordonate după plecare. */
-  comenziActive(telegramId: number, deLaZiua: string, limita: number): Promise<ComandaContului[]>;
+  /** Comenzile contului în STARI_CLIENT, plecate după `plecareDupa` (ISO), ordonate după plecare. */
+  comenziActive(telegramId: number, plecareDupa: string, limita: number): Promise<ComandaContului[]>;
   /** Comanda așa cum o vede pagina biletului (null = a dispărut între timp). */
   biletComplet(cod: string): Promise<ComandaPublica | null>;
   /** Numele și telefonul din cea mai nouă comandă a contului (orice stare) + cel mai nou e-mail lăsat. */
@@ -93,16 +102,18 @@ export async function bileteleClientului(cerere: CerereBileteClient, repo: RepoB
   if (!id.ok) return { ok: false, status: 401, eroare: id.eroare };
   if (!(await repo.plafon(id.telegramId))) return { ok: false, status: 429, eroare: 'prea_multe' };
 
+  const plecareDupa = new Date(cerere.acumMs - FEREASTRA_CITIRE_DUPA_PLECARE_MS).toISOString();
   const [comenzi, contactBrut, istoricBrut] = await Promise.all([
-    repo.comenziActive(id.telegramId, ziuaChisinau(cerere.acumMs), MAX_COMENZI_CLIENT),
+    repo.comenziActive(id.telegramId, plecareDupa, MAX_COMENZI_CLIENT + CITITE_IN_PLUS),
     repo.ultimulContact(id.telegramId),
     repo.istoric(id.telegramId, MAX_ISTORIC),
   ]);
   const istoric = istoricBrut.filter((c) => Number(c.telegram_id) === id.telegramId).slice(0, MAX_ISTORIC)
     .map(({ telegram_id: _, ...rest }) => rest);
   // Apărare în adâncime: chiar dacă interogarea ar întoarce altceva, pleacă doar comenzile acestui cont.
-  const aleContului = comenzi.filter((c) => Number(c.telegram_id) === id.telegramId).slice(0, MAX_COMENZI_CLIENT);
+  const aleContului = comenzi.filter((c) => Number(c.telegram_id) === id.telegramId);
   const bilete = (await Promise.all(aleContului.map((c) => repo.biletComplet(c.cod))))
-    .filter((b): b is ComandaPublica => b !== null);
+    .filter((b): b is ComandaPublica => b !== null && !cursaIncheiata(b.departure_at, b.sosire, cerere.acumMs))
+    .slice(0, MAX_COMENZI_CLIENT);
   return { ok: true, status: 200, bilete, contact: contactDinComanda(contactBrut), istoric };
 }

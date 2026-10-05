@@ -74,7 +74,8 @@ function mesajeFalse(comenzi: Array<{ cod: string; status: string; departure_at:
       if (c) c.telegram_mesaj_id = id;
     }),
     uitaMesaj: vi.fn(async () => {}),
-    comenziPentruFixare: vi.fn(async () => comenzi.map((c) => ({ ...c }))),
+    // ION-252: sfârșitul cursei fără ora sosirii = plecarea + 6 h
+    comenziPentruFixare: vi.fn(async () => comenzi.map((c) => ({ ...c, sfarsit_ms: Date.parse(c.departure_at) + 6 * 60 * 60_000 }))),
     marcheazaFixarea: vi.fn(async (_tg: number, t: { cod: string; mesajId: number } | null) => {
       for (const c of comenzi) c.telegram_mesaj_fixat_id = t && c.cod === t.cod ? t.mesajId : null;
     }),

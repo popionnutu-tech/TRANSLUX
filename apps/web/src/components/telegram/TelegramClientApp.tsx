@@ -13,7 +13,7 @@ import type { ComandaPublica } from '@/lib/bilete-api';
 import type { HomeOptions } from '@/lib/home-props';
 import type { Locale } from '@/lib/i18n';
 import { LINE_TEL, LINE_TEXT } from '@/lib/phone';
-import { fereastraHartii, oraChisinau, type CalatorieIstoric } from '@/lib/telegram-client';
+import { bileteNeincheiate, fereastraHartii, oraChisinau, type CalatorieIstoric } from '@/lib/telegram-client';
 import { bileteDeAratat } from '@/components/bilet/BiletCard';
 import { HomePage } from '@/components/home-page';
 import { NowResults, type NowTrip } from '@/components/NowResults';
@@ -212,7 +212,10 @@ function StareComuna({ ecran, locale, onReincearca }: { ecran: Ecran; locale: Lo
 function FilaBilete({ ecran, acum, locale, onNou, onReincearca }: { ecran: Ecran; acum: number; locale: Locale; onNou: () => void; onReincearca: () => void }) {
   const tx = TXT[locale];
   const comun = <StareComuna ecran={ecran} locale={locale} onReincearca={onReincearca} />;
-  const bilete = ecran.tip === 'gata' && ecran.stare.ok ? ecran.stare.bilete.filter((c) => c.status === 'platita' && bileteDeAratat(c).length > 0) : null;
+  // ION-252: biletul cu cursa încheiată (sosirea + 30 min) trece în «Istoric» și nu mai stă aici.
+  const bilete = ecran.tip === 'gata' && ecran.stare.ok
+    ? bileteNeincheiate(ecran.stare.bilete, acum).filter((c) => c.status === 'platita' && bileteDeAratat(c).length > 0)
+    : null;
   const azi = bilete?.find((c) => ['curand', 'activa'].includes(fereastraHartii(c, acum)));
   if (azi) {
     const plecare = oraChisinau(azi.departure_at);
@@ -242,11 +245,13 @@ function Istoric({ ecran, acum, locale }: { ecran: Ecran; acum: number; locale: 
   if (!(ecran.tip === 'gata' && ecran.stare.ok)) return <StareComuna ecran={ecran} locale={locale} />;
   const lista: CalatorieIstoric[] = ecran.stare.istoric;
   if (lista.length === 0) return <p className="tg-nota">{tx.istoricGol}</p>;
+  // ION-252: «Activ» cât cursa nu s-a încheiat (și după plecare, până la sosire + 30 min), apoi «Efectuată».
+  const neincheiate = new Set(bileteNeincheiate(ecran.stare.bilete, acum).map((b) => b.cod));
   const stareDe = (c: CalatorieIstoric): { text: string; fundal: string; culoare: string } => {
     if (c.status === 'anulata') return { text: tx.stari.anulata, fundal: '#F6ECEE', culoare: RED };
     if (c.status === 'returnata') return { text: tx.stari.returnata, fundal: '#F6ECEE', culoare: RED };
     if (c.status === 'platita_fara_bilet') return { text: tx.stari.verificare, fundal: '#FFF4DA', culoare: '#8a6d00' };
-    if (Date.parse(c.departure_at) > acum) return { text: tx.stari.activ, fundal: '#e3f3e8', culoare: '#1b7f3b' };
+    if (neincheiate.has(c.cod) || Date.parse(c.departure_at) > acum) return { text: tx.stari.activ, fundal: '#e3f3e8', culoare: '#1b7f3b' };
     return { text: tx.stari.efectuata, fundal: '#ececec', culoare: '#555' };
   };
   const loc = locale === 'ru' ? 'ru-RU' : 'ro-RO';

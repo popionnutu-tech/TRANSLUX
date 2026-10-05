@@ -73,3 +73,65 @@ export const SUMA_MINIMA_PLATA_MDL = 10;
 export function pretVandabilOnline(pretPeLoc: number): boolean {
   return Number.isFinite(pretPeLoc) && pretPeLoc >= SUMA_MINIMA_PLATA_MDL;
 }
+
+// ── Sfârșitul cursei (ION-252) ───────────────────────────────────────────────────────────────────
+// Ion, 05.10: după sosire biletul trece în «Istoric», pinul din chat se scoate și pleacă mesajul de mulțumire. Sosirea
+// = ora din grafic (crm_stop_fares) la oprirea de coborâre, pe sensul comenzii; sfârșitul = sosirea + 30 min (autobuzul
+// întârzie). Fără oră în nomenclator: plecarea + 6 h (cât ține cel mult o cursă Chișinău – nord). Aceeași regulă în
+// bot (pin, mesajul după cursă), în panou (lista mini app-ului) și pe site (fila «Biletele mele»).
+
+/** Marja după sosirea din grafic până când cursa se socotește încheiată. */
+export const MARJA_DUPA_SOSIRE_MS = 30 * 60_000;
+/** Sfârșitul cursei fără ora sosirii în nomenclator: plecarea + 6 h. */
+export const DURATA_IMPLICITA_CURSA_MS = 6 * 60 * 60_000;
+/** O «sosire» mai departe de atât față de plecare e o greșeală de nomenclator (ex. aceeași oră ca plecarea). */
+export const DURATA_MAXIMA_CURSA_MS = 20 * 60 * 60_000;
+
+const FMT_ZI_CHISINAU = new Intl.DateTimeFormat('en-CA', { timeZone: TZ });
+
+/** «7:05» / «07:05» → «07:05»; orice altceva (gol, «—», 25:00) → null. */
+export function oraValida(v: string | null | undefined): string | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(v ?? '').trim());
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
+/** Oprirea din crm_stop_fares, cu orele ei pe ambele sensuri. */
+export interface OreleOpririi {
+  hour_from_chisinau: string | null;
+  hour_from_nord: string | null;
+}
+
+/** Ora opririi pe sensul comenzii: spre nord (din Chișinău) → `hour_from_chisinau`, altfel `hour_from_nord`. */
+export function oraOpririiPeSens(oprire: OreleOpririi | null | undefined, goingNorth: boolean): string | null {
+  if (!oprire) return null;
+  return oraValida(goingNorth ? oprire.hour_from_chisinau : oprire.hour_from_nord);
+}
+
+/**
+ * Sosirea ca instant (ms): ora sosirii în ziua plecării (Chișinău); dacă iese la sau înaintea plecării, cursa a trecut
+ * de miezul nopții și sosirea e în ziua următoare. Instantul se face din zi + oră locală, deci trecerea la ora de iarnă
+ * iese corect. Fără oră validă sau cu o durată absurdă → null.
+ */
+export function sosireaCurseiMs(departureAt: string, oraSosire: string | null | undefined): number | null {
+  const plecareMs = Date.parse(departureAt);
+  const ora = oraValida(oraSosire);
+  if (!Number.isFinite(plecareMs) || !ora) return null;
+  const zi = FMT_ZI_CHISINAU.format(new Date(plecareMs));
+  let sosireMs = Date.parse(chisinauInstantIso(zi, ora));
+  if (sosireMs <= plecareMs) sosireMs = Date.parse(chisinauInstantIso(ziuaUrmatoare(zi), ora));
+  return sosireMs - plecareMs > DURATA_MAXIMA_CURSA_MS ? null : sosireMs;
+}
+
+/** Sfârșitul cursei (ms): sosirea + 30 min; fără sosire, plecarea + 6 h. Plecarea nevalidă → NaN. */
+export function sfarsitulCurseiMs(departureAt: string, oraSosire: string | null | undefined): number {
+  const sosireMs = sosireaCurseiMs(departureAt, oraSosire);
+  if (sosireMs !== null) return sosireMs + MARJA_DUPA_SOSIRE_MS;
+  return Date.parse(departureAt) + DURATA_IMPLICITA_CURSA_MS;
+}
+
+/** Cursa s-a încheiat la `nowMs`. O plecare nevalidă nu se socotește încheiată (nu ascundem ce nu înțelegem). */
+export function cursaIncheiata(departureAt: string, oraSosire: string | null | undefined, nowMs: number): boolean {
+  const sfarsit = sfarsitulCurseiMs(departureAt, oraSosire);
+  return Number.isFinite(sfarsit) && nowMs >= sfarsit;
+}

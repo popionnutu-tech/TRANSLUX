@@ -38,6 +38,14 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/bilete/retur/admin')).toBe(false);
   });
 
+  it('plângerea din bot (ION-252): DOAR /api/bilete/plangere, exact', () => {
+    expect(isPublicPath('/api/bilete/plangere')).toBe(true);
+    expect(isPublicPath('/api/bilete/plangere/')).toBe(false);
+    expect(isPublicPath('/api/bilete/plangere/x')).toBe(false);
+    expect(isPublicPath('/api/bilete/plangeri')).toBe(false);
+    expect(isPublicPath('/api/bilete/plangere-admin')).toBe(false);
+  });
+
   it('biletele clientului din mini app-ul Telegram (ION-249): DOAR /api/bilete/client/bilete, exact', () => {
     expect(isPublicPath('/api/bilete/client/bilete')).toBe(true);
     expect(isPublicPath('/api/bilete/client/bilete/')).toBe(false);

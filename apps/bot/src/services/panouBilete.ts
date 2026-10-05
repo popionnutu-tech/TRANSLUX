@@ -158,19 +158,22 @@ async function corpJson(res: Response): Promise<unknown> {
   }
 }
 
+/** O cerere spre panou: metoda, calea, corpul JSON și cât o așteptăm. */
+export interface CererePanou { metoda: 'GET' | 'POST'; cale: string; corp?: unknown; timeoutMs: number }
+
+/** Transportul comun spre panou (cheia botului, timeout, validarea corpului); îl folosesc și plângerile (ION-252). */
+export type TransportPanou = <T>(cerere: CererePanou, citeste: (corp: unknown) => T | null) => Promise<RezultatPanou<T>>;
+
 /**
- * Fabrica clientului (dependențele injectate, pentru teste). Răspunsurile de domeniu cu `ok:false` (ex. cifre greșite)
+ * Transportul (dependențele injectate, pentru teste). Răspunsurile de domeniu cu `ok:false` (ex. cifre greșite)
  * pot veni cu 4xx: se validează corpul indiferent de status; un corp care nu se potrivește contractului → `http`
  * (dacă statusul e de eroare) sau `raspuns_invalid`.
  */
-export function creeazaPanouBilete(opt: OptiuniPanou): PanouBilete {
+export function creeazaTransportPanou(opt: OptiuniPanou): TransportPanou {
   const fetchImpl = opt.fetchImpl ?? ((...a: Parameters<typeof fetch>) => globalThis.fetch(...a));
   const configurat = Boolean(opt.baseUrl && opt.apiKey);
 
-  async function cheama<T>(
-    cerere: { metoda: 'GET' | 'POST'; cale: string; corp?: unknown; timeoutMs: number },
-    citeste: (corp: unknown) => T | null,
-  ): Promise<RezultatPanou<T>> {
+  return async function cheama<T>(cerere: CererePanou, citeste: (corp: unknown) => T | null): Promise<RezultatPanou<T>> {
     if (!configurat) return { tip: 'eroare', eroare: 'indisponibil' };
     let res: Response;
     try {
@@ -192,8 +195,11 @@ export function creeazaPanouBilete(opt: OptiuniPanou): PanouBilete {
     const raspuns = citeste(corp);
     if (raspuns !== null) return { tip: 'raspuns', raspuns };
     return { tip: 'eroare', eroare: res.ok ? 'raspuns_invalid' : 'http', status: res.status };
-  }
+  };
+}
 
+export function creeazaPanouBilete(opt: OptiuniPanou): PanouBilete {
+  const cheama = creeazaTransportPanou(opt);
   return {
     bilete: (telegramId) =>
       cheama({ metoda: 'POST', cale: '/api/bilete/retur/bilete', corp: { telegram_id: telegramId }, timeoutMs: TIMEOUT_IMPLICIT_MS }, citesteBilete),

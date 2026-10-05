@@ -13,9 +13,21 @@ export interface ReturSesiune {
   oferte?: Record<string, { cod: string; lang: Limba; la: number }>;
 }
 
+/** ION-252: botul așteaptă plângerea clientului (după 👎 sau după textul pe care AI-ul l-a înțeles ca plângere). */
+export interface PlangereSesiune {
+  /** Comanda din care vine plângerea; null = clientul nu are o comandă anume. */
+  cod: string | null;
+  lang: Limba;
+  /** Până când (ms) următorul mesaj e plângerea. */
+  expiraLa: number;
+  /** Poza trimisă fără text: se păstrează până vine textul. */
+  fotoFileId?: string;
+}
+
 export interface SessionData {
   // Conversation plugin handles state internally
   retur?: ReturSesiune;
+  plangere?: PlangereSesiune;
 }
 
 export type BotContext = Context &

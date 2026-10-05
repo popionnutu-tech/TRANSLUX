@@ -8,7 +8,9 @@ import { FALLBACK_CODE, complaintTypeLabel, type Culprit } from './complaint-typ
 // Pe ce se sprijină identificarea. `trip_only` = vinovatul vine din orar, nu
 // dintr-un semn adus de client — 78,8% dintre perechile rută+zi au un singur
 // șofer, deci fără eticheta asta o acuzație din orar arată la fel ca una probată.
-export type Evidence = 'plate' | 'name' | 'trip_only';
+// `bilet` (ION-252) = plângerea din botul Telegram: clientul a cumpărat online biletul pe cursă, iar șoferul vine din
+// atribuirea cursei — nici plăcuța, nici numele nu le spune clientul.
+export type Evidence = 'plate' | 'name' | 'trip_only' | 'bilet';
 
 export interface ComplaintInput {
   conversation_id: string | null;

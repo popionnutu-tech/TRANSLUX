@@ -10,9 +10,11 @@ import { sendVoiceLessonDigest } from './services/voiceLessons.js';
 import { runPeronPhotoRetention } from './services/photoRetention.js';
 import { refreshDriverReferences } from './services/driverReferences.js';
 import { repoMesajeBilet } from './services/bileteTelegram.js';
-import { sincronizeazaToateConturile, type ApiFixare } from './services/fixareBilet.js';
+import { sincronizeazaFixarea, sincronizeazaToateConturile, type ApiFixare } from './services/fixareBilet.js';
 import { creeazaSursaPozitii } from './services/pozitiiAutobuz.js';
 import { trimiteHartileScadente, type ApiHarta } from './handlers/harta-autobuz.js';
+import { repoDupaCursa } from './services/dupaCursa.js';
+import { trimiteMesajeleDupaCursa, type ApiDupaCursa } from './handlers/dupa-cursa.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -341,6 +343,8 @@ export function scheduleDriverReferences(): void {
 
 const BILETE_PIN_INTERVAL_MS = 15 * 60 * 1000;
 const BILETE_HARTA_INTERVAL_MS = 5 * 60 * 1000;
+/** ION-252: mesajul de după cursă — la 5 minute, ca să plece aproape de sfârșitul cursei (sosirea + 30 min). */
+const BILETE_DUPA_CURSA_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Rulează `job` la `intervalMs`, fără suprapunere; eroarea se scrie în jurnal, intervalul continuă. */
 function rulareFaraSuprapunere(nume: string, intervalMs: number, job: () => Promise<void>): void {
@@ -358,8 +362,8 @@ function rulareFaraSuprapunere(nume: string, intervalMs: number, job: () => Prom
   }, intervalMs);
 }
 
-export function scheduleBileteTelegram(api: ApiFixare & ApiHarta): void {
-  console.log('Bilete în chat started (pin la 15 min, harta autobuzului la 5 min)');
+export function scheduleBileteTelegram(api: ApiFixare & ApiHarta & ApiDupaCursa): void {
+  console.log('Bilete în chat started (pin la 15 min, harta autobuzului și mesajul de după cursă la 5 min)');
   const pozitii = creeazaSursaPozitii(config.adminBaseUrl);
 
   rulareFaraSuprapunere('Bilete pin', BILETE_PIN_INTERVAL_MS, async () => {
@@ -370,5 +374,15 @@ export function scheduleBileteTelegram(api: ApiFixare & ApiHarta): void {
   rulareFaraSuprapunere('Bilete harta', BILETE_HARTA_INTERVAL_MS, async () => {
     const b = await trimiteHartileScadente({ repo: repoMesajeBilet, pozitii, api, nowMs: Date.now() });
     if (b.trimise || b.erori) console.log(`Bilete harta: ${b.trimise} trimis(e), ${b.faraPunct} fără punct, ${b.erori} erori`);
+  });
+
+  // După mesajul de mulțumire pinul contului se reface pe loc: biletul încheiat nu mai stă fixat până la tickul pinului.
+  rulareFaraSuprapunere('Bilete după cursă', BILETE_DUPA_CURSA_INTERVAL_MS, async () => {
+    const nowMs = Date.now();
+    const b = await trimiteMesajeleDupaCursa({
+      repo: repoDupaCursa, api, nowMs,
+      dupaTrimitere: (telegramId) => sincronizeazaFixarea(telegramId, { repo: repoMesajeBilet, api, nowMs }),
+    });
+    if (b.trimise || b.erori) console.log(`Bilete după cursă: ${b.trimise} trimis(e), ${b.erori} erori`);
   });
 }

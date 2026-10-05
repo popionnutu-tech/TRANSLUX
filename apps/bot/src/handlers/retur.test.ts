@@ -187,15 +187,18 @@ describe('handlerul mesajelor', () => {
     expect(f.replies[0].text).toMatch(/banii nu se returnează/);
     expect(f.replies[0].text).toContain('+373 69 123 456');
   });
-  it('vina noastră → escaladare la panou + «te contactează»; plângere → ION-247 separat', async () => {
+  it('vina noastră → escaladare la panou + «te contactează»; plângere → fluxul plângerii (ION-252)', async () => {
     const d = deps({ comenzi: [comanda()], intentie: 'vina_noastra' });
     const f = ctxFals({ text: 'autobuzul n-a venit deloc' });
     await creeazaHandlerMesajClient(d)(f.ctx, vi.fn());
     expect(d.panou.escaladeaza).toHaveBeenCalledWith({ telegramId: ME, cod: COD, text: 'autobuzul n-a venit deloc', motiv: 'vina_noastra' });
     expect(f.replies[0].text).toMatch(/dispecerului, te contactează/);
-    const g = ctxFals({ text: 'șoferul a fost nepoliticos' });
+    const session: Record<string, unknown> = {};
+    const g = ctxFals({ text: 'șoferul a fost nepoliticos', session });
     await creeazaHandlerMesajClient(deps({ comenzi: [comanda()], intentie: 'plangere' }))(g.ctx, vi.fn());
-    expect(g.replies[0].text).toMatch(/^Plângerile prin bot vin în curând/);
+    expect(g.replies[0].text).toBe('Scrie-ne ce s-a întâmplat (poți trimite și o poză).');
+    // botul așteaptă plângerea, legată de biletul cel mai apropiat
+    expect(session.plangere).toMatchObject({ cod: COD, lang: 'ro' });
   });
 });
 

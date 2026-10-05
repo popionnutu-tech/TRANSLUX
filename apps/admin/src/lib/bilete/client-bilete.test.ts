@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { semneazaInitData } from '@/lib/telegram/init-data';
 import type { ComandaPublica } from './public';
-import { bileteleClientului, contactDinComanda, MAX_COMENZI_CLIENT, telegramDinInitData, ziuaChisinau, type ComandaContului, type RepoBileteClient } from './client-bilete';
+import {
+  bileteleClientului, CITITE_IN_PLUS, contactDinComanda, MAX_COMENZI_CLIENT, telegramDinInitData, ziuaChisinau,
+  type ComandaContului, type RepoBileteClient,
+} from './client-bilete';
 
 // Vector sintetic: token FALS, semnat cu aceeași formulă ca Telegram (HMAC «WebAppData»), ca în sofer-auth.test.ts.
 const TOKEN = '123456:FAKE-TOKEN-ION-249';
@@ -53,8 +56,42 @@ describe('bileteleClientului — identitatea din initData', () => {
     // istoricul: doar călătoriile contului, fără telegram_id în răspuns
     expect(r.ok && r.istoric.map((c) => c.cod)).toEqual(['i1']);
     expect(r.ok && Object.keys(r.istoric[0])).not.toContain('telegram_id');
-    // ziua Chișinăului, nu a serverului
-    expect(repo.comenziActive).toHaveBeenCalledWith(EU, '2026-10-05', MAX_COMENZI_CLIENT);
+    // ION-252: se citesc plecările din ultimele 20 h 30 min (cea mai lungă cursă + marja), cu câteva în plus
+    expect(repo.comenziActive).toHaveBeenCalledWith(EU, '2026-10-04T12:30:00.000Z', MAX_COMENZI_CLIENT + CITITE_IN_PLUS);
+  });
+
+  it('ION-252: biletul cu cursa încheiată (sosirea + 30 min) nu mai e în «Biletele mele»; cel pe drum și cele viitoare rămân', async () => {
+    // acum = 05.10, 12:00 Chișinău
+    const curse: Record<string, Partial<ComandaPublica>> = {
+      ['1'.repeat(32)]: { departure_at: '2026-10-05T05:45:00+03:00', sosire: '09:30' }, // sosită 09:30 → încheiată 10:00
+      ['2'.repeat(32)]: { trip_date: '2026-10-04', departure_at: '2026-10-04T22:00:00+03:00', sosire: '01:30' }, // peste noapte, încheiată
+      ['3'.repeat(32)]: { departure_at: '2026-10-05T10:00:00+03:00', sosire: '13:00' }, // pe drum
+      ['4'.repeat(32)]: { departure_at: '2026-10-05T07:00:00+03:00', sosire: null }, // fără oră: 07:00 + 6 h = 13:00, încă nu
+      ['5'.repeat(32)]: { departure_at: '2026-10-05T05:00:00+03:00', sosire: null }, // fără oră: 11:00, încheiată
+      ['6'.repeat(32)]: { departure_at: '2026-10-06T05:45:00+03:00', sosire: '09:30', trip_date: '2026-10-06' }, // mâine
+    };
+    const repo: RepoBileteClient = {
+      ...repoFals(),
+      comenziActive: vi.fn(async () => Object.keys(curse).map((cod) => ({ cod, telegram_id: EU }))),
+      biletComplet: vi.fn(async (cod: string) => ({ ...comandaPublica(cod), ...curse[cod] })),
+    };
+    const r = await cere(initDataPentru(EU), repo);
+    expect(r.ok && r.bilete.map((b) => b.cod[0])).toEqual(['3', '4', '6']);
+  });
+
+  it('ION-252: cele încheiate nu ocupă locurile celor viitoare (plafonul de 10 se aplică după filtru)', async () => {
+    const coduri = Array.from({ length: 14 }, (_, i) => i.toString(16).padStart(32, '0'));
+    const repo: RepoBileteClient = {
+      ...repoFals(),
+      comenziActive: vi.fn(async () => coduri.map((cod) => ({ cod, telegram_id: EU }))),
+      // primele 4 încheiate azi dimineață, restul în viitor
+      biletComplet: vi.fn(async (cod: string) => ({
+        ...comandaPublica(cod),
+        ...(coduri.indexOf(cod) < 4 ? { departure_at: '2026-10-05T05:45:00+03:00', sosire: '09:30' } : {}),
+      })),
+    };
+    const r = await cere(initDataPentru(EU), repo);
+    expect(r.ok && r.bilete.map((b) => b.cod)).toEqual(coduri.slice(4, 4 + MAX_COMENZI_CLIENT));
   });
 
   it('initData falsificat (alt token, id schimbat, hash lipsă) → 401, fără nicio citire din bază', async () => {

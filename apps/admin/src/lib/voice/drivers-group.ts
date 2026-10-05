@@ -1,5 +1,5 @@
 import { getSupabase } from '../supabase';
-import { escapeHtml, sendTelegram } from '../telegram-notify';
+import { escapeHtml, sendTelegram, sendTelegramPhotoId } from '../telegram-notify';
 import { DRIVERS_GROUP_CONFIG_KEY } from '@translux/db';
 import type { Evidence } from './complaints';
 import { CULPRIT_RU, type Culprit } from './complaint-types';
@@ -70,6 +70,13 @@ export async function notifyDriversGroup(text: string): Promise<boolean> {
   return sendTelegram(chatId, text);
 }
 
+/** Poza clientului (file_id-ul botului, ION-252) în grupă, după mesajul reclamației. Nu aruncă. */
+export async function notifyDriversGroupPhoto(fileId: string, caption: string): Promise<boolean> {
+  const chatId = await driversGroupChatId();
+  if (!chatId) return false;
+  return sendTelegramPhotoId(chatId, fileId, caption);
+}
+
 export interface GroupComplaint {
   driver_name: string | null;
   plate: string | null;
@@ -84,6 +91,8 @@ export interface GroupComplaint {
   culprit?: Culprit | null;
   /** Pe ce se sprijină identificarea (migr. 308). */
   evidence: Evidence;
+  /** De unde vine reclamația; lipsă = telefonul (agentul vocal) sau chatul site-ului. */
+  sursa?: 'telegram';
 }
 
 // Temeiul, spus pe scurt. Măsurat pe prod 01.09: 78,8% dintre perechile rută+zi
@@ -95,6 +104,7 @@ const TEMEI_GRUPA: Record<Evidence, string> = {
   plate: 'Клиент назвал номер машины.',
   name: 'Клиент назвал имя водителя.',
   trip_only: '⚠️ Клиент НЕ назвал ни машину, ни имя — рейс определён по расписанию.',
+  bilet: 'Клиент купил онлайн-билет на этот рейс; водитель — по назначению на рейс.',
 };
 
 // `route` și `departure` sunt tot text scris de model (pe calea neidentificată,
@@ -179,6 +189,8 @@ export function formatComplaintForGroup(
         ? 'ℹ️ Кто отвечает: выяснится при проверке.'
         : `ℹ️ Не вина водителя — отвечает ${CULPRIT_RU[c.culprit]}.`)
       : null,
+    // ION-252: plângerea scrisă în bot de clientul cu bilet online — se spune pe față, ca să nu pară un apel.
+    c.sursa === 'telegram' ? '📱 Из Telegram-бота, от клиента с онлайн-билетом.' : null,
     c.complaint ? `«${escapeHtml(pentruGrupa(c.complaint))}»` : null,
     // Valoare necunoscută → avertismentul cel mai prudent, nu lipsa lui: fără
     // fallback, un `evidence` neprevăzut ar fi șters tăcut exact rândul care
@@ -191,7 +203,8 @@ export function formatComplaintForGroup(
     // numele unui om, în fața a douăzeci de colegi (review 02.09). Ce a
     // verificat AI-ul e cursa și cine era pe ea; cât de tare, spune rândul cu
     // temeiul. Fără șofer identificat nu s-a verificat nimic — rândul lipsește.
-    cine ? '<i>Проверено AI колл-центром: рейс и водитель.</i>' : null,
+    // Din bot nu verifică nimeni nimic la telefon: cursa e cea din bilet (rândul temeiului spune asta).
+    cine && c.evidence !== 'bilet' ? '<i>Проверено AI колл-центром: рейс и водитель.</i>' : null,
   ].filter(Boolean).join('\n');
 }
 

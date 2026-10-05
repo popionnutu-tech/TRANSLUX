@@ -1,14 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { DURATA_MAXIMA_CURSA_MS, MARJA_DUPA_SOSIRE_MS } from '@translux/db';
 import { getSupabase } from '../supabase.js';
+import { cuSfarsitulCursei } from './sfarsitCursa.js';
 
 // ION-251: ce ține botul despre mesajele biletelor în chatul clientului (migr. 505): mesajul cu biletul, mesajul fixat
 // și harta trimisă o dată. Separat de RepoBileteClienti: alt motiv de schimbare (chatul, nu comanda).
 
-/** Comanda văzută de regula pinului: plecarea, starea și mesajele ei din chat. */
+/** Comanda văzută de regula pinului: plecarea, sfârșitul cursei (ION-252), starea și mesajele ei din chat. */
 export interface ComandaFixare {
   cod: string;
   status: string;
   departure_at: string;
+  /** Sfârșitul cursei (ms): sosirea din grafic + 30 min; fără oră, plecarea + 6 h (@translux/db). */
+  sfarsit_ms: number;
   telegram_mesaj_id: number | null;
   telegram_mesaj_fixat_id: number | null;
 }
@@ -31,8 +35,14 @@ export const FEREASTRA_CONTURI_MS = 2 * 24 * 60 * 60_000;
 /** Harta pleacă de la o oră înainte de plecare până la 5 minute după (cursa întârzie, punctul vine târziu). */
 export const HARTA_INAINTE_MS = 60 * 60_000;
 export const HARTA_DUPA_MS = 5 * 60_000;
-/** Comenzile unui cont citite pentru pin: cele plecate de până la 6 h (sosirea nu e în bază) și cele fixate. */
-export const FEREASTRA_FIXARE_DUPA_PLECARE_MS = 6 * 60 * 60_000;
+/**
+ * Comenzile unui cont citite pentru pin: plecate de cel mult cât ține cea mai lungă cursă + marja (sfârșitul exact îl
+ * hotărăște regula pinului, din ora sosirii), plus cele fixate acum.
+ */
+export const FEREASTRA_CITIRE_DUPA_PLECARE_MS = DURATA_MAXIMA_CURSA_MS + MARJA_DUPA_SOSIRE_MS;
+
+/** Rândul citit pentru pin: comanda + ce trebuie pentru sfârșitul cursei. */
+type RandFixare = Omit<ComandaFixare, 'sfarsit_ms'> & { crm_route_id: number; to_stop_order: number; going_north: boolean };
 
 const PLATITA = 'platita';
 const LIMITA_RANDURI = 500;
@@ -42,7 +52,7 @@ export interface RepoMesajeBilet {
   salveazaMesaj(cod: string, telegramId: number, mesajId: number): Promise<void>;
   /** Mesajul nu mai există în chat (clientul l-a șters): comanda nu mai are ce fixa, până la următorul link. */
   uitaMesaj(cod: string, mesajId: number): Promise<void>;
-  /** Comenzile contului relevante pentru pin: plecate de cel mult 6 h sau în viitor, plus cele fixate acum. */
+  /** Comenzile contului relevante pentru pin, cu sfârșitul cursei: cele încă posibil pe drum, plus cele fixate acum. */
   comenziPentruFixare(telegramId: number, nowMs: number): Promise<ComandaFixare[]>;
   /** Scrie pinul curent al contului: ținta (sau nimic) fixată, restul comenzilor desfixate. */
   marcheazaFixarea(telegramId: number, tinta: TintaFixare | null): Promise<void>;
@@ -75,13 +85,13 @@ export function creeazaRepoMesajeBilet(db: () => SupabaseClient): RepoMesajeBile
     async comenziPentruFixare(telegramId, nowMs) {
       const { data, error } = await db()
         .from('bilete_comenzi')
-        .select('cod, status, departure_at, telegram_mesaj_id, telegram_mesaj_fixat_id')
+        .select('cod, status, departure_at, telegram_mesaj_id, telegram_mesaj_fixat_id, crm_route_id, to_stop_order, going_north')
         .eq('telegram_id', telegramId)
-        .or(`telegram_mesaj_fixat_id.not.is.null,departure_at.gt."${iso(nowMs - FEREASTRA_FIXARE_DUPA_PLECARE_MS)}"`)
+        .or(`telegram_mesaj_fixat_id.not.is.null,departure_at.gt."${iso(nowMs - FEREASTRA_CITIRE_DUPA_PLECARE_MS)}"`)
         .order('departure_at', { ascending: true })
         .limit(LIMITA_RANDURI);
       verifica(error, 'bilete_comenzi pentru pin');
-      return (data as ComandaFixare[] | null) ?? [];
+      return cuSfarsitulCursei(db(), (data as RandFixare[] | null) ?? []);
     },
 
     async marcheazaFixarea(telegramId, tinta) {

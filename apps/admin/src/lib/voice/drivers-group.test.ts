@@ -20,6 +20,16 @@ const bazaReclamatie = {
 };
 
 describe('formatComplaintForGroup', () => {
+  it('ION-252: plângerea din botul Telegram — sursa pe față, temeiul «bilet», fără ștampila call-centrului', () => {
+    const t = formatComplaintForGroup({ ...bazaReclamatie, evidence: 'bilet', sursa: 'telegram', complaint: 'sunați-mă la 069 123 456' });
+    expect(t).toContain('📱 Из Telegram-бота, от клиента с онлайн-билетом.');
+    expect(t).toContain('Клиент купил онлайн-билет на этот рейс; водитель — по назначению на рейс.');
+    expect(t).not.toContain('Проверено AI колл-центром');
+    // telefonul clientului nu ajunge în grupă nici din bot
+    expect(t).not.toContain('069 123 456');
+    expect(t).toContain('[номер скрыт]');
+  });
+
   it('numește omul și mașina — decizia lui Ion; totul în rusă', () => {
     const t = formatComplaintForGroup(bazaReclamatie);
     expect(t).toContain('Жалоба клиента');

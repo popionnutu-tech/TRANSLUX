@@ -8,12 +8,12 @@ import { STARI_CLIENT, type CalatorieIstoric, type ComandaContului, type Contact
 
 const PLAFON_PE_MINUT = 30;
 
-async function comenziActive(telegramId: number, deLaZiua: string, limita: number): Promise<ComandaContului[]> {
+async function comenziActive(telegramId: number, plecareDupa: string, limita: number): Promise<ComandaContului[]> {
   const { data, error } = await getSupabase().from('bilete_comenzi')
     .select('cod, telegram_id')
     .eq('telegram_id', telegramId)
     .in('status', [...STARI_CLIENT])
-    .gte('trip_date', deLaZiua)
+    .gt('departure_at', plecareDupa)
     .order('departure_at')
     .limit(limita);
   if (error) throw new BazaIndisponibilaError(`bilete_comenzi: ${error.message}`);

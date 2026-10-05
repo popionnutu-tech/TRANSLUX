@@ -1,8 +1,9 @@
-import { FEREASTRA_FIXARE_DUPA_PLECARE_MS, type ComandaFixare, type RepoMesajeBilet, type TintaFixare } from './bileteTelegram.js';
+import type { ComandaFixare, RepoMesajeBilet, TintaFixare } from './bileteTelegram.js';
 
 // ION-251 (Ion, 05.10: «biletul actual care e cel mai apropiat întotdeauna trebuie să fie pin»). În chatul clientului e
-// fixat mesajul comenzii plătite cu cea mai apropiată plecare care încă n-a trecut; comanda e «încă a lui» până la
-// sosire, iar sosirea nu e în bază, deci plecarea + 6 h. Anulata/returnata pierde pinul la primul tick.
+// fixat mesajul comenzii plătite cu cea mai apropiată plecare a cărei cursă nu s-a încheiat; ION-252: cursa ține până
+// la sosirea din grafic + 30 min (fără oră, plecarea + 6 h), apoi pinul trece pe biletul următor sau se scoate.
+// Anulata/returnata pierde pinul la primul tick.
 
 const PLATITA = 'platita';
 
@@ -16,7 +17,7 @@ export function comandaDeFixat(comenzi: readonly ComandaFixare[], nowMs: number)
   const eligibile = comenzi.filter((c) =>
     c.status === PLATITA
     && c.telegram_mesaj_id != null
-    && Date.parse(c.departure_at) + FEREASTRA_FIXARE_DUPA_PLECARE_MS > nowMs);
+    && c.sfarsit_ms > nowMs);
   if (!eligibile.length) return null;
   return eligibile.reduce((a, b) => (Date.parse(b.departure_at) < Date.parse(a.departure_at) ? b : a));
 }

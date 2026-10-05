@@ -9,6 +9,7 @@ import {
   BUTOANE, buton, etichetaBilet, text, textCifreGresite, textDispecer, textFaraBani, textIntarziat, textOferta,
   textRefuzOferta, textStare,
 } from './retur-texte.js';
+import { incepePlangerea } from './plangere.js';
 
 // ION-244 (Ion, 05.10): returnarea biletului online în bot, «cu AI». Nucleul e pe butoane: «Returnează» → panoul face
 // oferta din grilă (valabilă 15 min) → clientul confirmă → panoul anulează și cere refund-ul. AI-ul (returAi.ts) doar
@@ -353,7 +354,8 @@ async function raspundeClientului(ctx: BotContext, deps: ReturDeps, fromId: numb
     case 'retur': return laIntentieRetur(ctx, deps, comenzi, c.lang);
     case 'intarziat': return laIntarziat(ctx, deps, comenzi, c.lang);
     case 'vina_noastra': return laVinaNoastra(ctx, deps, fromId, { comenzi, mesaj, lang: c.lang });
-    case 'plangere': await ctx.reply(text('plangere', c.lang)); return;
+    // ION-252 / ION-247: plângerea se primește chiar aici, în bot, legată de biletul cel mai apropiat.
+    case 'plangere': return incepePlangerea(ctx, { cod: biletulCelMaiApropiat(comenzi, deps.now())?.cod ?? null, lang: c.lang }, deps.now());
     case 'altceva': await ctx.reply(text('altceva', c.lang)); return;
   }
 }

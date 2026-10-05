@@ -2,7 +2,7 @@ import 'server-only';
 import { timingSafeEqual } from 'crypto';
 
 // Cheia botului (ION-244): BILETE_BOT_API_KEY, separată de cheia site-ului (BILETE_API_KEY) — deschide DOAR
-// rutele /api/bilete/retur/*. ≥ 256 biți, doar pe central-hub și în Railway (serviciul bot).
+// rutele /api/bilete/retur/* și /api/bilete/plangere (ION-252). ≥ 256 biți, doar pe central-hub și în Railway (bot).
 
 const BEARER_RE = /^Bearer\s+(.+)$/i;
 

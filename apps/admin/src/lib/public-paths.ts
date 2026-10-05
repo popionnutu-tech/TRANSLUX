@@ -63,6 +63,8 @@ export const PUBLIC_EXACT = [
   '/api/bilete/retur/confirma',
   '/api/bilete/retur/stare',
   '/api/bilete/retur/escaladeaza',
+  // Plângerea clientului din bot (ION-252 / ION-247): aceeași cheie a botului (BILETE_BOT_API_KEY). Exactă, nu prefix.
+  '/api/bilete/plangere',
   // Biletele clientului în mini app-ul Telegram de pe translux.md (ION-249): serverul site-ului o cheamă cu
   // BILETE_API_KEY + X-Telegram-Init-Data (HMAC cu tokenul botului); fără initData valid nu întoarce nimic. Exactă.
   '/api/bilete/client/bilete',

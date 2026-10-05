@@ -27,6 +27,25 @@ export async function sendTelegram(chatId: string | number, text: string, replyM
   }
 }
 
+/** Trimite o poză deja aflată la Telegram (file_id primit de același bot, ION-252) cu subtitlu HTML. Nu aruncă. */
+export async function sendTelegramPhotoId(chatId: string | number, fileId: string, caption: string): Promise<boolean> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return false;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, photo: fileId, caption, parse_mode: 'HTML' }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) console.error('sendTelegramPhotoId failed:', resp.status, (await resp.text().catch(() => '')).slice(0, 300));
+    return resp.ok;
+  } catch (err) {
+    console.error('sendTelegramPhotoId failed:', err);
+    return false;
+  }
+}
+
 /** Trimite o imagine (PNG) cu subtitlu HTML. Nu aruncă niciodată.
  *  Întoarce message_id-ul din Telegram — se păstrează ca la nevoie imaginea să
  *  poată fi găsită/ștearsă mai târziu. Multipart, nu JSON: Bot API primește

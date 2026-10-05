@@ -1,5 +1,7 @@
 // Regulile pure ale mini app-ului clientului din Telegram (ION-249): când se arată harta autobuzului, ora cursei pentru
 // /api/asistent-site/pozitie, initData-ul din fragmentul URL-ului și contactul pentru formular. Fără React, fără rețea.
+// ION-252: sfârșitul cursei (sosirea din grafic + 30 min) e regula comună din @translux/db — aceeași în bot și în panou.
+import { cursaIncheiata, sosireaCurseiMs } from '@translux/db';
 
 /** Harta apare în ziua cursei, cu atât înainte de plecare (Ion, 05.10). */
 export const HARTA_INAINTE_MIN = 60;
@@ -9,7 +11,6 @@ export const HARTA_DUPA_SOSIRE_MIN = 30;
 export const DURATA_IMPLICITA_MIN = 6 * 60;
 
 const MINUT_MS = 60_000;
-const ZI_MIN = 1440;
 
 /** Datele de pe bilet de care are nevoie fereastra hărții. */
 export interface CursaBilet {
@@ -44,18 +45,17 @@ export function oraChisinau(iso: string): string {
   return `${String(Number(h) % 24).padStart(2, '0')}:${m}`;
 }
 
-function minuteDin(hhmm: string): number | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
-  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+/** Sosirea (ms) din grafic, sau plecarea + DURATA_IMPLICITA_MIN fără oră (sosirea după miezul nopții = ziua următoare). */
+function sosireaMs(c: CursaBilet, plecareMs: number): number {
+  return sosireaCurseiMs(c.departure_at, c.sosire) ?? plecareMs + DURATA_IMPLICITA_MIN * MINUT_MS;
 }
 
-/** Cât ține drumul de la plecare la sosire, în minute (sosirea după miezul nopții = ziua următoare). */
-function durataCursei(c: CursaBilet): number {
-  const plecare = minuteDin(oraChisinau(c.departure_at));
-  const sosire = c.sosire ? minuteDin(c.sosire) : null;
-  if (plecare === null || sosire === null) return DURATA_IMPLICITA_MIN;
-  const durata = (sosire - plecare + ZI_MIN) % ZI_MIN;
-  return durata === 0 ? DURATA_IMPLICITA_MIN : durata;
+/**
+ * ION-252 (Ion, 05.10: «biletul trece imediat în Istoric după sosire»): biletele din «Biletele mele» a căror cursă nu
+ * s-a încheiat. Panoul le filtrează deja; aici se refiltrează între două încărcări (mini app-ul stă deschis).
+ */
+export function bileteNeincheiate<T extends { departure_at: string; sosire?: string | null }>(bilete: readonly T[], acumMs: number): T[] {
+  return bilete.filter((b) => !cursaIncheiata(b.departure_at, b.sosire, acumMs));
 }
 
 export function fereastraHartii(c: CursaBilet, acumMs: number): FereastraHartii {
@@ -66,7 +66,7 @@ export function fereastraHartii(c: CursaBilet, acumMs: number): FereastraHartii 
   const azi = ziuaChisinau(acumMs);
   if (c.trip_date > azi) return 'alta_zi';
   if (c.trip_date < azi) return 'incheiata';
-  const sfarsitMs = plecareMs + (durataCursei(c) + HARTA_DUPA_SOSIRE_MIN) * MINUT_MS;
+  const sfarsitMs = sosireaMs(c, plecareMs) + HARTA_DUPA_SOSIRE_MIN * MINUT_MS;
   if (acumMs > sfarsitMs) return 'incheiata';
   return acumMs < plecareMs - HARTA_INAINTE_MIN * MINUT_MS ? 'curand' : 'activa';
 }

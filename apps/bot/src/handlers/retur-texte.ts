@@ -74,10 +74,6 @@ export const T_RETUR = {
     ro: `Pentru asta te ajută dispeceratul: ${TELEFON_DISPECERAT}. Aici în bot poți returna biletul.`,
     ru: `С этим поможет диспетчер: ${TELEFON_DISPECERAT}. Здесь в боте можно вернуть билет.`,
   },
-  plangere: {
-    ro: `Plângerile prin bot vin în curând; până atunci sună la ${TELEFON_DISPECERAT}.`,
-    ru: `Жалобы через бота скоро будут доступны; пока звоните по номеру ${TELEFON_DISPECERAT}.`,
-  },
   dispecerVina: { ro: 'Am transmis dispecerului, te contactează.', ru: 'Мы передали диспетчеру, с вами свяжутся.' },
   escaladareEsuata: {
     ro: `Nu am putut transmite cererea acum. Sună la ${TELEFON_DISPECERAT}.`,

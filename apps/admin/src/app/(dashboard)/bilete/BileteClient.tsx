@@ -3,13 +3,15 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { BileteAlerta } from '@translux/db';
-import { detaliuComanda, emiteBiletele, returneazaComanda, rezolvaAlerta, verificaRefundComanda, type ComandaRand, type Detaliu, type Filtre } from './actions';
+import { detaliuComanda, emiteBiletele, returneazaComanda, rezolvaAlerta, verificaRefundComanda, type ComandaRand, type Detaliu, type Filtre, type Portocalii } from './actions';
 
 interface Props {
   comenzi: ComandaRand[];
   alerte: BileteAlerta[];
   nouaVechi: number;
   filtre: Filtre;
+  /** ION-241: fila «Portocalii» — scanările de verificat (ne-ok sau din coada offline), doar citire. */
+  portocalii: Portocalii;
 }
 
 const RED = '#9B1B30';
@@ -38,8 +40,66 @@ function Stare({ s }: { s: string | null }) {
 
 const STARI = ['noua', 'platita', 'expirata', 'eroare_creare', 'anulata', 'returnata', 'platita_fara_bilet'];
 
-export default function BileteClient({ comenzi, alerte, nouaVechi, filtre }: Props) {
+const PORTOCALIU = '#c2410c';
+const REZULTAT_RO: Record<string, string> = {
+  ok: 'ok', neconfirmat: 'neconfirmat', deja_urcat: 'deja urcat', anulat: 'anulat', alta_cursa: 'altă cursă', necunoscut: 'necunoscut',
+};
+function ziRo(zi: string): string { const [y, m, d] = zi.split('-'); return `${d}.${m}.${y}`; }
+
+/** ION-241: fila «Portocalii» — scanările de verificat din ultimele 7 zile, grupate pe zi. Doar citire. */
+function FilaPortocalii({ p, deschideComanda }: { p: Portocalii; deschideComanda: (id: string) => void }) {
+  const nr = p.zile.reduce((n, z) => n + z.randuri.length, 0);
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ padding: 14, background: '#fff7ed', borderRadius: 16, border: '1px solid #fed7aa', fontSize: 13 }}>
+        <b style={{ color: PORTOCALIU }}>Luna curentă (de la {ziRo(p.luna.de_la)}):</b>{' '}
+        neconfirmate: <b>{p.luna.neconfirmate}</b> · invalide: <b>{p.luna.invalide}</b>
+        <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+          Ultimele 7 zile: {nr} scanări de verificat — rezultat diferit de «ok» sau venite din coada offline (telefonul a scanat cu peste 2 min înaintea serverului).
+          {p.trunchiat && <span style={{ color: RED }}> Lista e trunchiată la cele mai noi 1000 de scanări.</span>}
+        </div>
+      </div>
+      {p.zile.length === 0 && <div style={{ fontSize: 13, color: '#777', padding: '4px 2px' }}>Nicio scanare de verificat în ultimele 7 zile.</div>}
+      {p.zile.map((z) => (
+        <div key={z.zi} style={{ background: '#fff', borderRadius: 16, overflow: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
+          <div style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, borderBottom: '1px solid #eee' }}>{ziRo(z.zi)} <span style={{ color: '#888', fontWeight: 400 }}>· {z.randuri.length}</span></div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
+            <thead><tr>
+              <th style={th}>Cod</th><th style={th}>Șofer</th><th style={th}>Cursa șoferului</th><th style={th}>Cursa biletului</th>
+              <th style={th}>Rezultat</th><th style={th}>Moment client</th><th style={th}>Moment server</th><th style={th}>Pasager</th>
+            </tr></thead>
+            <tbody>
+              {z.randuri.map((s) => (
+                <tr key={s.id}>
+                  <td style={td}><code>{s.cod_citit}</code></td>
+                  <td style={td}>{s.sofer_nume ?? (s.driver_id ? <span style={{ color: '#999' }}>{s.driver_id.slice(0, 8)}…</span> : '—')}</td>
+                  <td style={td}>{s.cursa_sofer ?? '—'}</td>
+                  <td style={td}>{s.cursa_bilet ?? '—'}</td>
+                  <td style={td}>
+                    <span style={{ color: s.clasa === 'ok' ? '#1b7f3b' : s.clasa === 'neconfirmata' ? PORTOCALIU : RED, fontWeight: 600 }}>{REZULTAT_RO[s.rezultat] ?? s.rezultat}</span>
+                    {s.offline && <div style={{ fontSize: 11, color: PORTOCALIU }}>din coada offline</div>}
+                  </td>
+                  <td style={td}>{dataRo(s.moment_client)}</td>
+                  <td style={td}>{dataRo(s.moment_server)}</td>
+                  <td style={td}>
+                    {s.pasager_nume ? <>{s.pasager_nume}<div style={{ fontSize: 12, color: '#666' }}>+{s.pasager_telefon}</div></> : <span style={{ color: '#999' }}>cod fără comandă</span>}
+                    {s.comanda_id && <div><button type="button" onClick={() => deschideComanda(s.comanda_id!)} style={{ ...btn(), padding: '2px 8px', fontSize: 11, marginTop: 4 }}>comanda</button></div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function BileteClient({ comenzi, alerte, nouaVechi, filtre, portocalii }: Props) {
   const router = useRouter();
+  // ION-241: două file — «Comenzi» (ce era) și «Portocalii» (scanările de verificat). Butonul «comanda» din
+  // fila portocalie trece pe «Comenzi» și deschide detaliile (dacă comanda e în lista filtrată).
+  const [fila, setFila] = useState<'comenzi' | 'portocalii'>('comenzi');
   const [pending, startTransition] = useTransition();
   const [mesaj, setMesaj] = useState<{ ok: boolean; text: string } | null>(null);
   const [deschis, setDeschis] = useState<string | null>(null);
@@ -82,7 +142,16 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre }: Pro
         <div style={{ padding: '10px 14px', borderRadius: 12, marginBottom: 16, fontSize: 13, background: mesaj.ok ? '#e8f5ec' : '#fdecef', color: mesaj.ok ? '#1b5e30' : RED }}>{mesaj.text}</div>
       )}
 
-      {alerte.length > 0 && (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button type="button" onClick={() => setFila('comenzi')} style={btn(fila === 'comenzi')}>Comenzi</button>
+        <button type="button" onClick={() => setFila('portocalii')} style={{ ...btn(fila === 'portocalii'), ...(fila === 'portocalii' ? { background: PORTOCALIU } : { borderColor: PORTOCALIU, color: PORTOCALIU }) }}>
+          Portocalii{portocalii.zile.length > 0 ? ` (${portocalii.zile.reduce((n, z) => n + z.randuri.length, 0)})` : ''}
+        </button>
+      </div>
+
+      {fila === 'portocalii' && <FilaPortocalii p={portocalii} deschideComanda={(id) => { setFila('comenzi'); toggle(id); }} />}
+
+      {fila === 'comenzi' && alerte.length > 0 && (
         <div style={{ padding: 14, background: '#fff8e6', borderRadius: 16, marginBottom: 20, border: '1px solid #f0dca0' }}>
           <b style={{ fontSize: 13 }}>Alerte deschise ({alerte.length})</b>
           <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
@@ -98,7 +167,7 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre }: Pro
         </div>
       )}
 
-      <form onSubmit={aplicaFiltre} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: 12, background: '#fff', borderRadius: 16, marginBottom: 16, boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
+      {fila === 'comenzi' && <form onSubmit={aplicaFiltre} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: 12, background: '#fff', borderRadius: 16, marginBottom: 16, boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
         <input value={f.zi} onChange={(e) => setF({ ...f, zi: e.target.value })} placeholder="ziua cursei (YYYY-MM-DD)" style={{ ...inp, width: 190 }} />
         <input value={f.ruta} onChange={(e) => setF({ ...f, ruta: e.target.value })} placeholder="id rută" style={{ ...inp, width: 80 }} />
         <select value={f.stare} onChange={(e) => setF({ ...f, stare: e.target.value })} style={inp}>
@@ -110,9 +179,9 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre }: Pro
         </select>
         <button type="submit" style={btn(true)}>Filtrează</button>
         <span style={{ fontSize: 11, color: '#888' }}>implicit: ultimele 7 zile + viitoare</span>
-      </form>
+      </form>}
 
-      <div style={{ background: '#fff', borderRadius: 16, overflow: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
+      {fila === 'comenzi' && <div style={{ background: '#fff', borderRadius: 16, overflow: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1100 }}>
           <thead><tr>
             <th style={th}>Creat</th><th style={th}>Cursa</th><th style={th}>Pasager</th><th style={th}>Locuri · sumă</th>
@@ -166,7 +235,7 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre }: Pro
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }

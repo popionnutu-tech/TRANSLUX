@@ -1,5 +1,6 @@
-import type { Context } from 'grammy';
+import { InlineKeyboard, type Context } from 'grammy';
 import { normalizeDriverPhone, PhoneError } from '@translux/db';
+import { config } from '../config.js';
 import { getSupabase } from '../supabase.js';
 
 // ION-234 (Ion, 05.10.2026): «trebuie să unim șoferul din Telegram cu șoferul de pe Mejgorod (grafic)».
@@ -8,7 +9,8 @@ import { getSupabase } from '../supabase.js';
 // site, deci oricine ar putea trimite numărul altuia ca «contact») cu `drivers.phone` (canonic 373XXXXXXXX,
 // aceeași regulă ca în admin). Reușita scrie `drivers.telegram_id`; refuzurile se jurnalizează în
 // `drivers_telegram_incercari`, de unde adminul leagă de mână (planul ION-190, pasul 7). Mini app-ul
-// biletelor (ION-190) va găsi cursa zilei după acest telegram_id.
+// biletelor (ION-190) găsește cursa zilei după acest telegram_id.
+// ION-241: după legare, șoferul primește butonul `web_app` spre mini app (același ca la `/bilete`, vezi bilete-azi.ts).
 
 export const START_SOFER = 'sofer';
 
@@ -72,6 +74,26 @@ const T = {
   } as Record<MotivRefuz | 'alt_sofer', string>,
 };
 
+// ION-241: butonul spre mini app-ul biletelor. `web_app` merge doar în chat privat (în grupă — doar URL,
+// vezi /api/cron/anunt-bilete-online). Același buton după legare, la «deja legat» și la `/bilete`.
+export const T_MINI_APP = {
+  buton: '🎫 Мои билеты / Biletele mele',
+  deschide: (nume: string) => [
+    `🎫 <b>${nume}</b>, ваши пассажиры с онлайн-билетами — по кнопке ниже.`,
+    'Там же сканирование билетов. Команда: /bilete',
+    '',
+    '<i>Pasagerii tăi cu bilete online și scanarea — prin butonul de jos. Comanda: /bilete</i>',
+  ].join('\n'),
+  dupaLegare: [
+    '🎫 Пассажиры с онлайн-билетами на сегодня и сканирование — по кнопке ниже. Команда: /bilete',
+    '<i>Pasagerii cu bilete online pe azi și scanarea — prin butonul de jos. Comanda: /bilete</i>',
+  ].join('\n'),
+};
+
+export function tastaturaMiniApp(): InlineKeyboard {
+  return new InlineKeyboard().webApp(T_MINI_APP.buton, config.miniAppBileteUrl);
+}
+
 /** `/start sofer`: cere contactul propriu. Doar în chat privat. */
 export async function handleSoferStart(ctx: Context): Promise<void> {
   if (ctx.chat?.type !== 'private') return;
@@ -104,6 +126,7 @@ export async function handleSoferContact(ctx: Context): Promise<void> {
   }
   if (d.dejaAcelasi) {
     await ctx.reply(T.dejaAcelasi(d.sofer.full_name), { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+    await ctx.reply(T_MINI_APP.dupaLegare, { parse_mode: 'HTML', reply_markup: tastaturaMiniApp() });
     return;
   }
   const { error } = await sb
@@ -119,4 +142,6 @@ export async function handleSoferContact(ctx: Context): Promise<void> {
     return;
   }
   await ctx.reply(T.reusit(d.sofer.full_name), { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+  // ION-241: butonul web_app vine în al doilea mesaj — un mesaj nu poate purta și remove_keyboard, și tastatură inline.
+  await ctx.reply(T_MINI_APP.dupaLegare, { parse_mode: 'HTML', reply_markup: tastaturaMiniApp() });
 }

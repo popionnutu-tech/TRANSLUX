@@ -5,6 +5,9 @@ export const config = {
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseKey: process.env.SUPABASE_SERVICE_KEY || '',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  // ION-241: mini app-ul biletelor online pentru șofer (servit de central-hub, pachetul B din ION-190).
+  // Botul doar îl deschide, cu buton inline `web_app` în chat privat; URL-ul se schimbă prin env la nevoie.
+  miniAppBileteUrl: process.env.MINI_APP_BILETE_URL || 'https://central-hub-md.vercel.app/mini-app/bilete',
   timezone: 'Europe/Chisinau',
   rateLimitPerMinute: 30,
   photoCaptureTimeoutMs: 2 * 60 * 1000, // 2 minutes

@@ -33,7 +33,13 @@ const TEXT_LEGARE = [
   '',
   'Если бот ответил, что номер не найден — скажите диспетчеру.',
 ].join('\n');
-const BUTON_LEGARE = { inline_keyboard: [[{ text: '🔗 Привязать мой Telegram', url: LINK_LEGARE }]] };
+// ION-241: al doilea rând — intrarea în mini app-ul biletelor. În grupă nu merge `web_app`, deci linkul duce în
+// privat (`/start bilete_azi`): botul dă butonul web_app șoferului legat, iar celui nelegat îi cere contactul.
+const LINK_BILETE = `https://t.me/${BOT}?start=bilete_azi`;
+const BUTON_LEGARE = { inline_keyboard: [
+  [{ text: '🔗 Привязать мой Telegram', url: LINK_LEGARE }],
+  [{ text: '🎫 Мои билеты', url: LINK_BILETE }],
+] };
 // Ion, 05.10: «dă-mi mie zilnic raport câți șoferi din cei care stabil apar în grafic sunt legați sau nu».
 // Stabil = cel puțin 3 zile cu cursă în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
 // (privatul lui Ion) o dată pe zi, cât timp mai e cineva nelegat.
@@ -120,7 +126,7 @@ export async function GET(req: NextRequest) {
   const val = (k: string) => (cfg ?? []).find(r => r.key === k)?.value?.trim() || null;
   const lansat = val(LANSAT);
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });
-  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
+  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, link_bilete: LINK_BILETE, reply_markup: BUTON_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
   const force = q.get('force') === '1';
   const doarRaport = q.get('raport') === '1'; // retrimite doar raportul (ex. după ce s-a adăugat un destinatar)
   const chatId = await graficGroupChatId();

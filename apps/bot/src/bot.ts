@@ -8,6 +8,7 @@ import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
 import { handleSoferContact } from './handlers/sofer.js';
+import { handleBileteAzi } from './handlers/bilete-azi.js';
 
 import { handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
@@ -80,6 +81,10 @@ export function createBot(): Bot<BotContext> {
 
   // /start command
   bot.command('start', handleStart);
+
+  // ION-241: `/bilete` în privat — șoferul legat primește butonul web_app spre mini app-ul biletelor;
+  // nelegat → cere contactul (ca `/start sofer`). Șoferii nu sunt în `users`, deci înaintea gardului generic.
+  bot.command('bilete', handleBileteAzi);
 
   // Admin report commands (admin users managed via web interface)
   bot.command('digest', handleDigest as any);

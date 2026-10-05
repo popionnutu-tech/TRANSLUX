@@ -7,7 +7,8 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { anuleazaSiReturneaza } from '@/lib/bilete/refund';
 import { verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
 import { ComandaError } from '@/lib/bilete/comenzi';
-import { chisinauTodayIso } from '@/lib/chisinau-time';
+import { chisinauDayOf, chisinauDayStartIso, chisinauTodayIso } from '@/lib/chisinau-time';
+import { clasaScanare, esteDinCoadaOffline, estePortocalie, grupeazaPeZi, type ClasaScanare } from './portocalii-reguli';
 
 // Pagina /bilete (ION-195, pasul 11a): dispecerul vede comenzile de bilete online, biletele, scanările și alertele,
 // și poate returna (executorul din ION-194), verifica refund-ul sau emite biletele unei comenzi plătite târziu.
@@ -162,4 +163,80 @@ export async function rezolvaAlerta(id: number): Promise<Rezultat> {
   const { error } = await getSupabase().from('bilete_alerte').update({ rezolvat_la: new Date().toISOString() }).eq('id', id).is('rezolvat_la', null);
   revalidatePath('/bilete');
   return error ? { ok: false, eroare: error.message } : { ok: true };
+}
+
+// ION-241: fila «Portocalii» — scanările din ultimele 7 zile care nu-s «ok» sau au venit din coada offline a mini
+// app-ului (moment_client cu peste 2 min înaintea moment_server). Doar citire; regulile pure în portocalii-reguli.ts.
+export interface ScanarePortocalie {
+  id: number;
+  cod_citit: string;
+  rezultat: string;
+  clasa: ClasaScanare;
+  offline: boolean;
+  moment_client: string | null;
+  moment_server: string;
+  zi: string;
+  driver_id: string | null;
+  sofer_nume: string | null;
+  cursa_sofer: string | null;
+  cursa_bilet: string | null;
+  pasager_nume: string | null;
+  pasager_telefon: string | null;
+  comanda_id: string | null;
+}
+export interface Portocalii {
+  zile: { zi: string; randuri: ScanarePortocalie[] }[];
+  /** Luna curentă (Chișinău): neconfirmate = rezultat «neconfirmat»; invalide = deja_urcat/anulat/alta_cursa/necunoscut. */
+  luna: { neconfirmate: number; invalide: number; de_la: string };
+  /** PostgREST dă cel mult 1000 de rânduri — dacă s-a atins plafonul, lista e trunchiată la cele mai noi. */
+  trunchiat: boolean;
+}
+
+export async function scanariPortocalii(): Promise<Portocalii> {
+  requireRole(await verifySession(), 'ADMIN');
+  const db = getSupabase();
+  const azi = chisinauTodayIso();
+  const deLa7 = chisinauDayStartIso(new Date(Date.parse(azi) - 7 * 86_400_000).toISOString().slice(0, 10));
+  const deLaLuna = chisinauDayStartIso(`${azi.slice(0, 7)}-01`);
+  const PLAFON = 1000;
+  const [{ data: sc, error }, { count: neconfirmate }, { count: invalide }] = await Promise.all([
+    db.from('bilete_scanari').select('id, cod_citit, driver_id, cursa_sofer, cursa_bilet, rezultat, moment_client, moment_server')
+      .gte('moment_server', deLa7).order('id', { ascending: false }).limit(PLAFON),
+    db.from('bilete_scanari').select('id', { count: 'exact', head: true }).gte('moment_server', deLaLuna).eq('rezultat', 'neconfirmat'),
+    db.from('bilete_scanari').select('id', { count: 'exact', head: true }).gte('moment_server', deLaLuna).in('rezultat', ['deja_urcat', 'anulat', 'alta_cursa', 'necunoscut']),
+  ]);
+  if (error) throw new Error(error.message);
+  type Rand = { id: number; cod_citit: string; driver_id: string | null; cursa_sofer: string | null; cursa_bilet: string | null; rezultat: string; moment_client: string | null; moment_server: string };
+  const toate = (sc || []) as Rand[];
+  const portocalii = toate.filter(estePortocalie);
+  const luna = { neconfirmate: neconfirmate ?? 0, invalide: invalide ?? 0, de_la: deLaLuna.slice(0, 10) };
+  if (portocalii.length === 0) return { zile: [], luna, trunchiat: toate.length >= PLAFON };
+
+  const driverIds = [...new Set(portocalii.map((s) => s.driver_id).filter((x): x is string => Boolean(x)))];
+  const coduri = [...new Set(portocalii.map((s) => s.cod_citit))];
+  const [{ data: dr }, { data: bil }] = await Promise.all([
+    driverIds.length ? db.from('drivers').select('id, full_name').in('id', driverIds) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    db.from('bilete').select('cod_qr, comanda_id').in('cod_qr', coduri),
+  ]);
+  const comandaIds = [...new Set(((bil || []) as { cod_qr: string; comanda_id: string }[]).map((b) => b.comanda_id))];
+  const { data: com } = comandaIds.length
+    ? await db.from('bilete_comenzi').select('id, passenger_name, phone').in('id', comandaIds)
+    : { data: [] as { id: string; passenger_name: string; phone: string }[] };
+  const soferi = new Map((dr || []).map((d: { id: string; full_name: string }) => [d.id, d.full_name]));
+  const codComanda = new Map(((bil || []) as { cod_qr: string; comanda_id: string }[]).map((b) => [b.cod_qr, b.comanda_id]));
+  const comenzi = new Map(((com || []) as { id: string; passenger_name: string; phone: string }[]).map((c) => [c.id, c]));
+
+  const randuri: ScanarePortocalie[] = portocalii.map((s) => {
+    const comandaId = codComanda.get(s.cod_citit) ?? null;
+    const c = comandaId ? comenzi.get(comandaId) : undefined;
+    return {
+      id: s.id, cod_citit: s.cod_citit, rezultat: s.rezultat, clasa: clasaScanare(s.rezultat),
+      offline: esteDinCoadaOffline(s.moment_client, s.moment_server),
+      moment_client: s.moment_client, moment_server: s.moment_server, zi: chisinauDayOf(s.moment_server),
+      driver_id: s.driver_id, sofer_nume: s.driver_id ? soferi.get(s.driver_id) ?? null : null,
+      cursa_sofer: s.cursa_sofer, cursa_bilet: s.cursa_bilet,
+      pasager_nume: c?.passenger_name ?? null, pasager_telefon: c?.phone ?? null, comanda_id: comandaId,
+    };
+  });
+  return { zile: grupeazaPeZi(randuri, (r) => r.zi), luna, trunchiat: toate.length >= PLAFON };
 }

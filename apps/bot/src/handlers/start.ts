@@ -4,6 +4,7 @@ import { validateInviteToken, markInviteUsed, createOrUpdateUser } from '../serv
 import { POINT_LABELS } from '@translux/db';
 import { codDinPayload, handleBiletStart } from './bilet.js';
 import { esteStartSofer, handleSoferStart } from './sofer.js';
+import { esteStartBileteAzi, handleBileteAzi } from './bilete-azi.js';
 
 export async function handleStart(ctx: BotContext) {
   const telegramId = ctx.from?.id;
@@ -16,6 +17,13 @@ export async function handleStart(ctx: BotContext) {
   const codBilet = codDinPayload(payload);
   if (codBilet) {
     await handleBiletStart(ctx, codBilet);
+    return;
+  }
+
+  // Șoferul intră în mini app-ul biletelor (ION-241): legat → buton web_app; nelegat → cere contactul.
+  // Ordinea: bilet_<cod> → bilete_azi → sofer → invitație.
+  if (esteStartBileteAzi(payload)) {
+    await handleBileteAzi(ctx);
     return;
   }
 

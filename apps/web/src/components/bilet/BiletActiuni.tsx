@@ -103,3 +103,23 @@ export function EcranCompletTelegram() {
   }, []);
   return null;
 }
+
+/**
+ * ION-249: în mini app-ul Telegram, linkul tel: nu pornește apelul; cerem Telegram să deschidă adresa în browserul
+ * telefonului (web_app_open_link), care redirecționează spre tel:. În afara Telegram — linkul tel: obișnuit.
+ * Întoarce true dacă a preluat apăsarea.
+ */
+export function suna(telefon373: string): boolean {
+  if (typeof window === "undefined") return false;
+  const inTelegram = !!sessionStorage.getItem("tgWebAppVersion") || new URLSearchParams(window.location.hash.slice(1)).has("tgWebAppVersion");
+  if (!inTelegram) return false;
+  const url = `${window.location.origin}/api/suna?t=${encodeURIComponent(telefon373.replace(/\D/g, ""))}`;
+  const w = window as unknown as { TelegramWebviewProxy?: { postEvent: (t: string, d: string) => void } };
+  try {
+    if (w.TelegramWebviewProxy) w.TelegramWebviewProxy.postEvent("web_app_open_link", JSON.stringify({ url }));
+    else window.parent.postMessage(JSON.stringify({ eventType: "web_app_open_link", eventData: { url } }), "https://web.telegram.org");
+    return true;
+  } catch {
+    return false;
+  }
+}

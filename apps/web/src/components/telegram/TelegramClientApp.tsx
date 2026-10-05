@@ -18,7 +18,7 @@ import { bileteDeAratat } from '@/components/bilet/BiletCard';
 import { HomePage } from '@/components/home-page';
 import { NowResults, type NowTrip } from '@/components/NowResults';
 import { phoneTel, phoneText } from '@/lib/phone';
-import { EcranCompletTelegram } from '@/components/bilet/BiletActiuni';
+import { EcranCompletTelegram, suna } from '@/components/bilet/BiletActiuni';
 import { citesteInitData } from './telegram-webapp';
 
 const RED = '#9B1B30';
@@ -325,7 +325,8 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
           <div className="tg-mini-date">
             {masina && <strong>{masina}</strong>}
             {b && <span>{tx.locul} {b.loc_nr ?? b.nr} · {c.passenger_name}</span>}
-            {cursa?.phone && <a className="tg-mini-suna" href={`tel:${phoneTel(cursa.phone)}`}>📞 {phoneText(cursa.phone)}</a>}
+            {cursa?.phone && <a className="tg-mini-suna" href={phoneTel(cursa.phone)}
+              onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>📞 {phoneText(cursa.phone)}</a>}
           </div>
           {/* SVG-ul QR vine de la panou, generat din codul biletului (nu din text de la utilizator). */}
           {b && <div className="tg-mini-qr" aria-label="QR" dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}

@@ -1,5 +1,6 @@
 import 'server-only';
 import { CONFIG_INCHIS, parseazaConfig, parseazaPuncte, type ConfigBilete } from './bilete-reguli';
+import { parseazaLocuri, type LocuriCursa } from './locuri';
 
 // Biletele online pe translux.md (ION-197): site-ul NU scrie în bază (are doar cheia anon) — vorbește cu panoul
 // central-hub, care ține comenzile, plata maib și biletele. Secretul rămâne pe server (BILETE_API_KEY, doar aici).
@@ -50,6 +51,21 @@ export async function puncteUrcare(nameRo: string): Promise<ReturnType<typeof pa
   }
 }
 
+// Harta locurilor unei curse din Chișinău spre nord (ION-242): ce locuri sunt deja luate. Fără cache — se cere la
+// deschiderea formularului și la fiecare 30 s cât e harta pe ecran. Orice eroare (și 404 cât panoul n-are încă
+// endpoint-ul) = null: formularul spune «locurile se aleg la urcare» și vânzarea merge FĂRĂ alegere.
+export async function locuriCursa(crmRouteId: number, tripDate: string, goingNorth: boolean): Promise<LocuriCursa | null> {
+  const q = new URLSearchParams({ crm_route_id: String(crmRouteId), trip_date: tripDate, going_north: String(goingNorth) });
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/public/locuri?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS / 2), cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return parseazaLocuri(await r.json());
+  } catch (e) {
+    console.warn('[bilete] harta locurilor indisponibilă:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 export interface ComandaBiletInput {
   tripDate: string;
   crmRouteId: number;
@@ -65,25 +81,34 @@ export interface ComandaBiletInput {
   ipHash: string | null;
   /** ION-198: punctul de urcare ales (null = panoul pune punctul principal, dacă există). */
   punctUrcareId: number | null;
+  /** ION-242: locurile alese pe hartă (doar spre nord; null = panoul dă locul la emitere). */
+  locuriAlese: number[] | null;
 }
 
 export type RaspunsComanda =
   | { ok: true; checkoutUrl: string; cod: string }
-  | { ok: false; status: number; cod?: string; eroare: string };
+  | { ok: false; status: number; cod?: string; eroare: string; /** la 409 loc_ocupat: locurile luate între timp */ ocupate?: number[] };
 
 export async function comandaBilet(input: ComandaBiletInput): Promise<RaspunsComanda> {
   const cheie = process.env.BILETE_API_KEY;
   if (!cheie) return { ok: false, status: 500, cod: 'config', eroare: 'BILETE_API_KEY lipsește' };
+  // Panoul primește locurile ca `locuri_alese` (contractul ION-239); fără alegere câmpul lipsește.
+  const { locuriAlese, ...corp } = input;
   try {
     const r = await fetch(`${BAZA}/api/bilete/comanda`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cheie}` },
-      body: JSON.stringify(input),
+      body: JSON.stringify(locuriAlese ? { ...corp, locuri_alese: locuriAlese } : corp),
       signal: AbortSignal.timeout(TIMEOUT_MS * 4), // crearea sesiunii la bancă poate dura
       cache: 'no-store',
     });
     const j = await r.json().catch(() => null);
     if (r.ok && j?.ok && j.checkoutUrl) return { ok: true, checkoutUrl: String(j.checkoutUrl), cod: String(j.cod ?? '') };
+    // 409 {eroare:'loc_ocupat', ocupate:[…]}: codul vine în `eroare` (sau în `cod`, ca la celelalte erori).
+    if (r.status === 409 && (j?.cod === 'loc_ocupat' || j?.eroare === 'loc_ocupat')) {
+      const ocupate = Array.isArray(j?.ocupate) ? (j.ocupate as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n > 0) : [];
+      return { ok: false, status: 409, cod: 'loc_ocupat', eroare: 'loc_ocupat', ocupate };
+    }
     return { ok: false, status: r.status, cod: typeof j?.cod === 'string' ? j.cod : undefined, eroare: String(j?.eroare ?? `HTTP ${r.status}`) };
   } catch (e) {
     return { ok: false, status: 503, cod: 'maib', eroare: e instanceof Error ? e.message : String(e) };

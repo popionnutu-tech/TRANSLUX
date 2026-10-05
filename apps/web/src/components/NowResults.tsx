@@ -83,6 +83,8 @@ export interface NowTrip {
   eta?: string;
   eta_min?: number;
   eta_source?: 'gps' | 'istoric';
+  /** ION-249: cursa clientului a trecut deja de oprirea lui (punctul vine de la /pozitie). */
+  plecata?: boolean;
 }
 
 type LatLon = [number, number];
@@ -109,6 +111,28 @@ async function fetchAcum(from: string, to: string, lang: Locale): Promise<NowRaw
   }
   if (!res.ok) throw new Error(String(res.status));
   return res.json();
+}
+
+/**
+ * ION-249 (Ion, 05.10: «pe hartă a rămas biletul și scrie autobuzul încă nu e pe drum»): «Acum» arată doar autobuzele
+ * care încă n-au trecut prin oprirea omului; după plecare cursa clientului dispare din listă. Atunci punctul vine de la
+ * /pozitie (autobuzul cursei, pe tot drumul, cu regulile ION-37) și cursa se pune înapoi în listă, marcată «plecată».
+ */
+async function cursaDupaPlecare(from: string, to: string, departure: string, routeId: number | null): Promise<NowTrip | null> {
+  try {
+    const q = new URLSearchParams({ from, to, departure });
+    const r = await fetch(`${ENDPOINT}/pozitie?${q}`, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json() as { live?: boolean; card?: { lat?: number; lon?: number; driver?: string | null; plate?: string | null; phone?: string | null; near?: string | null } };
+    const c = j.card;
+    if (!j.live || !c || typeof c.lat !== 'number' || typeof c.lon !== 'number') return null;
+    return {
+      departure, minutes_until: 0, on_road: true, route_id: routeId, going_north: false, plecata: true,
+      driver: c.driver ?? null, plate: c.plate ?? null, phone: c.phone ?? null, lat: c.lat, lon: c.lon, near: c.near ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Liniile lipsă din memorie se cer o dată de la /forme; ruta fără linie nu se desenează (punctul rămâne). */
@@ -397,7 +421,7 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
       // морда»). Săgeata se rotește pe orice unghi; ora rămâne dreaptă, de citit.
       const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
       const icon = L.divIcon({
-        html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${!on ? '' : t.at_stop ? `<b class="here"><i></i>${t.at_stop.mine ? tx.here : t.at_stop.name}</b>` : `<b>${tx.when(t.eta_min ?? t.minutes_until)}</b>`}</span>`,
+        html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${!on ? '' : t.plecata ? (t.near ? `<b>${t.near.replace(/[&<>"]/g, '')}</b>` : '') : t.at_stop ? `<b class="here"><i></i>${t.at_stop.mine ? tx.here : t.at_stop.name}</b>` : `<b>${tx.when(t.eta_min ?? t.minutes_until)}</b>`}</span>`,
         className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
       });
       L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
@@ -483,6 +507,11 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
     const my = ++seq.current;
     try {
       const raw = await fetchAcum(fromValue, toValue, locale);
+      // Cursa din bilet nu mai e în «Acum» (a trecut de oprirea omului) → autobuzul ei de la /pozitie.
+      if (doarCursa && !raw.trips.some((t) => t.departure === doarCursa.departure && (doarCursa.routeId == null || t.route_id == null || t.route_id === doarCursa.routeId))) {
+        const t = await cursaDupaPlecare(fromValue, toValue, doarCursa.departure, doarCursa.routeId);
+        if (t) raw.trips = [t, ...raw.trips];
+      }
       const routes = await withShapes(raw);
       if (my !== seq.current) return;
       setData({ ...raw, routes });
@@ -490,7 +519,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
     } catch {
       if (my === seq.current) setFailed(true);
     }
-  }, [fromValue, toValue, locale]);
+  }, [fromValue, toValue, locale, doarCursa?.departure, doarCursa?.routeId]);
 
   // Leaflet și legătura cu serverul de plăci pornesc odată cu cererea, nu după ea (ION-206).
   useEffect(() => { loadLeaflet(); preconnectTiles(); }, []);

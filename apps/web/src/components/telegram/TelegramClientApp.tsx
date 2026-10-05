@@ -274,8 +274,8 @@ function Istoric({ ecran, acum, locale }: { ecran: Ecran; acum: number; locale: 
 }
 
 const TXT_MINI = {
-  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', locul: 'Locul', suna: 'Sună șoferul', azi: 'Azi', maine: 'Mâine' },
-  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', locul: 'Место', suna: 'Позвонить водителю', azi: 'Сегодня', maine: 'Завтра' },
+  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', inDrum: (spre: string) => `În drum spre ${spre}`, locul: 'Locul', suna: 'Sună șoferul', azi: 'Azi', maine: 'Mâine' },
+  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', inDrum: (spre: string) => `В пути в ${spre}`, locul: 'Место', suna: 'Позвонить водителю', azi: 'Сегодня', maine: 'Завтра' },
 } as const;
 
 /**
@@ -286,7 +286,10 @@ const TXT_MINI = {
 function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: ComandaPublica; cursa: NowTrip | null; locale: Locale; aziHarta?: boolean }) {
   const tx = TXT_MINI[locale];
   const b = bileteDeAratat(c)[0];
+  // După plecare (autobuzul a trecut de oprirea omului) — «În drum spre …», nu «încă nu e pe drum».
+  const plecat = Date.parse(c.departure_at) <= Date.now();
   const stare = !aziHarta ? ziCursa(c.trip_date, locale, tx.azi, tx.maine)
+    : cursa?.plecata || (!cursa && plecat) ? tx.inDrum(c.to_name)
     : !cursa ? tx.nuEPeDrum : cursa.at_stop?.mine ? tx.aici : tx.vine(Math.max(0, cursa.eta_min ?? cursa.minutes_until), cursa.eta ?? cursa.departure);
   const masina = cursa ? [cursa.driver, cursa.plate].filter(Boolean).join(' · ') : '';
   return (

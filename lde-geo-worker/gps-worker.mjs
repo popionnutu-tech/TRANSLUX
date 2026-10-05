@@ -216,10 +216,17 @@ function daySuspect(r) {
 }
 
 let totalKm = 0, totalStops = 0, processed = 0, curseScrise = 0, masiniEsuate = 0;
+const zileFaraAtribuiri = [];
 for (const day of DAYS) {
   // contextul zilei (porți, atribuiri, granițe) se încarcă O DATĂ, nu per mașină
   const ctxCurse = WRITE ? await incarcaContext(supa, day) : null;
   if (ctxCurse) ctxCurse.placesIdx = placesIdx;
+  // ION-233: fără atribuiri de uzină pe zi, scrieCurse întoarce 0 pe fiecare mașină, fără eroare —
+  // 28.09–04.10 a tăcut o săptămână întreagă. Ziua se spune în log și în TOTAL.
+  if (ctxCurse && !ctxCurse.peMasina.size) {
+    zileFaraAtribuiri.push(day);
+    console.error(`! 0 atribuiri de uzină pe ${day} — cursele nu se pot scrie (materializează ziua: /api/cron/lde-verifica-atribuiri?date=${day}&dry=1)`);
+  }
   for (const v of fleet) {
     const r = await processDay(v, day);
     totalKm += r.km; totalStops += r.stops.length; processed++;
@@ -278,4 +285,4 @@ if (WRITE && !NO_LEARN) {
 }
 
 await tracker.end();
-console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${NO_LEARN ? '0 (--no-learn)' : `${legObs.size} noi (nume), ${coordRefreshed} actualizate (coord)`} | curse: ${curseScrise}${masiniEsuate?`, EȘUATE ${masiniEsuate} mașini`:''}`:''}`);
+console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${NO_LEARN ? '0 (--no-learn)' : `${legObs.size} noi (nume), ${coordRefreshed} actualizate (coord)`} | curse: ${curseScrise}${masiniEsuate?`, EȘUATE ${masiniEsuate} mașini`:''}${zileFaraAtribuiri.length?`, FĂRĂ ATRIBUIRI ${zileFaraAtribuiri.join(' ')}`:''}`:''}`);

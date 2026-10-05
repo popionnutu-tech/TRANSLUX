@@ -15,6 +15,20 @@
 cd /root/lde-worker || exit 1
 Y=$(TZ=Europe/Chisinau date -d yesterday +%F)
 echo "===== $(TZ=Europe/Chisinau date '+%F %T') | ziua $Y =====" >> nightly.log
+# Atribuirile zilei de ieri ÎNAINTE de gps-worker (ION-233): cursele de uzină se scriu după
+# lde_atribuiri_zilnice, iar ziua se materializează din șablon doar când cineva deschide pagina
+# de atribuiri sau la verificarea de la 06:30 — după gps-worker. 28.09–04.10 nimeni n-a deschis-o
+# și s-a scris «curse: 0» în fiecare noapte. dry=1: doar materializarea, fără verdict scris și fără push.
+. /root/lde-worker/cron-secret.env
+materializeaza() {
+  curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" \
+    "https://central-hub-md.vercel.app/api/cron/lde-verifica-atribuiri?date=$Y&dry=1" > /dev/null
+}
+if materializeaza || { sleep 60; materializeaza; }; then
+  echo "atribuiri $Y: materializate" >> nightly.log
+else
+  echo "! atribuiri $Y: materializarea a picat — cursele de uzină pot lipsi" >> nightly.log
+fi
 node --env-file=.env gps-worker.mjs "$Y" --write >> nightly.log 2>&1
 node --env-file=.env fuel-worker.mjs --write >> nightly.log 2>&1
 # Litrii de pe foile de parcurs LDE (baza raznareadca, ION-132):

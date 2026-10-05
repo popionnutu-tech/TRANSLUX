@@ -1,0 +1,77 @@
+{
+  "_": "Date fixe pentru /mini-app/bilete?mock=1 (ION-240): aceleași nume și ore ca pe canvas. `acum` se poate suprascrie cu ?acum=HH:MM (13:55 = harta locurilor pe retur, 14:12 = lista).",
+  "sofer": { "id": "00000000-0000-0000-0000-000000000001", "nume": "Munteanu Vasile" },
+  "zi": "2026-10-05",
+  "acum": "2026-10-05T14:12:00+03:00",
+  "curse": [
+    {
+      "cheie": "2026-10-05|7|false",
+      "crm_route_id": 7,
+      "going_north": false,
+      "ruta": "Briceni – Chișinău",
+      "plecare": "06:00",
+      "sosire": "10:20",
+      "opriri": [
+        { "stop_order": 1, "nume": "Briceni", "ora": "06:00", "lat": 48.36, "lon": 27.08 },
+        { "stop_order": 2, "nume": "Edineț", "ora": "06:40", "lat": 48.17, "lon": 27.3 },
+        { "stop_order": 3, "nume": "Bălți", "ora": "08:00", "lat": 47.76, "lon": 27.93 },
+        { "stop_order": 4, "nume": "Orhei", "ora": "09:30", "lat": 47.38, "lon": 28.82 },
+        { "stop_order": 5, "nume": "Chișinău", "ora": "10:20", "lat": 47.02, "lon": 28.83 }
+      ],
+      "pasageri": [
+        { "comanda": "c-n1", "nume": "Svetlana Moraru", "telefon": "37369789012", "de_la_order": 1, "de_la": "Briceni", "pana_la": "Chișinău", "locuri": 2,
+          "bilete": [ { "cod_qr": "N1AAAAAAAAAAAAAA0001", "nr": 1, "loc_nr": 2, "status": "urcat", "urcat_at": "2026-10-05T05:52:00+03:00" },
+                      { "cod_qr": "N1AAAAAAAAAAAAAA0002", "nr": 2, "loc_nr": 3, "status": "urcat", "urcat_at": "2026-10-05T05:52:20+03:00" } ] },
+        { "comanda": "c-n2", "nume": "Grigore Țurcanu", "telefon": "37379890123", "de_la_order": 2, "de_la": "Edineț", "pana_la": "Chișinău", "locuri": 1,
+          "bilete": [ { "cod_qr": "N2AAAAAAAAAAAAAA0001", "nr": 1, "loc_nr": 5, "status": "urcat", "urcat_at": "2026-10-05T06:41:00+03:00" } ] }
+      ],
+      "capacitate": 20
+    },
+    {
+      "cheie": "2026-10-05|7|true",
+      "crm_route_id": 7,
+      "going_north": true,
+      "ruta": "Chișinău – Briceni",
+      "plecare": "14:00",
+      "sosire": "18:20",
+      "opriri": [
+        { "stop_order": 1, "nume": "Chișinău", "ora": "14:00", "lat": 47.02, "lon": 28.83 },
+        { "stop_order": 2, "nume": "Orhei", "ora": "14:45", "lat": 47.38, "lon": 28.82 },
+        { "stop_order": 3, "nume": "Bălți", "ora": "16:30", "lat": 47.76, "lon": 27.93 },
+        { "stop_order": 4, "nume": "Cupcini", "ora": "17:40", "lat": 48.11, "lon": 27.38 },
+        { "stop_order": 5, "nume": "Edineț", "ora": "18:00", "lat": 48.17, "lon": 27.3 },
+        { "stop_order": 6, "nume": "Briceni", "ora": "18:20", "lat": 48.36, "lon": 27.08 }
+      ],
+      "pasageri": [
+        { "comanda": "c-p1", "nume": "Elena Rusu", "telefon": "37369123456", "de_la_order": 1, "de_la": "Chișinău", "pana_la": "Edineț", "locuri": 2,
+          "bilete": [ { "cod_qr": "7K2M9QXART4P8WZD1001", "nr": 1, "loc_nr": 1, "status": "valid" },
+                      { "cod_qr": "7K2M9QXART4P8WZD1002", "nr": 2, "loc_nr": 2, "status": "valid" } ] },
+        { "comanda": "c-p2", "nume": "Victor Ceban", "telefon": "37379234567", "de_la_order": 1, "de_la": "Chișinău", "pana_la": "Briceni", "locuri": 1,
+          "bilete": [ { "cod_qr": "7K2M9QXART4P8WZD2001", "nr": 1, "loc_nr": 3, "status": "valid" } ] },
+        { "comanda": "c-p3", "nume": "Maria Popa", "telefon": "37368345678", "de_la_order": 1, "de_la": "Chișinău", "pana_la": "Cupcini", "locuri": 1,
+          "bilete": [ { "cod_qr": "7K2M9QXART4P8WZD3001", "nr": 1, "loc_nr": 4, "status": "urcat", "urcat_at": "2026-10-05T13:58:00+03:00" } ] },
+        { "comanda": "c-p4", "nume": "Andrei Lungu", "telefon": "37360456789", "de_la_order": 2, "de_la": "Orhei", "pana_la": "Briceni", "locuri": 1,
+          "bilete": [ { "cod_qr": "7K2M9QXART4P8WZD4001", "nr": 1, "loc_nr": 5, "status": "valid" } ] },
+        { "comanda": "c-p5", "nume": "Natalia Cojocaru", "telefon": "37369567890", "de_la_order": 3, "de_la": "Bălți", "pana_la": "Briceni", "locuri": 3,
+          "bilete": [ { "cod_qr": "7K2M9QXART4P8WZD5001", "nr": 1, "loc_nr": 8, "status": "valid" },
+                      { "cod_qr": "7K2M9QXART4P8WZD5002", "nr": 2, "loc_nr": 9, "status": "valid" },
+                      { "cod_qr": "7K2M9QXART4P8WZD5003", "nr": 3, "loc_nr": 10, "status": "valid" } ] },
+        { "comanda": "c-p6", "nume": "Ion Guțu", "telefon": "37378678901", "de_la_order": 3, "de_la": "Bălți", "pana_la": "Edineț", "locuri": 1,
+          "bilete": [ { "cod_qr": "7K2M9QXART4P8WZD6001", "nr": 1, "loc_nr": 11, "status": "valid" } ] }
+      ],
+      "capacitate": 20
+    }
+  ],
+  "curenta": "2026-10-05|7|true",
+  "motiv_curenta": "orar",
+  "maine": [
+    { "cheie": "2026-10-06|7|false", "crm_route_id": 7, "going_north": false, "ruta": "Briceni – Chișinău", "plecare": "06:00", "sosire": "10:20", "opriri": [], "pasageri": [
+      { "comanda": "c-m1", "nume": "Petru Ciobanu", "telefon": "37369000001", "de_la_order": 1, "de_la": "Briceni", "pana_la": "Chișinău", "locuri": 3,
+        "bilete": [ { "cod_qr": "M1AAAAAAAAAAAAAA0001", "nr": 1, "loc_nr": 2, "status": "valid" }, { "cod_qr": "M1AAAAAAAAAAAAAA0002", "nr": 2, "loc_nr": 3, "status": "valid" }, { "cod_qr": "M1AAAAAAAAAAAAAA0003", "nr": 3, "loc_nr": 4, "status": "valid" } ] } ], "capacitate": 20 },
+    { "cheie": "2026-10-06|7|true", "crm_route_id": 7, "going_north": true, "ruta": "Chișinău – Briceni", "plecare": "14:00", "sosire": "18:20", "opriri": [], "pasageri": [], "capacitate": 20 }
+  ],
+  "_scan": {
+    "_": "Răspunsurile simulate ale POST /scan în mock: codurile din listă → ok/deja_urcat; ALTA… → alta_cursa; restul → necunoscut.",
+    "alta_cursa": { "cod": "ALTACURSA0000000001", "cursa_bilet": "Lipcani – Chișinău 14:50, 06.10" }
+  }
+}

@@ -1,0 +1,143 @@
+/* Mini app-ul șoferului (ION-240) — stilul mock-up-ului de pe canvas (Main/Lista/Locuri/Chisinau/FaraGrafic).
+   Reguli de formă (plan 05.10): text ≥ 17 px (nume 22, ore 26), butonul principal ≥ 72 px, contrast mare,
+   fără meniu, fără scroll ca să ajungi la «Scanează». Fontul e cel de sistem: CSP-ul panoului
+   (font-src 'self') nu lasă Google Fonts, iar Open Sans nu e în public/fonts. */
+:root {
+  --bordo: #9B1B30; --bordo2: #7a1326; --verde: #2b6b3a; --portocaliu: #b7601a; --rosu: #a11d2b;
+  --fundal: #f4f1f1; --alb: #ffffff; --linie: #e5dede; --text: #1a1a1a; --gri: #666666; --gri2: #555555; --gri3: #c9c9c9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--fundal); color: var(--text); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; overscroll-behavior: none;
+  font-size: 17px; line-height: 1.3;
+}
+button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+a { color: inherit; }
+
+/* Pagina: coloană pe toată înălțimea Telegram; lista derulează la mijloc, butonul stă jos. */
+#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; height: var(--tg-viewport-stable-height, 100dvh); overflow: hidden; position: relative; }
+.incarc { padding: 40px 20px; text-align: center; font-size: 20px; color: var(--gri); }
+
+/* Antet bordo */
+.antet { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 18px 14px; background: var(--bordo); color: var(--alb); flex: 0 0 auto; }
+.antet .sub { font-size: 17px; font-weight: 600; opacity: 0.88; }
+.antet .titlu { font-size: 24px; font-weight: 800; line-height: 1.1; margin-top: 2px; }
+.antet .col { display: flex; flex-direction: column; min-width: 0; }
+.btn-limba { min-width: 64px; min-height: 48px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.7); background: transparent; color: var(--alb); font-size: 20px; font-weight: 700; flex: 0 0 auto; }
+
+/* Banda rezultatului (4 s), în capul paginii */
+.banda { display: flex; align-items: center; gap: 14px; padding: 14px 18px; color: var(--alb); flex: 0 0 auto; }
+.banda.ok { background: var(--verde); } .banda.warn { background: var(--portocaliu); } .banda.bad { background: var(--rosu); }
+.banda .ic { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.banda .t1 { font-size: 24px; font-weight: 800; line-height: 1.1; }
+.banda .t2 { font-size: 17px; font-weight: 600; opacity: 0.95; line-height: 1.25; margin-top: 2px; }
+.banda .col { min-width: 0; }
+
+/* Bara «offline · lista de la HH:MM» */
+.bara { padding: 8px 18px; font-size: 17px; font-weight: 700; background: #fff1e6; color: #8a4a12; border-bottom: 1px solid #f0d6c0; flex: 0 0 auto; }
+
+/* Cursa curentă (ACUM) */
+.acum { display: flex; flex-direction: column; gap: 4px; padding: 12px 18px; background: var(--alb); border-bottom: 1px solid var(--linie); flex: 0 0 auto; }
+.acum .rand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.acum .et { font-size: 13px; font-weight: 800; color: var(--bordo); letter-spacing: 1px; }
+.acum .ora { font-size: 26px; font-weight: 800; line-height: 1; }
+.acum .sens { font-size: 20px; font-weight: 800; }
+.acum .orar { font-size: 17px; color: var(--gri); font-weight: 600; }
+.acum .rand2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.acum .urm { font-size: 17px; color: var(--gri); min-width: 0; }
+.btn-viz { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 2px solid var(--bordo); color: var(--bordo); background: var(--alb); display: inline-flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; }
+
+/* Zona derulantă */
+.continut { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 18px 0; display: flex; flex-direction: column; gap: 10px; }
+.contor { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 2px 4px; }
+.contor .st { font-size: 20px; font-weight: 800; }
+.contor .dr { font-size: 17px; font-weight: 700; color: var(--verde); white-space: nowrap; }
+
+/* Rândul «Ultimul: …» și alertele roșii persistente */
+.ultim { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 14px; border-radius: 14px; border: 2px solid; background: var(--alb); }
+.ultim.ok { border-color: var(--verde); } .ultim.warn { border-color: var(--portocaliu); } .ultim.bad { border-color: var(--rosu); }
+.ultim .semn { width: 26px; height: 26px; border-radius: 50%; color: var(--alb); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.ultim.ok .semn { background: var(--verde); } .ultim.warn .semn { background: var(--portocaliu); } .ultim.bad .semn { background: var(--rosu); }
+.ultim .tx { font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alerta { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 14px; border-radius: 14px; border: 0; background: var(--rosu); color: var(--alb); }
+.alerta .semn { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.alerta .tx { font-size: 17px; font-weight: 700; line-height: 1.25; min-width: 0; }
+.alerta .tx small { display: block; font-size: 17px; font-weight: 600; opacity: 0.9; }
+
+/* Neprezentați (pliabil) */
+.neprez { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 14px; border-radius: 14px; border: 2px solid var(--gri3); background: #f7f5f5; font-size: 17px; font-weight: 700; color: var(--gri2); }
+.neprez-rand { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px; background: #f7f5f5; color: var(--gri2); }
+.neprez-rand .b { min-width: 40px; height: 40px; border-radius: 12px; background: var(--gri3); color: var(--alb); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; }
+.neprez-rand .n { font-size: 18px; font-weight: 700; } .neprez-rand .d { font-size: 17px; }
+
+/* Grupa pe oprire + cardul pasagerului */
+.grupa { display: flex; align-items: baseline; gap: 10px; padding: 8px 4px 0; flex-wrap: wrap; }
+.grupa .h1 { font-size: 20px; font-weight: 800; color: var(--bordo); }
+.grupa .h2 { font-size: 20px; font-weight: 700; }
+.grupa .h3 { font-size: 17px; color: var(--gri); }
+.pas { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: var(--alb); box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+.pas.partial { background: #e8f3ea; }
+.pas .b { min-width: 54px; height: 54px; border-radius: 14px; background: var(--bordo); color: var(--alb); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; flex: 0 0 auto; }
+.pas.partial .b { background: var(--verde); }
+.pas .col { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.pas .n { font-size: 22px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pas .tel { font-size: 17px; font-weight: 600; color: var(--text); text-decoration: none; }
+.pas .d { font-size: 17px; color: var(--gri2); }
+.pas .d .ns { color: var(--portocaliu); font-weight: 700; }
+.spatiu { height: 12px; flex: 0 0 auto; }
+
+/* Harta locurilor (1 + 5×3 + 4) */
+.locuri-cap { display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px 6px; font-size: 17px; font-weight: 700; flex: 0 0 auto; }
+.locuri-cap .on { color: var(--bordo); } .locuri-cap .ur { color: var(--verde); } .locuri-cap .li { color: var(--gri2); }
+.locuri { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 18px 12px; }
+.row { display: flex; gap: 10px; justify-content: center; }
+.aisle { width: 26px; } .gol { width: 64px; height: 58px; }
+.s { width: 64px; height: 58px; border-radius: 12px 12px 8px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; line-height: 1; border: 3px solid var(--gri3); background: var(--alb); color: var(--gri2); }
+.s small { font-size: 13px; font-weight: 700; margin-top: 3px; letter-spacing: 0.2px; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s.online { background: var(--bordo); border-color: var(--bordo); color: var(--alb); }
+.s.urcat { background: var(--verde); border-color: var(--verde); color: var(--alb); }
+.s.sofer { background: #e9e5e5; border-color: #e9e5e5; color: #888; font-size: 13px; }
+.row.spate .s { width: 58px; }
+.legenda { display: flex; gap: 12px 14px; flex-wrap: wrap; justify-content: center; font-size: 17px; color: var(--gri2); margin-top: 8px; }
+.legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda i { width: 16px; height: 16px; border-radius: 4px; display: inline-block; }
+.legenda i.on { background: var(--bordo); } .legenda i.ur { background: var(--verde); } .legenda i.li { border: 2px solid var(--gri3); background: var(--alb); }
+.fara-loc { font-size: 17px; color: var(--gri2); }
+
+/* Butonul principal, mereu jos */
+.jos { padding: 12px 18px 18px; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fundal); flex: 0 0 auto; }
+.btn-scan { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 76px; width: 100%; border-radius: 18px; border: 0; background: var(--bordo); color: var(--alb); font-size: 27px; font-weight: 700; }
+.btn-scan:active { background: var(--bordo2); }
+.btn-scan[disabled] { opacity: 0.6; }
+.nota-jos { font-size: 17px; color: var(--gri); text-align: center; padding: 0 0 8px; }
+
+/* Ecranele fără listă: nelegat / eroare / fără cursă */
+.ecran { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 22px 20px; overflow-y: auto; }
+.ecran h1 { font-size: 30px; font-weight: 800; line-height: 1.1; margin: 0; }
+.ecran p { font-size: 20px; line-height: 1.35; margin: 0; color: var(--text); }
+.pasi { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.pas4 { display: flex; gap: 14px; align-items: flex-start; background: var(--alb); border-radius: 18px; padding: 14px 16px; }
+.pas4 .nr { min-width: 44px; height: 44px; border-radius: 50%; background: var(--bordo); color: var(--alb); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; }
+.pas4 .tx { font-size: 23px; font-weight: 700; line-height: 1.25; }
+.pas4 .verde { color: var(--verde); } .pas4 .rosu { color: var(--rosu); }
+.maine { background: var(--alb); border-radius: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.maine .t { font-size: 17px; font-weight: 700; color: var(--bordo); }
+.maine .r { font-size: 21px; font-weight: 700; }
+.umple { flex: 1; }
+.btn-mare { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 72px; width: 100%; border-radius: 18px; border: 0; background: var(--bordo); color: var(--alb); font-size: 24px; font-weight: 700; text-decoration: none; }
+
+/* Camera simulată (doar ?mock=1) — ca pe canvas */
+.scan { position: absolute; inset: 0; display: flex; flex-direction: column; background: #111111; color: var(--alb); z-index: 10; }
+.scan .cap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; }
+.scan .cap .t { font-size: 22px; font-weight: 700; }
+.btn-x { min-width: 56px; min-height: 56px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.6); background: transparent; color: var(--alb); display: flex; align-items: center; justify-content: center; }
+.scan .mijloc { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.scan .cadru { width: 290px; max-width: 80vw; height: 290px; max-height: 80vw; border-radius: 26px; border: 5px solid var(--alb); position: relative; background: #2a2a2a; display: flex; align-items: center; justify-content: center; }
+.scan .linie { position: absolute; left: 24px; right: 24px; top: 50%; height: 4px; background: #e5484d; border-radius: 2px; }
+.scan .sim { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.scan .sim .nota { font-size: 17px; color: #bbbbbb; text-align: center; margin-bottom: 4px; }
+.scan .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.scan .grid button { min-height: 60px; border-radius: 14px; border: 0; color: var(--alb); font-size: 19px; font-weight: 700; }
+.scan .grid .ok { background: var(--verde); } .scan .grid .warn { background: var(--portocaliu); } .scan .grid .bad { background: var(--rosu); }

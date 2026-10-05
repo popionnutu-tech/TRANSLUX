@@ -42,6 +42,7 @@ import { type Locale, t } from '@/lib/i18n';
 import { homePath, slugify } from '@/lib/seo-paths';
 import type { HomeOptions, HomePopular } from '@/lib/home-props';
 import { searchTrips, type TripResult } from '@/app/(public)/actions';
+import type { ContactPrecompletat } from '@/lib/telegram-client';
 
 interface HomePageProps {
   locale: Locale;
@@ -53,6 +54,12 @@ interface HomePageProps {
   routeLinks?: { key: string; href: string; label: string }[];
   /** Chișinău → fiecare sat din nord, cu pagină proprie (ION-153). */
   localityLinks?: { key: string; href: string; label: string }[];
+  /**
+   * ION-249 (Ion, 05.10: «3 file diferite și toate ca în site… designul să fie la fel»): fila «Caută» din mini app-ul
+   * Telegram e chiar pagina aceasta — fără antet cu limbă, subsol, asistent și cookie-uri; cumpărarea vine cu numele
+   * și telefonul contului precompletate. Lipsă = site-ul ca până acum.
+   */
+  telegram?: { contact: ContactPrecompletat | null };
 }
 
 /** «2026-10-03» din data locală — ce făcea date-fns `format(d, 'yyyy-MM-dd')`, fără cei ~10 KB ai lui. */
@@ -63,7 +70,7 @@ function ymd(d: Date): string {
 
 const EMPTY_OPTIONS: HomeOptions = { major: [], minor: [] };
 
-export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeLinks = [], localityLinks = [] }: HomePageProps) {
+export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeLinks = [], localityLinks = [], telegram }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -94,6 +101,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const openAssistant = () => { setAssistant(true); setAssistantOpen(true); };
 
   useEffect(() => {
+    if (telegram) return; // în mini app: fără notificarea cookie și fără asistent
     if (!readConsent()) setCookie('auto');
     // Asistentul se montează și nechemat, când browserul are timp liber, ca invitația lui
     // («Sunt asistentul care te ajută…», ION-39) să apară ca până acum — dar nu pentru cine
@@ -215,7 +223,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           </Link>
 
           {/* Limba: sus, în antet (ION-39) — colțul de jos e al asistentului */}
-          <div className="lang-toggle-3d" style={{
+          {!telegram && <div className="lang-toggle-3d" style={{
             display: 'flex', gap: 2,
             borderRadius: 10, padding: 3,
           }}>
@@ -235,7 +243,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
               transition: 'all 0.15s ease',
             }}>RU</Link>
-          </div>
+          </div>}
         </header>
 
         <section style={{
@@ -426,7 +434,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
         </section>
 
         {/* Footer */}
-        <footer style={{ borderTop: '2px solid rgba(155,27,48,0.15)', background: 'rgba(255,255,255,0.3)', backdropFilter: 'blur(8px)' }}>
+        {!telegram && <footer style={{ borderTop: '2px solid rgba(155,27,48,0.15)', background: 'rgba(255,255,255,0.3)', backdropFilter: 'blur(8px)' }}>
           <div style={{
             maxWidth: 720, margin: '0 auto', padding: '24px 36px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -470,7 +478,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           </div>
           {/* ION-235: datele firmei și logourile plăților (cerințele maib). */}
           <div style={{ padding: "0 16px 18px" }}><FirmaSiPlati locale={locale} /></div>
-        </footer>
+        </footer>}
 
       </div>
 
@@ -478,7 +486,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 
       {/* Asistentul AI (ION-37): colțul dreapta-jos, deasupra comutatorului de limbă.
           Butonul e al paginii; fereastra se încarcă la apăsare sau când browserul are timp liber (ION-204). */}
-      {!assistantOpen && <AssistantLauncher locale={locale} onClick={openAssistant} />}
+      {!assistantOpen && !telegram && <AssistantLauncher locale={locale} onClick={openAssistant} />}
       {assistant && <AssistantWidget locale={locale} open={assistantOpen} onOpenChange={setAssistantOpen} />}
 
 
@@ -492,6 +500,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           selectedTime={null}
           locale={locale}
           onClose={() => setShowResults(false)}
+          contact={telegram?.contact ?? null}
         />
       )}
 

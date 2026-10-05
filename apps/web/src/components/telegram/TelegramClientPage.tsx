@@ -1,5 +1,6 @@
-import { getCachedLocalities } from '@/app/(public)/actions';
-import { homeOptions } from '@/lib/home-props';
+import { getCachedLocalities, getCachedPopularPrices } from '@/app/(public)/actions';
+import { homeOptions, homePopular } from '@/lib/home-props';
+import { getRoutePairs, homeLinks } from '@/lib/route-pages';
 import type { Locale } from '@/lib/i18n';
 import { TelegramClientApp } from './TelegramClientApp';
 
@@ -9,8 +10,15 @@ import { TelegramClientApp } from './TelegramClientApp';
 
 export async function TelegramClientPage({ locale }: { locale: Locale }) {
   // Fără bază, căutarea rămâne fără opțiuni, dar biletele (de la panou) se văd oricum.
-  const localities = await getCachedLocalities().catch(() => []);
+  // Fila «Caută» = prima pagină a site-ului, cu aceleași selectoare și «Destinații populare» (ION-249).
+  const [localities, popularPrices, pairs] = await Promise.all([
+    getCachedLocalities().catch(() => []),
+    getCachedPopularPrices().catch(() => []),
+    getRoutePairs().catch(() => []),
+  ]);
+  const links = homeLinks(pairs, locale);
   return (
-    <TelegramClientApp locale={locale} options={homeOptions(localities, locale)} />
+    <TelegramClientApp locale={locale} options={homeOptions(localities, locale)}
+      popular={homePopular(popularPrices, [...links.routes, ...links.localities], locale)} />
   );
 }

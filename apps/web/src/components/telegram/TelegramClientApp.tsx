@@ -1,8 +1,10 @@
 'use client';
 
 // Mini app-ul clientului, deschis de butonul de meniu «🎫 Bilete» din botul Telegram (ION-249, Ion 05.10: «1. pe full
-// ecran 2. harta cu unde este șoferul meu 3. căutare noi bilete»). Fără antetul și subsolul site-ului. Biletele vin de la
-// panou numai pe baza initData-ului Telegram verificat pe server; fără el — doar căutarea, nimic personal.
+// ecran 2. harta cu unde este șoferul meu 3. căutare noi bilete»; apoi «să fie 3 file diferite și toate ca în site, cu
+// alegere jos, și designul să fie la fel»). Trei file cu bara de jos: Biletele mele · Harta · Caută bilet — fila «Caută»
+// e chiar prima pagină a site-ului (HomePage în modul Telegram). Biletele vin de la panou numai pe baza initData-ului
+// Telegram verificat pe server; fără el — doar căutarea, nimic personal.
 
 import { useCallback, useEffect, useState } from 'react';
 import { bileteleMeleTelegram, type StareBileteleMele } from '@/app/(public)/telegram-actions';
@@ -12,7 +14,8 @@ import type { Locale } from '@/lib/i18n';
 import { LINE_TEL, LINE_TEXT } from '@/lib/phone';
 import { fereastraHartii, oraChisinau } from '@/lib/telegram-client';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat } from '@/components/bilet/BiletCard';
-import { CautaBiletNou } from './CautaBiletNou';
+import { HomePage } from '@/components/home-page';
+import type { HomePopular } from '@/lib/home-props';
 import { HartaAutobuzului } from './HartaAutobuzului';
 import { EcranCompletTelegram } from '@/components/bilet/BiletActiuni';
 import { citesteInitData } from './telegram-webapp';
@@ -23,9 +26,14 @@ const BOT = (process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot').repl
 /** Fereastra hărții se reevaluează o dată pe minut (biletul de azi trece singur din «curând» în «activă»). */
 const CEAS_MS = 60_000;
 
+type Fila = 'bilete' | 'harta' | 'cauta';
+
 const TXT = {
   ro: {
-    titlu: 'Biletele mele', incarca: 'Se încarcă biletele…', gol: 'Nu ai bilete active. Caută mai jos un bilet nou.',
+    file: { bilete: 'Biletele mele', harta: 'Harta', cauta: 'Caută bilet' },
+    hartaTitlu: 'Unde e autobuzul meu', hartaGol: 'Azi nu ai nicio cursă. Harta autobuzului apare aici în ziua cursei.',
+    hartaIncheiata: 'Cursa s-a încheiat.', spreCautare: 'Caută un bilet',
+    titlu: 'Biletele mele', incarca: 'Se încarcă biletele…', gol: 'Nu ai bilete active. Caută un bilet nou în fila «Caută bilet».',
     hartaMaiTarziu: 'Harta apare în ziua cursei, cu o oră înainte de plecare.',
     faraBilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
     faraTelegram: 'Biletele tale se văd când deschizi pagina din botul TRANSLUX din Telegram, butonul «🎫 Bilete».',
@@ -35,7 +43,10 @@ const TXT = {
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.', ajutor: 'Ajutor:',
   },
   ru: {
-    titlu: 'Мои билеты', incarca: 'Загружаем билеты…', gol: 'Активных билетов нет. Найдите новый билет ниже.',
+    file: { bilete: 'Мои билеты', harta: 'Карта', cauta: 'Найти билет' },
+    hartaTitlu: 'Где мой автобус', hartaGol: 'Сегодня у вас нет поездок. Карта автобуса появится здесь в день поездки.',
+    hartaIncheiata: 'Поездка завершена.', spreCautare: 'Найти билет',
+    titlu: 'Мои билеты', incarca: 'Загружаем билеты…', gol: 'Активных билетов нет. Найдите новый билет во вкладке «Найти билет».',
     hartaMaiTarziu: 'Карта появится в день поездки, за час до отправления.',
     faraBilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
     faraTelegram: 'Ваши билеты видны, когда страница открыта из бота TRANSLUX в Telegram, кнопка «🎫 Билеты».',
@@ -48,11 +59,14 @@ const TXT = {
 
 type Ecran = { tip: 'pornire' } | { tip: 'fara_telegram' } | { tip: 'incarca' } | { tip: 'gata'; stare: StareBileteleMele };
 
-export function TelegramClientApp({ locale, options }: { locale: Locale; options: HomeOptions }) {
+export function TelegramClientApp({ locale, options, popular = [] }: { locale: Locale; options: HomeOptions; popular?: HomePopular[] }) {
   const tx = TXT[locale];
   const [initData, setInitData] = useState('');
   const [ecran, setEcran] = useState<Ecran>({ tip: 'pornire' });
   const [acum, setAcum] = useState(() => Date.now());
+  const [fila, setFila] = useState<Fila>('bilete');
+  // «Caută» se montează la prima vizită și rămâne montată (căutarea nu se pierde la schimbarea filei).
+  const [cautaVazuta, setCautaVazuta] = useState(false);
 
   const incarca = useCallback(async (date: string) => {
     setEcran({ tip: 'incarca' });
@@ -64,7 +78,7 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
   useEffect(() => {
     const date = citesteInitData();
     setInitData(date);
-    if (!date) { setEcran({ tip: 'fara_telegram' }); return; }
+    if (!date) { setEcran({ tip: 'fara_telegram' }); setFila('cauta'); setCautaVazuta(true); return; }
     void incarca(date);
   }, [incarca]);
 
@@ -73,37 +87,123 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
     return () => clearInterval(t);
   }, []);
 
+  const alege = (f: Fila) => { setFila(f); if (f === 'cauta') setCautaVazuta(true); window.scrollTo(0, 0); };
   const contact = ecran.tip === 'gata' && ecran.stare.ok ? ecran.stare.contact : null;
 
   return (
     <div lang={locale} className="tg-app" style={{ ['--bg' as string]: FUNDAL }}>
       <style>{`
 ${BILET_CARD_CSS}
-.tg-app{min-height:100vh;background:var(--bg);font-family:var(--font-opensans),Open Sans,system-ui,sans-serif;color:#231A1C;
-  padding:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 24px);box-sizing:border-box}
+.tg-app{min-height:100vh;font-family:var(--font-opensans),Open Sans,system-ui,sans-serif;color:#231A1C}
+.tg-fila{min-height:100vh;background:var(--bg);box-sizing:border-box;
+  padding:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 96px)}
+.tg-cauta{padding-top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));padding-bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
 .tg-col{max-width:520px;margin:0 auto;display:grid;gap:18px}
 .tg-buton{min-height:48px;padding:0 16px;border-radius:12px;border:none;background:${RED};color:#fff;font:700 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .tg-nota{margin:0;padding:12px 14px;border-radius:14px;background:#fff;color:#555;font-size:14px;line-height:1.45}
+.tg-bara{position:fixed;left:0;right:0;bottom:0;z-index:50;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(255,255,255,.96);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(155,27,48,.15);box-shadow:0 -4px 20px rgba(155,27,48,.06);
+  padding:6px 8px calc(env(safe-area-inset-bottom,0px) + 6px)}
+.tg-tab{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:52px;justify-content:center;border:none;background:none;cursor:pointer;
+  color:rgba(35,26,28,.5);font:700 11.5px var(--font-opensans),Open Sans,sans-serif;border-radius:14px}
+.tg-tab[aria-selected="true"]{color:${RED};background:rgba(155,27,48,.08)}
 `}</style>
       <EcranCompletTelegram />
-      <div className="tg-col">
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span aria-label="TRANSLUX" style={{
-            display: 'inline-block', height: 24, aspectRatio: '1318/192', backgroundColor: RED,
-            WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
-            maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
-          }} />
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>🎫 {tx.titlu}</h1>
-        </header>
 
-        <BileteleMele ecran={ecran} acum={acum} locale={locale} onReincearca={() => initData && void incarca(initData)} />
+      {fila === 'bilete' && (
+        <div className="tg-fila">
+          <div className="tg-col">
+            <Antet titlu={`🎫 ${tx.titlu}`} />
+            <BileteleMele ecran={ecran} acum={acum} locale={locale} onReincearca={() => initData && void incarca(initData)} />
+            <Ajutor locale={locale} />
+          </div>
+        </div>
+      )}
 
-        <CautaBiletNou locale={locale} options={options} contact={contact} />
+      {fila === 'harta' && (
+        <div className="tg-fila">
+          <div className="tg-col">
+            <Antet titlu={`📍 ${tx.hartaTitlu}`} />
+            <HartaMea ecran={ecran} acum={acum} locale={locale} onCauta={() => alege('cauta')} />
+            <Ajutor locale={locale} />
+          </div>
+        </div>
+      )}
 
-        <p style={{ margin: 0, fontSize: 13, color: '#777', textAlign: 'center' }}>
-          {tx.ajutor} <a href={LINE_TEL} style={{ color: RED, fontWeight: 700 }}>{LINE_TEXT}</a>
-        </p>
+      {cautaVazuta && (
+        <div className="tg-cauta" style={{ display: fila === 'cauta' ? 'block' : 'none' }}>
+          <HomePage locale={locale} options={options} popular={popular} telegram={{ contact }} />
+        </div>
+      )}
+
+      <nav className="tg-bara" role="tablist" aria-label="TRANSLUX">
+        {(['bilete', 'harta', 'cauta'] as Fila[]).map((f) => (
+          <button key={f} type="button" role="tab" aria-selected={fila === f} className="tg-tab" onClick={() => alege(f)}>
+            <IconFila fila={f} />
+            {tx.file[f]}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+function Antet({ titlu }: { titlu: string }) {
+  return (
+    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span aria-label="TRANSLUX" style={{
+        display: 'inline-block', height: 24, aspectRatio: '1318/192', backgroundColor: RED, flexShrink: 0,
+        WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
+        maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
+      }} />
+      <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, textAlign: 'right' }}>{titlu}</h1>
+    </header>
+  );
+}
+
+function Ajutor({ locale }: { locale: Locale }) {
+  return (
+    <p style={{ margin: 0, fontSize: 13, color: '#777', textAlign: 'center' }}>
+      {TXT[locale].ajutor} <a href={LINE_TEL} style={{ color: RED, fontWeight: 700 }}>{LINE_TEXT}</a>
+    </p>
+  );
+}
+
+/** Iconițele barei de jos: bilet, punct pe hartă, lupă (linie, ca pe site). */
+function IconFila({ fila }: { fila: Fila }) {
+  const p = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  if (fila === 'bilete') return <svg {...p}><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z" /><path d="M14 6v12" strokeDasharray="2 2.5" /></svg>;
+  if (fila === 'harta') return <svg {...p}><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>;
+  return <svg {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
+}
+
+/** Fila «Harta»: autobuzul fiecărei curse de azi, în fereastra ei (regulile ION-37); altfel explicația. */
+function HartaMea({ ecran, acum, locale, onCauta }: { ecran: Ecran; acum: number; locale: Locale; onCauta: () => void }) {
+  const tx = TXT[locale];
+  if (ecran.tip === 'pornire' || ecran.tip === 'incarca') return <p className="tg-nota" aria-live="polite">{tx.incarca}</p>;
+  if (ecran.tip === 'fara_telegram' || !ecran.stare.ok) return <p className="tg-nota">{tx.faraTelegram}</p>;
+  const azi = ecran.stare.bilete.filter((c) => c.status === 'platita' && fereastraHartii(c, acum) !== 'alta_zi');
+  if (azi.length === 0) {
+    return (
+      <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
+        <span>{tx.hartaGol}</span>
+        <button type="button" className="tg-buton" onClick={onCauta}>{tx.spreCautare}</button>
       </div>
+    );
+  }
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      {azi.map((c) => {
+        const f = fereastraHartii(c, acum);
+        return (
+          <div key={c.cod} style={{ display: 'grid', gap: 10 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{oraChisinau(c.departure_at)} · {c.from_name} → {c.to_name}</div>
+            {f === 'activa' && <HartaAutobuzului from={c.from_name} to={c.to_name} plecare={oraChisinau(c.departure_at)} locale={locale} />}
+            {f === 'curand' && <p className="tg-nota">📍 {tx.hartaMaiTarziu}</p>}
+            {f === 'incheiata' && <p className="tg-nota">{tx.hartaIncheiata}</p>}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -138,16 +238,14 @@ function BileteleMele({ ecran, acum, locale, onReincearca }: { ecran: Ecran; acu
   );
 }
 
-/** O comandă: harta autobuzului (în fereastra ei) deasupra cardurilor cu QR, câte unul pe loc. */
+/** O comandă: cardurile cu QR, câte unul pe loc (harta e în fila «Harta»). */
 function ComandaClient({ comanda: c, acum, locale }: { comanda: ComandaPublica; acum: number; locale: Locale }) {
   const tx = TXT[locale];
   const valide = bileteDeAratat(c);
   if (c.status !== 'platita' || valide.length === 0) return <p className="tg-nota">{c.from_name} → {c.to_name}: {tx.faraBilet}</p>;
-  const fereastra = fereastraHartii(c, acum);
+  void acum;
   return (
     <div style={{ display: 'grid', gap: 14 }}>
-      {fereastra === 'activa' && <HartaAutobuzului from={c.from_name} to={c.to_name} plecare={oraChisinau(c.departure_at)} locale={locale} />}
-      {(fereastra === 'curand' || fereastra === 'alta_zi') && <p className="tg-nota">📍 {tx.hartaMaiTarziu}</p>}
       {valide.map((b) => <BiletCard key={b.nr} comanda={c} bilet={b} locale={locale} />)}
     </div>
   );

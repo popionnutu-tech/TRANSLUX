@@ -157,11 +157,17 @@ async function preturiPopulareLa(today: string): Promise<PopularRoutePrice[]> {
   });
 }
 
-/** Cached version of getLocalities for public pages (60s ISR) */
+/**
+ * Localitățile pentru paginile publice, cache 15 min.
+ *
+ * ION-232 (Ion, 05.10: «să optimizăm și să nu pierdem din funcțional»): la 60 s, `/`, `/ro` și `/ru`
+ * moșteneau minutul și se regenerau ~1 440 de ori pe zi fiecare (age 25–53 s) — principalul
+ * consumator Vercel al site-ului. Lista se schimbă rar; 15 min e același termen ca al paginii.
+ */
 export const getCachedLocalities = unstable_cache(
   async () => getLocalities(),
   ['public-localities'],
-  { revalidate: 60, tags: ['localities'] }
+  { revalidate: 900, tags: ['localities'] }
 );
 
 /**

@@ -9,6 +9,10 @@ import { homeOptions, homePopular } from '@/lib/home-props';
 
 export const metadata: Metadata = homeMetadata('ro');
 
+// ION-232: prima pagină se regenerează cel mult o dată la 15 min (înainte — la fiecare minut).
+// Nu o oră: prețurile populare trec pe tariful zilei la miezul nopții, iar 15 min e întârzierea acceptată.
+export const revalidate = 900;
+
 export default async function RootPage() {
   const [localities, popularPrices, pairs] = await Promise.all([
     getCachedLocalities(),

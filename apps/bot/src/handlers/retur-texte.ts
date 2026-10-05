@@ -95,6 +95,8 @@ export const T_RETUR = {
 
 export const BUTOANE = {
   returneaza: { ro: '↩️ Returnează biletul', ru: '↩️ Вернуть билет' },
+  /** ION-251: deschide mini app-ul clientului pe harta «Acum» cu cursa lui (sub bilet și sub harta automată). */
+  undeAutobuz: { ro: '📍 Vezi unde e autobuzul', ru: '📍 Где сейчас автобус' },
   pastrez: { ro: 'Păstrez biletul', ru: 'Оставить билет' },
   verifica: { ro: '🔄 Verifică starea', ru: '🔄 Проверить статус' },
   anuleaza: (suma: number): Bilingv => ({ ro: `Anulează biletul și primește ${lei(suma)} lei`, ru: `Отменить билет и получить ${lei(suma)} лей` }),

@@ -4,12 +4,15 @@ import { config } from '../config.js';
 import type { BotContext, Limba } from '../types.js';
 import { repoBileteClienti, STARI_ACTIVE, type BiletQr, type ComandaClient, type RepoBileteClienti } from '../services/bileteClienti.js';
 import { BUTOANE, buton, TELEFON_DISPECERAT } from './retur-texte.js';
+import { repoMesajeBilet, type RepoMesajeBilet } from '../services/bileteTelegram.js';
+import { sincronizeazaFixarea } from '../services/fixareBilet.js';
 
 // Clientul care vine din pagina biletului (ION-199, pasul E0): `/start bilet_<cod>`.
 // Ramura stă ÎNAINTEA invitațiilor personalului: altfel payload-ul ajungea la validateInviteToken
 // și clientul primea «Link de invitație invalid». Nu atinge `users` (rolurile personalului).
 // ION-244: comanda se leagă de contul Telegram care a deschis-o primul (bilete_comenzi.telegram_id), iar sub bilet
 // apare «Returnează biletul» (handlers/retur.ts). Legată de alt cont → biletul se arată, fără returnare.
+// ION-251: biletul propriu, plătit = UN mesaj (imaginea + textul + butoanele), fixat în chat dacă e cel mai apropiat.
 
 const COD_RE = /^bilet_([0-9a-f]{32})$/i;
 const SITE = (process.env.SITE_URL || 'https://translux.md').replace(/\/+$/, '');
@@ -77,16 +80,28 @@ const T_ALT_CONT = {
   ru: `Билет привязан к другому аккаунту Telegram; возврат может запросить этот аккаунт или диспетчер: ${TELEFON_DISPECERAT}.`,
 };
 
-/** Legenda imaginii QR a unui loc (pur, testat). */
-export function legendaQr(c: Pick<ComandaClient, 'from_name' | 'to_name' | 'departure_at'>, b: Pick<BiletQr, 'nr' | 'loc_nr'>, total: number, lang: Limba): string {
-  const cand = new Date(c.departure_at).toLocaleString(lang === 'ru' ? 'ru-RU' : 'ro-RO', {
-    timeZone: 'Europe/Chisinau', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
+/** Legenda imaginii unui loc: textul biletului (mesajBilet) + locul + îndemnul pentru urcare. Pur, testat. */
+export function legendaBilet(
+  c: Parameters<typeof mesajBilet>[0],
+  b: Pick<BiletQr, 'nr' | 'loc_nr'> | null,
+  total: number,
+  lang: Limba,
+): string {
+  const text = mesajBilet(c).text;
+  if (!b) return text;
   const loc = b.loc_nr ?? b.nr;
   const dinTotal = total > 1 ? (lang === 'ru' ? ` (билет ${b.nr} из ${total})` : ` (biletul ${b.nr} din ${total})`) : '';
   return lang === 'ru'
-    ? `🎫 ${c.from_name} → ${c.to_name}\n${cand}\nМесто ${loc}${dinTotal}\nПокажите этот код водителю при посадке.`
-    : `🎫 ${c.from_name} → ${c.to_name}\n${cand}\nLocul ${loc}${dinTotal}\nArată acest cod șoferului la urcare.`;
+    ? `${text}\nМесто ${loc}${dinTotal}\nПокажите этот код водителю при посадке.`
+    : `${text}\nLocul ${loc}${dinTotal}\nArată acest cod șoferului la urcare.`;
+}
+
+/** Butoanele biletului propriu, plătit: returnarea și harta autobuzului din mini app (ION-251). */
+export function tastaturaBiletPropriu(cod: string, lang: Limba): InlineKeyboard {
+  return new InlineKeyboard()
+    .text(buton(BUTOANE.returneaza, lang), `retur:cere:${cod}`)
+    .row()
+    .webApp(buton(BUTOANE.undeAutobuz, lang), urlMiniAppClient(lang));
 }
 
 async function imagineDinPanou(cod: string, nr: number): Promise<Buffer | null> {
@@ -99,22 +114,80 @@ async function imagineDinPanou(cod: string, nr: number): Promise<Buffer | null> 
   }
 }
 
-async function trimiteQr(ctx: BotContext, c: ComandaClient, bilete: BiletQr[], lang: Limba): Promise<void> {
-  const valide = bilete.filter((b) => b.status === 'valid');
-  if (!valide.length) return;
-  // ION-248 (Ion: «nu este biletul plin cum pe site»): imaginea întreagă a biletului, desenată de panou; dacă panoul nu
-  // răspunde — doar QR-ul, ca biletul să ajungă oricum în chat.
-  const poze = await Promise.all(valide.map(async (b) => ({ b, png: (await imagineDinPanou(c.cod, b.nr)) ?? await QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 2, width: 600 }) })));
-  if (poze.length === 1) {
-    await ctx.replyWithPhoto(new InputFile(poze[0].png, 'bilet.png'), { caption: legendaQr(c, poze[0].b, 1, lang) });
-    return;
-  }
-  await ctx.replyWithMediaGroup(poze.slice(0, 10).map(({ b, png }) => ({
-    type: 'photo' as const, media: new InputFile(png, `bilet-${b.nr}.png`), caption: legendaQr(c, b, poze.length, lang),
-  })));
+/** ION-248: imaginea întreagă a biletului, desenată de panou; dacă panoul nu răspunde — doar QR-ul. */
+async function pozaLocului(cod: string, b: BiletQr): Promise<Buffer> {
+  return (await imagineDinPanou(cod, b.nr))
+    ?? QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 2, width: 600 });
 }
 
-export async function handleBiletStart(ctx: BotContext, cod: string, repo: RepoBileteClienti = repoBileteClienti): Promise<void> {
+async function locuriValabile(cod: string, repo: RepoBileteClienti): Promise<BiletQr[]> {
+  if (!repo.bileteQr) return [];
+  try {
+    return (await repo.bileteQr(cod)).filter((b) => b.status === 'valid');
+  } catch (e) {
+    // Fără locuri citite biletul tot pleacă, ca text cu butoanele (rezerva de mai jos).
+    console.warn('[bilet/start] locuri:', e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
+/**
+ * ION-251 (Ion, 05.10: «biletul foto cu qr codul și returnează să fie tot un mesaj»): câte o imagine pe loc, legenda =
+ * textul biletului, butoanele DOAR pe prima. Albumul nu poate avea butoane, deci imaginile pleacă una câte una.
+ * Fără loc valabil (biletul se emite / locurile urcate) — textul biletului cu aceleași butoane. Întoarce id-ul primului
+ * mesaj (cel care se fixează).
+ */
+async function trimiteBiletulPropriu(ctx: BotContext, c: ComandaClient, lang: Limba, repo: RepoBileteClienti): Promise<number> {
+  const tastatura = tastaturaBiletPropriu(c.cod, lang);
+  const locuri = await locuriValabile(c.cod, repo);
+  if (!locuri.length) return (await ctx.reply(legendaBilet(c, null, 0, lang), { reply_markup: tastatura })).message_id;
+  const poze = await Promise.all(locuri.map(async (b) => ({ b, png: await pozaLocului(c.cod, b) })));
+  let primul: number | null = null;
+  for (const { b, png } of poze) {
+    const trimis = await ctx.replyWithPhoto(new InputFile(png, `bilet-${b.nr}.png`), {
+      caption: legendaBilet(c, b, poze.length, lang),
+      ...(primul == null ? { reply_markup: tastatura } : {}),
+    });
+    primul ??= trimis.message_id;
+  }
+  return primul as number;
+}
+
+/** Biletul altui cont sau neplătit: textul cu linkul paginii, fără QR și fără returnare (ca înainte de ION-251). */
+async function trimiteBiletulInformativ(ctx: BotContext, c: ComandaClient, legare: Legare, lang: Limba): Promise<void> {
+  const m = mesajBilet(c);
+  const textBilet = legare === 'alt_cont' ? `${m.text}\n\n${T_ALT_CONT[lang]}` : m.text;
+  await ctx.reply(textBilet, { reply_markup: new InlineKeyboard().url(m.buton, m.url) });
+}
+
+/** Mesajul nou devine al comenzii, apoi pinul contului se aduce la regulă. Nu rupe trimiterea biletului. */
+async function inregistreazaSiFixeaza(ctx: BotContext, cod: string, telegramId: number, mesajId: number, mesaje: RepoMesajeBilet): Promise<void> {
+  try {
+    await mesaje.salveazaMesaj(cod, telegramId, mesajId);
+    await sincronizeazaFixarea(telegramId, { repo: mesaje, api: ctx.api, nowMs: Date.now() });
+  } catch (e) {
+    console.warn('[bilet/start] pin:', e instanceof Error ? e.message : e);
+  }
+}
+
+/** Butonul de meniu (≡) al clientului; personalul și șoferii își păstrează «Sarcini» / «🎫 Билеты». */
+async function seteazaMeniulClientului(ctx: BotContext, fromId: number, legare: Legare, lang: Limba, repo: RepoBileteClienti): Promise<void> {
+  // Butonul de meniu implicit al botului e «Sarcini» (mini app-ul personalului, setat în BotFather; API-ul nu-l poate
+  // schimba la nivel de bot). ION-249 (Ion, 05.10: «ecran complet, harta cu unde e șoferul meu, căutare noi bilete»):
+  // «🎫 Bilete» deschide mini app-ul clientului (toate biletele contului); biletul altui cont — comenzi.
+  if (ctx.dbUser || !repo.esteSofer || (await repo.esteSofer(fromId)) || !ctx.chat) return;
+  const meniu = legare === 'alt_cont'
+    ? { type: 'commands' as const }
+    : { type: 'web_app' as const, text: lang === 'ru' ? '🎫 Билеты' : '🎫 Bilete', web_app: { url: urlMiniAppClient(lang) } };
+  await ctx.api.setChatMenuButton({ chat_id: ctx.chat.id, menu_button: meniu }).catch((e) => console.warn('[bilet/start] meniu:', e instanceof Error ? e.message : e));
+}
+
+export async function handleBiletStart(
+  ctx: BotContext,
+  cod: string,
+  repo: RepoBileteClienti = repoBileteClienti,
+  mesaje: RepoMesajeBilet = repoMesajeBilet,
+): Promise<void> {
   if (ctx.chat?.type !== 'private') return;
   const fromId = ctx.from?.id;
   if (!fromId) return;
@@ -127,28 +200,14 @@ export async function handleBiletStart(ctx: BotContext, cod: string, repo: RepoB
     // ION-244, pasul 1: linkul cu codul (secret) e dovada; «primul venit» leagă comanda de contul lui.
     const legatDe = comanda.telegram_id ?? (await repo.leagaComanda(cod, fromId));
     const legare = decizieLegare(legatDe, fromId);
-    const m = mesajBilet(comanda);
     const lang: Limba = comanda.lang === 'ru' ? 'ru' : 'ro';
-    const kb = new InlineKeyboard().url(m.buton, m.url);
-    if (aratReturnare(legare, comanda.status)) kb.row().text(buton(BUTOANE.returneaza, lang), `retur:cere:${comanda.cod}`);
-    const textBilet = legare === 'alt_cont' ? `${m.text}\n\n${T_ALT_CONT[lang]}` : m.text;
-    await ctx.reply(textBilet, { reply_markup: kb });
-    // ION-248 (Ion, 05.10: «biletul trebuie QR codul odată cumpărat să apară și în telegram chat»): pe comanda proprie,
-    // plătită, botul trimite în chat imaginea QR a fiecărui loc. Biletul altui cont — fără QR (codul e al pasagerului).
-    if (aratReturnare(legare, comanda.status) && repo.bileteQr) {
-      await trimiteQr(ctx, comanda, await repo.bileteQr(comanda.cod), lang).catch((e) => console.warn('[bilet/start] qr:', e instanceof Error ? e.message : e));
+    if (aratReturnare(legare, comanda.status)) {
+      const mesajId = await trimiteBiletulPropriu(ctx, comanda, lang, repo);
+      await inregistreazaSiFixeaza(ctx, comanda.cod, fromId, mesajId, mesaje);
+    } else {
+      await trimiteBiletulInformativ(ctx, comanda, legare, lang);
     }
-    // Butonul de meniu (≡) implicit al botului e «Sarcini» (mini app-ul personalului, setat în BotFather; API-ul nu-l
-    // poate schimba la nivel de bot). Clientul (nu personal, nu șofer) primește în chatul lui «🎫 Bilete» (ION-248), care
-    // deschide mini app-ul clientului (Ion, 05.10: «eu ca client nu am buton biletul meu»); biletul altui cont — comenzi.
-    if (!ctx.dbUser && repo.esteSofer && !(await repo.esteSofer(fromId))) {
-      // ION-249 (Ion, 05.10: «ecran complet, harta cu unde e șoferul meu, căutare noi bilete»): «🎫 Bilete» deschide
-      // mini app-ul clientului (toate biletele contului), nu pagina unui singur bilet ca în ION-248.
-      const meniu = legare === 'alt_cont'
-        ? { type: 'commands' as const }
-        : { type: 'web_app' as const, text: lang === 'ru' ? '🎫 Билеты' : '🎫 Bilete', web_app: { url: urlMiniAppClient(lang) } };
-      await ctx.api.setChatMenuButton({ chat_id: ctx.chat.id, menu_button: meniu }).catch((e) => console.warn('[bilet/start] meniu:', e instanceof Error ? e.message : e));
-    }
+    await seteazaMeniulClientului(ctx, fromId, legare, lang, repo);
   } catch (e) {
     // Ramura clientului nu are voie să rupă botul personalului: jurnal + răspuns scurt.
     console.error('[bilet/start]', e instanceof Error ? e.message : e);

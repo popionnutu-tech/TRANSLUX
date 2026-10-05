@@ -1207,14 +1207,25 @@ const CAZURI_START: CazStartBilet[] = [
   { nume: 'nelegată și neplătită → se leagă, dar fără buton', telegramInBaza: null, dupaLegare: ME, status: 'noua', leaga: true, butonRetur: false, altCont: false },
 ];
 
+/** Repo-ul mesajelor din chat (ION-251), fără bază: nimic de fixat. */
+function mesajeFalse() {
+  return {
+    salveazaMesaj: vi.fn(async () => {}), uitaMesaj: vi.fn(async () => {}), comenziPentruFixare: vi.fn(async () => []),
+    marcheazaFixarea: vi.fn(async () => {}), conturiDeVerificat: vi.fn(async () => []), comenziPentruHarta: vi.fn(async () => []),
+    marcheazaHartaTrimisa: vi.fn(async () => true),
+  };
+}
+
 function ctxStart(p: { id?: number; chat?: string } = {}) {
   const primite: MesajPrimit[] = [];
   const ctx = {
     chat: { type: p.chat ?? 'private' },
     from: { id: p.id ?? ME },
-    reply: vi.fn(async (t: string, extra?: { reply_markup?: { inline_keyboard?: Array<Array<{ text: string; callback_data?: string; url?: string }>> } }) => {
-      primite.push({ text: t, butoane: (extra?.reply_markup?.inline_keyboard ?? []).flat().map((b) => ({ text: b.text, data: b.callback_data, url: b.url })) });
+    reply: vi.fn(async (t: string, extra?: { reply_markup?: { inline_keyboard?: Array<Array<{ text: string; callback_data?: string; url?: string; web_app?: { url: string } }>> } }) => {
+      primite.push({ text: t, butoane: (extra?.reply_markup?.inline_keyboard ?? []).flat().map((b) => ({ text: b.text, data: b.callback_data, url: b.url ?? (b.web_app ? `webapp:${b.web_app.url}` : undefined) })) });
+      return { message_id: primite.length };
     }),
+    api: { unpinAllChatMessages: vi.fn(async () => true), pinChatMessage: vi.fn(async () => true) },
   };
   return { ctx: ctx as unknown as BotContext, primite };
 }
@@ -1227,17 +1238,19 @@ describe('8. /start bilet_<cod>', () => {
     m.repo.leagaComanda.mockResolvedValue(caz.dupaLegare ?? null);
     const { ctx, primite } = ctxStart();
 
-    await handleBiletStart(ctx, COD, m.repo);
+    await handleBiletStart(ctx, COD, m.repo, mesajeFalse());
 
     if (caz.leaga) expect(m.repo.leagaComanda).toHaveBeenCalledWith(COD, ME);
     else expect(m.repo.leagaComanda).not.toHaveBeenCalled();
     expect(primite).toHaveLength(1);
     const [bilet] = primite;
     expect(bilet.text).toMatch(lang === 'ru' ? /^🎫 Билет TRANSLUX\nBriceni → Chișinău/ : /^🎫 Bilet TRANSLUX\nBriceni → Chișinău/);
-    const asteptate = [`https://translux.md/${lang}/bilet/${COD}`];
-    if (caz.butonRetur) asteptate.push(`retur:cere:${COD}`);
+    // ION-251: biletul propriu, plătit = Returnează + harta din mini app; altfel linkul paginii biletului, ca înainte.
+    const asteptate = caz.butonRetur
+      ? [`retur:cere:${COD}`, `webapp:https://translux.md/${lang}/telegram`]
+      : [`https://translux.md/${lang}/bilet/${COD}`];
     expect(bilet.butoane.map((b) => b.url ?? b.data)).toEqual(asteptate);
-    if (caz.butonRetur) expect(bilet.butoane[1].text).toBe(lang === 'ru' ? '↩️ Вернуть билет' : '↩️ Returnează biletul');
+    if (caz.butonRetur) expect(bilet.butoane[0].text).toBe(lang === 'ru' ? '↩️ Вернуть билет' : '↩️ Returnează biletul');
     if (caz.altCont) expect(bilet.text).toMatch(lang === 'ru' ? /привязан к другому аккаунту Telegram/ : /legat de alt cont Telegram/);
     else expect(bilet.text).not.toMatch(/alt cont|другому аккаунту/);
     expect(m.panou.apeluri).toHaveLength(0);

@@ -9,6 +9,10 @@ import { sendAdminAlert, escapeHtml } from './services/adminAlert.js';
 import { sendVoiceLessonDigest } from './services/voiceLessons.js';
 import { runPeronPhotoRetention } from './services/photoRetention.js';
 import { refreshDriverReferences } from './services/driverReferences.js';
+import { repoMesajeBilet } from './services/bileteTelegram.js';
+import { sincronizeazaToateConturile, type ApiFixare } from './services/fixareBilet.js';
+import { creeazaSursaPozitii } from './services/pozitiiAutobuz.js';
+import { trimiteHartileScadente, type ApiHarta } from './handlers/harta-autobuz.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -328,4 +332,43 @@ export function scheduleDriverReferences(): void {
       console.error('Driver references error:', err);
     }
   }, CHECK_INTERVAL_MS);
+}
+
+// ── Biletele clienților în chat (ION-251) ──────────────────────────
+// Pinul pe biletul cel mai apropiat se verifică la 15 minute (se schimbă doar când trece o cursă sau se anulează o
+// comandă); harta autobuzului la 5 minute, ca să prindă un punct GPS proaspăt în ora dinaintea plecării. Fiecare
+// pornire așteaptă să se termine cea de dinainte. Marcajele stau în bază (migr. 505): repornirea nu dublează nimic.
+
+const BILETE_PIN_INTERVAL_MS = 15 * 60 * 1000;
+const BILETE_HARTA_INTERVAL_MS = 5 * 60 * 1000;
+
+/** Rulează `job` la `intervalMs`, fără suprapunere; eroarea se scrie în jurnal, intervalul continuă. */
+function rulareFaraSuprapunere(nume: string, intervalMs: number, job: () => Promise<void>): void {
+  let ruleaza = false;
+  setInterval(async () => {
+    if (ruleaza) return;
+    ruleaza = true;
+    try {
+      await job();
+    } catch (err) {
+      console.error(`${nume} error:`, err);
+    } finally {
+      ruleaza = false;
+    }
+  }, intervalMs);
+}
+
+export function scheduleBileteTelegram(api: ApiFixare & ApiHarta): void {
+  console.log('Bilete în chat started (pin la 15 min, harta autobuzului la 5 min)');
+  const pozitii = creeazaSursaPozitii(config.adminBaseUrl);
+
+  rulareFaraSuprapunere('Bilete pin', BILETE_PIN_INTERVAL_MS, async () => {
+    const b = await sincronizeazaToateConturile({ repo: repoMesajeBilet, api, nowMs: Date.now() });
+    if (b.schimbate || b.erori) console.log(`Bilete pin: ${b.schimbate} schimbat(e) din ${b.verificate}, ${b.erori} erori`);
+  });
+
+  rulareFaraSuprapunere('Bilete harta', BILETE_HARTA_INTERVAL_MS, async () => {
+    const b = await trimiteHartileScadente({ repo: repoMesajeBilet, pozitii, api, nowMs: Date.now() });
+    if (b.trimise || b.erori) console.log(`Bilete harta: ${b.trimise} trimis(e), ${b.faraPunct} fără punct, ${b.erori} erori`);
+  });
 }

@@ -5,7 +5,7 @@ import { validateConfig } from './config.js';
 import { createBot } from './bot.js';
 import { getSupabase } from './supabase.js';
 import { handleAppApi } from './api/server.js';
-import { scheduleMondayReports, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep, scheduleVoiceLessonDigest, schedulePeronPhotoRetention, scheduleDriverReferences } from './scheduler.js';
+import { scheduleMondayReports, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep, scheduleVoiceLessonDigest, schedulePeronPhotoRetention, scheduleDriverReferences, scheduleBileteTelegram } from './scheduler.js';
 
 const HEARTBEAT_KEY = 'bot:heartbeat';
 
@@ -38,6 +38,7 @@ async function main() {
   scheduleVoiceLessonDigest();
   schedulePeronPhotoRetention();
   scheduleDriverReferences();
+  scheduleBileteTelegram(bot.api);
 
   const webhookUrl = process.env.WEBHOOK_URL;
   const webhookSecret = process.env.WEBHOOK_SECRET;

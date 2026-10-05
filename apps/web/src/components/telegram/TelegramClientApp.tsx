@@ -15,7 +15,8 @@ import { LINE_TEL, LINE_TEXT } from '@/lib/phone';
 import { fereastraHartii, oraChisinau } from '@/lib/telegram-client';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat } from '@/components/bilet/BiletCard';
 import { HomePage } from '@/components/home-page';
-import { NowResults } from '@/components/NowResults';
+import { NowResults, type NowTrip } from '@/components/NowResults';
+import { phoneTel, phoneText } from '@/lib/phone';
 import { EcranCompletTelegram } from '@/components/bilet/BiletActiuni';
 import { citesteInitData } from './telegram-webapp';
 
@@ -184,13 +185,70 @@ function HartaMea({ ecran, acum, locale, onCauta }: { ecran: Ecran; acum: number
   const azi = ecran.stare.bilete.filter((c) => c.status === 'platita' && ['curand', 'activa'].includes(fereastraHartii(c, acum)));
   if (azi.length > 0) {
     const c = azi[0];
+    const plecare = oraChisinau(c.departure_at);
     return <NowResults key={c.cod} from={c.from_name} to={c.to_name} fromValue={c.from_name} toValue={c.to_name} locale={locale}
-      onClose={() => {}} incorporat plecareMea={oraChisinau(c.departure_at)} />;
+      onClose={() => {}} incorporat plecareMea={plecare} doarCursa={{ departure: plecare, routeId: c.ruta?.id ?? null }}
+      panou={(t) => <BiletMini comanda={c} cursa={t} locale={locale} />} />;
   }
   return (
     <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
       <span>{tx.hartaGol}</span>
       <button type="button" className="tg-buton" onClick={onCauta}>{tx.spreCautare}</button>
+    </div>
+  );
+}
+
+const TXT_MINI = {
+  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', locul: 'Locul', suna: 'Sună șoferul' },
+  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', locul: 'Место', suna: 'Позвонить водителю' },
+} as const;
+
+/**
+ * Biletul micșorat din partea de jos a hărții (ION-249, Ion 05.10: «biletul cu QR, minimizat, cu datele mașinii, stilat»):
+ * ruta și orele, când vine autobuzul la oprirea omului, șoferul, mașina și apelul, locul și QR-ul (mărit la apăsare).
+ */
+function BiletMini({ comanda: c, cursa, locale }: { comanda: ComandaPublica; cursa: NowTrip | null; locale: Locale }) {
+  const tx = TXT_MINI[locale];
+  const [mare, setMare] = useState(false);
+  const b = bileteDeAratat(c)[0];
+  const stare = !cursa ? tx.nuEPeDrum : cursa.at_stop?.mine ? tx.aici : tx.vine(Math.max(0, cursa.eta_min ?? cursa.minutes_until), cursa.eta ?? cursa.departure);
+  const masina = cursa ? [cursa.driver, cursa.plate].filter(Boolean).join(' · ') : '';
+  return (
+    <div className="tg-mini">
+      <style>{`
+.tg-mini{background:#fff;border-radius:22px;box-shadow:0 12px 32px rgba(40,10,18,.18);overflow:hidden;font-family:var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+.tg-mini-sus{display:flex;align-items:center;gap:12px;padding:14px 14px 12px 18px;background:${RED};color:#fff}
+.tg-mini-ore{flex:1;min-width:0}
+.tg-mini-ore b{font-size:22px;font-weight:800;letter-spacing:-.3px}
+.tg-mini-ore span{display:block;font-size:13px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg-mini-stare{font-size:14px;font-weight:700;background:rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;white-space:nowrap}
+.tg-mini-jos{display:flex;align-items:center;gap:12px;padding:12px 14px 14px 18px}
+.tg-mini-date{flex:1;min-width:0;display:grid;gap:3px;font-size:13px;color:#6B5B5F}
+.tg-mini-date strong{font-size:15px;color:#231A1C}
+.tg-mini-suna{display:inline-flex;align-items:center;gap:6px;margin-top:4px;color:${RED};font-weight:700;font-size:14px;text-decoration:none}
+.tg-mini-qr{flex-shrink:0;width:84px;height:84px;border-radius:12px;border:1px solid #F1E8EA;padding:4px;background:#fff;cursor:zoom-in}
+.tg-mini-qr svg{width:100%;height:100%;display:block}
+.tg-mini.mare .tg-mini-qr{width:min(240px,60vw);height:min(240px,60vw);cursor:zoom-out}
+.tg-mini.mare .tg-mini-jos{flex-direction:column}
+`}</style>
+      <div className={`tg-mini${mare ? ' mare' : ''}`} style={{ boxShadow: 'none', borderRadius: 0 }}>
+        <div className="tg-mini-sus">
+          <div className="tg-mini-ore">
+            <b>{oraChisinau(c.departure_at)} → {c.sosire ?? '—:—'}</b>
+            <span>{c.from_name} → {c.to_name}</span>
+          </div>
+          <span className="tg-mini-stare">{stare}</span>
+        </div>
+        <div className="tg-mini-jos">
+          <div className="tg-mini-date">
+            {masina && <strong>{masina}</strong>}
+            {b && <span>{tx.locul} {b.loc_nr ?? b.nr} · {c.passenger_name}</span>}
+            {cursa?.phone && <a className="tg-mini-suna" href={`tel:${phoneTel(cursa.phone)}`}>📞 {phoneText(cursa.phone)}</a>}
+          </div>
+          {/* SVG-ul QR vine de la panou, generat din codul biletului (nu din text de la utilizator). */}
+          {b && <button type="button" className="tg-mini-qr" aria-label="QR" onClick={() => setMare(!mare)} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}
+        </div>
+      </div>
     </div>
   );
 }

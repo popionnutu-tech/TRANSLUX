@@ -1,5 +1,7 @@
 'use client';
 
+import type * as React from 'react';
+
 // «Acum» de pe prima pagină (ION-43). Ion, 23.09: omul alege «de unde → încotro» și
 // apasă «Acum» sau «Mai târziu»; fără geolocația lui, «minimalist și laconic».
 // Aici: următoarele plecări de azi din localitatea omului — ora, în câte minute,
@@ -61,7 +63,7 @@ function kmToLine(p: LatLon, line: LatLon[]): number {
 /** Cât de departe se poate deschide harta «Acum» cel mult (ION-100). */
 const MIN_OPEN_ZOOM = 9;
 
-interface NowTrip {
+export interface NowTrip {
   departure: string;
   minutes_until: number;
   on_road: boolean;
@@ -453,7 +455,7 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
   return <div ref={box} className="now-map" role="application" aria-label="Harta" />;
 }
 
-export function NowResults({ from, to, fromValue, toValue, locale, onClose, incorporat = false, plecareMea }: {
+export function NowResults({ from, to, fromValue, toValue, locale, onClose, incorporat = false, plecareMea, doarCursa, panou }: {
   from: string; to: string; fromValue: string; toValue: string; locale: Locale; onClose: () => void;
   /**
    * ION-249 (Ion, 05.10: «harta vizualizare similar ca la site»): fila «Harta» din mini app-ul Telegram e chiar
@@ -462,6 +464,13 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
   incorporat?: boolean;
   /** Ora cursei din biletul clientului («15:35»): cursa aceasta e aleasă la prima încărcare. */
   plecareMea?: string;
+  /**
+   * ION-249 (Ion, 05.10: «ca funcția Acum, dar doar pentru ruta pe care el a cumpărat bilet, iar în partea de jos să fie
+   * biletul cu QR, minimizat, cu datele mașinii»): doar cursa din bilet pe hartă (ora + ruta), iar panoul de jos e al
+   * apelantului — primește cursa găsită (sau null, încă nu e pe drum).
+   */
+  doarCursa?: { departure: string; routeId: number | null };
+  panou?: (cursa: NowTrip | null) => React.ReactNode;
 }) {
   const tx = TXT[locale];
   const [data, setData] = useState<NowData | null>(null);
@@ -503,7 +512,10 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const trips = data?.trips ?? [];
+  const toate = data?.trips ?? [];
+  const trips = doarCursa
+    ? toate.filter((t) => t.departure === doarCursa.departure && (doarCursa.routeId == null || t.route_id == null || t.route_id === doarCursa.routeId))
+    : toate;
   const sel = selected < trips.length ? selected : 0;
 
   // Cursa din bilet se alege o singură dată, când vin primele date (apoi omul alege ce vrea).
@@ -528,7 +540,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
   // Harta apare și fără autobuz pe drum, dacă avem linia rutei: omul vede pe unde va veni.
   const withPoint = trips.some((t) => t.lat != null || (t.route_id != null && !!data?.routes[t.route_id]));
   // Până vin datele, harta e deja pe ecran, cu plăcile (ION-206); după, rămâne doar dacă are ce arăta.
-  const showMap = data ? withPoint : !failed;
+  const showMap = data ? withPoint || !!panou : !failed;
   const empty = data && trips.length === 0;
   const head = (
     <>
@@ -546,7 +558,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
 
         <div className="now-top">{head}</div>
 
-        <div className="now-panel" ref={panel}>
+        {panou ? <div className="now-panel now-panel-bilet">{panou(trips[0] ?? null)}</div> : <div className="now-panel" ref={panel}>
           {/* Pe telefon itinerarul stă deasupra cardurilor, nu peste hartă (Ion, 27.09, ION-100). */}
           <div className="now-sheet-head">{head}</div>
           {!data && !failed && <p className="now-note">{tx.loading}</p>}
@@ -579,7 +591,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
               </div>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       <style>{`
@@ -587,6 +599,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
 .now-overlay.now-incorporat{z-index:40;background:none;padding:0;top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 70px)}
 .now-incorporat .now-box{max-width:none;height:100%;border-radius:0;box-shadow:none}
 .now-incorporat .now-close{display:none}
+.now-panel.now-panel-bilet{max-height:none;overflow:visible;background:none;box-shadow:none}
 .now-box{position:relative;width:100%;max-width:1000px;height:min(700px,calc(100vh - 48px));background:#F3F1EF;border-radius:28px;box-shadow:0 30px 80px rgba(40,10,18,.35);overflow:hidden}
 .now-box.no-map{height:auto;max-width:460px;background:#fff;padding-top:84px}
 .now-map{position:absolute;inset:0;isolation:isolate;z-index:0;background:#F3F1EF}

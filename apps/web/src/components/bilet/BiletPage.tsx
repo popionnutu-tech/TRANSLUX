@@ -137,9 +137,17 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                       <div key={b.nr} className="bilet-card" style={{ background: '#fff', borderRadius: 22, boxShadow: '0 6px 24px rgba(0,0,0,0.10)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#1a1a1a' }}>
                         {/* Partea de sus: cursa */}
                         <div style={{ padding: '18px 22px 14px' }}>
+                          {/* Ion, 05.10: «sus la șoferi și la clienți pune logo-ul nostru» — logo-ul bordo în capul cardului. */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <span aria-label="TRANSLUX" style={{
+                              display: 'inline-block', height: 26, aspectRatio: '1318/192', backgroundColor: RED,
+                              WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
+                              maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
+                            }} />
+                            <span style={{ fontSize: 15, color: '#555', fontWeight: 600 }}>{dataScurta(c.trip_date, locale, tx.azi)}</span>
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ background: '#fbe9e3', color: '#d9532b', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 800, letterSpacing: 1.2 }}>{tx.biletOnline}</span>
-                            <span style={{ fontSize: 15, color: '#555', fontWeight: 600 }}>{dataScurta(c.trip_date, locale, tx.azi)}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginTop: 16 }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>

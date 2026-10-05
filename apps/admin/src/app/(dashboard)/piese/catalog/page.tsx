@@ -49,6 +49,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       <div className="page-header">
         <h1>Catalog piese (nomenclator unic)</h1>
         <p>Caută după denumire, cod, articul sau filtrează pe categorie. Pentru stoc, preț și locație folosește <strong>Căutare</strong>.</p>
+        {/* Doar pentru rolurile care pot edita piese: unirea dublurilor desființează poziții din catalog. */}
+        {canEdit && (
+          <p style={{ marginTop: 6 }}>
+            <Link href="/piese/catalog/dubluri" className="btn btn-outline" style={{ padding: '4px 12px' }}>
+              🔍 Verifică dublurile
+            </Link>
+          </p>
+        )}
       </div>
 
       {/* Submit-ul resetează pagina la 1 (nu propagă `page`). */}

@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import type { Autor } from './audit';
 import { locationError, normalizeLocation, LOCATION_FORMAT } from './piese-location';
 
 // Strat de SCRIERE pentru nomenclatoarele modulului „Piese".
@@ -377,4 +378,38 @@ export async function cautaDuplicate(articol: string, coduri: string[], excludeI
   });
   if (error) throw new Error(error.message);
   return (data as Duplicat[]) || [];
+}
+
+// ── Dubluri în catalog (migr. 376-377) ──
+// Lista grupurilor cu articol repetat, cu tot ce-i trebuie omului ca să aleagă care piesă rămâne.
+export type DublurRand = {
+  cheie: string; fel: string; part_id: number; nume: string; articol: string; oem: string;
+  producator: string; model: string; grupa: string; coduri: string;
+  stoc: number; miscari: number; completare: number; sugerat: boolean;
+};
+export async function dubluriCatalog(limita = 200): Promise<DublurRand[]> {
+  const { data, error } = await getSupabase().rpc('piese_dubluri', { p_limita: limita });
+  if (error) throw new Error(error.message);
+  return (data as DublurRand[]) || [];
+}
+
+const UNESTE_ERR: Record<string, string> = {
+  NIMIC_DE_UNIT: 'Alege cel puțin o piesă de desființat.',
+  KEEP_IN_DROP: 'Piesa păstrată nu poate fi și desființată.',
+  KEEP_INVALID: 'Piesa pe care vrei s-o păstrezi nu mai există sau a fost deja unită.',
+};
+export async function unesteDubluri(keep: number, drop: number[], autor: Autor) {
+  const { data, error } = await getSupabase().rpc('piese_uneste', {
+    p_keep: keep, p_drop: drop, p_admin: autor.adminId, p_actor: autor.label,
+  });
+  if (error) {
+    const m = (error.message || '').trim();
+    // „NU_SE_POATE:426:are mișcări de stoc" → mesajul spune CARE piesă și DE CE, ca omul să poată acționa.
+    const nu = m.match(/NU_SE_POATE:(\d+):(.+)/);
+    if (nu) throw new Error(`Piesa #${nu[1]} nu poate fi desființată: ${nu[2]}. Păstreaz-o pe ea și unește celelalte cu ea.`);
+    const inv = m.match(/DROP_INVALID:(\d+)/);
+    if (inv) throw new Error(`Piesa #${inv[1]} nu mai există sau a fost deja unită. Reîncarcă lista.`);
+    throw new Error(UNESTE_ERR[m] || m);
+  }
+  return data as { pastrata: number; desfiintate: number; coduri_mutate: number };
 }

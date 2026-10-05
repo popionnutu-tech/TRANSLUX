@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Locale } from '@/lib/i18n';
 import { biletPublic, type ComandaPublica } from '@/lib/bilete-api';
 import { linkHarta } from '@/lib/bilete-reguli';
-import { AsteaptaPlata, SalveazaBilet } from './BiletActiuni';
+import { AsteaptaPlata, EcranCompletTelegram, SalveazaBilet } from './BiletActiuni';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 import { OPERATOR } from '@/components/legal/legal-content';
 
@@ -88,6 +88,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
 
   return (
     <div className="legal-page">
+      {doar && <EcranCompletTelegram />}
       <style>{`
         .bilet-qr svg { width: 100%; height: auto; display: block; }
         .bilet-card { break-inside: avoid; page-break-inside: avoid; }

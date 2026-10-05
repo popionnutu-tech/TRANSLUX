@@ -38,3 +38,30 @@ export function AsteaptaPlata({ locale }: { locale: "ro" | "ru" }) {
     }}>{locale === "ru" ? "Проверить оплату" : "Verifică plata"}</button>
   );
 }
+
+/**
+ * ION-248 (Ion, 05.10: «când apăs bilete se deschide pe jumătate, nu apare restul»): deschisă din butonul «🎫 Bilete»
+ * al botului, pagina e un mini app Telegram — Telegram îl arată implicit pe jumătate de ecran. Îl întindem pe tot
+ * ecranul. Fără telegram-web-app.js (CSP-ul site-ului permite doar scripturile proprii): evenimentele se trimit direct
+ * pe canalul mini app-urilor (TelegramWebviewProxy pe telefon, postMessage în Telegram Web/Desktop).
+ * În afara Telegram (fără tgWebAppVersion în adresă) nu face nimic.
+ */
+export function EcranCompletTelegram() {
+  React.useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const versiune = hash.get("tgWebAppVersion") ?? sessionStorage.getItem("tgWebAppVersion");
+    if (!versiune) return;
+    try { sessionStorage.setItem("tgWebAppVersion", versiune); } catch { /* fără stocare: doar pentru reîncărcări */ }
+    const w = window as unknown as { TelegramWebviewProxy?: { postEvent: (t: string, d: string) => void } };
+    const trimite = (tip: string, date: object = {}) => {
+      try {
+        if (w.TelegramWebviewProxy) w.TelegramWebviewProxy.postEvent(tip, JSON.stringify(date));
+        else window.parent.postMessage(JSON.stringify({ eventType: tip, eventData: date }), "https://web.telegram.org");
+      } catch { /* clientul nu știe evenimentul: rămâne cum e */ }
+    };
+    trimite("web_app_ready");
+    trimite("web_app_expand");
+    if (Number.parseFloat(versiune) >= 8) trimite("web_app_request_fullscreen");
+  }, []);
+  return null;
+}

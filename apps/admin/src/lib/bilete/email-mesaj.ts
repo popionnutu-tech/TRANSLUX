@@ -29,6 +29,7 @@ export interface MesajEmail {
 }
 
 /** ION-235 (cerințele maib): comerciantul și site-ul în confirmare. Aceleași date ca OPERATOR de pe site. */
+export const COMERCIANT_SCURT = 'TRANSLUX · S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni” · IDNO 1003604001469';
 export const COMERCIANT = 'S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni”, IDNO 1003604001469, MD-4701, or. Briceni, str. Olimpică 3 · translux.md';
 
 const T = {
@@ -99,6 +100,7 @@ ${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
 <div style="font-size:16px;font-weight:bold;color:#222;">${esc(d.from_name)} → ${esc(d.to_name)}</div>
 <div style="font-size:13px;font-weight:bold;color:${RED};">${esc(cand)}</div>
 <div style="font-size:12px;color:#888;">${esc(t.loc)} ${b.nr}/${d.seats}</div>
+<div style="font-size:11px;color:#999;">${esc(COMERCIANT_SCURT)}</div>
 <img src="cid:${qrIds[i]}" width="220" height="220" alt="QR ${esc(b.cod_qr)}" style="display:block;margin:8px auto;width:220px;height:220px;">
 <div style="font-family:'Courier New',monospace;font-size:14px;letter-spacing:1px;">${esc(b.cod_qr)}</div>
 </td></tr>`).join('\n')}

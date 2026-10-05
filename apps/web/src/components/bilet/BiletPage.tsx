@@ -4,6 +4,7 @@ import { biletPublic, type ComandaPublica } from '@/lib/bilete-api';
 import { linkHarta } from '@/lib/bilete-reguli';
 import { AsteaptaPlata, SalveazaBilet } from './BiletActiuni';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
+import { OPERATOR } from '@/components/legal/legal-content';
 
 // Pagina biletului (ION-197): /ro/bilet/<cod>, /ru/bilet/<cod>. Codul din link e secretul comenzii (128 de biți);
 // pagina nu se indexează, nu se cache-uiește, nu trimite referrer (next.config) și nu intră în page_views.
@@ -151,6 +152,8 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                             <span style={{ color: '#666' }}>{tx.pret}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{nfPret.format(Number(c.price_per_seat))} MDL</span>
                           </div>
                           <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{c.passenger_name}</div>
+                          {/* Biletul arată operatorul și codul fiscal (nota ecc.md, 07.2025: «denumirea operatorului, codul fiscal, ruta, data, ora, locul»). */}
+                          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{OPERATOR.brand} · {OPERATOR.name} · IDNO {OPERATOR.idno}</div>
                         </div>
                         {/* Linia de rupere */}
                         <div style={{ position: 'relative', height: 0, borderTop: '2px dashed #d9d9d9', margin: '0 14px' }}>

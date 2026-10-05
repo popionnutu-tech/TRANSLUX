@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 import { ComandaError, creeazaComanda, statusPentru, type ComandaInput } from '@/lib/bilete/comenzi';
+import { cheieSiteValida } from '@/lib/bilete/site-auth';
 
 // POST /api/bilete/comanda — site-ul (translux.md, server action) creează comanda și primește adresa de plată.
 // Public în middleware (cale EXACTĂ), apărat prin BILETE_API_KEY (≥ 256 biți, doar pe server, separată de
@@ -10,21 +10,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // Bugetul: token + creare (+ reîmprospătare la 401) × 8 s + căutarea sesiunii + baza — încape în 60 s (Codex X9).
 export const maxDuration = 60;
-
-const BEARER_RE = /^Bearer\s+(.+)$/i;
-
-function cheieValida(req: NextRequest): boolean {
-  const asteptat = process.env.BILETE_API_KEY;
-  if (!asteptat || asteptat.length < 64) { // 32 de octeți hex = 256 de biți
-    console.error('[bilete/comanda] BILETE_API_KEY lipsește sau e prea scurtă');
-    return false;
-  }
-  const primit = BEARER_RE.exec(req.headers.get('authorization') ?? '')?.[1]?.trim() ?? '';
-  if (!primit) return false;
-  const a = Buffer.from(primit);
-  const b = Buffer.from(asteptat);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 function locuriDin(v: unknown): number[] | null {
   if (v == null) return null;
@@ -41,7 +26,7 @@ function bazaAdmin(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!cheieValida(req)) return NextResponse.json({ ok: false, eroare: 'neautorizat' }, { status: 401 });
+  if (!cheieSiteValida(req.headers.get('authorization'))) return NextResponse.json({ ok: false, eroare: 'neautorizat' }, { status: 401 });
 
   let body: Partial<ComandaInput> & { ip_hash?: string; locuri_alese?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, eroare: 'JSON nevalid' }, { status: 400 }); }

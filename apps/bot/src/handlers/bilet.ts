@@ -52,6 +52,14 @@ export function mesajBilet(c: {
   };
 }
 
+/**
+ * Mini app-ul clientului pe translux.md (ION-249): biletele contului, harta autobuzului, căutarea unui bilet nou.
+ * URL stabil, fără cod: identitatea o dă initData-ul Telegram, verificat de panou. Pur, testat.
+ */
+export function urlMiniAppClient(lang: Limba): string {
+  return `${SITE}/${lang}/telegram`;
+}
+
 export type Legare = 'al_meu' | 'alt_cont';
 
 /** După legarea atomică: comanda e a acestui cont sau a altuia (atunci fără returnare). Pur, testat. */
@@ -131,13 +139,14 @@ export async function handleBiletStart(ctx: BotContext, cod: string, repo: RepoB
       await trimiteQr(ctx, comanda, await repo.bileteQr(comanda.cod), lang).catch((e) => console.warn('[bilet/start] qr:', e instanceof Error ? e.message : e));
     }
     // Butonul de meniu (≡) implicit al botului e «Sarcini» (mini app-ul personalului, setat în BotFather; API-ul nu-l
-    // poate schimba la nivel de bot). Clientul (nu personal, nu șofer) primește în chatul lui «🎫 Biletul meu», care
-    // deschide pagina biletului cu QR (Ion, 05.10: «eu ca client nu am buton biletul meu»); biletul altui cont — comenzi.
+    // poate schimba la nivel de bot). Clientul (nu personal, nu șofer) primește în chatul lui «🎫 Bilete» (ION-248), care
+    // deschide mini app-ul clientului (Ion, 05.10: «eu ca client nu am buton biletul meu»); biletul altui cont — comenzi.
     if (!ctx.dbUser && repo.esteSofer && !(await repo.esteSofer(fromId))) {
-      // ION-248: «🎫 Bilete», și deschide doar biletul (`?doar=1`: cardul cu QR, fără restul paginii).
+      // ION-249 (Ion, 05.10: «ecran complet, harta cu unde e șoferul meu, căutare noi bilete»): «🎫 Bilete» deschide
+      // mini app-ul clientului (toate biletele contului), nu pagina unui singur bilet ca în ION-248.
       const meniu = legare === 'alt_cont'
         ? { type: 'commands' as const }
-        : { type: 'web_app' as const, text: lang === 'ru' ? '🎫 Билеты' : '🎫 Bilete', web_app: { url: `${m.url}?doar=1` } };
+        : { type: 'web_app' as const, text: lang === 'ru' ? '🎫 Билеты' : '🎫 Bilete', web_app: { url: urlMiniAppClient(lang) } };
       await ctx.api.setChatMenuButton({ chat_id: ctx.chat.id, menu_button: meniu }).catch((e) => console.warn('[bilet/start] meniu:', e instanceof Error ? e.message : e));
     }
   } catch (e) {

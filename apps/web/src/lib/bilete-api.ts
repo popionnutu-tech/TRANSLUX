@@ -161,3 +161,42 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null | 
     return 'indisponibil';
   }
 }
+
+// Biletele clientului în mini app-ul Telegram (ION-249): serverul site-ului trimite panoului initData-ul primit de la
+// pagină (X-Telegram-Init-Data) împreună cu BILETE_API_KEY; panoul verifică HMAC-ul cu tokenul botului și întoarce
+// doar comenzile contului. Site-ul nu ține tokenul botului și nu decide identitatea.
+export type EroareBileteClient = 'neautentificat' | 'expirat' | 'prea_multe' | 'indisponibil';
+
+export type RaspunsBileteClient =
+  | { ok: true; bilete: ComandaPublica[]; contact: unknown }
+  | { ok: false; eroare: EroareBileteClient };
+
+const ERORI_PANOU: Record<number, EroareBileteClient> = { 401: 'neautentificat', 429: 'prea_multe' };
+
+export async function bileteleClientuluiTelegram(initData: string): Promise<RaspunsBileteClient> {
+  const cheie = process.env.BILETE_API_KEY;
+  if (!cheie) {
+    console.error('[bilete] BILETE_API_KEY lipsește');
+    return { ok: false, eroare: 'indisponibil' };
+  }
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/client/bilete`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cheie}`, 'X-Telegram-Init-Data': initData },
+      signal: AbortSignal.timeout(TIMEOUT_MS * 2),
+      cache: 'no-store',
+    });
+    const j = await r.json().catch(() => null) as { ok?: boolean; bilete?: unknown; contact?: unknown; eroare?: unknown } | null;
+    if (r.ok && j?.ok && Array.isArray(j.bilete)) return { ok: true, bilete: j.bilete as ComandaPublica[], contact: j.contact ?? null };
+    if (r.status === 401 && j?.eroare === 'expirat') return { ok: false, eroare: 'expirat' };
+    // «neautorizat» = cheia site-ului nu se potrivește cu a panoului: e configurarea noastră, nu clientul.
+    if (r.status === 401 && j?.eroare === 'neautorizat') {
+      console.error('[bilete] panoul a refuzat BILETE_API_KEY la biletele clientului');
+      return { ok: false, eroare: 'indisponibil' };
+    }
+    return { ok: false, eroare: ERORI_PANOU[r.status] ?? 'indisponibil' };
+  } catch (e) {
+    console.warn('[bilete] biletele clientului indisponibile:', e instanceof Error ? e.message : e);
+    return { ok: false, eroare: 'indisponibil' };
+  }
+}

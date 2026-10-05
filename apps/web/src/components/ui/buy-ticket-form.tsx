@@ -7,6 +7,8 @@ import type { TripResult } from "@/app/(public)/actions";
 import { cumparaBilet, locuriCursei, type StareComanda } from "@/app/(public)/bilete-actions";
 import { linkHarta } from "@/lib/bilete-reguli";
 import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
+import { phoneText } from "@/lib/phone";
+import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 
 // Formularul «Cumpără bilet» (ION-197): în fereastra rezultatelor, sub cursa aleasă. Cheia de idempotență se
@@ -77,8 +79,13 @@ function ziuaSiOra(tripDate: string, time: string, locale: "ro" | "ru"): string 
 
 type Harta = { stare: "incarca" | "ok" | "indisponibila"; ocupate: number[] };
 
-export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
-  trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void;
+/** Câmpurile de la deschidere: goale pe site, precompletate în mini app-ul Telegram (ION-249, telefonul în forma +373). */
+function campuriInitiale(contact: ContactPrecompletat | null) {
+  return { lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: "" };
+}
+
+export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null }: {
+  trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null;
 }) {
   const tx = TXT[locale];
   const [key] = React.useState(uuid);
@@ -87,7 +94,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
   const ales = trip.puncte?.find((p) => p.id === punct) ?? null;
   // Câmpurile de text sunt controlate: React resetează formularul după fiecare răspuns al acțiunii, iar la o eroare
   // («loc_ocupat», banca nu răspunde) omul nu trebuie să scrie din nou numele și telefonul.
-  const [camp, setCamp] = React.useState({ lastName: "", firstName: "", phone: "", email: "" });
+  const [camp, setCamp] = React.useState(() => campuriInitiale(contact));
   const [consent, setConsent] = React.useState(false);
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
   const [stare, action] = useActionState<StareComanda, FormData>(cumparaBilet, {});

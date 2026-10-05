@@ -38,6 +38,14 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/bilete/retur/admin')).toBe(false);
   });
 
+  it('biletele clientului din mini app-ul Telegram (ION-249): DOAR /api/bilete/client/bilete, exact', () => {
+    expect(isPublicPath('/api/bilete/client/bilete')).toBe(true);
+    expect(isPublicPath('/api/bilete/client/bilete/')).toBe(false);
+    expect(isPublicPath('/api/bilete/client/bilete/x')).toBe(false);
+    expect(isPublicPath('/api/bilete/client')).toBe(false);
+    expect(isPublicPath('/api/bilete/client/admin')).toBe(false);
+  });
+
   it('API-ul mini app-ului șoferului (ION-239): sub /api/bilete-sofer/ stau DOAR /azi și /scan, apărate prin initData', () => {
     for (const p of ['/api/bilete-sofer/azi', '/api/bilete-sofer/scan']) expect(isPublicPath(p)).toBe(true);
     expect(isPublicPath('/api/bilete-sofer')).toBe(false); // fără slash final nu e sub prefix

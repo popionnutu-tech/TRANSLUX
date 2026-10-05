@@ -1,0 +1,101 @@
+// Regulile pure ale mini app-ului clientului din Telegram (ION-249): când se arată harta autobuzului, ora cursei pentru
+// /api/asistent-site/pozitie, initData-ul din fragmentul URL-ului și contactul pentru formular. Fără React, fără rețea.
+
+/** Harta apare în ziua cursei, cu atât înainte de plecare (Ion, 05.10). */
+export const HARTA_INAINTE_MIN = 60;
+/** După sosirea din grafic, autobuzul mai poate fi pe drum (ca END_SLACK_MIN din asistent, plus marjă). */
+export const HARTA_DUPA_SOSIRE_MIN = 30;
+/** Fără ora sosirii în nomenclator: cât ține cel mult o cursă Chișinău – nord. */
+export const DURATA_IMPLICITA_MIN = 6 * 60;
+
+const MINUT_MS = 60_000;
+const ZI_MIN = 1440;
+
+/** Datele de pe bilet de care are nevoie fereastra hărții. */
+export interface CursaBilet {
+  /** 'YYYY-MM-DD', ziua cursei (Chișinău). */
+  trip_date: string;
+  /** ISO, plecarea de la oprirea de urcare. */
+  departure_at: string;
+  /** «HH:MM» Chișinău, sosirea din grafic; null = lipsește din nomenclator. */
+  sosire?: string | null;
+}
+
+/**
+ * - `alta_zi`: cursa nu e azi (harta apare în ziua cursei);
+ * - `curand`: azi, dar mai e peste o oră până la plecare;
+ * - `activa`: de la o oră înainte de plecare până la sosire + marjă — se cere punctul autobuzului;
+ * - `incheiata`: cursa s-a terminat.
+ * Serverul (busLocation, regulile ION-37) mai taie o dată: punctul se dă doar în orele cursei, după grafic.
+ */
+export type FereastraHartii = 'alta_zi' | 'curand' | 'activa' | 'incheiata';
+
+const FMT_ZI = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau' });
+const FMT_ORA = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
+
+/** «2026-10-05» în ora Chișinăului. */
+export function ziuaChisinau(ms: number): string {
+  return FMT_ZI.format(new Date(ms));
+}
+
+/** «06:05» în ora Chișinăului (miezul nopții e «00:05», nu «24:05»). */
+export function oraChisinau(iso: string): string {
+  const [h, m] = FMT_ORA.format(new Date(iso)).split(':');
+  return `${String(Number(h) % 24).padStart(2, '0')}:${m}`;
+}
+
+function minuteDin(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/** Cât ține drumul de la plecare la sosire, în minute (sosirea după miezul nopții = ziua următoare). */
+function durataCursei(c: CursaBilet): number {
+  const plecare = minuteDin(oraChisinau(c.departure_at));
+  const sosire = c.sosire ? minuteDin(c.sosire) : null;
+  if (plecare === null || sosire === null) return DURATA_IMPLICITA_MIN;
+  const durata = (sosire - plecare + ZI_MIN) % ZI_MIN;
+  return durata === 0 ? DURATA_IMPLICITA_MIN : durata;
+}
+
+export function fereastraHartii(c: CursaBilet, acumMs: number): FereastraHartii {
+  const plecareMs = Date.parse(c.departure_at);
+  if (!Number.isFinite(plecareMs)) return 'alta_zi';
+  // Punctul autobuzului se dă doar pentru cursele de AZI (busLocation caută în graficul zilei), deci și o cursă de
+  // ieri care trece de miezul nopții e «încheiată» aici.
+  const azi = ziuaChisinau(acumMs);
+  if (c.trip_date > azi) return 'alta_zi';
+  if (c.trip_date < azi) return 'incheiata';
+  const sfarsitMs = plecareMs + (durataCursei(c) + HARTA_DUPA_SOSIRE_MIN) * MINUT_MS;
+  if (acumMs > sfarsitMs) return 'incheiata';
+  return acumMs < plecareMs - HARTA_INAINTE_MIN * MINUT_MS ? 'curand' : 'activa';
+}
+
+/**
+ * Telegram pune initData și în fragmentul URL-ului (#tgWebAppData=…), chiar dacă telegram-web-app.js nu s-a încărcat.
+ * Rezerva aceasta e folosită doar când `Telegram.WebApp.initData` lipsește.
+ */
+export function initDataDinFragment(hash: string): string {
+  const valoare = new URLSearchParams(hash.replace(/^#/, '')).get('tgWebAppData');
+  return valoare ?? '';
+}
+
+/** Numele și telefonul din ultima comandă a contului, pentru precompletarea formularului de cumpărare. */
+export interface ContactPrecompletat {
+  nume: string;
+  prenume: string;
+  /** 373XXXXXXXX (panoul); formularul îl arată «+373 XX XXX XXX». */
+  telefon: string;
+}
+
+/** Ce vine de la server se verifică: un câmp ciudat → fără precompletare, nu un formular stricat. */
+export function parseazaContact(v: unknown): ContactPrecompletat | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const text = (x: unknown) => (typeof x === 'string' ? x.trim() : '');
+  const nume = text(o.nume);
+  const prenume = text(o.prenume);
+  const telefon = text(o.telefon).replace(/\D/g, '');
+  if (nume.length < 2 || nume.length > 40 || prenume.length < 2 || prenume.length > 40 || !/^373\d{8}$/.test(telefon)) return null;
+  return { nume, prenume, telefon };
+}

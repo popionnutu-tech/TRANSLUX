@@ -142,9 +142,15 @@ describe('ION-248: QR-ul în chat și butonul «🎫 Bilete»', () => {
     expect((await porneste({ legat: ME, status: 'anulata' })).poze).toHaveLength(0);
     expect((await porneste({ legat: ME, bilete: [bilet(1, 'urcat')] })).poze).toHaveLength(0);
   });
-  it('butonul de meniu al clientului: «🎫 Bilete», doar biletul (?doar=1)', async () => {
+  it('butonul de meniu al clientului: «🎫 Bilete» deschide mini app-ul clientului (ION-249), URL stabil fără cod', async () => {
     const { meniu } = await porneste({ legat: ME });
-    expect(meniu[0]).toMatchObject({ chat_id: ME, menu_button: { type: 'web_app', text: '🎫 Bilete', web_app: { url: `https://translux.md/ro/bilet/${COD}?doar=1` } } });
+    expect(meniu[0]).toMatchObject({ chat_id: ME, menu_button: { type: 'web_app', text: '🎫 Bilete', web_app: { url: 'https://translux.md/ro/telegram' } } });
+    expect(JSON.stringify(meniu[0])).not.toContain(COD);
+  });
+  it('clientul rus primește «🎫 Билеты» spre /ru/telegram', async () => {
+    const { urlMiniAppClient } = await import('./bilet.js');
+    expect(urlMiniAppClient('ru')).toBe('https://translux.md/ru/telegram');
+    expect(urlMiniAppClient('ro')).toBe('https://translux.md/ro/telegram');
   });
   it('personalul și șoferii își păstrează butonul de meniu', async () => {
     expect((await porneste({ legat: ME, personal: true })).meniu).toHaveLength(0);

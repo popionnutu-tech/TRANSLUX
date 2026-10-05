@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { TripResult } from "@/app/(public)/actions";
 import { phoneTel, phoneText } from "@/lib/phone";
+import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { track } from "@/lib/track";
 import { BuyTicketForm } from "./buy-ticket-form";
 
@@ -16,9 +17,11 @@ interface RouteResultsProps {
   selectedTime: string | null;
   locale?: "ro" | "ru";
   onClose: () => void;
+  /** ION-249: în mini app-ul Telegram, numele și telefonul din ultima comandă a contului precompletează formularul. */
+  contact?: ContactPrecompletat | null;
 }
 
-export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose }: RouteResultsProps) {
+export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null }: RouteResultsProps) {
   const [cumpara, setCumpara] = React.useState<number | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
@@ -261,7 +264,7 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
                 {/* Biletele online (ION-197): doar când panoul spune că se vinde acum pe cursa asta. */}
                 {trip.sale_open && fromRo && toRo && (deschis ? (
                   <div style={{ gridColumn: "1 / 4", borderTop: "1px solid #eee", paddingTop: 12 }}>
-                    <BuyTicketForm trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} />
+                    <BuyTicketForm trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} />
                   </div>
                 ) : (
                   <button

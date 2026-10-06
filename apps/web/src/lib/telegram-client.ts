@@ -118,3 +118,40 @@ export function parseazaContact(v: unknown): ContactPrecompletat | null {
   const email = text(o.email).toLowerCase();
   return { nume, prenume, telefon, email: email.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? email : null };
 }
+
+// ───────────────────────── ION-275 («Telegram ultrafast» P6+P7): pornirea timpurie și cache-ul local ─────────────────────────
+
+/** id-ul contului Telegram din initData (câmpul `user`, JSON); null dacă lipsește. Pur. */
+export function telegramIdDinInitData(initData: string): number | null {
+  try {
+    const u = new URLSearchParams(initData).get('user');
+    const id = u ? Number((JSON.parse(u) as { id?: unknown })?.id) : NaN;
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch { return null; }
+}
+
+export const CHEIE_CACHE_BILETE = (telegramId: number) => `translux_tg_bilete:${telegramId}`;
+export const CACHE_BILETE_MAX_MS = 12 * 60 * 60_000;
+
+/** Ce se ține pe telefon: DOAR câmpurile cardului biletului — fără contact (telefon, e-mail) și fără istoric. */
+export interface BileteMemorate { la: number; telegram_id: number; bilete: unknown[] }
+
+const CAMPURI_CARD = ['cod', 'numar', 'status', 'trip_date', 'from_name', 'to_name', 'departure_at', 'sosire', 'seats', 'price_per_seat', 'total', 'passenger_name', 'lang', 'paid_at', 'cancelled_at', 'ruta', 'punct_urcare', 'bilete'] as const;
+
+/** Copia de pus în cache: biletele cu câmpurile cardului, nimic altceva (orice câmp nou de la panou NU intră automat). Pur. */
+export function deMemorat(telegramId: number, bilete: unknown[], acumMs: number): BileteMemorate {
+  const curate = bilete.filter((b) => b && typeof b === 'object').map((b) => {
+    const o = b as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const k of CAMPURI_CARD) if (k in o) out[k] = o[k];
+    return out;
+  });
+  return { la: acumMs, telegram_id: telegramId, bilete: curate };
+}
+
+/** Cache-ul e al acestui cont și destul de proaspăt (≤ 12 h) ca să fie arătat imediat. Pur. */
+export function memorateValide(m: unknown, telegramId: number | null, acumMs: number): m is BileteMemorate {
+  if (!telegramId || !m || typeof m !== 'object') return false;
+  const o = m as Partial<BileteMemorate>;
+  return o.telegram_id === telegramId && Array.isArray(o.bilete) && typeof o.la === 'number' && acumMs - o.la >= 0 && acumMs - o.la <= CACHE_BILETE_MAX_MS;
+}

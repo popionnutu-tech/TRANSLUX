@@ -92,3 +92,27 @@ describe('bileteNeincheiate (ION-252): biletul cu cursa încheiată iese din «B
     expect(bileteNeincheiate([trecut, viitor], acum).map((b) => b.cod)).toEqual(['v']);
   });
 });
+
+import { CACHE_BILETE_MAX_MS, deMemorat, memorateValide, telegramIdDinInitData } from './telegram-client';
+
+describe('ION-275: cache-ul local al biletelor clientului', () => {
+  const init = `auth_date=1&user=${encodeURIComponent(JSON.stringify({ id: 8681673761 }))}&hash=x`;
+  it('telegramIdDinInitData', () => {
+    expect(telegramIdDinInitData(init)).toBe(8681673761);
+    expect(telegramIdDinInitData('')).toBeNull();
+    expect(telegramIdDinInitData('user=%7B')).toBeNull();
+  });
+  it('deMemorat păstrează DOAR câmpurile cardului (fără telefon, e-mail, câmpuri noi)', () => {
+    const m = deMemorat(5, [{ cod: 'a', passenger_name: 'Ion', bilete: [{ nr: 1 }], phone: '373', email: 'x@y', secret_nou: 1 }, null], 1000);
+    expect(m.bilete).toEqual([{ cod: 'a', passenger_name: 'Ion', bilete: [{ nr: 1 }] }]);
+    expect(m).toMatchObject({ la: 1000, telegram_id: 5 });
+  });
+  it('memorateValide: doar același cont, ≤ 12 h', () => {
+    const m = deMemorat(5, [], 1000);
+    expect(memorateValide(m, 5, 1000 + CACHE_BILETE_MAX_MS)).toBe(true);
+    expect(memorateValide(m, 6, 1000)).toBe(false);
+    expect(memorateValide(m, 5, 1000 + CACHE_BILETE_MAX_MS + 1)).toBe(false);
+    expect(memorateValide(m, null, 1000)).toBe(false);
+    expect(memorateValide({ telegram_id: 5, la: 1000 }, 5, 1000)).toBe(false);
+  });
+});

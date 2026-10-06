@@ -8,14 +8,45 @@
 // Biletele vin de la panou numai pe baza initData-ului Telegram verificat pe server; fără el — doar căutarea.
 
 import { useCallback, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { bileteleMeleTelegram, type StareBileteleMele } from '@/app/(public)/telegram-actions';
 import type { ComandaPublica } from '@/lib/bilete-api';
 import type { HomeOptions } from '@/lib/home-props';
 import type { Locale } from '@/lib/i18n';
 import { LINE_TEL, LINE_TEXT } from '@/lib/phone';
-import { bileteNeincheiate, fereastraHartii, oraChisinau, type CalatorieIstoric } from '@/lib/telegram-client';
+import {
+  CHEIE_CACHE_BILETE, bileteNeincheiate, deMemorat, fereastraHartii, memorateValide, oraChisinau, parseazaContact, parseazaIstoric,
+  telegramIdDinInitData, type CalatorieIstoric,
+} from '@/lib/telegram-client';
 import { bileteDeAratat } from '@/components/bilet/BiletCard';
-import { HomePage } from '@/components/home-page';
+
+// ION-275 («Telegram ultrafast» P7): «Bilet nou» (motorul de căutare) se încarcă la prima atingere a filei, nu în JS-ul de pornire.
+const HomePage = dynamic(() => import('@/components/home-page').then((m) => m.HomePage), { ssr: false });
+
+/**
+ * ION-275 (P6): biletele cerute de scriptul din HTML (window.__bilete, pornit înaintea JS-ului, direct la panou). Se consumă o
+ * dată; orice eșec (rețea, CORS, 5xx) → null, iar apelantul cade pe server action. 401/429 sunt răspunsuri, nu eșecuri.
+ */
+async function bileteTimpurii(): Promise<StareBileteleMele | null> {
+  const w = window as unknown as { __bilete?: Promise<Response> | null };
+  const p = w.__bilete;
+  if (!p) return null;
+  w.__bilete = null;
+  try {
+    const r = await p;
+    const j = await r.json().catch(() => null) as { ok?: boolean; bilete?: unknown; contact?: unknown; istoric?: unknown; eroare?: unknown } | null;
+    if (r.ok && j?.ok && Array.isArray(j.bilete)) return { ok: true, bilete: j.bilete as ComandaPublica[], contact: parseazaContact(j.contact), istoric: parseazaIstoric(j.istoric) };
+    if (r.status === 401) return { ok: false, eroare: j?.eroare === 'expirat' ? 'expirat' : 'neautentificat' };
+    if (r.status === 429) return { ok: false, eroare: 'prea_multe' };
+    return null;
+  } catch { return null; }
+}
+
+const ls = {
+  get(k: string): unknown { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* privat / plin */ } },
+  del(k: string) { try { localStorage.removeItem(k); } catch { /* ignoră */ } },
+};
 import { NowResults, type NowTrip } from '@/components/NowResults';
 import { phoneTel, phoneText } from '@/lib/phone';
 import { EcranCompletTelegram, suna, sunaPrinBrowser } from '@/components/bilet/BiletActiuni';
@@ -73,9 +104,24 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
   // «Bilet nou» se montează la prima vizită și rămâne montat (căutarea nu se pierde la schimbarea filei).
   const [nouVazut, setNouVazut] = useState(false);
 
-  const incarca = useCallback(async (date: string) => {
-    setEcran({ tip: 'incarca' });
-    const stare = await bileteleMeleTelegram(date).catch((): StareBileteleMele => ({ ok: false, eroare: 'indisponibil' }));
+  const incarca = useCallback(async (date: string, pornire = false) => {
+    const tgId = telegramIdDinInitData(date);
+    const cheie = tgId ? CHEIE_CACHE_BILETE(tgId) : null;
+    // SWR (P7): biletele acestui cont din cache (≤ 12 h, doar câmpurile cardului) apar imediat; răspunsul le înlocuiește.
+    const memorate = cheie ? ls.get(cheie) : null;
+    if (pornire && memorateValide(memorate, tgId, Date.now())) {
+      setEcran({ tip: 'gata', stare: { ok: true, bilete: memorate.bilete as ComandaPublica[], contact: null, istoric: [] } });
+    } else {
+      setEcran({ tip: 'incarca' });
+    }
+    const stare = (pornire ? await bileteTimpurii() : null)
+      ?? await bileteleMeleTelegram(date).catch((): StareBileteleMele => ({ ok: false, eroare: 'indisponibil' }));
+    if (cheie && tgId) {
+      if (stare.ok) ls.set(cheie, deMemorat(tgId, stare.bilete, Date.now()));
+      else if (stare.eroare === 'neautentificat' || stare.eroare === 'expirat') ls.del(cheie);
+    }
+    // Panoul indisponibil, dar avem lista din cache: rămâne pe ecran (mai bine veche decât eroare).
+    if (!stare.ok && stare.eroare === 'indisponibil' && pornire && memorateValide(memorate, tgId, Date.now())) return;
     setEcran({ tip: 'gata', stare });
   }, []);
 
@@ -84,7 +130,7 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
     const date = citesteInitData();
     setInitData(date);
     if (!date) { setEcran({ tip: 'fara_telegram' }); setFila('nou'); setNouVazut(true); return; }
-    void incarca(date);
+    void incarca(date, true);
   }, [incarca]);
 
   useEffect(() => {

@@ -13,6 +13,8 @@ export const config = {
   // trimite clientul la telefonul dispeceratului, nu încearcă nimic.
   adminBaseUrl: (process.env.ADMIN_BASE_URL || 'https://central-hub-md.vercel.app').replace(/\/+$/, ''),
   bileteBotApiKey: process.env.BILETE_BOT_API_KEY || '',
+  // ION-274: cheia cu care PANOUL cheamă botul după plată (POST /bilete/v1/livreaza); direcție separată, cheie separată.
+  bileteLivrareKey: process.env.BILETE_LIVRARE_KEY || '',
   timezone: 'Europe/Chisinau',
   rateLimitPerMinute: 30,
   photoCaptureTimeoutMs: 2 * 60 * 1000, // 2 minutes

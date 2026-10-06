@@ -1,5 +1,6 @@
 import 'server-only';
 import { getSupabase } from '@/lib/supabase';
+import { anuntaBotul } from '@/lib/bilete/anunta-botul';
 import { getCheckout, stareEgala, MaibError } from '@/lib/maib/client';
 
 // Sincronizarea unei sesiuni maib cu baza, FĂRĂ revalidatePath: o cheamă și pagina /plati la
@@ -62,8 +63,10 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
     // bază e idempotentă și verifică singură suma și starea plății; pe o plată de test din /plati întoarce 0.
     // O eroare a emiterii se întoarce apelantului (Codex X6): «actualizat» fără bilete nu e succes.
     if (stareEgala(data.status, 'Completed') && stareEgala(data.payment_status, 'Executed')) {
-      const { error: rpcErr } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: rand.checkout_id });
+      const { data: emise, error: rpcErr } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: rand.checkout_id });
       if (rpcErr) return { ok: false, eroare: `starea e actualizată, dar emiterea biletelor a eșuat: ${rpcErr.message}` };
+      // ION-274: biletele emise aici (callback pierdut) ajung și în chatul Telegram la secundă, ca din callback.
+      if (Number(emise ?? 0) > 0) await anuntaBotul(rand.checkout_id);
     }
     return { ok: true, rand: data };
   } catch (e) {

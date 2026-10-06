@@ -35,6 +35,8 @@ export const FEREASTRA_CONTURI_MS = 2 * 24 * 60 * 60_000;
 /** Harta pleacă de la o oră înainte de plecare până la 5 minute după (cursa întârzie, punctul vine târziu). */
 export const HARTA_INAINTE_MS = 60 * 60_000;
 export const HARTA_DUPA_MS = 5 * 60_000;
+/** ION-274: o revendicare a livrării neîncheiată expiră după 2 min (trimiterea a picat fără anulare, ex. instanța a murit). */
+export const REVENDICARE_MS = 2 * 60_000;
 /**
  * Comenzile unui cont citite pentru pin: plecate de cel mult cât ține cea mai lungă cursă + marja (sfârșitul exact îl
  * hotărăște regula pinului, din ora sosirii), plus cele fixate acum.
@@ -52,6 +54,15 @@ export interface RepoMesajeBilet {
   salveazaMesaj(cod: string, telegramId: number, mesajId: number): Promise<void>;
   /** Mesajul nu mai există în chat (clientul l-a șters): comanda nu mai are ce fixa, până la următorul link. */
   uitaMesaj(cod: string, mesajId: number): Promise<void>;
+  /**
+   * ION-274: revendicare ATOMICĂ a livrării automate (o singură instanță/cale trimite): true dacă această cerere a luat-o.
+   * Condiția: nelivrat (telegram_livrat_la IS NULL) și nerevendicat în ultimele 2 min.
+   */
+  revendicaLivrarea(cod: string, nowMs: number): Promise<boolean>;
+  /** Trimiterea a picat înaintea primului mesaj: revendicarea se eliberează, jobul reia. */
+  anuleazaRevendicarea(cod: string): Promise<void>;
+  /** Livrat: telegram_livrat_la + telegram_mesaj_id (primul mesaj), revendicarea se închide. */
+  marcheazaLivrat(cod: string, telegramId: number, mesajId: number): Promise<void>;
   /** Comenzile contului relevante pentru pin, cu sfârșitul cursei: cele încă posibil pe drum, plus cele fixate acum. */
   comenziPentruFixare(telegramId: number, nowMs: number): Promise<ComandaFixare[]>;
   /** Scrie pinul curent al contului: ținta (sau nimic) fixată, restul comenzilor desfixate. */
@@ -80,6 +91,30 @@ export function creeazaRepoMesajeBilet(db: () => SupabaseClient): RepoMesajeBile
     async uitaMesaj(cod, mesajId) {
       const { error } = await db().from('bilete_comenzi').update({ telegram_mesaj_id: null }).eq('cod', cod).eq('telegram_mesaj_id', mesajId);
       verifica(error, 'bilete_comenzi uită mesajul');
+    },
+
+    async revendicaLivrarea(cod, nowMs) {
+      const acum = new Date(nowMs).toISOString();
+      const expirat = new Date(nowMs - REVENDICARE_MS).toISOString();
+      // UPDATE … WHERE condiție RETURNING: Postgres serializează rândul — din două cereri simultane doar una primește rândul.
+      const { data, error } = await db().from('bilete_comenzi').update({ telegram_livrare_la: acum })
+        .eq('cod', cod).is('telegram_livrat_la', null)
+        .or(`telegram_livrare_la.is.null,telegram_livrare_la.lt."${expirat}"`)
+        .select('cod');
+      verifica(error, 'bilete_comenzi revendicare');
+      return Array.isArray(data) && data.length > 0;
+    },
+
+    async anuleazaRevendicarea(cod) {
+      const { error } = await db().from('bilete_comenzi').update({ telegram_livrare_la: null }).eq('cod', cod).is('telegram_livrat_la', null);
+      verifica(error, 'bilete_comenzi anulare revendicare');
+    },
+
+    async marcheazaLivrat(cod, telegramId, mesajId) {
+      const { error } = await db().from('bilete_comenzi')
+        .update({ telegram_livrat_la: new Date().toISOString(), telegram_mesaj_id: mesajId, telegram_livrare_la: null })
+        .eq('cod', cod).eq('telegram_id', telegramId);
+      verifica(error, 'bilete_comenzi livrat');
     },
 
     async comenziPentruFixare(telegramId, nowMs) {

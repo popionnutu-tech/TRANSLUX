@@ -12,6 +12,7 @@ import { chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chis
 import { calculeazaDepartureAt, vanzareDeschisa } from './reguli';
 import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
+import { anuntaBotul } from './anunta-botul';
 
 // Comanda de bilete online (ION-193, pasul 4 din planul ION-190): validare → preț din @translux/db (același ca pe
 // site) → rând în bilete_comenzi (plafoanele sunt în bază) → O SINGURĂ sesiune maib pe comandă → maib_checkouts.
@@ -480,8 +481,9 @@ async function recupereazaSesiunea(comanda: BileteComanda, opt: ComandaOptiuni):
       status: gasit.status, payment_id: gasit.payment?.paymentId ?? null, payment_status: gasit.payment?.status ?? null,
       refunded_amount: Number(gasit.payment?.refundedAmount ?? 0), updated_at: new Date().toISOString(),
     }).eq('checkout_id', gasit.id);
-    const { error } = await db.rpc('bilete_marcheaza_platita', { p_checkout_id: gasit.id });
+    const { data: emise, error } = await db.rpc('bilete_marcheaza_platita', { p_checkout_id: gasit.id });
     if (error) console.error('[bilete] emiterea la recuperare:', error.message);
+    else if (Number(emise ?? 0) > 0) await anuntaBotul(gasit.id); // ION-274: și biletele emise la recuperare ajung în chat la secundă
   }
   return { comanda: { ...comanda, checkout_id: gasit.id, creare_in_curs_la: null }, checkoutUrl: gasit.url ?? '' };
 }

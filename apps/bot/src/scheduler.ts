@@ -349,28 +349,40 @@ const BILETE_HARTA_INTERVAL_MS = 5 * 60 * 1000;
 /** ION-252: mesajul de după cursă — la 5 minute, ca să plece aproape de sfârșitul cursei (sosirea + 30 min). */
 const BILETE_DUPA_CURSA_INTERVAL_MS = 5 * 60 * 1000;
 
-/** Rulează `job` la `intervalMs`, fără suprapunere; eroarea se scrie în jurnal, intervalul continuă. */
-function rulareFaraSuprapunere(nume: string, intervalMs: number, job: () => Promise<void>): void {
+/**
+ * Rulează `job` la `intervalMs`, fără suprapunere; eroarea se scrie în jurnal, intervalul continuă. Întoarce `ruleazaAcum()`
+ * (ION-274): pornește jobul imediat prin ACELAȘI zăvor; dacă rulează deja, cere încă o trecere la final (cererea nu se pierde).
+ */
+export function rulareFaraSuprapunere(nume: string, intervalMs: number, job: () => Promise<void>): () => void {
   let ruleaza = false;
-  setInterval(async () => {
-    if (ruleaza) return;
+  let incaOData = false;
+  const pas = async (): Promise<void> => {
+    if (ruleaza) { incaOData = true; return; }
     ruleaza = true;
     try {
-      await job();
-    } catch (err) {
-      console.error(`${nume} error:`, err);
+      do {
+        incaOData = false;
+        try { await job(); } catch (err) { console.error(`${nume} error:`, err); }
+      } while (incaOData);
     } finally {
       ruleaza = false;
     }
-  }, intervalMs);
+  };
+  setInterval(() => { if (!ruleaza) void pas(); }, intervalMs);
+  return () => { void pas(); };
 }
+
+/** ION-274: pornirea imediată a jobului «Bilete noi» (endpoint-ul /bilete/v1/livreaza); nimic până pornește programatorul. */
+let bileteNoiAcum: () => void = () => undefined;
+export function ruleazaBileteNoiAcum(): void { bileteNoiAcum(); }
 
 export function scheduleBileteTelegram(api: ApiFixare & ApiHarta & ApiDupaCursa & ApiBiletNou): void {
   console.log('Bilete în chat started (biletele noi la 1 min, pin la 15 min, harta autobuzului și mesajul de după cursă la 5 min)');
   const pozitii = creeazaSursaPozitii(config.adminBaseUrl);
 
   // ION-266: biletul cumpărat din mini app (cont legat la creare) pleacă singur după plată, ca la /start bilet_<cod>.
-  rulareFaraSuprapunere('Bilete noi', BILETE_NOI_INTERVAL_MS, async () => {
+  // ION-274: același job pornește și la eveniment (panoul → /bilete/v1/livreaza → ruleazaBileteNoiAcum), prin același zăvor.
+  bileteNoiAcum = rulareFaraSuprapunere('Bilete noi', BILETE_NOI_INTERVAL_MS, async () => {
     const b = await trimiteBileteleNoi({ repo: repoBileteClienti, mesaje: repoMesajeBilet, api, nowMs: Date.now() });
     if (b.trimise || b.erori) console.log(`Bilete noi: ${b.trimise} trimis(e), ${b.erori} erori`);
   });

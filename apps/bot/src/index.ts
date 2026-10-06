@@ -5,7 +5,8 @@ import { validateConfig } from './config.js';
 import { createBot } from './bot.js';
 import { getSupabase } from './supabase.js';
 import { handleAppApi } from './api/server.js';
-import { scheduleMondayReports, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep, scheduleVoiceLessonDigest, schedulePeronPhotoRetention, scheduleDriverReferences, scheduleBileteTelegram } from './scheduler.js';
+import { handleLivrare } from './api/livrare.js';
+import { scheduleMondayReports, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep, scheduleVoiceLessonDigest, schedulePeronPhotoRetention, scheduleDriverReferences, scheduleBileteTelegram, ruleazaBileteNoiAcum } from './scheduler.js';
 
 const HEARTBEAT_KEY = 'bot:heartbeat';
 
@@ -66,6 +67,8 @@ async function main() {
   const server = createServer(async (req, res) => {
     // API-ul aplicației de peron (/app/v1/*), orice metodă — înaintea webhook-ului.
     if (await handleAppApi(req, res)) return;
+    // ION-274: panoul anunță o plată → biletul pleacă în chat acum (POST /bilete/v1/livreaza), tot înaintea webhook-ului.
+    if (await handleLivrare(req, res, { ruleazaAcum: ruleazaBileteNoiAcum })) return;
     // Versiunea desfășurată: sha-ul commit-ului pe care rulează botul. O citește
     // conveierul de sarcini (`tp verify`) ca să închidă tichetul doar după faptul din
     // prod. Railway pune RAILWAY_GIT_COMMIT_SHA doar la deploy-urile pornite din GitHub

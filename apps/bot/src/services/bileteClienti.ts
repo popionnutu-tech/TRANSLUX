@@ -18,6 +18,9 @@ export interface ComandaClient {
   trip_date: string;
   crm_route_id: number;
   going_north: boolean;
+  /** ION-274 (migr. 516): livrat automat în chat o dată; doar în selecția jobului «Bilete noi». */
+  telegram_livrat_la?: string | null;
+  telegram_mesaj_id?: number | null;
 }
 
 /** Comenzile care se pot returna sau la care clientul poate să fi întârziat. */
@@ -102,9 +105,11 @@ export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteCl
     async comenziPlatiteFaraMesaj(nowMs) {
       const { data, error } = await db()
         .from('bilete_comenzi')
-        .select(COLOANE)
+        .select(`${COLOANE}, telegram_livrat_la, telegram_mesaj_id`)
         .eq('status', 'platita')
         .not('telegram_id', 'is', null)
+        // ION-274: ambele goale — livrat o dată (telegram_livrat_la) NU se retrimite chiar dacă clientul a șters mesajul.
+        .is('telegram_livrat_la', null)
         .is('telegram_mesaj_id', null)
         .gte('paid_at', new Date(nowMs - FEREASTRA_PLATA_MS).toISOString())
         .gt('departure_at', new Date(nowMs - FEREASTRA_DUPA_PLECARE_MS).toISOString())

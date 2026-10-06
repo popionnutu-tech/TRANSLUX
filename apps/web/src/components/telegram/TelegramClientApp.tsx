@@ -355,6 +355,7 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
 .tg-mini-jos{display:flex;align-items:center;gap:12px;padding:12px 14px 14px 18px}
 .tg-mini-date{flex:1;min-width:0;display:grid;gap:3px;font-size:13px;color:#6B5B5F}
 .tg-mini-date strong{font-size:15px;color:#231A1C}
+.tg-mini-suna-nota{display:block;margin-top:4px;font-size:12px;color:#888;text-decoration:underline}
 .tg-mini-suna{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:7px 12px;border-radius:999px;background:#e3f3e8;color:#1b7f3b;font-weight:700;font-size:15px;text-decoration:none}
 .tg-mini-qr{flex-shrink:0;width:84px;height:84px;border-radius:12px;border:1px solid #F1E8EA;padding:4px;background:#fff}
 .tg-mini-qr svg{width:100%;height:100%;display:block}
@@ -372,7 +373,9 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
             {masina && <strong>{masina}</strong>}
             {b && <span>{tx.locul} {b.loc_nr ?? b.nr} · {c.passenger_name}</span>}
             {cursa?.phone && <a className="tg-mini-suna" href={phoneTel(cursa.phone)}
-              onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>📞 {tx.apasaSuna} · {phoneText(cursa.phone)}</a>}
+              onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>📞 {phoneText(cursa.phone)}</a>}
+            {cursa?.phone && <a className="tg-mini-suna-nota" href={phoneTel(cursa.phone)}
+              onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>{tx.apasaSuna}</a>}
           </div>
           {/* SVG-ul QR vine de la panou, generat din codul biletului (nu din text de la utilizator). */}
           {b && <div className="tg-mini-qr" aria-label="QR" dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}

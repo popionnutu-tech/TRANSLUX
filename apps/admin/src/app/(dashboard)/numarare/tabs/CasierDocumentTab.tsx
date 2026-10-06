@@ -686,14 +686,24 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     color: 'var(--primary)',
     fontWeight: 700,
     textAlign: 'center',
-    fontSize: 9.5,
+    // 8.5px: socotisem 9.5 pe ~5.2px/caracter, dar îngroșat un caracter e mai lat de atât și
+    // «Cheltuieli» tot ieșea din coloana lui. Aici denumirea e etichetă, nu dată — cifrele din
+    // rânduri rămân la 11px, ele trebuie citite.
+    fontSize: 8.5,
+    letterSpacing: -0.1,
     whiteSpace: 'normal',
     overflow: 'visible',
     textOverflow: 'clip',
     wordBreak: 'normal',
-    overflowWrap: 'normal',
+    // Garanția: `anywhere` rupe un cuvânt DOAR dacă altfel ar ieși din celulă. Cuvintele care
+    // încap rămân întregi (spre deosebire de `break-word`, care rupea și când era loc), dar
+    // niciunul nu mai poate depăși coloana, oricât de îngustă ar fi fereastra. Fără asta,
+    // potrivirea depinde de fontul pe care-l alege browserul — adică de noroc.
+    overflowWrap: 'anywhere',
     lineHeight: 1.25,
-    padding: '3px 2px',
+    // Marginile laterale la minim: pe o coloană de 6% fiecare pixel mâncat de padding e
+    // un caracter care nu mai încape în denumire.
+    padding: '3px 1px',
     verticalAlign: 'bottom',
   };
   // Header pe care se poate da click: coloana activă e evidențiată, săgeata arată direcția.
@@ -776,6 +786,11 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
           tableLayout: 'fixed',
         }}>
           <thead>
+            {/* Lățimile sunt calculate, nu alese din ochi: la 9.5px îngroșat un caracter are
+                ~5.2px, deci «Cheltuieli» cere ~52px și «Combustibil» ~57px. La 5% dintr-un
+                tabel de 1100px o coloană are 51px — de aceea denumirile ieșeau afară. Coloanele
+                cu text lung au primit lățime de la Ruta/Șoferi/Comentariu, care oricum
+                trunchiază conținutul cu «…» și au numele scurt. Suma rămâne 100%. */}
             <tr>
               <th style={sortableTh('2%', 'N')} onClick={() => toggleSort('N')}
                 title="Click: revino la ordinea inițială (cronologic, după Ora plății)">
@@ -787,17 +802,17 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
                   : 'Ora reală a plății la casa automată (ultima plată a foii, ora Chișinăului). La foile vechi, fără oră de la casă, se arată «—» — ora introducerii foii în sistem e în tooltip-ul celulei.'}>
                 {isNumerar ? 'Introdus la' : 'Ora plății'}{sortArrow('PusLa')}
               </th>
-              <th style={sortableTh('13%', 'Ruta')} onClick={() => toggleSort('Ruta')}
+              <th style={sortableTh('12%', 'Ruta')} onClick={() => toggleSort('Ruta')}
                 title="Click: sortează alfabetic după rută">
                 Ruta{sortArrow('Ruta')}
               </th>
-              <th style={sortableTh('10%', 'Sofer')} onClick={() => toggleSort('Sofer')}
+              <th style={sortableTh('9%', 'Sofer')} onClick={() => toggleSort('Sofer')}
                 title="Click: sortează alfabetic după șofer">
                 Șoferi{sortArrow('Sofer')}
               </th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Mașina</th>
               <th style={{ ...headerCellStyle, width: '7%' }}>Număr<br />foaie</th>
-              <th style={sortableTh('10%', 'DataFoaie')} onClick={() => toggleSort('DataFoaie')}
+              <th style={sortableTh('9%', 'DataFoaie')} onClick={() => toggleSort('DataFoaie')}
                 title="Click: sortează cronologic după data foii">
                 <div>Data<br />foii{sortArrow('DataFoaie')}</div>
                 <select
@@ -819,12 +834,12 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
                 </select>
               </th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Încasare</th>
-              <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici</th>
-              <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici<br />gară</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Ligotnici</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Ligotnici<br />gară</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Diagrame</th>
-              <th style={{ ...headerCellStyle, width: '6%' }}>Combustibil</th>
-              <th style={{ ...headerCellStyle, width: '5%' }}>Cheltuieli<br />supl.</th>
-              <th style={{ ...headerCellStyle, width: '8%' }}>Comentariu</th>
+              <th style={{ ...headerCellStyle, width: '7%' }}>Combustibil</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Cheltuieli<br />supl.</th>
+              <th style={{ ...headerCellStyle, width: '7%' }}>Comentariu</th>
               <th style={{ ...headerCellStyle, width: '2%' }}></th>
             </tr>
           </thead>

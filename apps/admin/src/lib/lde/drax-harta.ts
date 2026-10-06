@@ -215,10 +215,13 @@ export function randuriDinIntervale(iv: IntervalHarta[]): RandZi[] {
 const SIMB_PLAN: Record<CursaPlan['statut'], string> = { facuta: 'făcută', neconfirmata: 'neconfirmată (capăt atins, fără drumul rutei)', lipsa: 'lipsă' };
 /** ION-268: rândurile «Planul zilei» (din schelet): fiecare cursă din plan cu ce a confirmat GPS-ul */
 export function randuriPlan(curse: CursaPlan[]): { cheie: string; text: string; statut: CursaPlan['statut'] }[] {
-  return [...curse].sort((a, b) => a.schimb - b.schimb || (a.sens === b.sens ? 0 : a.sens === 'tur' ? -1 : 1)).map((c) => ({
-    cheie: `${c.schimb}-${c.sens}`, statut: c.statut,
-    text: `${c.sens === 'tur' ? 'Tur' : 'Retur'} s${c.schimb} · ${c.ruta ?? '—'}${c.capat ? ` ${c.capat}` : ''}: ${SIMB_PLAN[c.statut]}`
-      + (c.km != null && c.statut === 'facuta' ? `, ${(Math.round(c.km * 10) / 10).toLocaleString('ro-RO')} km din schelet, ${c.peDrum ? `pe drumul rutei (${c.acoperire ?? '—'} %), fără urcări văzute` : `${c.urcari} urcări`}` : '')
+  // schimb 0 = fără schimburi (rutele interurbane, ION-268): ordinea din plan (ora din grafic), fără «s0»
+  return [...curse].map((c, i) => ({ c, i })).sort((a, b) => a.c.schimb - b.c.schimb || (a.c.schimb ? (a.c.sens === b.c.sens ? 0 : a.c.sens === 'tur' ? -1 : 1) : a.i - b.i)).map(({ c, i }) => ({
+    cheie: `${c.schimb}-${c.sens}-${i}`, statut: c.statut,
+    text: `${c.sens === 'tur' ? 'Tur' : 'Retur'}${c.schimb ? ` s${c.schimb}` : ''} · ${c.schimb ? '' : 'ruta '}${c.ruta ?? '—'}${c.capat ? ` ${c.capat}` : ''}: ${SIMB_PLAN[c.statut]}`
+      + (c.km != null && c.statut === 'facuta' ? `, ${(Math.round(c.km * 10) / 10).toLocaleString('ro-RO')} km din schelet, ${c.peDrum ? `pe drumul rutei (${c.acoperire ?? '—'} %), fără urcări văzute` : c.schimb === 0 && c.acoperire != null ? `drumul rutei acoperit ${c.acoperire} %` : `${c.urcari} urcări`}` : '')
+      + (c.statut === 'facuta' && c.schimb === 0 && c.motiv ? ` — ${c.motiv}` : '')
+      + (c.statut === 'neconfirmata' && c.schimb === 0 && c.motiv ? ` — ${c.motiv}` : '')
       + (c.statut === 'neconfirmata' && c.rutaUrma ? ` — urma arată ruta ${c.rutaUrma}` : '')
       + (c.statut === 'facuta' && c.schimbCu ? ` — schimb de rută cu ${c.schimbCu}` : '')
       + (c.motiv && c.statut === 'lipsa' ? ` — ${c.motiv}` : ''),

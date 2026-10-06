@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { NICIO_LOCALITATE, TOATE_LOCALITATILE } from '@translux/db';
 import { CONFIG_INCHIS, emailOptional, linkHarta, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, parseazaPuncte, puncteCursei, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
 
-const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }] };
+const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }], localitati: TOATE_LOCALITATILE };
 // Marți 14.10.2026, 05:00 la Chișinău (ora de vară, +03:00).
 const now = Date.parse('2026-10-14T05:00:00+03:00');
 
 describe('vanzareDeschisaPeSite', () => {
-  const baza = { cfg, routeId: 2, goingNorth: false, tripDate: '2026-10-14', time: '07:10', pornireRuta: '06:30', soferPeZi: true, nowMs: now };
+  const baza = { cfg, routeId: 2, goingNorth: false, tripDate: '2026-10-14', time: '07:10', pornireRuta: '06:30', urcare: 'Bălți', coborare: 'Chișinău', soferPeZi: true, nowMs: now };
   it('tur deschis pe ruta 2, înainte de pornirea rutei → da', () => {
     expect(vanzareDeschisaPeSite(baza)).toBe(true);
   });
@@ -35,12 +36,25 @@ describe('vanzareDeschisaPeSite', () => {
   it('ora invalidă → nu', () => {
     expect(vanzareDeschisaPeSite({ ...baza, time: '7:10' })).toBe(false);
   });
+  it('ION-264: lista ["Briceni","Edineț"] — Bălți → Chișinău fără buton, Briceni/Edineț cu buton', () => {
+    const lista = { ...cfg, localitati: parseazaConfig({ activ: true, localitati: ['Briceni', 'Edineț'] }).localitati };
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: lista })).toBe(false);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Ocnița' })).toBe(false);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Briceni' })).toBe(true);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Chișinău', coborare: 'Edinet' })).toBe(true);
+  });
 });
 
 describe('parseazaConfig', () => {
   it('răspuns valid → config; rute fără id valid cad', () => {
     const c = parseazaConfig({ ok: true, activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: 'da' }, { id: 'x', tur: true, retur: true }] });
-    expect(c).toEqual({ activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: false }] });
+    expect(c).toEqual({ activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: false }], localitati: TOATE_LOCALITATILE });
+  });
+  it('ION-264: localitati — lipsă/null = toate, listă = doar ele, formă stricată = nimic', () => {
+    expect(parseazaConfig({ activ: true }).localitati).toEqual(TOATE_LOCALITATILE);
+    expect(parseazaConfig({ activ: true, localitati: null }).localitati).toEqual(TOATE_LOCALITATILE);
+    expect(parseazaConfig({ activ: true, localitati: ['Briceni'] }).localitati).toEqual({ toate: false, localitati: ['Briceni'] });
+    expect(parseazaConfig({ activ: true, localitati: 'Briceni' }).localitati).toEqual(NICIO_LOCALITATE);
   });
   it('null / text / activ ca string → închis', () => {
     expect(parseazaConfig(null)).toEqual(CONFIG_INCHIS);

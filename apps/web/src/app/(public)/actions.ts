@@ -408,6 +408,10 @@ export async function searchTrips(
     const p = interval ? parseTimeLabel(interval) : null;
     return p && /^\d{2}:\d{2}$/.test(p) ? p : null;
   }
+  // Numele canonice ale opririlor de pe ruta cursei (crm_stop_fares.name_ro), nu cele scrise în căutare — aceleași pe
+  // care panoul judecă localitățile vânzării (ION-264) și caută punctele de urcare (ION-198).
+  const numeOprireUrcare = (routeId: number) => repere.fromStops.find((s) => s.crm_route_id === routeId)?.name_ro ?? fromRo;
+  const numeOprireCoborare = (routeId: number) => repere.toStops.find((s) => s.crm_route_id === routeId)?.name_ro ?? toRo;
 
   const results: TripResult[] = [];
 
@@ -469,21 +473,21 @@ export async function searchTrips(
       // ION-237: sub 10 MDL pe loc nu se vinde online (minimul unei plăți în contractul maib).
       sale_open: pretVandabilOnline(displayPrice) && vanzareDeschisaPeSite({
         cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
-        pornireRuta: pornireRuta(trip.routeId, trip.goingNorth), soferPeZi: graficPeZi, nowMs,
+        pornireRuta: pornireRuta(trip.routeId, trip.goingNorth),
+        urcare: numeOprireUrcare(trip.routeId), coborare: numeOprireCoborare(trip.routeId),
+        soferPeZi: graficPeZi, nowMs,
       }),
       puncte: [],
     });
   }
 
-  // Punctele de urcare (ION-198): o singură cerere pe căutare, doar dacă vreo cursă se vinde online acum; numele
-  // canonic al opririi (crm_stop_fares.name_ro), nu cel scris în căutare.
-  // Numele e cel al opririi de pe ruta cursei — același pe care îl folosește panoul la validare.
-  const numeOprire = (routeId: number) => repere.fromStops.find((s) => s.crm_route_id === routeId)?.name_ro ?? fromRo;
+  // Punctele de urcare (ION-198): o singură cerere pe căutare, doar dacă vreo cursă se vinde online acum; după numele
+  // canonic al opririi de urcare (numeOprireUrcare), același pe care îl folosește panoul la validare.
   const deVandut = results.filter((r) => r.sale_open);
   if (deVandut.length) {
-    const nume = [...new Set(deVandut.map((r) => numeOprire(r.crm_route_id)))];
+    const nume = [...new Set(deVandut.map((r) => numeOprireUrcare(r.crm_route_id)))];
     const liste = new Map(await Promise.all(nume.map(async (n) => [n, await puncteUrcare(n)] as const)));
-    for (const r of deVandut) r.puncte = puncteCursei(liste.get(numeOprire(r.crm_route_id)) ?? [], r.crm_route_id, r.going_north);
+    for (const r of deVandut) r.puncte = puncteCursei(liste.get(numeOprireUrcare(r.crm_route_id)) ?? [], r.crm_route_id, r.going_north);
   }
 
 

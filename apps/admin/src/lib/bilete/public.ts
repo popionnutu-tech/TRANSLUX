@@ -1,6 +1,6 @@
 import 'server-only';
 import QRCode from 'qrcode';
-import type { Bilet, BileteComanda } from '@translux/db';
+import { localitatiPentruPublic, type Bilet, type BileteComanda } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { citesteConfigBilete } from './comenzi';
@@ -168,6 +168,11 @@ export interface ConfigPublica {
   inchidere_retur_min: number;
   /** Rutele cu cel puțin o direcție deschisă. */
   rute: Array<{ id: number; tur: boolean; retur: boolean }>;
+  /**
+   * ION-264: localitățile vânzării (urcare SAU coborâre în listă); null = toate. Plafoanele pe localitate nu se
+   * publică — le verifică doar panoul, la comandă.
+   */
+  localitati: string[] | null;
 }
 
 export async function configPublica(): Promise<ConfigPublica> {
@@ -177,9 +182,11 @@ export async function configPublica(): Promise<ConfigPublica> {
       .or('bilete_online_tur.eq.true,bilete_online_retur.eq.true'),
   ]);
   return {
-    activ: cfg.activ,
+    // Plafoanele stricate închid vânzarea publică în panou → site-ul nu arată butonul deloc.
+    activ: cfg.activ && cfg.plafoaneLocalitati !== null,
     inchidere_tur_min: cfg.inchidereTurMin,
     inchidere_retur_min: cfg.inchidereReturMin,
     rute: (rute || []).map((r: { id: number; bilete_online_tur: boolean; bilete_online_retur: boolean }) => ({ id: r.id, tur: Boolean(r.bilete_online_tur), retur: Boolean(r.bilete_online_retur) })),
+    localitati: localitatiPentruPublic(cfg.localitati),
   };
 }

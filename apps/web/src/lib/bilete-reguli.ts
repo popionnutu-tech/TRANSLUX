@@ -3,7 +3,10 @@
  * panoului și cum se normalizează telefonul. Fără rețea, fără bază — testate exact în bilete-reguli.test.ts.
  * Fereastra de vânzare e aceeași funcție ca în API-ul comenzii (@translux/db), ca butonul să nu promită ce API-ul refuză.
  */
-import { calculeazaDepartureAt, chisinauInstantIso, vanzareDeschisa } from '@translux/db';
+import {
+  calculeazaDepartureAt, chisinauInstantIso, cursaInLocalitatileVanzarii, localitatiDinValoare, NICIO_LOCALITATE,
+  vanzareDeschisa, type LocalitatiVanzare,
+} from '@translux/db';
 
 export interface ConfigBilete {
   activ: boolean;
@@ -11,11 +14,16 @@ export interface ConfigBilete {
   inchidere_retur_min: number;
   /** Rutele cu cel puțin o direcție deschisă. */
   rute: Array<{ id: number; tur: boolean; retur: boolean }>;
+  /** ION-264: localitățile vânzării (urcare SAU coborâre); aceeași regulă ca în panou. */
+  localitati: LocalitatiVanzare;
 }
 
-export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [] };
+export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE };
 
-/** Răspunsul panoului → configurație; orice formă neașteptată → vânzare închisă. */
+/**
+ * Răspunsul panoului → configurație; orice formă neașteptată → vânzare închisă. `localitati` lipsă (panoul de dinainte
+ * de ION-264) sau null = toate; o formă stricată = nicio localitate.
+ */
 export function parseazaConfig(j: unknown): ConfigBilete {
   if (!j || typeof j !== 'object') return CONFIG_INCHIS;
   const o = j as Record<string, unknown>;
@@ -29,12 +37,14 @@ export function parseazaConfig(j: unknown): ConfigBilete {
     inchidere_tur_min: Math.max(0, Number(o.inchidere_tur_min ?? 0) || 0),
     inchidere_retur_min: Math.max(0, Number(o.inchidere_retur_min ?? 120) || 0),
     rute,
+    localitati: localitatiDinValoare(o.localitati).regula,
   };
 }
 
 /**
- * Butonul «Cumpără bilet» pe o cursă: steagul global, direcția rutei deschisă, șofer atribuit PE ziua cursei (nu pe
- * ziua anterioară, de unde site-ul își ia graficul când ziua cerută n-are încă atribuiri) și fereastra de vânzare.
+ * Butonul «Cumpără bilet» pe o cursă: steagul global, direcția rutei deschisă, localitatea de urcare sau de coborâre în
+ * lista vânzării (ION-264), șofer atribuit PE ziua cursei (nu pe ziua anterioară, de unde site-ul își ia graficul când
+ * ziua cerută n-are încă atribuiri) și fereastra de vânzare.
  * `goingNorth` = Chișinău → nord = retur (aceeași convenție ca în API și în grafic).
  */
 export function vanzareDeschisaPeSite(a: {
@@ -46,10 +56,14 @@ export function vanzareDeschisaPeSite(a: {
   time: string;
   /** Ora pornirii rutei din capăt («HH:MM»); null când nu e cunoscută. */
   pornireRuta: string | null;
+  /** Numele canonice ale opririlor de urcare și de coborâre (crm_stop_fares.name_ro), ca în panou. */
+  urcare: string;
+  coborare: string;
   soferPeZi: boolean;
   nowMs: number;
 }): boolean {
   if (!a.cfg.activ || !a.soferPeZi) return false;
+  if (!cursaInLocalitatileVanzarii(a.cfg.localitati, a.urcare, a.coborare)) return false;
   const r = a.cfg.rute.find((x) => x.id === a.routeId);
   if (!r || !(a.goingNorth ? r.retur : r.tur)) return false;
   if (!/^\d{2}:\d{2}$/.test(a.time)) return false;

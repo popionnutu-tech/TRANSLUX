@@ -11,3 +11,4 @@ export * from './timetable.js';
 export * from './assignments.js';
 export * from './pret.js';
 export * from './bilete-reguli.js';
+export * from './bilete-localitati.js';

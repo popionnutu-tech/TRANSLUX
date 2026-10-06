@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { configPublica } from '@/lib/bilete/public';
 
 // GET /api/bilete/public/config — ce poate vinde site-ul: steagul global, închiderile pe direcție, rutele cu
-// direcțiile deschise. Date publice (sunt pe butoanele site-ului oricum), deci fără cheie; cache scurt pe CDN.
+// direcțiile deschise și localitățile vânzării (ION-264; `localitati`: null = toate). Date publice (sunt pe butoanele site-ului oricum), deci fără cheie; cache scurt pe CDN.
 // Site-ul tratează lipsa răspunsului ca «vânzare închisă».
 
 export const runtime = 'nodejs';

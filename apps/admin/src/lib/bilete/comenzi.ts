@@ -1,7 +1,9 @@
 import 'server-only';
 import {
-  buildReturAssignmentMap, buildTurAssignmentMap, calculeazaCurse, incarcaCurse, normalizeDriverPhone,
-  parseTimeLabel, PhoneError, pretVandabilOnline, SUMA_MINIMA_PLATA_MDL, type BileteComanda, type CursaCuPret,
+  buildReturAssignmentMap, buildTurAssignmentMap, calculeazaCurse, cursaAreLocalitateCuPlafon, cursaInLocalitatileVanzarii,
+  incarcaCurse, normalizeDriverPhone, parseazaLocalitatiVanzare, parseazaPlafoaneLocalitati, parseTimeLabel, PhoneError,
+  pretVandabilOnline, SUMA_MINIMA_PLATA_MDL, verificaPlafonLocalitati, type BileteComanda, type ComandaPentruPlafon,
+  type CursaCuPret, type LocalitatiVanzare, type PlafoaneLocalitati,
 } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } from '@/lib/maib/client';
@@ -71,6 +73,10 @@ export interface ConfigBilete {
   activ: boolean;
   inchidereTurMin: number;
   inchidereReturMin: number;
+  /** ION-264: localitățile în care se vinde online (urcare SAU coborâre); valoare stricată = nicio localitate. */
+  localitati: LocalitatiVanzare;
+  /** ION-264: locuri pe cursă pe localitate; null = valoarea din app_config e stricată → vânzarea publică se închide. */
+  plafoaneLocalitati: PlafoaneLocalitati | null;
 }
 
 export type Rezultat = { comanda: BileteComanda; checkoutUrl: string };
@@ -82,16 +88,31 @@ const ZILE_INAINTE_MAX = 30;
 /** Revendicarea creării sesiunii expiră după atât (funcția poate muri după ce banca a creat sesiunea). */
 const REVENDICARE_MS = 2 * 60_000;
 const DESCHISE = new Set(['noua', 'eroare_creare']);
+/** Stările care pot ține un loc din plafonul localității (cele deschise contează doar cât sunt active). */
+const STARI_PLAFON = ['platita', ...DESCHISE];
+
+const CHEI_CONFIG = {
+  activ: 'bilete_online_activ',
+  inchidereTur: 'bilete_inchidere_tur_min',
+  inchidereRetur: 'bilete_inchidere_retur_min',
+  localitati: 'bilete_localitati_vanzare',
+  plafoaneLocalitati: 'bilete_locuri_localitate',
+} as const;
 
 export async function citesteConfigBilete(): Promise<ConfigBilete> {
-  const { data, error } = await getSupabase().from('app_config').select('key, value')
-    .in('key', ['bilete_online_activ', 'bilete_inchidere_tur_min', 'bilete_inchidere_retur_min']);
+  const { data, error } = await getSupabase().from('app_config').select('key, value').in('key', Object.values(CHEI_CONFIG));
   if (error) throw new Error(`app_config: ${error.message}`);
   const m = new Map((data || []).map((r: { key: string; value: string }) => [r.key, r.value]));
+  const localitati = parseazaLocalitatiVanzare(m.get(CHEI_CONFIG.localitati));
+  if (localitati.eroare) console.error(`[bilete] app_config.${CHEI_CONFIG.localitati} stricat (${localitati.eroare}) → nicio localitate nu se vinde`);
+  const plafoane = parseazaPlafoaneLocalitati(m.get(CHEI_CONFIG.plafoaneLocalitati));
+  if (plafoane.eroare) console.error(`[bilete] app_config.${CHEI_CONFIG.plafoaneLocalitati} stricat (${plafoane.eroare}) → vânzarea publică închisă`);
   return {
-    activ: m.get('bilete_online_activ') === 'true',
-    inchidereTurMin: Number(m.get('bilete_inchidere_tur_min') ?? 0) || 0,
-    inchidereReturMin: Number(m.get('bilete_inchidere_retur_min') ?? 120) || 0,
+    activ: m.get(CHEI_CONFIG.activ) === 'true',
+    inchidereTurMin: Number(m.get(CHEI_CONFIG.inchidereTur) ?? 0) || 0,
+    inchidereReturMin: Number(m.get(CHEI_CONFIG.inchidereRetur) ?? 120) || 0,
+    localitati: localitati.regula,
+    plafoaneLocalitati: plafoane.eroare ? null : plafoane.plafoane,
   };
 }
 
@@ -129,7 +150,17 @@ function valideaza(input: ComandaInput): { phone: string; name: string; lang: 'r
 }
 
 /** Cursa cerută, din aceleași date și reguli ca pe site; null când nu există. */
-async function gasesteCursa(input: ComandaInput): Promise<{ trip: CursaCuPret; fromOrder: number; toOrder: number; fromNameRo: string; pornireRuta: string | null } | null> {
+interface CursaGasita {
+  trip: CursaCuPret;
+  fromOrder: number;
+  toOrder: number;
+  /** Numele canonice ale opririlor (crm_stop_fares.name_ro) — după ele se judecă localitățile vânzării. */
+  fromNameRo: string;
+  toNameRo: string;
+  pornireRuta: string | null;
+}
+
+async function gasesteCursa(input: ComandaInput): Promise<CursaGasita | null> {
   const db = getSupabase();
   const d = await incarcaCurse(db, { fromRo: input.fromRo, toRo: input.toRo, date: input.tripDate });
   if (!d) return null;
@@ -141,7 +172,11 @@ async function gasesteCursa(input: ComandaInput): Promise<{ trip: CursaCuPret; f
   if (!from || !to || !route) return null;
   const interval = input.goingNorth ? route.time_chisinau : route.time_nord;
   const pornire = interval ? parseTimeLabel(interval) : null;
-  return { trip, fromOrder: from.stop_order, toOrder: to.stop_order, fromNameRo: from.name_ro ?? input.fromRo.trim(), pornireRuta: pornire && /^\d{2}:\d{2}$/.test(pornire) ? pornire : null };
+  return {
+    trip, fromOrder: from.stop_order, toOrder: to.stop_order,
+    fromNameRo: from.name_ro ?? input.fromRo.trim(), toNameRo: to.name_ro ?? input.toRo.trim(),
+    pornireRuta: pornire && /^\d{2}:\d{2}$/.test(pornire) ? pornire : null,
+  };
 }
 
 /** Șoferul atribuit cursei PE ziua cerută (fără căderea pe ziua anterioară de pe site). */
@@ -157,6 +192,44 @@ export async function areSofer(tripDate: string, crmRouteId: number, goingNorth:
   const all = [...(a.data || []), ...(b.data || [])];
   const map = goingNorth ? buildReturAssignmentMap(all) : buildTurAssignmentMap(all);
   return Boolean(map.get(crmRouteId)?.driver_id);
+}
+
+/** ION-264: cursa se vinde online doar cu urcare sau coborâre într-o localitate din listă. Aruncă ComandaError('inchis'). */
+function verificaLocalitateaVanzarii(localitati: LocalitatiVanzare, cursa: CursaGasita): void {
+  if (cursaInLocalitatileVanzarii(localitati, cursa.fromNameRo, cursa.toNameRo)) return;
+  throw new ComandaError('inchis', `online se vând deocamdată doar biletele cu urcare sau coborâre la ${localitatiDeAfisat(localitati)}; pe această cursă biletul se ia de la șofer`);
+}
+
+function localitatiDeAfisat(localitati: LocalitatiVanzare): string {
+  if (localitati.toate || localitati.localitati.length === 0) return 'localitățile anunțate';
+  return localitati.localitati.join(', ');
+}
+
+/** Comenzile cursei care pot ține locuri din plafon (fără cele de test). */
+async function comenzileCurseiPentruPlafon(input: ComandaInput): Promise<ComandaPentruPlafon[]> {
+  const { data, error } = await getSupabase().from('bilete_comenzi')
+    .select('from_name, to_name, seats, status, created_at')
+    .eq('trip_date', input.tripDate).eq('crm_route_id', input.crmRouteId).eq('going_north', input.goingNorth)
+    .eq('test', false).in('status', STARI_PLAFON);
+  if (error) throw new Error(`bilete_comenzi (plafon localitate): ${error.message}`);
+  return (data || []) as ComandaPentruPlafon[];
+}
+
+/**
+ * ION-264: plafonul pe localitate (app_config.bilete_locuri_localitate). Plafoane stricate = vânzare închisă.
+ * Verificarea e înaintea INSERT-ului, nu sub lacătul cursei din bilete_creeaza_comanda: două comenzi simultane la
+ * ultimul loc pot trece amândouă (depășire de cel mult o comandă, 1–4 locuri). Aruncă ComandaError('inchis').
+ */
+async function verificaPlafonulLocalitatii(plafoane: PlafoaneLocalitati | null, cursa: CursaGasita, input: ComandaInput): Promise<void> {
+  if (!plafoane) throw new ComandaError('inchis', 'vânzarea online e temporar închisă (configurația plafoanelor pe localitate)');
+  if (!cursaAreLocalitateCuPlafon(plafoane, cursa.fromNameRo, cursa.toNameRo)) return;
+  const verdict = verificaPlafonLocalitati({
+    plafoane, urcare: cursa.fromNameRo, coborare: cursa.toNameRo, seats: input.seats,
+    comenziCursa: await comenzileCurseiPentruPlafon(input), nowMs: Date.now(),
+  });
+  if (verdict.ok) return;
+  const rest = verdict.ramase > 0 ? `mai sunt ${verdict.ramase}` : 'nu mai sunt locuri';
+  throw new ComandaError('inchis', `pe această cursă online se vând cel mult ${verdict.plafon} locuri cu urcare sau coborâre la ${verdict.localitate}; ${rest}`);
 }
 
 async function directiaDeschisa(crmRouteId: number, goingNorth: boolean): Promise<boolean> {
@@ -180,7 +253,9 @@ function urlBiletImplicit(bazaSite: string) {
 }
 
 /**
- * Creează comanda și sesiunea de plată. Aruncă ComandaError cu cod: validare (400), inchis (400), plafon (429),
+ * Creează comanda și sesiunea de plată. Pe `public` se aplică steagurile vânzării, inclusiv lista localităților și
+ * plafonul pe localitate (ION-264); `test_admin` le ocolește pe toate, ca până acum.
+ * Aruncă ComandaError cu cod: validare (400), inchis (400), plafon (429),
  * idempotenta (409), in_lucru (409), loc_ocupat (409, cu `ocupate`), maib (503).
  */
 export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): Promise<Rezultat> {
@@ -212,6 +287,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (!directie) throw new ComandaError('inchis', 'vânzarea online nu e deschisă pe această cursă');
   }
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
+  if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa);
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
   if (!pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
   if (!sofer) throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
@@ -221,6 +297,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if (!vanzareDeschisa({ goingNorth: input.goingNorth, departureAt, pornireRutaAt, nowMs: Date.now(), inchidereTurMin: cfg.inchidereTurMin, inchidereReturMin: cfg.inchidereReturMin })) {
     throw new ComandaError('inchis', 'vânzarea pentru această cursă s-a închis');
   }
+  if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input);
 
   const pricePerSeat = cursa.trip.price;
   const total = Number((pricePerSeat * input.seats).toFixed(2));

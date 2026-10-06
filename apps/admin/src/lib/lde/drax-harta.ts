@@ -20,7 +20,21 @@ export interface IntervalHarta {
   /** ION-150 (cisterne): ce face mașina (text), judecata staționării (casa / drum / abatere / lunga / pauza / terminal / zel / semnal),
    * locul propus informativ pentru o odihnă departe de drumul ideal, durata staționării întregi */
   nota?: string | null; fel?: string | null; abatere?: boolean; propus?: { n: string; c: Punct } | null; durataMin?: number | null;
+  /** ION-268 (LEAR, «schelet întâi»): rolul cursei din planul zilei, în cuvinte — «Tur s1 · B6 Zăzulenii Noi», «… — neconfirmată (…)»,
+   * «Cursă în plus · A9 … — de confirmat», «Posibil cursă schimbul 3 · A8 … — de confirmat» */
+  eticheta?: string | null;
 }
+/** ION-268: un slot din planul zilei (s1/s2 × tur/retur; ruta = ruta din schelet confirmată de GPS — Ion, 06.10: «scheletul e universal indiferent de mașină») */
+export interface CursaPlan {
+  sens: 'tur' | 'retur'; schimb: number; tura?: string | null; ruta: string | null; capat: string | null;
+  statut: 'facuta' | 'neconfirmata' | 'lipsa'; t0: number | null; t1: number | null; km: number | null; kmSchelet: number | null; urcari: number; motiv: string | null;
+  /** făcută fără urcări ≥ 10 s, dar urma acoperă drumul rutei din schelet (acoperire în %) */
+  peDrum?: boolean; acoperire?: number;
+  /** turul și returul schimbului confirmate pe rute diferite (semnal) */
+  rutaDiferita?: boolean;
+}
+/** ION-268: rezumatul planului unei zile (câte curse din plan, cum s-au făcut) */
+export interface PlanZiSumar { planificate: number; facute: number; neconfirmate: number; lipsa: number; plus: number; s3?: number }
 export interface LocHarta { c: Punct; n: string; min?: number }
 export interface ZiHarta {
   t00: number; casa: LocHarta | null; noapteA: LocHarta | null; noapteB: LocHarta | null; linii: string[];
@@ -38,6 +52,8 @@ export interface ZiHarta {
   verif?: VerifCamion[];
   /** ION-149 (mejgorod): timpul liber de la prânz (separat), cifra după regula din 25.09 (informativ), de ce mașina n-are loc propus */
   mejgorod?: InfoMejgorod;
+  /** ION-268 (LEAR, «schelet întâi»): planul zilei din schelet și cursele în plus (≥ 3 urcări pe o rută din schelet, de confirmat) */
+  plan?: { z: string; faraPoarta: boolean; curse: CursaPlan[]; plus: { ruta: string; sens: string | null; t0: number; t1: number; km: number; urcari: number; sate: string[]; s3?: boolean }[] } | null;
 }
 /** ION-149: ce arată harta mejgorod în plus pe zi */
 export interface InfoMejgorod {
@@ -78,6 +94,8 @@ export interface SumarZiHarta {
   fortat?: number; livrare?: number;
   /** ION-149 (mejgorod): km de timp liber la prânz (zi / săptămână), km după regula din 25.09 (zi / săptămână, informativ) */
   liber?: number; liberSapt?: number; regula2509?: number; regula2509Sapt?: number;
+  /** ION-268 (LEAR, «schelet întâi»): planul zilei față de GPS — «s1: tur B6 ✓ · retur B6 ✓; s2: …», cursele din plan nefăcute, numărătoarea */
+  rezumat?: string | null; lipsa?: string[]; plan?: PlanZiSumar | null;
 }
 export interface RandListaHarta { m: string; z: string; sumar: SumarZiHarta }
 
@@ -180,8 +198,22 @@ export function randuriDinIntervale(iv: IntervalHarta[]): RandZi[] {
   return iv.map((v) => {
     const km = `${(Math.round(v.km * 10) / 10).toLocaleString('ro-RO')} km`;
     const drum = v.tip === 'uzina' ? '' : v.de === v.pana ? `pe la ${v.de ?? '—'}, ` : `${v.de ?? '—'} → ${v.pana ?? '—'}, `;
+    // ION-268: cursa din plan își spune rolul (Tur/Retur · schimb · rută, statutul) înaintea drumului
+    if (v.tip === 'cursa' && v.eticheta) return { ora: v.ora, tip: v.tip, text: `${v.eticheta}: ${drum}${km}${v.cats?.neconfirmat != null ? '' : ' cu oameni'}`, tare: false };
     return { ora: v.ora, tip: v.tip, text: `${drum}${km} ${TEXT_TIP[v.tip]}`, tare: v.tip === 'gol' && v.km >= 20 };
   });
+}
+
+const SIMB_PLAN: Record<CursaPlan['statut'], string> = { facuta: 'făcută', neconfirmata: 'neconfirmată (capăt atins, fără drumul rutei)', lipsa: 'lipsă' };
+/** ION-268: rândurile «Planul zilei» (din schelet): fiecare cursă din plan cu ce a confirmat GPS-ul */
+export function randuriPlan(curse: CursaPlan[]): { cheie: string; text: string; statut: CursaPlan['statut'] }[] {
+  return [...curse].sort((a, b) => a.schimb - b.schimb || (a.sens === b.sens ? 0 : a.sens === 'tur' ? -1 : 1)).map((c) => ({
+    cheie: `${c.schimb}-${c.sens}`, statut: c.statut,
+    text: `${c.sens === 'tur' ? 'Tur' : 'Retur'} s${c.schimb} · ${c.ruta ?? '—'}${c.capat ? ` ${c.capat}` : ''}: ${SIMB_PLAN[c.statut]}`
+      + (c.km != null && c.statut === 'facuta' ? `, ${(Math.round(c.km * 10) / 10).toLocaleString('ro-RO')} km${c.kmSchelet != null ? ` (schelet ${(Math.round(c.kmSchelet * 10) / 10).toLocaleString('ro-RO')})` : ''}, ${c.peDrum ? `pe drumul rutei (${c.acoperire ?? '—'} %), fără urcări văzute` : `${c.urcari} urcări`}` : '')
+      + (c.rutaDiferita ? ' — tur și retur pe rute diferite' : '')
+      + (c.motiv && c.statut === 'lipsa' ? ` — ${c.motiv}` : ''),
+  }));
 }
 
 // ─── ION-150 (Ion, 30.09.2026: «drumul față de schelet, P1/P2 doar informativ»): harta cisternelor ───

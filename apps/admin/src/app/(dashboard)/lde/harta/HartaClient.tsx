@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { povesteZi } from '@/lib/lde/drax-ziua';
 import {
-  CULOARE, FEL_STATIONARE, LINIE, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, numeTip, randuriBriceni, randuriCamioane, randuriDinIntervale, randuriMejgorod,
+  CULOARE, FEL_STATIONARE, LINIE, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, numeTip, randuriBriceni, randuriCamioane, randuriDinIntervale, randuriMejgorod, randuriPlan, oraLocala,
   textRute, tipuriLegenda, type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type UzHarta, type ZiHarta,
 } from '@/lib/lde/drax-harta';
 import type { ControlCamion, ControlMejgorod } from './actions';
@@ -254,6 +254,25 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
           ) : null}
           {sebn && sumar?.ruteGps ? (
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>Rutele {sumar.linii.join(', ')} sunt luate din GPS: ruta mașinii din schelet nu mai e trecută (§1.1).</div>
+          ) : null}
+
+          {zi?.plan?.curse?.length ? (
+            // ION-268 «schelet întâi»: planul zilei din schelet (lista rută-pe-mașină + rotația), ce a confirmat GPS-ul, cursele în plus
+            <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', fontSize: 11.5, lineHeight: 1.45 }}>
+              <div style={ETICHETA}>Planul zilei (din schelet){sumar?.plan ? ` — ${sumar.plan.facute} din ${sumar.plan.planificate} făcute` : ''}</div>
+              {zi.plan.faraPoarta ? <div style={{ color: 'var(--text-secondary)' }}>Mașina n-a atins poarta în ziua asta.</div> : null}
+              {randuriPlan(zi.plan.curse).map((r) => (
+                <div key={r.cheie} style={{ color: r.statut === 'lipsa' ? '#9B1B30' : r.statut === 'facuta' ? 'var(--text)' : '#8A5A00' }}>{r.text}</div>
+              ))}
+              {([[false, 'Cursă în plus, de confirmat'], [true, 'Posibil cursă schimbul 3, de confirmat']] as const).map(([s3, titlu]) => {
+                const L = zi.plan!.plus.filter((x) => !!x.s3 === s3);
+                return L.length ? (
+                  <div key={titlu} style={{ color: 'var(--text-secondary)', marginTop: 3 }}>
+                    {titlu}: {L.map((x) => `${x.ruta} ${oraLocala(zi.t00, Math.round((x.t0 - zi.t00) / 1000))}, ${n1(x.km)} km, ${x.urcari} urcări`).join('; ')}
+                  </div>
+                ) : null;
+              })}
+            </div>
           ) : null}
 
           {mej && zi?.mejgorod ? (

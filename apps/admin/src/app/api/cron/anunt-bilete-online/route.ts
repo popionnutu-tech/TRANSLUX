@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { alertAdmins, pinTelegramMessage, sendTelegram, sendTelegramPhoto, sendTelegramText } from '@/lib/telegram-notify';
+import { alertAdmins, pinTelegramMessage, sendTelegram, sendTelegramPhoto, sendTelegramText, sendTelegramVideoId } from '@/lib/telegram-notify';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -24,6 +24,22 @@ const LEGARE_ULTIMA = 'anunt_legare_sofer_ultima';
 const LEGARE_PANA_LA = '2026-10-12';
 const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot';
 const LINK_LEGARE = `https://t.me/${BOT}?start=sofer`;
+// Ion, 06.10: anunțul zilnic = videoul «Мои билеты — пошагово» (1:44) cu textul de mai jos sub el, într-un singur mesaj.
+// Videoul e încărcat o dată la Telegram; file_id-ul stă în app_config (fără el pleacă doar textul).
+const VIDEO_KEY = 'video_sofer_bilete_file_id';
+const TEXT_ANUNT_ZILNIC = [
+  '🎫 <b>Онлайн-билеты TRANSLUX — важно для всех водителей</b>',
+  '',
+  '1️⃣ <b>Привяжите свой Telegram — один раз.</b> Кнопка «🔗 Привязать мой Telegram» ниже → в боте «Отправить мой номер». Это 10 секунд.',
+  '2️⃣ <b>Сначала онлайн-билеты будут только из Бричан и Единец.</b> Позже — в ограниченном количестве из Бельц.',
+  '3️⃣ <b>Продажа закрывается за 2 часа до начала рейса.</b>',
+  '4️⃣ <b>Все онлайн-билеты оплачены заранее картой</b> — это не пустые брони.',
+  '5️⃣ <b>При посадке каждого пассажира с онлайн-билетом нужно отметить:</b> «🎫 Мои билеты» → «Сканировать билет».',
+  '',
+  '⚠️ В дальнейшем водитель, который не умеет отмечать пассажира, <b>не будет выпущен в рейс, пока не научится.</b>',
+  '',
+  '🎬 На видео — как это работает, пошагово.',
+].join('\n');
 const TEXT_LEGARE = [
   '🔗 <b>Привяжите свой Telegram — один раз</b>',
   '',
@@ -170,7 +186,7 @@ export async function GET(req: NextRequest) {
   const val = (k: string) => (cfg ?? []).find(r => r.key === k)?.value?.trim() || null;
   const lansat = val(LANSAT);
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });
-  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, link_bilete: LINK_BILETE, reply_markup: BUTON_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
+  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_ANUNT_ZILNIC, video: VIDEO_KEY, link: LINK_LEGARE, link_bilete: LINK_BILETE, reply_markup: BUTON_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
   const force = q.get('force') === '1';
   const doarRaport = q.get('raport') === '1'; // retrimite doar raportul (ex. după ce s-a adăugat un destinatar)
   const chatId = await graficGroupChatId();
@@ -190,7 +206,10 @@ export async function GET(req: NextRequest) {
   if (azi > LEGARE_PANA_LA) out.legare = 'expirat';
   else if (doarRaport || (val(LEGARE_ULTIMA) === azi && !force)) out.legare = 'azi';
   else {
-    const ok = await sendTelegram(chatId, TEXT_LEGARE, BUTON_LEGARE);
+    const { data: vid } = await sb.from('app_config').select('value').eq('key', VIDEO_KEY).maybeSingle();
+    const ok = vid?.value
+      ? await sendTelegramVideoId(chatId, String(vid.value), TEXT_ANUNT_ZILNIC, BUTON_LEGARE)
+      : await sendTelegram(chatId, TEXT_ANUNT_ZILNIC, BUTON_LEGARE);
     if (!ok) return NextResponse.json({ ...out, error: 'Telegram nu a primit mesajul de legare' }, { status: 502 });
     await sb.from('app_config').upsert({ key: LEGARE_ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
     out.legare = 'trimis';

@@ -60,6 +60,34 @@ export async function sendTelegram(chatId: string | number, text: string, replyM
   }
 }
 
+/**
+ * Trimite un video deja aflat la Telegram (file_id al aceluiași bot) cu subtitlu HTML și butoane. Nu aruncă.
+ * Ion, 06.10: anunțul zilnic pentru șoferi = videoul «Мои билеты — пошагово» cu textul sub el.
+ */
+export async function sendTelegramVideoId(chatId: string | number, fileId: string, caption: string, replyMarkup?: unknown): Promise<boolean> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return false;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, video: fileId, caption, parse_mode: 'HTML', supports_streaming: true,
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      console.error('sendTelegramVideoId failed:', resp.status, body.slice(0, 300));
+      const nou = resp.status === 400 ? await mutaGrupa(chatId, body) : null;
+      if (nou) return sendTelegramVideoId(nou, fileId, caption, replyMarkup);
+    }
+    return resp.ok;
+  } catch (err) {
+    console.error('sendTelegramVideoId failed:', err);
+    return false;
+  }
+}
+
 /** Trimite o poză deja aflată la Telegram (file_id primit de același bot, ION-252) cu subtitlu HTML. Nu aruncă. */
 export async function sendTelegramPhotoId(chatId: string | number, fileId: string, caption: string): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;

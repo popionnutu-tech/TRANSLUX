@@ -24,6 +24,7 @@ import type { Locale } from '@/lib/i18n';
 import { phoneTel, phoneText } from '@/lib/phone';
 import { track } from '@/lib/track';
 import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_URL, loadLeaflet, preconnectTiles, type Leaflet } from '@/lib/map-tiles';
+import { citesteForme, scrieForme } from '@/lib/forme-memorate';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const REFRESH_MS = 60_000;
@@ -98,6 +99,17 @@ interface NowData extends Omit<NowRaw, 'routes'> { routes: Record<number, RouteL
 
 /** Liniile rutelor, pe amprentă («id:v»), cât trăiește pagina: vin o dată de la /forme, nu la fiecare poll (ION-206). */
 const shapeStore = new Map<string, LatLon[]>();
+/** ION-277: și pe telefon (localStorage), ca la a doua deschidere drumul să apară fără cerere; amprenta exclude liniile vechi. */
+const stocareLocala = {
+  get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* privat / plin */ } },
+};
+let formeIncarcate = false;
+function incarcaFormeMemorate(): void {
+  if (formeIncarcate || typeof window === 'undefined') return;
+  formeIncarcate = true;
+  for (const [k, v] of citesteForme(stocareLocala)) if (!shapeStore.has(k)) shapeStore.set(k, v);
+}
 /** central-hub vechi, fără GET pe /acum (405): se trece pe POST până la deploy-ul lui. */
 let postOnly = false;
 
@@ -137,6 +149,7 @@ async function cursaDupaPlecare(from: string, to: string, departure: string, rou
 
 /** Liniile lipsă din memorie se cer o dată de la /forme; ruta fără linie nu se desenează (punctul rămâne). */
 async function withShapes(raw: NowRaw): Promise<Record<number, RouteLine>> {
+  incarcaFormeMemorate();
   const refs = Object.entries(raw.routes ?? {});
   const missing = refs.filter(([id, r]) => !r.shape && r.v && !shapeStore.has(`${id}:${r.v}`));
   if (missing.length) {
@@ -148,6 +161,7 @@ async function withShapes(raw: NowRaw): Promise<Record<number, RouteLine>> {
           const s = shapes?.[id];
           if (Array.isArray(s)) shapeStore.set(`${id}:${r.v}`, s);
         }
+        scrieForme(stocareLocala, shapeStore);
       }
     } catch { /* la poll-ul următor se încearcă iar */ }
   }
@@ -508,11 +522,13 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
     try {
       const raw = await fetchAcum(fromValue, toValue, locale);
       // Cursa din bilet nu mai e în «Acum» (a trecut de oprirea omului) → autobuzul ei de la /pozitie.
-      if (doarCursa && !raw.trips.some((t) => t.departure === doarCursa.departure && (doarCursa.routeId == null || t.route_id == null || t.route_id === doarCursa.routeId))) {
-        const t = await cursaDupaPlecare(fromValue, toValue, doarCursa.departure, doarCursa.routeId);
-        if (t) raw.trips = [t, ...raw.trips];
-      }
-      const routes = await withShapes(raw);
+      // ION-277: /pozitie și /forme în paralel (liniile depind doar de rutele din /acum, nu de punctul de la /pozitie).
+      const plecata = Boolean(doarCursa && !raw.trips.some((t) => t.departure === doarCursa.departure && (doarCursa.routeId == null || t.route_id == null || t.route_id === doarCursa.routeId)));
+      const [t, routes] = await Promise.all([
+        plecata && doarCursa ? cursaDupaPlecare(fromValue, toValue, doarCursa.departure, doarCursa.routeId) : Promise.resolve(null),
+        withShapes(raw),
+      ]);
+      if (t) raw.trips = [t, ...raw.trips];
       if (my !== seq.current) return;
       setData({ ...raw, routes });
       setFailed(false);

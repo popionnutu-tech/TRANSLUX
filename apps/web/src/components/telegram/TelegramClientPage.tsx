@@ -1,5 +1,6 @@
 import { getCachedLocalities } from '@/app/(public)/actions';
 import { homeOptions } from '@/lib/home-props';
+import { tileOrigin } from '@/lib/map-tiles';
 import type { Locale } from '@/lib/i18n';
 import { TelegramClientApp } from './TelegramClientApp';
 
@@ -25,6 +26,8 @@ export async function TelegramClientPage({ locale }: { locale: Locale }) {
   return (
     <>
       <link rel="preconnect" href={PANOU} />
+      {/* ION-277: legătura cu serverul de plăcuțe se deschide din HTML, nu abia după montarea hărții. */}
+      {tileOrigin() && <link rel="preconnect" href={tileOrigin()} />}
       <script dangerouslySetInnerHTML={{ __html: scriptPornire(PANOU) }} />
       <TelegramClientApp locale={locale} options={homeOptions(localities, locale)} />
     </>

@@ -6,7 +6,7 @@ import { createSale, cecVanzare } from '@/lib/piese-ops';
 import { issueShortages } from '@/lib/piese';
 import { requirePieseIssue, canSeeCost, assertWarehouseAllowed, canOverrideStock } from '@/lib/piese-access';
 
-export async function submitSale(payload: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; lines: { part_id: number; qty: number; unit_price: number }[]; allow_short?: boolean }) {
+export async function submitSale(payload: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; lines: { part_id: number; qty: number; unit_price: number }[]; allow_short?: boolean; plata?: string; incasat?: number | null }) {
   const session = await requirePieseIssue();
   await assertWarehouseAllowed(session, payload.warehouse_id); // Etapa 2: nu poate vinde din alt depozit
   const lines = payload.lines.filter((l) => l.part_id && l.qty > 0);
@@ -26,9 +26,12 @@ export async function submitSale(payload: { warehouse_id: number; client_id: num
   let res: Awaited<ReturnType<typeof createSale>>;
   try {
     res = await createSale({ ...payload, lines, userId: session.id },
-      await autorFor(session.id), payload.allow_short === true);
+      await autorFor(session.id), payload.allow_short === true,
+      payload.plata || 'NUMERAR', payload.incasat ?? null);
   } catch (e: any) {
-    if ((e?.message || '').trim() !== 'SHORTAGE') throw e;
+    const msg = (e?.message || '').trim();
+    if (msg === 'INCASAT_PREA_MIC') throw new Error('Suma primită e mai mică decât totalul de plată.');
+    if (msg !== 'SHORTAGE') throw e;
     // Nu s-a scris nimic — baza a anulat tot. Omul vede ce lipsește și decide.
     try {
       return { ok: false as const, shortages: await issueShortages(payload.warehouse_id, lines) };
@@ -37,7 +40,7 @@ export async function submitSale(payload: { warehouse_id: number; client_id: num
     }
   }
   // Vânzătorul nu primește cost/profit nici în răspunsul vânzării (ar fi vizibile în Network tab) — doar docId + total.
-  if (!canSeeCost(session.role)) return { ok: true as const, docId: res.docId, total: res.total };
+  if (!canSeeCost(session.role)) return { ok: true as const, docId: res.docId, total: res.total, plata: res.plata, rest: res.rest };
   return { ok: true as const, ...res };
 }
 

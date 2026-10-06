@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { listWarehouses } from '@/lib/piese';
-import { listClients, saleParts, shopProfit, preturiSchimbate } from '@/lib/piese-ops';
+import { listClients, saleParts, shopProfit, preturiSchimbate, raportZi } from '@/lib/piese-ops';
 import { requirePieseIssue, canSeeCost, canOverrideStock } from '@/lib/piese-access';
 import MagazinClient from './MagazinClient';
 
@@ -13,6 +13,9 @@ export default async function MagazinPage() {
   const showCost = canSeeCost(session.role); // vânzătorul vede vânzările, dar nu costul/profitul (marja)
   const [warehouses, clients, parts, profit, preturi] = await Promise.all([listWarehouses(), listClients(), saleParts(), shopProfit(), preturiSchimbate(7)]);
   const shop = (warehouses as any[]).find((w) => w.kind === 'SHOP');
+  // Raportul de zi se citește DUPĂ ce se știe magazinul — altfel n-am ști pentru ce depozit.
+  const azi = shop ? await raportZi(shop.id) : [];
+  const totalAzi = azi.reduce((s, r) => s + Number(r.suma), 0);
   return (
     <>
       <div className="page-header"><h1>Magazin — vânzări piese</h1><p>Prețul urcă singur când vine marfă mai scumpă și se aplică întregului stoc; când vine mai ieftină, rămâne cel vechi. La confirmare se emite чек; factura fiscală se generează în tab-ul e-Factura.</p></div>
@@ -21,6 +24,32 @@ export default async function MagazinPage() {
         {showCost && <div className="stat"><div className="v">{lei(profit.cost)}</div><div className="l">Cost (sebestoimost)</div></div>}
         {showCost && <div className="stat"><div className="v">{lei(profit.profit)}</div><div className="l">Profit magazin</div></div>}
       </div>
+      {/* Perechea raportului Z de pe casa de marcat. La sfârșitul zilei, cifrele de aici trebuie să se
+          potrivească cu banda fiscală — iar nepotrivirea dintre ele e exact ce caută un control. */}
+      {azi.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0, fontSize: 16 }}>Astăzi în magazin</h2>
+          <table>
+            <thead><tr><th>Plata</th><th className="num" style={{ width: 90 }}>Bonuri</th><th className="num" style={{ width: 140 }}>Sumă</th></tr></thead>
+            <tbody>
+              {azi.map((r) => (
+                <tr key={r.plata}>
+                  <td>{r.plata === 'NUMERAR' ? 'Numerar' : r.plata === 'CARD' ? 'Card' : r.plata === 'TRANSFER' ? 'Transfer' : r.plata}</td>
+                  <td className="num">{r.bonuri}</td>
+                  <td className="num">{lei(r.suma)}</td>
+                </tr>
+              ))}
+              <tr><td><strong>Total</strong></td>
+                <td className="num"><strong>{azi.reduce((s, r) => s + Number(r.bonuri), 0)}</strong></td>
+                <td className="num"><strong>{lei(totalAzi)}</strong></td></tr>
+            </tbody>
+          </table>
+          <p className="muted" style={{ fontSize: 11, margin: '6px 0 0' }}>
+            De pus alături de raportul Z de pe casa de marcat, la închiderea zilei.
+          </p>
+        </div>
+      )}
+
       {preturi.length > 0 && (
         <div className="alert warn" style={{ marginBottom: 16 }}>
           <strong>

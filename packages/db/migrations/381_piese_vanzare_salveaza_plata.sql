@@ -1,0 +1,13 @@
+-- 381: Vânzarea scrie și modul de plată, și verifică restul.
+--
+-- Coloanele există din migr. 380, dar funcția care creează vânzarea nu le completa — deci raportul de zi
+-- ar fi arătat totul la „NEPRECIZAT", iar punerea lui alături de banda fiscală ar fi fost imposibilă.
+--
+-- Garda pe rest: nu se poate încasa mai puțin decât totalul. Verificarea stă AICI, nu în ecran: ecranul
+-- se poate ocoli, iar un bon încasat sub total e o gaură în casă, nu o greșeală de interfață.
+--
+-- Sumele se rotunjesc la întoarcere. Costurile sunt ținute în virgulă mobilă (`real`), iar fără rotunjire
+-- o vânzare de 2 × 1410,05 raporta un cost de 2820,10009765624.
+--
+-- Corpul complet al funcției e cel din migr. 379, cu adăugirile de mai sus; semnătura veche (10
+-- parametri) se șterge, altfel ar rămâne apelabilă fără modul de plată.

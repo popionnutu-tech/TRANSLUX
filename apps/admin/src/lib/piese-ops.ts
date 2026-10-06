@@ -269,14 +269,14 @@ export async function saleParts() {
   const { data } = await getSupabase().from('piese_sale_parts').select('*');
   return data || [];
 }
-export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }, autor: Autor, allowShort = false) {
+export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }, autor: Autor, allowShort = false, plata = 'NUMERAR', incasat: number | null = null) {
   // created_by_admin e setat ATOMIC în RPC (p_created_by), nu printr-un UPDATE separat.
   // `p_admin`/`p_actor` (migr. 339): urma vânzării avea autor „necunoscut", fiindcă RPC-ul scria doar în
   // coloana veche `user_id`, pe care aplicația o trimite mereu NULL.
   const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null,
     // `p_created_by` e PROPRIETARUL facturii (filtrul care decide ce vede un vânzător), `p_admin` e AUTORUL
     // urmei. Azi coincid; în ziua în care un admin emite o factură în numele altcuiva, nu vor mai coincide.
-    p_admin: autor.adminId, p_actor: autor.label, p_allow_short: allowShort });
+    p_admin: autor.adminId, p_actor: autor.label, p_allow_short: allowShort, p_plata: plata, p_incasat: incasat });
   if (error) {
     // `SHORTAGE` nu trece ca eroare tehnică: nu s-a scris nimic, iar apelantul compune lista pieselor
     // care lipsesc și întreabă omul — ca la eliberări și la mutări.
@@ -284,7 +284,17 @@ export async function createSale(p: { warehouse_id: number; client_id: number | 
     throw new Error(error.message);
   }
   const r = data as any;
-  return { docId: r.doc_id as number, total: Number(r.total), cost: Number(r.cost), profit: Number(r.total) - Number(r.cost) };
+  return { docId: r.doc_id as number, total: Number(r.total), cost: Number(r.cost),
+           profit: Number(r.total) - Number(r.cost),
+           plata: r.plata as string, rest: r.rest == null ? null : Number(r.rest) };
+}
+
+// Raportul de zi al magazinului, pe moduri de plată (migr. 380) — perechea raportului Z de pe casa de
+// marcat. Fără el, banda fiscală și programul n-ar avea cum fi puse alături la sfârșitul zilei.
+export async function raportZi(warehouseId: number, zi?: string) {
+  const { data, error } = await getSupabase().rpc('piese_raport_zi', { p_wh: warehouseId, p_zi: zi ?? null });
+  if (error) { console.error('raportZi:', error.message); return []; }
+  return (data as { plata: string; bonuri: number; suma: number }[]) || [];
 }
 export async function shopProfit() {
   const { data } = await getSupabase().rpc('piese_shop_profit');

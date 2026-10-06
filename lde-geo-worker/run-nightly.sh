@@ -15,6 +15,8 @@
 # Și la 08:00, neconformitățile de ieri în grupa Mejgorod (ION-246) — plecat din Briceni/Edineț/Bălți
 # înainte de grafic, nu a trecut prin Sîngerei; citește route_stop_passes scrise mai jos de stop-times.mjs:
 #   0 8 * * * . /root/lde-worker/cron-secret.env && curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" https://central-hub-md.vercel.app/api/cron/mejgorod-neconformitati >> /root/lde-worker/mejgorod-neconformitati.log 2>&1
+# Și la fiecare 5 minute, paznicul botului (ION-253; până la 06.10 era în GitHub Actions, care anula des rularea):
+#   */5 * * * * . /root/lde-worker/cron-secret.env && curl -fsS -m 30 -o /dev/null -w "%{http_code} $(date +\%F_\%T)\n" -H "Authorization: Bearer $CRON_SECRET" https://central-hub-md.vercel.app/api/cron/bot-watchdog >> /root/lde-worker/bot-watchdog.log 2>&1
 cd /root/lde-worker || exit 1
 Y=$(TZ=Europe/Chisinau date -d yesterday +%F)
 echo "===== $(TZ=Europe/Chisinau date '+%F %T') | ziua $Y =====" >> nightly.log

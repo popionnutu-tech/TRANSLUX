@@ -3,12 +3,15 @@ name: bot-watchdog
 # External watchdog: pings the admin watchdog endpoint every ~5 min.
 # The endpoint checks the bot's heartbeat (bot_storage `bot:heartbeat`, written
 # by the bot every 60s) and, if it's stale, alerts admins on Telegram.
-# Runs on GitHub infra so it works even when the bot / Railway is down.
-# (Vercel Hobby can't run sub-daily crons, so we schedule it here.)
+# (Vercel Hobby can't run sub-daily crons.)
+#
+# Din 06.10.2026 (ION-253) rularea la 5 min e pe VPS, nu aici: GitHub anula des
+# jobul («The job was not acquired by Runner of type hosted even after multiple
+# attempts») și Ion primea «Run failed» fără ca botul să fi căzut. Crontab VPS:
+#   */5 * * * * . /root/lde-worker/cron-secret.env && curl ... /api/cron/bot-watchdog >> /root/lde-worker/bot-watchdog.log
+# Aici rămâne doar pornirea manuală.
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 jobs:

@@ -25,16 +25,23 @@ picat=0
 # ION-143: analiza scrie și dump-ul săptămânii (urma + rutele), din care lear-parcare/lant.sh calculează locurile optime de parcare
 # (date.parcare în rândul LEAR + lde_harta_zi). Parcarea picată nu atinge raportul; LEAR_PARCARE=0 o sare.
 mkdir -p lear-parcare/date
-if ! flock -n "$LOCK" node --env-file=.env lear-analiza.mjs --write --dump lear-parcare/date/ungheni.json; then
+# ION-263 (R-PAUZĂ): lear-analiza NU mai scrie singură (fără --write) — scrie raportul în JSON, iar lant.sh îl scrie în bază după ce
+# lear-parcare.mjs a găsit cursele cu oameni și regula 3 s-a socotit pe pauze (lear-r3-pauze.mjs). Cu LEAR_PARCARE=0 raportul se scrie neschimbat.
+rm -f lear-parcare/date/ungheni-raport.json lear-parcare/date/floresti-raport.json
+if ! flock -n "$LOCK" node --env-file=.env lear-analiza.mjs --json lear-parcare/date/ungheni-raport.json --dump lear-parcare/date/ungheni.json; then
   echo "lear-analiza: rularea a picat sau lock-ul e ocupat" >&2; picat=1
-elif [ "${LEAR_PARCARE:-1}" != 0 ] && ! bash lear-parcare/lant.sh lear-parcare/date/ungheni.json; then
+elif [ "${LEAR_PARCARE:-1}" = 0 ]; then
+  node --env-file=.env lear-parcare/lear-r3-pauze.mjs lear-parcare/date/ungheni-raport.json - --write || { echo "raportul Ungheni n-a putut fi scris" >&2; picat=1; }
+elif ! bash lear-parcare/lant.sh lear-parcare/date/ungheni.json lear-parcare/date/ungheni-raport.json; then
   echo "lear-parcare Ungheni a picat" >&2; picat=1
 fi
 
 # LEAR Florești (ION-59): aceeași analiză, alt schelet și altă poartă; lock separat.
-if ! flock -n "${LOCK_FLORESTI:-/tmp/lear-analiza-floresti.lock}" node --env-file=.env lear-analiza.mjs --uzina LEAR_FLORESTI --write --dump lear-parcare/date/floresti.json; then
+if ! flock -n "${LOCK_FLORESTI:-/tmp/lear-analiza-floresti.lock}" node --env-file=.env lear-analiza.mjs --uzina LEAR_FLORESTI --json lear-parcare/date/floresti-raport.json --dump lear-parcare/date/floresti.json; then
   echo "lear-analiza LEAR_FLORESTI: rularea a picat sau lock-ul e ocupat" >&2; picat=1
-elif [ "${LEAR_PARCARE:-1}" != 0 ] && ! bash lear-parcare/lant.sh lear-parcare/date/floresti.json; then
+elif [ "${LEAR_PARCARE:-1}" = 0 ]; then
+  node --env-file=.env lear-parcare/lear-r3-pauze.mjs lear-parcare/date/floresti-raport.json - --write || { echo "raportul Florești n-a putut fi scris" >&2; picat=1; }
+elif ! bash lear-parcare/lant.sh lear-parcare/date/floresti.json lear-parcare/date/floresti-raport.json; then
   echo "lear-parcare Florești a picat" >&2; picat=1
 fi
 

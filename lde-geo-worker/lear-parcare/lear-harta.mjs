@@ -73,15 +73,17 @@ for (const M of D.masini) {
     const stai = []; let a0 = null, prev = null;
     for (const p of Q) { if (!a0 || hav(a0, p) > 0.3) { if (a0 && prev.t - a0.t >= 5 * 60e3) stai.push([r5(a0.lat), r5(a0.lon), Math.round((a0.t - t00) / 1000), Math.round((prev.t - t00) / 1000), numeLoc(a0)]); a0 = p; } prev = p; }
     if (a0 && prev.t - a0.t >= 5 * 60e3) stai.push([r5(a0.lat), r5(a0.lon), Math.round((a0.t - t00) / 1000), Math.round((prev.t - t00) / 1000), numeLoc(a0)]);
+    const necalc = pk.real == null && !!pk.motivFara && !/^niciun gol/.test(pk.motivFara);
     const zp = pk.zile.find((x) => x.z === z) ?? null, cuOameni = iv.filter((v) => v.tip === 'cursa').reduce((s, v) => s + v.km, 0);
     const legi = pk.locuri.length ? (pk.legi ?? []).filter((l) => l.z === z).map((l) => ({ z: l.z, zUrm: null, parte: 'intre', ora: l.ora, oraDim: null, a: l.a, b: l.b, aN: l.aN, bN: l.bN, loc: l.loc, km: l.km, separat: false, real: l.real, acum: l.acum?.n ?? null })) : [];
     const dow = new Date(`${z}T12:00:00Z`).getUTCDay();
     randuri.push({ uzina: ID, saptamina: D.saptamina, m: M.m, z,
       sumar: { dow, total: r1(kmZi), cuOameni: r1(cuOameni), gol: r1(iv.filter((v) => v.tip === 'gol').reduce((s, v) => s + v.km, 0)),
         economie: pk.locuri.length && zp ? zp.economie : null, ideal: null, motivAfara: pk.locuri.length ? null : pk.motivFara ?? null,
-        economieSapt: pk.economieSapt ?? 0, locuri: pk.locuri.map((l) => l.n), sursaEconomie: 'parcare', linii },
+        // ION-263: mașina scoasă din calcul (motivFara fără cifre) are economia «necalculat» (null), nu 0 km de tăiat
+        economieSapt: necalc ? null : pk.economieSapt ?? 0, locuri: pk.locuri.map((l) => l.n), sursaEconomie: 'parcare', linii },
       date: { t00, casa: M.casaC ? { n: M.casa, c: [r5(M.casaC[0]), r5(M.casaC[1])] } : null, noapteA: null, noapteB: null, linii, iv, stai, zi: null, ideal: null,
-        parcare: { locuri: pk.locuri, economieSapt: pk.economieSapt ?? 0, idealSapt: null, zi: zp ? { z, masurata: true, motiv: null, real: zp.real, propus: zp.propus, economie: zp.economie } : null, legi } } });
+        parcare: { locuri: pk.locuri, economieSapt: necalc ? null : pk.economieSapt ?? 0, idealSapt: null, zi: zp ? { z, masurata: true, motiv: null, real: zp.real, propus: zp.propus, economie: zp.economie } : null, legi } } });
     probe.zile++;
   }
 }

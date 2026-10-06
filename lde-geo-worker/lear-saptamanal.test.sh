@@ -15,7 +15,8 @@ mkdir -p "$T/bin" "$T/lde/briceni/cod" "$T/lde/lear-parcare"
 # ION-73: analiza Briceni e un script bash separat; aici e fals și pică doar cu FAKE_BRICENI_EXIT
 printf '#!/usr/bin/env bash\nexit "${FAKE_BRICENI_EXIT:-0}"\n' > "$T/lde/briceni/cod/saptamanal.sh"
 # ION-143: lanțul parcării LEAR, fals; scrie în jurnal cu ce dump e chemat și pică doar cu FAKE_PARCARE_EXIT
-printf '#!/usr/bin/env bash\necho "$1" >> "$FAKE_PARCARE_LOG"\nexit "${FAKE_PARCARE_EXIT:-0}"\n' > "$T/lde/lear-parcare/lant.sh"
+# ION-263/265: al doilea argument = raportul lui lear-analiza (--json), pe care lanțul îl scrie în bază după R-PAUZĂ
+printf '#!/usr/bin/env bash\necho "$1 $2" >> "$FAKE_PARCARE_LOG"\nexit "${FAKE_PARCARE_EXIT:-0}"\n' > "$T/lde/lear-parcare/lant.sh"
 cat > "$T/bin/node" <<'EOF'
 #!/usr/bin/env bash
 exit "${FAKE_NODE_EXIT:-0}"
@@ -47,7 +48,7 @@ FAKE_NODE_EXIT=0 FAKE_LOCK_BUSY=0 caz "workeri OK → cinci apeluri (album, timp
 grep -q "Bearer secret-de-test" "$FAKE_CURL_LOG" || { echo "✗ antetul nu poartă cheia curățată de ghilimele"; esueaza=1; }
 grep -q "livrari-luni" "$FAKE_CURL_LOG" && grep -q "lde-timp-liber?poster=0" "$FAKE_CURL_LOG" && grep -q "uz=floresti&poster=0" "$FAKE_CURL_LOG" && grep -q "drax-optimizari?liber=1&dry=1" "$FAKE_CURL_LOG" && ! grep -q "drax-optimizari?poster\|drax-optimizari?indicatii" "$FAKE_CURL_LOG" && tail -1 "$FAKE_CURL_LOG" | grep -q "lde-luni-paznic" || { echo "✗ lipsește o rută din apeluri"; esueaza=1; }
 # ION-143: lanțul parcării rulează după fiecare analiză LEAR, cu dump-ul ei, înaintea albumului
-[ "$(tr '\n' ' ' < "$FAKE_PARCARE_LOG")" = "lear-parcare/date/ungheni.json lear-parcare/date/floresti.json " ] || { echo "✗ lanțul parcării nu e chemat cu dump-urile Ungheni + Florești"; esueaza=1; }
+[ "$(tr '\n' ' ' < "$FAKE_PARCARE_LOG")" = "lear-parcare/date/ungheni.json lear-parcare/date/ungheni-raport.json lear-parcare/date/floresti.json lear-parcare/date/floresti-raport.json " ] || { echo "✗ lanțul parcării nu e chemat cu dump-urile și rapoartele Ungheni + Florești"; esueaza=1; }
 # ION-62: un worker picat nu oprește celelalte uzine — rutele se cheamă oricum (raportul lipsă ajunge la ADMIN), cod ≠ 0
 FAKE_NODE_EXIT=1 FAKE_LOCK_BUSY=0 caz "worker picat → tot cinci apeluri, cod ≠ 0"   5 1
 [ -s "$FAKE_PARCARE_LOG" ] && { echo "✗ parcarea a rulat deși analiza a picat"; esueaza=1; }

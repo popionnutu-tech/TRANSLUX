@@ -36,3 +36,18 @@ export async function plafonSofer(telegramId: number, max = 60): Promise<boolean
   if (error) { console.warn('[bilete-sofer] plafon:', error.message); return true; }
   return data !== false;
 }
+
+/**
+ * ION-273 («Telegram ultrafast» P4): identitatea și plafonul ÎN PARALEL — cheia plafonului e telegram_id-ul din semnătura
+ * initData (nu din bază), deci nu are de ce să aștepte căutarea în `drivers`. Un singur hop în loc de două.
+ */
+export type SoferAuthCuPlafon = SoferAuth | { ok: false; status: 429; eroare: 'prea multe cereri' };
+
+export async function autentificaSofer(initData: string | null | undefined): Promise<SoferAuthCuPlafon> {
+  const v = telegramIdDinInitData(initData, process.env.TELEGRAM_BOT_TOKEN);
+  if (!v.ok) return { ok: false, status: 401, eroare: v.eroare };
+  const [auth, plafonOk] = await Promise.all([soferDinInitData(initData), plafonSofer(v.telegramId)]);
+  if (!auth.ok) return auth;
+  if (!plafonOk) return { ok: false, status: 429, eroare: 'prea multe cereri' };
+  return auth;
+}

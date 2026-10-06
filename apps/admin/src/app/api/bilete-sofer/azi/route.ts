@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { plafonSofer, soferDinInitData } from '@/lib/bilete/sofer-auth';
+import { autentificaSofer } from '@/lib/bilete/sofer-auth';
 import { raspunsAzi } from '@/lib/bilete/sofer';
 
 // GET /api/bilete-sofer/azi — cursele de azi ale șoferului cu pasagerii și biletele lor (ION-239, contractul ION-190
@@ -14,9 +14,9 @@ export const maxDuration = 15;
 const ANTETE = { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
 
 export async function GET(req: NextRequest) {
-  const auth = await soferDinInitData(req.headers.get('x-telegram-init-data'));
+  // ION-273: identitatea și plafonul într-un singur hop (în paralel).
+  const auth = await autentificaSofer(req.headers.get('x-telegram-init-data'));
   if (!auth.ok) return NextResponse.json({ eroare: auth.eroare }, { status: auth.status, headers: ANTETE });
-  if (!(await plafonSofer(auth.sofer.telegram_id))) return NextResponse.json({ eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
   try {
     const r = await raspunsAzi({ id: auth.sofer.id, nume: auth.sofer.nume });
     return NextResponse.json(r, { headers: ANTETE });

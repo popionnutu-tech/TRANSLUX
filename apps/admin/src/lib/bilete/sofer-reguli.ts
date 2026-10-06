@@ -1,4 +1,5 @@
 import { verifyInitData } from '@/lib/telegram/init-data';
+import { buildReturAssignmentMap, buildTurAssignmentMap, type RawAssignment } from '@translux/db';
 
 // Regulile PURE ale API-ului șoferului (ION-239): identitatea din initData, cheia cursei, orele din grafic, alegerea
 // cursei curente (regula C1 din planul de vizualizare, 05.10) și clasificarea unei scanări (contractul POST
@@ -156,4 +157,17 @@ export function numeCursei(destFrom: string | null | undefined, destTo: string |
   const intreg = goingNorth ? t : f;
   if (SEPARATOR_RUTA_RE.test(intreg)) return intreg;
   return goingNorth ? `${t} – ${f}` : `${f} – ${t}`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cursele unui șofer dintr-o zi, din rândurile COMPLETE ale zilei din daily_assignments (ION-273): harta tur/retur cu override
+// IN/OUT (packages/routing/src/assignments.ts) se construiește din rândurile TUTUROR șoferilor — filtrate pe șofer în SQL,
+// un retur cu override ar ajunge la cine nu trebuie. Pur, testat (override A→B).
+
+export function curseDinAtribuiri(randuri: RawAssignment[], driverId: string): Array<{ crm_route_id: number; going_north: boolean }> {
+  const all = randuri.filter((a) => a.crm_route_id != null && a.driver_id);
+  const out: Array<{ crm_route_id: number; going_north: boolean }> = [];
+  for (const [rid, d] of buildTurAssignmentMap(all)) if (d.driver_id === driverId) out.push({ crm_route_id: rid, going_north: false });
+  for (const [rid, d] of buildReturAssignmentMap(all)) if (d.driver_id === driverId) out.push({ crm_route_id: rid, going_north: true });
+  return out;
 }

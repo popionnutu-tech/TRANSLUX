@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { chisinauTimeOf } from '@/lib/chisinau-time';
-import { plafonSofer, soferDinInitData } from '@/lib/bilete/sofer-auth';
+import { autentificaSofer } from '@/lib/bilete/sofer-auth';
 import { curseleSoferului } from '@/lib/bilete/sofer';
 import { COD_QR_RE, cheieCursa, clasificaScanare, parseazaCheie, parseazaScanari, type RezultatScanare } from '@/lib/bilete/sofer-reguli';
 
@@ -49,9 +49,9 @@ function textCursaBilet(b: BiletRand): string {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await soferDinInitData(req.headers.get('x-telegram-init-data'));
+  // ION-273: identitatea și plafonul într-un singur hop (în paralel).
+  const auth = await autentificaSofer(req.headers.get('x-telegram-init-data'));
   if (!auth.ok) return NextResponse.json({ eroare: auth.eroare }, { status: auth.status, headers: ANTETE });
-  if (!(await plafonSofer(auth.sofer.telegram_id))) return NextResponse.json({ eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
 
   const corp: unknown = await req.json().catch(() => null);
   const cheie = parseazaCheie((corp as { cheie?: unknown })?.cheie);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alegeCurenta, cheieCursa, clasificaScanare, hhmm, minute, numeCursei, parseazaCheie, parseazaInterval, parseazaScanari } from './sofer-reguli';
+import { alegeCurenta, cheieCursa, clasificaScanare, curseDinAtribuiri, hhmm, minute, numeCursei, parseazaCheie, parseazaInterval, parseazaScanari } from './sofer-reguli';
 
 describe('cheia cursei', () => {
   it('se construiește și se citește', () => {
@@ -122,5 +122,25 @@ describe('numeCursei — convenția mixtă din crm_routes (Ion, 05.10: «TRANSLU
         expect(p[0]).not.toBe(p[1]);
       }
     }
+  });
+});
+
+describe('curseDinAtribuiri — harta tur/retur cu override, din rândurile tuturor șoferilor (ION-273)', () => {
+  const A = 'sofer-A', B = 'sofer-B';
+  it('override A→B: ruta 7 a lui A are retur_route_id = 9 → returul rutei 9 e al lui A, nu al lui B (care are ruta 9 fără override)', () => {
+    const randuri = [
+      { crm_route_id: 7, driver_id: A, vehicle_id: 'v1', vehicle_id_retur: null, retur_route_id: 9 },
+      { crm_route_id: 9, driver_id: B, vehicle_id: 'v2', vehicle_id_retur: null, retur_route_id: null },
+    ];
+    expect(curseDinAtribuiri(randuri, A)).toEqual([{ crm_route_id: 7, going_north: false }, { crm_route_id: 9, going_north: true }]);
+    expect(curseDinAtribuiri(randuri, B)).toEqual([{ crm_route_id: 9, going_north: false }]);
+  });
+  it('filtrat doar pe rândurile lui B (ce ar fi dat un filtru SQL pe șofer) returul rutei 9 ar ajunge GREȘIT la B', () => {
+    const doarB = [{ crm_route_id: 9, driver_id: B, vehicle_id: 'v2', vehicle_id_retur: null, retur_route_id: null }];
+    expect(curseDinAtribuiri(doarB, B)).toEqual([{ crm_route_id: 9, going_north: false }, { crm_route_id: 9, going_north: true }]);
+  });
+  it('rânduri fără rută sau fără șofer se ignoră; șofer fără atribuiri → listă goală', () => {
+    const randuri = [{ crm_route_id: 7, driver_id: '', vehicle_id: null, vehicle_id_retur: null, retur_route_id: null }] as never;
+    expect(curseDinAtribuiri(randuri, A)).toEqual([]);
   });
 });

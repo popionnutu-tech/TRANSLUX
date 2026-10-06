@@ -27,6 +27,8 @@ export const STARI_ACTIVE = ['platita', 'platita_fara_bilet'] as const;
  * iar biletul e valabil azi pe altă cursă (ION-243). Returnarea însăși o hotărăște panoul.
  */
 export const FEREASTRA_DUPA_PLECARE_MS = 12 * 60 * 60_000;
+/** ION-266: cât timp după plată botul mai trimite singur biletul în chat (comenzile mai vechi nu se mai ating). */
+export const FEREASTRA_PLATA_MS = 48 * 60 * 60_000;
 
 const COLOANE = 'cod, status, lang, from_name, to_name, departure_at, seats, telegram_id, trip_date, crm_route_id, going_north';
 
@@ -42,6 +44,8 @@ export interface RepoBileteClienti {
   esteSofer?(telegramId: number): Promise<boolean>;
   /** ION-248: biletele (locurile) valabile ale comenzii, cu codul QR, în ordinea locurilor. */
   bileteQr?(cod: string): Promise<BiletQr[]>;
+  /** ION-266: comenzile plătite, legate de un cont (cumpărate din mini app) și încă fără biletul în chat. */
+  comenziPlatiteFaraMesaj?(nowMs: number): Promise<ComandaClient[]>;
 }
 
 export interface BiletQr { nr: number; loc_nr: number | null; cod_qr: string; status: string }
@@ -90,6 +94,23 @@ export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteCl
         .order('departure_at', { ascending: true })
         .limit(20);
       if (error) throw new Error(`bilete_comenzi legate: ${error.message}`);
+      return (data as ComandaClient[] | null) ?? [];
+    },
+
+    // ION-266 (Ion, 06.10: «cumpărat din Telegram, biletul deodată trebuia să apară»): plătite în ultimele 48 h, cu contul
+    // legat (din mini app, la creare) și fără mesaj în chat — și reluarea trimiterii picate de la /start.
+    async comenziPlatiteFaraMesaj(nowMs) {
+      const { data, error } = await db()
+        .from('bilete_comenzi')
+        .select(COLOANE)
+        .eq('status', 'platita')
+        .not('telegram_id', 'is', null)
+        .is('telegram_mesaj_id', null)
+        .gte('paid_at', new Date(nowMs - FEREASTRA_PLATA_MS).toISOString())
+        .gt('departure_at', new Date(nowMs - FEREASTRA_DUPA_PLECARE_MS).toISOString())
+        .order('paid_at', { ascending: true })
+        .limit(20);
+      if (error) throw new Error(`bilete_comenzi noi: ${error.message}`);
       return (data as ComandaClient[] | null) ?? [];
     },
 

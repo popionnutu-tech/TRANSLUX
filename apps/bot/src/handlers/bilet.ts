@@ -115,12 +115,12 @@ async function imagineDinPanou(cod: string, nr: number): Promise<Buffer | null> 
 }
 
 /** ION-248: imaginea întreagă a biletului, desenată de panou; dacă panoul nu răspunde — doar QR-ul. */
-async function pozaLocului(cod: string, b: BiletQr): Promise<Buffer> {
+export async function pozaLocului(cod: string, b: BiletQr): Promise<Buffer> {
   return (await imagineDinPanou(cod, b.nr))
     ?? QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 2, width: 600 });
 }
 
-async function locuriValabile(cod: string, repo: RepoBileteClienti): Promise<BiletQr[]> {
+export async function locuriValabile(cod: string, repo: RepoBileteClienti): Promise<BiletQr[]> {
   if (!repo.bileteQr) return [];
   try {
     return (await repo.bileteQr(cod)).filter((b) => b.status === 'valid');
@@ -129,6 +129,12 @@ async function locuriValabile(cod: string, repo: RepoBileteClienti): Promise<Bil
     console.warn('[bilet/start] locuri:', e instanceof Error ? e.message : e);
     return [];
   }
+}
+
+/** ION-266: pozele locurilor valabile, gata de trimis (fișier + locul), în ordinea locurilor; goală = fără loc valabil. */
+export async function pozeleLocurilor(cod: string, repo: RepoBileteClienti): Promise<Array<{ b: BiletQr; fisier: InputFile }>> {
+  const locuri = await locuriValabile(cod, repo);
+  return Promise.all(locuri.map(async (b) => ({ b, fisier: new InputFile(await pozaLocului(cod, b), `bilet-${b.nr}.png`) })));
 }
 
 /**

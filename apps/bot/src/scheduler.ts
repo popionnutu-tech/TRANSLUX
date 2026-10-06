@@ -15,6 +15,8 @@ import { creeazaSursaPozitii } from './services/pozitiiAutobuz.js';
 import { trimiteHartileScadente, type ApiHarta } from './handlers/harta-autobuz.js';
 import { repoDupaCursa } from './services/dupaCursa.js';
 import { trimiteMesajeleDupaCursa, type ApiDupaCursa } from './handlers/dupa-cursa.js';
+import { trimiteBileteleNoi, type ApiBiletNou } from './handlers/bilet-nou.js';
+import { repoBileteClienti } from './services/bileteClienti.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -342,6 +344,7 @@ export function scheduleDriverReferences(): void {
 // pornire așteaptă să se termine cea de dinainte. Marcajele stau în bază (migr. 505): repornirea nu dublează nimic.
 
 const BILETE_PIN_INTERVAL_MS = 15 * 60 * 1000;
+const BILETE_NOI_INTERVAL_MS = 60 * 1000;
 const BILETE_HARTA_INTERVAL_MS = 5 * 60 * 1000;
 /** ION-252: mesajul de după cursă — la 5 minute, ca să plece aproape de sfârșitul cursei (sosirea + 30 min). */
 const BILETE_DUPA_CURSA_INTERVAL_MS = 5 * 60 * 1000;
@@ -362,9 +365,15 @@ function rulareFaraSuprapunere(nume: string, intervalMs: number, job: () => Prom
   }, intervalMs);
 }
 
-export function scheduleBileteTelegram(api: ApiFixare & ApiHarta & ApiDupaCursa): void {
-  console.log('Bilete în chat started (pin la 15 min, harta autobuzului și mesajul de după cursă la 5 min)');
+export function scheduleBileteTelegram(api: ApiFixare & ApiHarta & ApiDupaCursa & ApiBiletNou): void {
+  console.log('Bilete în chat started (biletele noi la 1 min, pin la 15 min, harta autobuzului și mesajul de după cursă la 5 min)');
   const pozitii = creeazaSursaPozitii(config.adminBaseUrl);
+
+  // ION-266: biletul cumpărat din mini app (cont legat la creare) pleacă singur după plată, ca la /start bilet_<cod>.
+  rulareFaraSuprapunere('Bilete noi', BILETE_NOI_INTERVAL_MS, async () => {
+    const b = await trimiteBileteleNoi({ repo: repoBileteClienti, mesaje: repoMesajeBilet, api, nowMs: Date.now() });
+    if (b.trimise || b.erori) console.log(`Bilete noi: ${b.trimise} trimis(e), ${b.erori} erori`);
+  });
 
   rulareFaraSuprapunere('Bilete pin', BILETE_PIN_INTERVAL_MS, async () => {
     const b = await sincronizeazaToateConturile({ repo: repoMesajeBilet, api, nowMs: Date.now() });

@@ -8,7 +8,7 @@ name: bot-watchdog
 # Din 06.10.2026 (ION-253) rularea la 5 min e pe VPS, nu aici: GitHub anula des
 # jobul («The job was not acquired by Runner of type hosted even after multiple
 # attempts») și Ion primea «Run failed» fără ca botul să fi căzut. Crontab VPS:
-#   */5 * * * * . /root/lde-worker/cron-secret.env && curl ... /api/cron/bot-watchdog >> /root/lde-worker/bot-watchdog.log
+#   */5 * * * * /root/lde-worker/bot-watchdog.sh   (curl + «data cod_HTTP» în bot-watchdog.log)
 # Aici rămâne doar pornirea manuală.
 
 on:

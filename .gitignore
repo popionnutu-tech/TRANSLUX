@@ -51,3 +51,6 @@ peron-android/dist/
 !apps/admin/public/mini-app/bilete/*.png
 # Logourile plăților în subsolul translux.md (ION-235, cerințele maib)
 !apps/web/public/plati/*.png
+
+# Bundle-ul generat al mini app-ului șoferului (apps/admin/scripts/build-mini-app.mjs, la prebuild/predev)
+apps/admin/public/mini-app/bilete/dist/

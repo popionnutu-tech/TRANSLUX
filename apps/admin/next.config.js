@@ -5,8 +5,17 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
   },
+  // Mini app-ul șoferului (ION-271): route.ts citește la rulare manifestul bundle-ului și stil.css — trebuie incluse în funcție.
+  outputFileTracingIncludes: {
+    '/mini-app/bilete': ['./public/mini-app/bilete/dist/**', './public/mini-app/bilete/stil.css'],
+  },
   async headers() {
     return [
+      {
+        // Bundle-ul și logo-ul mini app-ului șoferului au hash de conținut în nume (ION-271): cache nemuritor; HTML-ul e no-store.
+        source: '/mini-app/bilete/dist/:file*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
       {
         source: '/(.*)',
         headers: [

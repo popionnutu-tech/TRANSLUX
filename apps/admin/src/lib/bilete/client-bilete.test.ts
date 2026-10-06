@@ -175,3 +175,34 @@ describe('telegramDinInitData — legarea comenzii la cumpărarea din mini app (
     expect(telegramDinInitData(initDataPentru(EU), undefined, ACUM_MS)).toBeNull();
   });
 });
+
+describe('ION-276: calea pe lot (bileteActiveComplete) — plafonul în paralel, același rezultat', () => {
+  function repoLot(o: { scurge?: boolean; plafon?: boolean } = {}) {
+    const repo = repoFals(o);
+    repo.bileteActiveComplete = vi.fn(async (id: number) => [
+      { ...comandaPublica('a'.repeat(32)), telegram_id: EU },
+      { ...comandaPublica('b'.repeat(32)), telegram_id: ALTUL },
+      // încheiată: plecată ieri, sosirea ieri → nu mai apare
+      { ...comandaPublica('d'.repeat(32)), departure_at: '2026-10-04T14:00:00+03:00', trip_date: '2026-10-04', telegram_id: EU },
+      { ...comandaPublica('c'.repeat(32)), telegram_id: EU },
+    ].filter((c) => o.scurge || c.telegram_id === id));
+    return repo;
+  }
+  it('dă aceleași bilete ca vechea cale, fără biletComplet pe comandă și fără telegram_id în răspuns', async () => {
+    const repo = repoLot();
+    const r = await cere(initDataPentru(EU), repo);
+    expect(r.ok && r.bilete.map((b) => b.cod)).toEqual(['a'.repeat(32), 'c'.repeat(32)]);
+    expect(r.ok && Object.keys(r.bilete[0])).not.toContain('telegram_id');
+    expect(repo.biletComplet).not.toHaveBeenCalled();
+    expect(repo.comenziActive).not.toHaveBeenCalled();
+    expect(r.ok && r.contact?.telefon).toBe('37368263753');
+  });
+  it('interogarea care «scurge» alte conturi nu scurge nimic în răspuns', async () => {
+    const r = await cere(initDataPentru(EU), repoLot({ scurge: true }));
+    expect(r.ok && r.bilete.map((b) => b.cod)).toEqual(['a'.repeat(32), 'c'.repeat(32)]);
+  });
+  it('plafon depășit → 429, chiar dacă citirile au mers în paralel', async () => {
+    const r = await cere(initDataPentru(EU), repoLot({ plafon: false }));
+    expect(r).toEqual({ ok: false, status: 429, eroare: 'prea_multe' });
+  });
+});

@@ -1,9 +1,9 @@
 import 'server-only';
-import QRCode from 'qrcode';
 import { localitatiPentruPublic, type Bilet, type BileteComanda } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { citesteConfigBilete } from './comenzi';
+import { asambleazaComanda, COLOANE_BILET, COLOANE_COMANDA, type BiletRand, type ComandaRand, type OprireSosireRand, type RutaRand } from './bilet-asamblare';
 
 // Ce vede pasagerul (pagina biletului de pe site, prin API cu codul din link ca secret) și ce vede site-ul
 // (configurația vânzării). Fără alți pasageri, fără ip_hash, fără telegram_id.
@@ -78,56 +78,20 @@ export async function sincronizeazaComandaDupaCod(cod: string): Promise<void> {
 export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (!COD_RE.test(cod)) return null;
   const db = getSupabase();
-  const { data: c, error: cErr } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, to_stop_order, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon').eq('cod', cod).maybeSingle();
+  const { data: c, error: cErr } = await db.from('bilete_comenzi').select(COLOANE_COMANDA).eq('cod', cod).maybeSingle();
   if (cErr) throw new BazaIndisponibilaError(cErr.message); // «nu există» ≠ «baza nu răspunde» (Codex X11)
   if (!c) return null;
-  const comanda = c as BileteComanda;
+  const comanda = c as unknown as ComandaRand;
   const [rB, rR, rS] = await Promise.all([
-    db.from('bilete').select('nr, loc_nr, cod_qr, status, urcat_at').eq('comanda_id', comanda.id).order('nr'),
+    db.from('bilete').select(COLOANE_BILET).eq('comanda_id', comanda.id).order('nr'),
     db.from('crm_routes').select('id, dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', comanda.crm_route_id).maybeSingle(),
     // ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii (biletul arată plecare → sosire)
-    db.from('crm_stop_fares').select('hour_from_chisinau, hour_from_nord').eq('crm_route_id', comanda.crm_route_id).eq('stop_order', (comanda as { to_stop_order?: number }).to_stop_order ?? -1).maybeSingle(),
+    db.from('crm_stop_fares').select('hour_from_chisinau, hour_from_nord').eq('crm_route_id', comanda.crm_route_id).eq('stop_order', comanda.to_stop_order ?? -1).maybeSingle(),
   ]);
   if (rB.error) throw new BazaIndisponibilaError(rB.error.message);
   if (rR.error) throw new BazaIndisponibilaError(rR.error.message);
-  const oraSosire = rS.data ? (comanda.going_north ? rS.data.hour_from_chisinau : rS.data.hour_from_nord) : null;
-  const sosire = typeof oraSosire === 'string' && /^\d{1,2}:\d{2}$/.test(oraSosire) ? oraSosire.padStart(5, '0') : null;
-  const bilete = rB.data;
-  const ruta = rR.data;
-  const bileteCuQr = await Promise.all(((bilete || []) as Omit<BiletPublic, 'qr_svg'>[]).map(async (b) => ({
-    ...b,
-    loc_nr: b.loc_nr ?? null,
-    qr_svg: await QRCode.toString(b.cod_qr, { type: 'svg', errorCorrectionLevel: 'M', margin: 1 }),
-  })));
-  return {
-    cod: comanda.cod,
-    numar: comanda.id.slice(0, 8).toUpperCase(),
-    status: comanda.status,
-    trip_date: comanda.trip_date,
-    from_name: comanda.from_name,
-    to_name: comanda.to_name,
-    departure_at: comanda.departure_at,
-    sosire,
-    seats: comanda.seats,
-    price_per_seat: Number(comanda.price_per_seat),
-    total: Number(comanda.total),
-    passenger_name: comanda.passenger_name,
-    lang: comanda.lang,
-    paid_at: comanda.paid_at,
-    cancelled_at: comanda.cancelled_at,
-    ruta: ruta ? {
-      id: ruta.id,
-      nume_ro: comanda.going_north ? ruta.dest_to_ro : ruta.dest_from_ro,
-      nume_ru: comanda.going_north ? ruta.dest_to_ru : ruta.dest_from_ru,
-    } : null,
-    punct_urcare: comanda.punct_urcare_nume_ro && comanda.punct_urcare_lat != null && comanda.punct_urcare_lon != null ? {
-      nume_ro: comanda.punct_urcare_nume_ro,
-      nume_ru: comanda.punct_urcare_nume_ru || comanda.punct_urcare_nume_ro,
-      lat: Number(comanda.punct_urcare_lat),
-      lon: Number(comanda.punct_urcare_lon),
-    } : null,
-    bilete: bileteCuQr,
-  };
+  // ION-276: aceeași asamblare ca lista clientului din mini app (bilet-asamblare.ts).
+  return asambleazaComanda(comanda, (rB.data ?? []) as BiletRand[], (rR.data as RutaRand | null) ?? null, (rS.data as OprireSosireRand | null) ?? null);
 }
 
 /** Capacitatea autobuzului (ION-239, migr. 501): 1 față + 5 × 3 + 4 spate. */

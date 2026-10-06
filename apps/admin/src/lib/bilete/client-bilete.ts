@@ -46,6 +46,11 @@ export interface RepoBileteClient {
   istoric(telegramId: number, limita: number): Promise<CalatorieIstoric[]>;
   /** false = contul a depășit plafonul de cereri. */
   plafon(telegramId: number): Promise<boolean>;
+  /**
+   * ION-276 («Telegram ultrafast» P8): comenzile active ale contului DEJA asamblate, pe lot (comenzile cu biletele încorporate,
+   * apoi rutele și orele de sosire într-un hop) — în loc de biletComplet pe fiecare comandă (1 + 3 interogări × N).
+   */
+  bileteActiveComplete?(telegramId: number, plecareDupa: string, limita: number): Promise<Array<ComandaPublica & { telegram_id: number | null }>>;
 }
 
 export type EroareClient = 'neautentificat' | 'expirat' | 'prea_multe';
@@ -101,9 +106,27 @@ function identitate(c: CerereBileteClient): { ok: true; telegramId: number } | {
 export async function bileteleClientului(cerere: CerereBileteClient, repo: RepoBileteClient): Promise<RaspunsBileteClient> {
   const id = identitate(cerere);
   if (!id.ok) return { ok: false, status: 401, eroare: id.eroare };
-  if (!(await repo.plafon(id.telegramId))) return { ok: false, status: 429, eroare: 'prea_multe' };
-
   const plecareDupa = new Date(cerere.acumMs - FEREASTRA_CITIRE_DUPA_PLECARE_MS).toISOString();
+
+  // ION-276: pe lot — plafonul (cheia e din HMAC) în paralel cu citirile; dacă e depășit, citirile se aruncă.
+  if (repo.bileteActiveComplete) {
+    const [plafonOk, active, contactBrut, istoricBrut] = await Promise.all([
+      repo.plafon(id.telegramId),
+      repo.bileteActiveComplete(id.telegramId, plecareDupa, MAX_COMENZI_CLIENT + CITITE_IN_PLUS),
+      repo.ultimulContact(id.telegramId),
+      repo.istoric(id.telegramId, MAX_ISTORIC),
+    ]);
+    if (!plafonOk) return { ok: false, status: 429, eroare: 'prea_multe' };
+    const istoric = istoricBrut.filter((c) => Number(c.telegram_id) === id.telegramId).slice(0, MAX_ISTORIC)
+      .map(({ telegram_id: _, ...rest }) => rest);
+    const bilete = active
+      .filter((b) => Number(b.telegram_id) === id.telegramId && !cursaIncheiata(b.departure_at, b.sosire, cerere.acumMs))
+      .slice(0, MAX_COMENZI_CLIENT)
+      .map(({ telegram_id: _, ...rest }) => rest as ComandaPublica);
+    return { ok: true, status: 200, bilete, contact: contactDinComanda(contactBrut), istoric };
+  }
+
+  if (!(await repo.plafon(id.telegramId))) return { ok: false, status: 429, eroare: 'prea_multe' };
   const [comenzi, contactBrut, istoricBrut] = await Promise.all([
     repo.comenziActive(id.telegramId, plecareDupa, MAX_COMENZI_CLIENT + CITITE_IN_PLUS),
     repo.ultimulContact(id.telegramId),

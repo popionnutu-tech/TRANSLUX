@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
+import { getSupabase } from '@/lib/supabase';
 import { createPart, updatePart, setPartLocation,
   listManufacturers, listCarModels, addManufacturer, addCarModel, cautaDuplicate } from '@/lib/piese-nomenclator';
 import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
@@ -158,4 +159,13 @@ export async function copyPartFields(sourceId: number): Promise<Record<string, u
 export async function verificaDuplicate(articol: string, coduri: string[], excludeId?: number) {
   await requirePartWrite();
   return cautaDuplicate(articol, coduri, excludeId);
+}
+
+// Cod de bare intern generat (migr. 383), pentru piesele care vin fără cod pe ambalaj.
+// Aceleași roluri ca scrierea unei piese: generarea nu e o citire, ocupă un cod din seria internă.
+export async function genereazaCod(): Promise<string> {
+  await requirePartWrite();
+  const { data, error } = await getSupabase().rpc('piese_genereaza_cod');
+  if (error) throw new Error(error.message);
+  return String(data);
 }

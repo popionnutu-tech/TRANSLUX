@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { submitReceipt, loadReceiptLabels } from './actions';
 import LabelSheet, { type SheetLabel } from './LabelSheet';
 import { receiptLinesSum, countableLines, totalMatches } from '@/lib/piese-receipt';
-import { loadPart } from '../part-actions';
+import { loadPart, loadPartLocation } from '../part-actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
 import PartForm, { type PartFormValues } from '@/components/PartForm';
@@ -64,7 +64,10 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [sheet, setSheet] = useState<SheetLabel[] | null>(null);
   const [sheetBusy, setSheetBusy] = useState(false);
-  const [editBusy, setEditBusy] = useState<number | null>(null); // indexul rândului care încarcă piesa pentru editare
+  const [editBusy, setEditBusy] = useState<number | null>(null);
+  // Adresa de raft la EDITARE. Exista doar la crearea unei piese noi — cerere Eduard (25.09). Are sens
+  // numai aici, în Prihod, unde se știe în ce depozit intră marfa; în Catalog depozitul nu e cunoscut.
+  const [editLoc, setEditLoc] = useState(''); // indexul rândului care încarcă piesa pentru editare
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   // Copiază rândul i cu toate datele (piesă, cantitate, preț, sumă) și îl inserează imediat dedesubt.
@@ -83,6 +86,9 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
     try {
       const p = await loadPart(partId);
       if (!p) { alert('Piesa nu a fost găsită.'); return; }
+      // Adresa curentă, ca omul s-o vadă și s-o poată corecta, nu s-o rescrie din memorie.
+      try { setEditLoc((await loadPartLocation(partId, warehouseId))?.location_label || ''); }
+      catch { setEditLoc(''); }
       setEditPart({ index: i, initial: {
         id: Number(p.id), group_id: p.group_id as number | string | undefined,
         name_long: (p.name_long as string) ?? '', name_ro: (p.name_ro as string) ?? '',
@@ -255,9 +261,29 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
             <PartForm
               groups={groups}
               initial={editPart.initial}
-              onSaved={(p) => { setLine(editPart.index, { part_label: p.label }); setEditPart(null); }}
+              disabled={!!locationError(editLoc)}
+              onSaved={async (p) => {
+                const loc = editLoc.trim();
+                setLine(editPart.index, { part_label: p.label });
+                // Adresa se scrie DUPĂ piesă, ca la creare. Un eșec aici nu trebuie să piardă editarea —
+                // dar trebuie spus, altfel omul n-ar afla niciodată că adresa n-a intrat.
+                if (loc) {
+                  try { await savePartLocation(editPart.initial.id!, warehouseId, { location_label: loc }); }
+                  catch (e: any) { setMsg({ t: 'danger', m: `Piesa a fost salvată, dar adresa nu: ${e?.message || 'eroare'}. Pune-o din Catalog.` }); }
+                }
+                setEditPart(null);
+              }}
               onCancel={() => setEditPart(null)}
-            />
+            >
+              <div className="form-group" style={{ marginBottom: 0, minWidth: 170 }}>
+                <label>Locație în {warehouseLabel}</label>
+                <input value={editLoc} onChange={(e) => setEditLoc(e.target.value)} placeholder={LOCATION_EXAMPLE}
+                  style={locationError(editLoc) ? { borderColor: 'var(--danger, #c0392b)' } : undefined} />
+                {locationError(editLoc)
+                  ? <div style={{ fontSize: 11, color: 'var(--danger, #c0392b)' }}>{locationError(editLoc)} — corectează sau golește</div>
+                  : <div className="muted" style={{ fontSize: 11 }}>{LOCATION_FORMAT}, opțional</div>}
+              </div>
+            </PartForm>
           </div>
         </div>
       )}

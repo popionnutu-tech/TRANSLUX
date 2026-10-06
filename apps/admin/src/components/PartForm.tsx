@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useId } from 'react';
-import { savePart, verificaDuplicate, loadPartLookups, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
+import { savePart, verificaDuplicate, genereazaCod, loadPartLookups, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
 import { searchParts, searchNewParts } from '@/app/(dashboard)/piese/search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -61,6 +61,7 @@ export default function PartForm({
   });
   const [codes, setCodes] = useState<string[]>(initialCodes.length ? initialCodes : ['']);
   const [error, setError] = useState('');
+  const [codBusy, setCodBusy] = useState(false);
   // Piesele existente care se bat cap în cap cu ce se scrie acum (migr. 372). Nu blochează salvarea —
   // două piese cu același articol sunt uneori legitime. Dar omul trebuie să vadă ce există ÎNAINTE de a
   // crea încă una: azi catalogul are 164 de grupuri cu articol repetat.
@@ -247,6 +248,22 @@ export default function PartForm({
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: 12 }}
             onClick={() => setCodes((cs) => [...cs, ''])}>+ alt cod</button>
+          {/* Multe piese vin fără cod pe ambalaj, iar fără cod nu pot fi scanate nici la inventariere, nici
+            la vânzare. Codul generat e EAN-13 din seria internă „2" — aceeași pe care o folosesc deja
+            peste 4300 de piese, deci se citește cu aceleași scanere. */}
+        <button type="button" className="btn" style={{ padding: '2px 10px', fontSize: 12 }}
+          disabled={codBusy} onClick={async () => {
+            setCodBusy(true); setError('');
+            try {
+              const c = await genereazaCod();
+              setCodes((cs) => {
+                const i = cs.findIndex((x) => !x.trim());
+                if (i >= 0) return cs.map((x, j) => (j === i ? c : x));
+                return [...cs, c];
+              });
+            } catch (e: any) { setError(e?.message || 'Nu am putut genera codul'); }
+            finally { setCodBusy(false); }
+          }}>{codBusy ? '…' : '⚙ Generează cod'}</button>
           {filledCodes.length > 1 && <span style={hint}>primul e pe etichetă</span>}
         </div>
       </div>

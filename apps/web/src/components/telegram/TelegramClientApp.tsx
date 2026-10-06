@@ -18,7 +18,7 @@ import { bileteDeAratat } from '@/components/bilet/BiletCard';
 import { HomePage } from '@/components/home-page';
 import { NowResults, type NowTrip } from '@/components/NowResults';
 import { phoneTel, phoneText } from '@/lib/phone';
-import { EcranCompletTelegram, suna } from '@/components/bilet/BiletActiuni';
+import { EcranCompletTelegram, suna, sunaPrinBrowser } from '@/components/bilet/BiletActiuni';
 import { citesteInitData } from './telegram-webapp';
 
 const RED = '#9B1B30';
@@ -279,8 +279,8 @@ function Istoric({ ecran, acum, locale }: { ecran: Ecran; acum: number; locale: 
 }
 
 const TXT_MINI = {
-  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', inDrum: (spre: string) => `În drum spre ${spre}`, locul: 'Locul', suna: 'Sună șoferul', azi: 'Azi', maine: 'Mâine' },
-  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', inDrum: (spre: string) => `В пути в ${spre}`, locul: 'Место', suna: 'Позвонить водителю', azi: 'Сегодня', maine: 'Завтра' },
+  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', inDrum: (spre: string) => `În drum spre ${spre}`, locul: 'Locul', suna: 'Sună șoferul', nuPorneste: 'Nu pornește apelul? Deschide în browser', azi: 'Azi', maine: 'Mâine' },
+  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', inDrum: (spre: string) => `В пути в ${spre}`, locul: 'Место', suna: 'Позвонить водителю', nuPorneste: 'Звонок не начался? Открыть в браузере', azi: 'Сегодня', maine: 'Завтра' },
 } as const;
 
 /**
@@ -309,6 +309,7 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
 .tg-mini-jos{display:flex;align-items:center;gap:12px;padding:12px 14px 14px 18px}
 .tg-mini-date{flex:1;min-width:0;display:grid;gap:3px;font-size:13px;color:#6B5B5F}
 .tg-mini-date strong{font-size:15px;color:#231A1C}
+.tg-mini-suna-rezerva{display:block;margin-top:4px;font-size:12px;color:#888;text-decoration:underline}
 .tg-mini-suna{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:7px 12px;border-radius:999px;background:#e3f3e8;color:#1b7f3b;font-weight:700;font-size:15px;text-decoration:none}
 .tg-mini-qr{flex-shrink:0;width:84px;height:84px;border-radius:12px;border:1px solid #F1E8EA;padding:4px;background:#fff}
 .tg-mini-qr svg{width:100%;height:100%;display:block}
@@ -327,6 +328,8 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
             {b && <span>{tx.locul} {b.loc_nr ?? b.nr} · {c.passenger_name}</span>}
             {cursa?.phone && <a className="tg-mini-suna" href={phoneTel(cursa.phone)}
               onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>📞 {phoneText(cursa.phone)}</a>}
+            {cursa?.phone && <a className="tg-mini-suna-rezerva" href={`/api/suna?t=${phoneTel(cursa.phone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+              onClick={(e) => { if (cursa.phone && sunaPrinBrowser(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>{tx.nuPorneste}</a>}
           </div>
           {/* SVG-ul QR vine de la panou, generat din codul biletului (nu din text de la utilizator). */}
           {b && <div className="tg-mini-qr" aria-label="QR" dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}

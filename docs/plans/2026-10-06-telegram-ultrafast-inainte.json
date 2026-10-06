@@ -1,0 +1,174 @@
+{
+ "eticheta": "inainte",
+ "la": "2026-10-06T11:56:11.888Z",
+ "N": 5,
+ "rezultate": {
+  "sofer": {
+   "rece": {
+    "gata_ms": 3025,
+    "cereri": 7,
+    "bytes": 95534,
+    "api_ttfb_ms": 569
+   },
+   "cald": {
+    "gata_ms": 2413,
+    "cereri": 7,
+    "bytes": 2585,
+    "api_ttfb_ms": 569
+   },
+   "brut": {
+    "rece": [
+     {
+      "gata_ms": 3161,
+      "cereri": 7,
+      "bytes": 95523,
+      "api_ttfb_ms": 571
+     },
+     {
+      "gata_ms": 3025,
+      "cereri": 7,
+      "bytes": 95534,
+      "api_ttfb_ms": 571
+     },
+     {
+      "gata_ms": 3013,
+      "cereri": 7,
+      "bytes": 95515,
+      "api_ttfb_ms": 568
+     },
+     {
+      "gata_ms": 3032,
+      "cereri": 7,
+      "bytes": 95539,
+      "api_ttfb_ms": 568
+     },
+     {
+      "gata_ms": 3025,
+      "cereri": 7,
+      "bytes": 95534,
+      "api_ttfb_ms": 569
+     }
+    ],
+    "cald": [
+     {
+      "gata_ms": 2408,
+      "cereri": 7,
+      "bytes": 3053,
+      "api_ttfb_ms": 567
+     },
+     {
+      "gata_ms": 2422,
+      "cereri": 7,
+      "bytes": 2585,
+      "api_ttfb_ms": 572
+     },
+     {
+      "gata_ms": 2423,
+      "cereri": 7,
+      "bytes": 2548,
+      "api_ttfb_ms": 568
+     },
+     {
+      "gata_ms": 2409,
+      "cereri": 7,
+      "bytes": 2497,
+      "api_ttfb_ms": 569
+     },
+     {
+      "gata_ms": 2413,
+      "cereri": 7,
+      "bytes": 3054,
+      "api_ttfb_ms": 572
+     }
+    ]
+   },
+   "api_direct_ms": [
+    578,
+    308,
+    283,
+    279,
+    261
+   ]
+  },
+  "client": {
+   "rece": {
+    "gata_ms": 4049,
+    "cereri": 32,
+    "bytes": 402233,
+    "api_ttfb_ms": 578
+   },
+   "cald": {
+    "gata_ms": 1577,
+    "cereri": 42,
+    "bytes": 8384,
+    "api_ttfb_ms": 582
+   },
+   "brut": {
+    "rece": [
+     {
+      "gata_ms": 3610,
+      "cereri": 32,
+      "bytes": 402324,
+      "api_ttfb_ms": 701
+     },
+     {
+      "gata_ms": 4071,
+      "cereri": 32,
+      "bytes": 402233,
+      "api_ttfb_ms": 577
+     },
+     {
+      "gata_ms": 4068,
+      "cereri": 32,
+      "bytes": 402242,
+      "api_ttfb_ms": 578
+     },
+     {
+      "gata_ms": 4045,
+      "cereri": 32,
+      "bytes": 355086,
+      "api_ttfb_ms": 573
+     },
+     {
+      "gata_ms": 4049,
+      "cereri": 32,
+      "bytes": 402218,
+      "api_ttfb_ms": 584
+     }
+    ],
+    "cald": [
+     {
+      "gata_ms": 1519,
+      "cereri": 42,
+      "bytes": 7332,
+      "api_ttfb_ms": 579
+     },
+     {
+      "gata_ms": 1594,
+      "cereri": 42,
+      "bytes": 8518,
+      "api_ttfb_ms": 594
+     },
+     {
+      "gata_ms": 1577,
+      "cereri": 42,
+      "bytes": 8418,
+      "api_ttfb_ms": 576
+     },
+     {
+      "gata_ms": 1606,
+      "cereri": 42,
+      "bytes": 8384,
+      "api_ttfb_ms": 583
+     },
+     {
+      "gata_ms": 1539,
+      "cereri": 42,
+      "bytes": 8382,
+      "api_ttfb_ms": 582
+     }
+    ]
+   }
+  }
+ }
+}

@@ -5,8 +5,8 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { getSupabase } from '@/lib/supabase';
 import { createPart, updatePart, setPartLocation,
   listManufacturers, listCarModels, addManufacturer, addCarModel, cautaDuplicate } from '@/lib/piese-nomenclator';
-import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
-import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
+import { partLabel, getPartById, getPartLocation, partLabelInfo, sheetLabelsForParts } from '@/lib/piese';
+import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId, canSeeCost } from '@/lib/piese-access';
 import { auditWrite, changedFields, type AuditFields } from '@/lib/audit';
 import { suggestLocation } from '@/lib/piese';
 
@@ -168,4 +168,23 @@ export async function genereazaCod(): Promise<string> {
   const { data, error } = await getSupabase().rpc('piese_genereaza_cod');
   if (error) throw new Error(error.message);
   return String(data);
+}
+
+// Foaia de etichete pentru piesele de pe o pagină de catalog. Aceleași roluri ca eticheta singulară —
+// nu se expune nimic în plus față de ea, doar pe mai multe piese odată.
+//
+// Depozitul: cel al contului. Pentru un cont fără depozit (admin) se ia MAGAZINUL, fiindcă eticheta de raft
+// cu preț e un obiect de magazin — iar fără un depozit anume nu se poate spune nici stocul, nici data
+// intrării, nici dacă prețul are ce căuta pe etichetă.
+export async function sheetLabels(partIds: number[]) {
+  const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'CONTABIL', 'MANAGER', 'GESTIONAR');
+  const ids = (partIds || []).map(Number).filter((n) => n > 0).slice(0, 200);
+  if (!ids.length) return [];
+  let wh = await userWarehouseId(session);
+  if (wh == null) {
+    const { data } = await getSupabase().from('piese_warehouses').select('id').eq('kind', 'SHOP').order('id').limit(1).maybeSingle();
+    wh = (data as any)?.id ?? null;
+  }
+  if (wh == null) return [];
+  return sheetLabelsForParts(ids, Number(wh), canSeeCost(session.role));
 }

@@ -178,7 +178,13 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
 const Label = memo(function Label({ l, bars }: { l: SheetLabel; bars: string }) {
   // Fusul CHIȘINĂU, nu al browserului: o recepție după 21:00 UTC ar fi ieșit pe etichetă cu ziua
   // precedentă pe orice stație setată pe alt fus. E chiar câmpul cerut de client.
-  const dt = new Date(l.receivedAt).toLocaleDateString('ro-RO', { timeZone: 'Europe/Chisinau' });
+  //
+  // Data poate LIPSI de când foaia se poate porni și din Catalog: o piesă al cărei stoc a venit din
+  // inventariere n-are nicio intrare, deci n-are „de când stă aici". Fără verificare, `new Date('')`
+  // dădea Invalid Date, iar pe raft s-ar fi lipit textul acela.
+  const dt = l.receivedAt
+    ? new Date(l.receivedAt).toLocaleDateString('ro-RO', { timeZone: 'Europe/Chisinau' })
+    : '';
   const sub = [l.manufacturer, l.articleCode && `Art: ${l.articleCode}`].filter(Boolean).join(' · ');
   return (
     <div className="piese-label" style={{ width: '58mm', height: '40mm', padding: '2mm', boxSizing: 'border-box', background: '#fff', color: '#000', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column', gap: '0.8mm', border: '1px solid #cbd5e1' }}>

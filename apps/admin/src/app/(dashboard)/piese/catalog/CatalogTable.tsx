@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import PartForm, { type PartFormValues } from '@/components/PartForm';
 import PartLocationEditor from '@/components/PartLocationEditor';
 import LabelModal, { type LabelData } from './LabelModal';
-import { partLabelData } from '../part-actions';
+// Aceeași foaie ca la recepție, nu o copie: dacă se schimbă formatul etichetei, se schimbă într-un loc.
+import LabelSheet, { type SheetLabel } from '../prihod/LabelSheet';
+import { partLabelData, sheetLabels } from '../part-actions';
 
 type Opt = { id: number; label: string };
 
@@ -19,6 +21,21 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
   const [adding, setAdding] = useState(false); // modal „piesă nouă în catalog"
   const [label, setLabel] = useState<LabelData | null>(null); // eticheta de tipărit
   const [labelBusy, setLabelBusy] = useState<number | null>(null);
+  const [sheet, setSheet] = useState<SheetLabel[] | null>(null); // foaia pentru toate piesele paginii
+  const [sheetBusy, setSheetBusy] = useState(false);
+
+  // Foaia pentru TOATĂ pagina de catalog. Rostul: marfa care stă deja pe raft fără etichetă nu are
+  // nicio recepție de deschis, deci foaia din Prihod n-o putea atinge. Se caută (sau se filtrează pe
+  // categorie), apoi se tipărește tot ce s-a găsit — o dată, nu piesă cu piesă.
+  async function openSheet() {
+    setSheetBusy(true);
+    try {
+      const d = await sheetLabels(rows.map((r) => r.id));
+      if (!d.length) { alert('Nu am putut construi foaia pentru piesele de pe această pagină.'); return; }
+      setSheet(d as SheetLabel[]);
+    } catch { alert('Nu am putut încărca foaia de etichete. Reîncearcă.'); }
+    finally { setSheetBusy(false); }
+  }
 
   async function openLabel(id: number) {
     setLabelBusy(id);
@@ -54,11 +71,16 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
 
   return (
     <>
-      {canEdit && (
-        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        {rows.length > 0 && (
+          <button className="btn btn-outline" onClick={openSheet} disabled={sheetBusy}>
+            {sheetBusy ? 'Se pregătește…' : `\u{1F3F7} Foaie de etichete (${rows.length})`}
+          </button>
+        )}
+        {canEdit && (
           <button className="btn btn-primary" onClick={() => setAdding(true)}>+ Adaugă piesă nouă</button>
-        </div>
-      )}
+        )}
+      </div>
       <table>
         <thead>
           <tr><th>Denumire</th><th>Grup</th><th>Producător</th><th>Model</th><th>Articul</th><th>Cod de bare</th><th>Unit.</th><th>Vânzare</th><th>Etichetă</th></tr>
@@ -126,6 +148,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
       )}
 
       {label && <LabelModal data={label} onClose={() => setLabel(null)} />}
+      {sheet && <LabelSheet labels={sheet} onClose={() => setSheet(null)} />}
     </>
   );
 }

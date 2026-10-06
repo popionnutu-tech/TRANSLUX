@@ -872,3 +872,61 @@ export async function receiptMarkForSale(
   if (error) { console.error('[piese] mark_for_sale:', error.message); return 0; }
   return Number(data);
 }
+
+// ── Foaia de etichete pornită din Catalog (nu din recepție) ──
+// Foaia din Prihod tipărește etichetele unei RECEPȚII. Dar marfa care stă deja pe raft fără etichetă n-are
+// nicio recepție de deschis — iar în magazin erau 11 piese cu stoc și fără niciun cod de bare, deci nici
+// scanabile, nici etichetabile. De aici aceeași foaie, alimentată din catalog.
+//
+// `receivedAt` e ULTIMA INTRARE a piesei în depozitul dat, nu ziua de azi: eticheta spune „de când stă
+// marfa asta aici", iar data de azi pe o piesă intrată în primăvară ar fi o minciună lipită pe raft.
+// Piesele fără nicio intrare (stoc venit din inventariere) rămân fără dată.
+export async function sheetLabelsForParts(partIds: number[], warehouseId: number, withMarkup: boolean) {
+  const ids = [...new Set(partIds.map(Number).filter((n) => n > 0))];
+  if (!ids.length) return [];
+  const sb = getSupabase();
+  // Patru citiri pe toată lista, nu patru per piesă: foaia se cere pe o pagină întreagă de catalog.
+  const [partsRes, stockRes, priceRes, moveRes, whRes] = await Promise.all([
+    sb.from('piese_parts').select('id, name_ro, name_long, manufacturer, article_code, barcode, unit').in('id', ids),
+    sb.from('piese_current_stock').select('part_id, qty').eq('warehouse_id', warehouseId).in('part_id', ids),
+    sb.from('piese_part_sale_price').select('part_id, sale_price, markup_pct').in('part_id', ids),
+    sb.from('piese_stock_movements').select('part_id, created_at').eq('warehouse_id', warehouseId)
+      .in('part_id', ids).in('movement_type', ['RECEIPT', 'TRANSFER_IN', 'DONOR_IN', 'ADJUST_PLUS'])
+      .order('created_at', { ascending: false }),
+    sb.from('piese_warehouses').select('kind').eq('id', warehouseId).maybeSingle(),
+  ]);
+  const isShop = (whRes.data as any)?.kind === 'SHOP';
+  const qty = new Map<number, number>();
+  for (const r of (stockRes.data || []) as any[]) qty.set(Number(r.part_id), Number(r.qty) || 0);
+  const price = new Map<number, any>();
+  for (const r of (priceRes.data || []) as any[]) price.set(Number(r.part_id), r);
+  // Prima apariție câștigă: lista vine descrescător după dată, deci e cea mai recentă intrare.
+  const last = new Map<number, string>();
+  for (const r of (moveRes.data || []) as any[]) {
+    const k = Number(r.part_id);
+    if (!last.has(k)) last.set(k, r.created_at);
+  }
+  // Ordinea cerută se păstrează (rândurile paginii de catalog), nu cea întoarsă de bază.
+  const byId = new Map<number, any>();
+  for (const p of (partsRes.data || []) as any[]) byId.set(Number(p.id), p);
+  return ids.flatMap((id) => {
+    const p = byId.get(id);
+    if (!p) return [];
+    const pr = price.get(id);
+    return [{
+      partId: id,
+      name: (p.name_ro && String(p.name_ro).trim()) || p.name_long || '',
+      manufacturer: p.manufacturer || '',
+      articleCode: p.article_code || '',
+      barcode: (p.barcode && String(p.barcode).trim()) || p.article_code || '',
+      unit: p.unit || 'buc',
+      qty: qty.get(id) || 0,
+      price: pr && pr.sale_price != null ? Number(pr.sale_price) : null,
+      // Adaosul doar pentru rolurile care au dreptul la cost: din adaos plus prețul de raft, costul de
+      // achiziție se calculează exact. Aceeași gardă ca la coloanele catalogului.
+      markupPct: withMarkup && pr && pr.markup_pct != null ? Number(pr.markup_pct) : null,
+      receivedAt: last.get(id) || '',
+      isShop,
+    }];
+  });
+}

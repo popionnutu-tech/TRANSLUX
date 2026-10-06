@@ -108,10 +108,12 @@ export const eticZi = (z: string) => { const d = new Date(`${z}T12:00:00Z`); ret
 
 /** mașinile săptămânii, cu km-ii de tăiat pe săptămână (cifra din raport), cele mai mari întâi */
 export function masiniSaptamana(rows: RandListaHarta[]) {
-  const m = new Map<string, { m: string; zile: string[]; economie: number; total: number; linii: Set<string>; sapt: number | null }>();
+  const m = new Map<string, { m: string; zile: string[]; economie: number; total: number; linii: Set<string>; sapt: number | null; necalculat: boolean }>();
   for (const r of rows) {
-    const x = m.get(r.m) ?? { m: r.m, zile: [], economie: 0, total: 0, linii: new Set<string>(), sapt: null };
+    const x = m.get(r.m) ?? { m: r.m, zile: [], economie: 0, total: 0, linii: new Set<string>(), sapt: null, necalculat: false };
     if (r.sumar.economieSapt != null) x.sapt = r.sumar.economieSapt;
+    // ION-263: economieSapt null + motiv = mașina scoasă din calcul (ex. LEAR «un singur schimb») — «necalculat», nu 0 km de tăiat
+    else if (r.sumar.economieSapt === null && r.sumar.motivAfara) x.necalculat = true;
     x.zile.push(r.z); x.economie += r.sumar.economie ?? 0; x.total += r.sumar.total;
     for (const l of r.sumar.linii) x.linii.add(l);
     m.set(r.m, x);

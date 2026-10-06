@@ -37,6 +37,12 @@ describe('lista mașinilor', () => {
     const [c] = masiniSaptamana([z('2026-09-14', 10), z('2026-09-15', 20), z('2026-09-19', null)]);
     expect([c.economie, c.zileMasurate]).toEqual([50, 30]);
   });
+  it('ION-263: economieSapt null cu motiv = «necalculat», nu 0; 0 cu motiv rămâne calculat', () => {
+    const z = (m: string, economieSapt: number | null): RandListaHarta => ({ m, z: '2026-09-28', sumar: { dow: 1, total: 100, cuOameni: 50, gol: 50, economie: null, ideal: null, linii: [], economieSapt, motivAfara: 'un singur schimb măsurat în săptămână (§8.3)' } });
+    const L = masiniSaptamana([z('320BRAT', null), z('043BRAU', 0)]);
+    expect(L.find((x) => x.m === '320BRAT')?.necalculat).toBe(true);
+    expect(L.find((x) => x.m === '043BRAU')?.necalculat).toBe(false);
+  });
   it('durata și eticheta zilei', () => {
     expect(durata(299 * 60)).toBe('4 h 59 min');
     expect(durata(20 * 60)).toBe('20 min');

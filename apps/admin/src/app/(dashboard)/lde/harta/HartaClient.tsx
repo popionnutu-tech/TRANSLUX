@@ -115,7 +115,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
                     <span style={{ fontFamily: MONO, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{n0(x.total)}</span>
                     <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>km</span>
                   </> : <>
-                    <span style={{ fontFamily: MONO, fontSize: 13, fontVariantNumeric: 'tabular-nums', color: x.economie >= 100 ? '#9B1B30' : 'var(--text)' }}>{n0(x.economie)}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontVariantNumeric: 'tabular-nums', color: x.economie >= 100 ? '#9B1B30' : 'var(--text)' }}>{x.necalculat ? 'necalculat' : n0(x.economie)}</span>
                     <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>km</span>
                   </>}
                 </div>
@@ -185,7 +185,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
             </div>
           ) : (
           <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-            săptămâna: {n0(m?.total)} km, de tăiat {sumar?.sursaEconomie === 'parcare' ? 'cu parcarea propusă' : 'față de ziua ideală (calcul vechi)'} {n0(m?.economie)} km pe săptămână
+            săptămâna: {n0(m?.total)} km, de tăiat {sumar?.sursaEconomie === 'parcare' ? 'cu parcarea propusă' : 'față de ziua ideală (calcul vechi)'} {m?.necalculat ? `necalculat (${sumar?.motivAfara ?? 'scoasă din calcul'})` : `${n0(m?.economie)} km`} pe săptămână
             {m && Math.abs(m.economie - m.zileMasurate) > 0.5 && <> (în zilele măsurate {n0(m.zileMasurate)} km, adus la 5 zile ca în raport)</>}
           </div>
           )}

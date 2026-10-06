@@ -93,7 +93,28 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
             <Pas et="Pe lună" calc={`× ${n2(m.lei_km)} lei/km × ${zileLuna} zile`} rez={`${n0(m.r1.lei)} lei`} tare />
           </Regula>
         )}
-        {m.r3 && (
+        {m.r3 && m.r3.regula === 'R-PAUZĂ' && (
+          <Regula titlu="Regula 3 · nu pleacă acasă la prânz" ales={ales && care === 3}>
+            {/* ION-263 (R-PAUZĂ): doar pauzele acasă care costă peste prag față de poartă intră în economie */}
+            <Pas et="Pauze acasă" calc={`${m.r3.pauze_acasa ?? 0}: ${m.r3.pauze_permise ?? 0} permise (≤ ${m.r3.prag_km ?? 15} km față de poartă) · ${m.r3.pauze_peste ?? 0} peste prag`} rez="" />
+            <Pas et="Se câștigă" calc={`pauzele peste prag, pe ${n1(m.azi_fara_parc ?? m.azi)} km/zi`} rez={`${n1(m.r3.km)} km/zi`} />
+            <Pas et="Pe lună" calc={`× ${n2(m.lei_km)} lei/km × ${zileLuna} zile`} rez={`${n0(m.r3.lei)} lei`} tare />
+            {m.r3_fara_prag && (
+              <p className="mt-1! text-[11.5px] text-neutral-500">Fără prag (toată pauza acasă socotită risipă) ar fi fost {n1(m.r3_fara_prag.km)} km/zi · {n0(m.r3_fara_prag.lei)} lei.</p>
+            )}
+            {(m.r3.pauze ?? []).some((p) => p.verdict === 'la poartă') && (
+              <ul className="mt-2! flex flex-col gap-0.5 text-[12px]">
+                {(m.r3.pauze ?? []).filter((p) => p.verdict === 'la poartă').map((p) => (
+                  <li key={`${p.z}|${p.ora}`}>
+                    <b className={ROSU}>pauza {p.z.slice(8, 10)}.{p.z.slice(5, 7)} {p.ora} trebuie făcută la poartă</b>
+                    <span className="text-neutral-500"> — {p.de} → acasă → {p.spre}: +{n1(p.cost_km)} km față de poartă, {n1(p.km_economie)} km GPS de tăiat</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Regula>
+        )}
+        {m.r3 && m.r3.regula !== 'R-PAUZĂ' && (
           <Regula titlu="Regula 3 · nu pleacă acasă la prânz" ales={ales && care === 3}>
             <Pas et="Ziua nouă" calc={`${n1(plin)} + ${n1(m.d_casa)} + ${n1(m.d_uzina)} + ${n1(m.alte)}`} rez={`${n1(m.r3.zi)} km`} />
             <Pas et="Se câștigă" calc={`${n1(m.azi_fara_parc ?? m.azi)} − ${n1(m.r3.zi)}`} rez={`${n1(m.r3.km)} km/zi`} />

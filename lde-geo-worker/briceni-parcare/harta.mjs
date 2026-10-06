@@ -19,7 +19,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { hav, GARA, POARTA, localToUtc, localMin, hhmm, zileIntre } from '/root/lde-worker/briceni/cod/geo.mjs';
 import { evenimente, bucata, tIn, tOut } from '/root/lde-worker/briceni/cod/evenimente.mjs';
-import { clasificaZi, impartOcol, golImpusDeTure, bramburaBucata, celula, loculNoptii, PR, CAT } from '/root/lde-worker/briceni/cod/livrare.mjs';
+import { clasificaZi, impartOcol, costPauza, golImpusDeTure, bramburaBucata, celula, loculNoptii, PR, CAT } from '/root/lde-worker/briceni/cod/livrare.mjs';
 import { alegeLocuri } from '/root/lde-worker/lear-parcare/lear-parcare-alege.mjs';
 import { tipInterval, linieSchelet, dp, economieZile } from './harta-core.mjs';
 
@@ -165,7 +165,9 @@ for (const d of ZI) {
     if (se == null) { nou.push(s); continue; }
     const laPoarta = (p) => hav(p, POARTA) <= POARTA.r + 0.1;
     const minDirect = troxK(s.intre.prev) && troxK(s.intre.next) && (laPoarta(s.bpts[0]) || laPoarta(s.bpts.at(-1))) ? L ?? 0 : 0;
-    nou.push(...impartOcol(s, { se, minDirect }));
+    // R-PAUZĂ (ION-263): același cost al pauzei acasă ca livrare.mjs, altfel controlul de egalitate pică
+    const pauza = await costPauza(s, se, minDirect, kmDrum);
+    nou.push(...impartOcol(s, { se, minDirect, pauza }));
   }
   d.seg = nou;
 }

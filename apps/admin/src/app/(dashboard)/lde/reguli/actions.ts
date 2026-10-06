@@ -19,6 +19,14 @@ export type RutaMasina = {
 
 export type Regula = { zi: number; km: number; lei: number };
 
+/** ION-263 (R-PAUZĂ, Ion 06.10.2026): o pauză acasă între două curse cu oameni, judecată față de așteptarea la poartă (prag 15 km) */
+export type PauzaR3 = { z: string; ora: string; de: string; spre: string; cost_km: number; verdict: 'acasă permis' | 'la poartă'; km_economie: number };
+/** regula 3 socotită pe pauze (lear-r3-pauze.mjs): doar pauzele acasă peste prag intră în economie; rapoartele vechi n-au câmpurile astea */
+export type RegulaPauze = Regula & {
+  regula?: 'R-PAUZĂ'; prag_km?: number; km_model?: number;
+  pauze_acasa?: number; pauze_permise?: number; pauze_peste?: number; pauze?: PauzaR3[];
+};
+
 export type MasinaRand = {
   masina: string;
   tip: string | null;
@@ -49,7 +57,9 @@ export type MasinaRand = {
   r1?: Regula;
   // regula 2: rutele împărțite altfel pe clasă de locuri; km/zi câștigați de mașina asta, rutele noi pe tură
   r2?: { km: number; lei: number; rute: { A?: string; B?: string } };
-  r3?: Regula;
+  r3?: RegulaPauze;
+  // ION-263: regula 3 de dinainte de R-PAUZĂ (ziua întreagă − ziua fără pauze acasă), păstrată pentru comparație
+  r3_fara_prag?: Regula;
   km_baza?: { km: number; zile: number; km_aici: number; dif: number };
   // ⚠ ce modelul nu poate explica
   steaguri: string[];

@@ -43,8 +43,14 @@ let R_POARTA = 0.7; const R_CAPAT = Number(process.env.R_CAPAT ?? 1.5), PAUZA_CU
 const V_OPRIRE = 8 / 1.852, V_LENT = 15 / 1.852, R_SAT = 0.8, SEC_LENT = 20, R_SAT_POARTA = 2, R_SAT_CASA = 1.5, MARGINE_KM = 1;
 const GOL_MAX_H = 12, IESIRE_POARTA_KM = 2, R_DEPOZIT = 0.5, DEPOZIT_MIN = 2, CAPETE_TAIATE_PE_OPRIRI_MAX = Number(process.env.OPRIRI_MAX ?? 0.5), BUCLA_POARTA_KM = Number(process.env.BUCLA_POARTA_KM ?? 5);
 const RAZA_CAND = 15, PRAG_AL_DOILEA = 20, MIN_DRUMURI = 3, TOLERANTA = 20, VAL_F = 1.05;
+// ION-263 R-PAUZĂ (Ion, 06.10.2026; lde_uzine.reguli_livrare SEBN_ORHEI / SEBN_STRASENI, secțiunea «R-PAUZĂ»): pauza ACASĂ e permisă când drumul
+// acasă adaugă cel mult PRAG_PAUZA_KM pe șosea (Valhalla bus, fără × 1,05) față de așteptarea la capătul rutei:
+//   cost = V(E → casă) + V(casă → S) − min pe capetele mașinii V(E → capăt) + V(capăt → S).
+// Sub prag pauza nu e livrare evitabilă: drumul rămâne cum e (loc 0, km = real) și nu intră în alegerea locurilor; peste prag se judecă ca până acum.
+// «Acasă» = locul unde stă în gol (cea mai lungă staționare) e la ≤ R_PAUZA_ACASA km de casă.
+const PRAG_PAUZA_KM = 15, R_PAUZA_ACASA = 2;
 const PARAM = { R_POARTA, R_CAPAT, PAUZA_CURSA_MIN, OPRIRE_LUNGA_MIN, V_OPRIRE_KMH: 8, V_LENT_KMH: 15, R_SAT, SEC_LENT, GOL_MAX_H, IESIRE_POARTA_KM,
-  R_DEPOZIT, RAZA_CAND, PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA, VAL_F };
+  R_DEPOZIT, RAZA_CAND, PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA, VAL_F, PRAG_PAUZA_KM, R_PAUZA_ACASA };
 const r1 = (x) => Math.round(x * 10) / 10, r5 = (x) => Math.round(x * 1e5) / 1e5;
 const hav = (a, b) => { const R = 6371, r = Math.PI / 180; const dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); };
@@ -193,7 +199,7 @@ for (const M of D.masini) {
   // bucățile care se suprapun se lipesc
   const lant = []; for (const w of munca) { const u = lant.at(-1); if (u && w.t0 <= u.t1) { if (w.t1 > u.t1) { u.t1 = w.t1; u.pana = w.pana; u.fel += `+${w.fel}`; } } else lant.push({ ...w }); }
   // 3. golurile
-  const legi = [];
+  let legi = [];
   for (let i = 0; i + 1 < lant.length; i++) {
     const a = lant[i], b = lant[i + 1], ore = (b.t0 - a.t1) / 3600e3, z = ziLucru(a.t1);
     if (!zileM.has(z)) continue;
@@ -247,6 +253,31 @@ for (const M of D.masini) {
   if (schimburi < 2) { masini.push({ ...cuStat, motivFara: 'un singur schimb măsurat în săptămână (§8.3)' }); continue; }
   if (tr.length && peOpriri / tr.length > CAPETE_TAIATE_PE_OPRIRI_MAX) { masini.push({ ...cuStat, motivFara: `rute neverificate: ${peOpriri} din ${tr.length} tururi și retururi nu trec pe la capătul rutelor ei` }); continue; }
   if (!legi.length) { masini.push({ ...cuStat, motivFara: 'niciun gol în care mașina să stea (≥ 60 min) în zilele de lucru' }); continue; }
+  // R-PAUZĂ (ION-263): pauzele făcute acasă cu ocol ≤ PRAG_PAUZA_KM față de capăt ies din judecată (rămân cum sunt)
+  const pauzePermise = [];
+  if (casa && capete.length) {
+    // noaptea nu e pauză între ture (regula 1 / parcarea o judecă): golul care trece de miezul nopții sau începe înainte de 04:00
+    const noapte = (l) => minZi(l.t0) > minZi(l.t1) || minZi(l.t0) < 240;
+    const acasa = legi.filter((l) => l.acum && hav(l.acum, casa) <= R_PAUZA_ACASA && !noapte(l));
+    stat.noptiAcasa = legi.filter((l) => l.acum && hav(l.acum, casa) <= R_PAUZA_ACASA && noapte(l)).length;
+    if (acasa.length) {
+      await matrice(acasa.map((l) => l.E), [casa, ...capete]); await matrice([casa, ...capete], acasa.map((l) => l.S));
+      const Vr = (a, b) => V(a, b) / (hav(a, b) < 0.3 ? 1 : VAL_F);   // km Valhalla brut (V pune × 1,05)
+      for (const l of acasa) {
+        const alt = Math.min(...capete.map((c) => Vr(l.E, c) + Vr(c, l.S)));
+        l.pauza = { cost: r1(Vr(l.E, casa) + Vr(casa, l.S) - alt), alternativa: r1(alt) };
+        l.pauza.permis = l.pauza.cost <= PRAG_PAUZA_KM;
+        if (l.pauza.permis) pauzePermise.push(l);
+      }
+      stat.pauzeAcasa = acasa.length; stat.pauzePermise = pauzePermise.length; stat.kmPauzePermise = r1(pauzePermise.reduce((s, l) => s + l.real, 0));
+    }
+  }
+  const legiToate = legi;
+  legi = legi.filter((l) => !l.pauza?.permis);
+  if (!legi.length) { const re = r1(legiToate.reduce((s, l) => s + l.real, 0));
+    masini.push({ ...cuStat, motivFara: `toate pauzele sunt acasă, cu ocol ≤ ${PRAG_PAUZA_KM} km față de capăt (R-PAUZĂ) — rămân cum sunt`, real: re, propus: re, economieSapt: 0,
+      legi: legiToate.map((l) => ({ z: l.z, t0: l.t0, t1: l.t1, ora: l.ora, ore: l.ore, a: [r5(l.E.lat), r5(l.E.lon)], b: [r5(l.S.lat), r5(l.S.lon)], aN: numeLoc(l.E), bN: numeLoc(l.S), acum: l.acum,
+        brut: r1(l.brut), liber: r1(l.liber), real: r1(l.real), loc: 0, km: r1(l.real), pauza: l.pauza })) }); continue; }
   // 5. candidații
   const capL = legi.flatMap((l) => [l.E, l.S]);
   const cand = LOC.filter((L) => capL.some((p) => hav(p, L) <= RAZA_CAND) && hav(L, PARC) > 3).map((L) => ({ n: L.n, lat: L.lat, lon: L.lon, fel: L.fel }));
@@ -264,7 +295,9 @@ for (const M of D.masini) {
   const cost = legi.map((l) => cand.map((c) => V(l.E, c) + V(c, l.S)));
   if (!cand.length) { masini.push({ ...cuStat, motivFara: 'niciun loc cu drum pe șosea (Valhalla) spre capetele drumurilor ei' }); continue; }
   const { ales, b1, b2, alege, costAles, folosit } = alegeLocuri({ legi, cand, cost, hav, P: { PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA } });
-  const real = legi.reduce((s, l) => s + l.real, 0), propus = ales.t;
+  // R-PAUZĂ: pauzele permise intră în real și în propus cu aceiași km (economie 0 pe ele)
+  const kmPermise = pauzePermise.reduce((s, l) => s + l.real, 0);
+  const real = legi.reduce((s, l) => s + l.real, 0) + kmPermise, propus = ales.t + kmPermise;
   let motivFara = null;
   if (real - propus < 0.5) motivFara = 'propunerea nu scade km — rămâne cum e';
   const areLoc = !motivFara;
@@ -272,23 +305,25 @@ for (const M of D.masini) {
     // 8. răspunsul 4: locul departe de casa șoferului — șoferul locuiește în altă parte, drumul lui spre casă nu se socotește (ca la Drăxlmaier §8.9)
     ...(casa && cand[j].fel !== 'casa' && hav(cand[j], casa) > 4 && M.casa ? { nota: `șoferul locuiește în ${M.casa}; drumul lui spre casă nu se socotește` } : {}) })) : [];
   const zile = [...zileM].sort().map((z) => { const L = legi.map((l, i) => [l, i]).filter(([l]) => l.z === z);
-    const re = L.reduce((s, [l]) => s + l.real, 0), pr = L.reduce((s, [, i]) => s + costAles(ales.idx, i), 0);
-    return { z, drumuri: L.length, real: r1(re), propus: r1(pr), economie: r1(re - pr) }; });
+    const Pz = pauzePermise.filter((l) => l.z === z), kz = Pz.reduce((s, l) => s + l.real, 0);
+    const re = L.reduce((s, [l]) => s + l.real, 0) + kz, pr = L.reduce((s, [, i]) => s + costAles(ales.idx, i), 0) + kz;
+    return { z, drumuri: L.length + Pz.length, real: r1(re), propus: r1(pr), economie: r1(re - pr) }; });
   // real, propus și economia se rotunjesc o dată, ca economie = real − propus pe rând
   const R = r1(real), Pp = r1(propus);
   masini.push({ ...cuStat, locuri, motivFara,
     castigAlDoilea: locuri.length === 2 ? r1(b1.t - ales.t) : null, unLoc: { n: cand[b1.idx[0]].n, kmSapt: r1(b1.t) },
     doiLocuri: b2 ? { n: b2.idx.map((j) => cand[j].n), kmSapt: r1(b2.t), castig: r1(b1.t - b2.t) } : null,
     real: R, propus: Pp, economieSapt: areLoc ? r1(R - Pp) : 0, zile,
-    legi: legi.map((l, i) => { const j = alege(ales.idx, i); return { z: l.z, t0: l.t0, t1: l.t1, ora: l.ora, ore: l.ore, dupa: l.dupa, inainte: l.inainte,
+    legi: legiToate.map((l) => { const i = legi.indexOf(l), j = i < 0 ? -1 : alege(ales.idx, i); return { z: l.z, t0: l.t0, t1: l.t1, ora: l.ora, ore: l.ore, dupa: l.dupa, inainte: l.inainte,
       a: [r5(l.E.lat), r5(l.E.lon)], b: [r5(l.S.lat), r5(l.S.lon)], aN: numeLoc(l.E), bN: numeLoc(l.S), acum: l.acum, brut: r1(l.brut), liber: r1(l.liber), real: r1(l.real), opririMutate: l.opririMutate,
-      loc: areLoc ? (j < 0 ? 0 : ales.idx.indexOf(j) + 1) : null, km: r1(costAles(ales.idx, i)) }; }) });
+      loc: areLoc ? (j < 0 ? 0 : ales.idx.indexOf(j) + 1) : null, km: r1(i < 0 ? l.real : costAles(ales.idx, i)), ...(l.pauza ? { pauza: l.pauza } : {}) }; }) });
 }
 masini.sort((a, b) => (b.economieSapt ?? 0) - (a.economieSapt ?? 0) || a.m.localeCompare(b.m));
 const flota = { masini: masini.length, economieSapt: r1(masini.reduce((s, x) => s + (x.economieSapt ?? 0), 0)), doiLocuri: masini.filter((x) => x.locuri.length === 2).length,
   faraPropunere: masini.filter((x) => !x.locuri.length).map((x) => `${x.m}: ${x.motivFara}`), faraValhalla };
 flota.kmBucle = r1(masini.reduce((s, x) => s + x.bucle.reduce((t, b) => t + b.km, 0), 0)); flota.bucle = masini.reduce((s, x) => s + x.bucle.length, 0);
 flota.partial = PARTIAL;
+flota.pauzeAcasa = masini.reduce((s, x) => s + (x.stat?.pauzeAcasa ?? 0), 0); flota.pauzePermise = masini.reduce((s, x) => s + (x.stat?.pauzePermise ?? 0), 0); flota.pragPauzaKm = PRAG_PAUZA_KM;   // R-PAUZĂ (ION-263)
 writeFileSync(OUT, JSON.stringify({ uzina: D.uzina, nume: D.nume, saptamina: D.saptamina, rulat: new Date().toISOString(), parametri: PARAM, flota, masini }));
 writeFileSync(CACHE_F, JSON.stringify(Object.fromEntries(cache)));
 console.log(`${D.nume} ${D.saptamina}: ${flota.masini} mașini · de tăiat ${flota.economieSapt} km/săpt. · două locuri ${flota.doiLocuri} · perechi fără Valhalla ${faraValhalla}${lipsaV.length ? ` (${lipsaV.join('; ')})` : ''}`);

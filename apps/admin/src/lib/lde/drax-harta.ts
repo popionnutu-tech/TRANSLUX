@@ -36,6 +36,8 @@ export interface CursaPlan {
   kmGps?: number | null;
   /** urma arată altă rută decât a schimbului (cursa rămâne neconfirmată pe ruta schimbului — TUR = RETUR strict) */
   rutaUrma?: string | null;
+  /** schimb de rută cu altă mașină, confirmat după oră (oglinda la ±20 min, aceeași zi, schimb și sens): cursa e făcută pe ruta efectivă */
+  schimbCu?: string | null;
 }
 /** ION-268: rezumatul planului unei zile (câte curse din plan, cum s-au făcut) */
 export interface PlanZiSumar { planificate: number; facute: number; neconfirmate: number; lipsa: number; plus: number; s3?: number }
@@ -218,6 +220,7 @@ export function randuriPlan(curse: CursaPlan[]): { cheie: string; text: string; 
     text: `${c.sens === 'tur' ? 'Tur' : 'Retur'} s${c.schimb} · ${c.ruta ?? '—'}${c.capat ? ` ${c.capat}` : ''}: ${SIMB_PLAN[c.statut]}`
       + (c.km != null && c.statut === 'facuta' ? `, ${(Math.round(c.km * 10) / 10).toLocaleString('ro-RO')} km din schelet, ${c.peDrum ? `pe drumul rutei (${c.acoperire ?? '—'} %), fără urcări văzute` : `${c.urcari} urcări`}` : '')
       + (c.statut === 'neconfirmata' && c.rutaUrma ? ` — urma arată ruta ${c.rutaUrma}` : '')
+      + (c.statut === 'facuta' && c.schimbCu ? ` — schimb de rută cu ${c.schimbCu}` : '')
       + (c.motiv && c.statut === 'lipsa' ? ` — ${c.motiv}` : ''),
   }));
 }

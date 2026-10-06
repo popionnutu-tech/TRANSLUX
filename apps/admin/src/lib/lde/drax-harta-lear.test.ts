@@ -54,6 +54,7 @@ describe('«schelet întâi» pe hartă (ION-268)', () => {
     expect(r.map((x) => x.cheie)).toEqual(['1-tur', '1-retur', '2-retur']);
     expect(r[0].text).toBe('Tur s1 · B6 Zăzulenii Noi: făcută, 21,5 km din schelet, 10 urcări');
     expect(r[1].text).toBe('Retur s1 · B9 Cetireni: neconfirmată (capăt atins, fără drumul rutei) — urma arată ruta B6');
+    expect(randuriPlan([c({ sens: 'retur', schimb: 2, ruta: 'A12', capat: 'Frăsinești', km: 29.4, schimbCu: '827MUM' })])[0].text).toBe('Retur s2 · A12 Frăsinești: făcută, 29,4 km din schelet, 10 urcări — schimb de rută cu 827MUM');
     expect(randuriPlan([c({ ruta: 'A5', capat: 'Gherman', km: 25.1, urcari: 0, peDrum: true, acoperire: 100 })])[0].text).toBe('Tur s1 · A5 Gherman: făcută, 25,1 km din schelet, pe drumul rutei (100 %), fără urcări văzute');
     expect(r[2].text).toBe('Retur s2 · —: lipsă — nicio plecare de la poartă în fereastra 21:30–02:30');
   });

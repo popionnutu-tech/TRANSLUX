@@ -309,7 +309,7 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
 .tg-mini-jos{display:flex;align-items:center;gap:12px;padding:12px 14px 14px 18px}
 .tg-mini-date{flex:1;min-width:0;display:grid;gap:3px;font-size:13px;color:#6B5B5F}
 .tg-mini-date strong{font-size:15px;color:#231A1C}
-.tg-mini-suna{display:inline-flex;align-items:center;gap:6px;margin-top:4px;color:${RED};font-weight:700;font-size:14px;text-decoration:none}
+.tg-mini-suna{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:7px 12px;border-radius:999px;background:#e3f3e8;color:#1b7f3b;font-weight:700;font-size:15px;text-decoration:none}
 .tg-mini-qr{flex-shrink:0;width:84px;height:84px;border-radius:12px;border:1px solid #F1E8EA;padding:4px;background:#fff}
 .tg-mini-qr svg{width:100%;height:100%;display:block}
 `}</style>

@@ -105,15 +105,21 @@ export function EcranCompletTelegram() {
 }
 
 /**
- * ION-249: în mini app-ul Telegram, linkul tel: nu pornește apelul; cerem Telegram să deschidă adresa în browserul
- * telefonului (web_app_open_link), care redirecționează spre tel:. În afara Telegram — linkul tel: obișnuit.
+ * ION-249: în mini app-ul Telegram, linkul tel: din pagină nu pornește apelul. ION-267 (Ion, 06.10: «se deschide o pagină
+ * nouă în html, nu este posibil direct sunarea?»): pe telefon (iOS/Android) cerem clientului Telegram să deschidă chiar
+ * adresa tel: (web_app_open_link) — sistemul arată direct fereastra de apel, fără browser. Pe desktop/web, unde tel: n-ar
+ * fi preluat, rămâne ocolul prin browser (/api/suna → tel:). În afara Telegram — linkul tel: obișnuit.
  * Întoarce true dacă a preluat apăsarea.
  */
 export function suna(telefon373: string): boolean {
   if (typeof window === "undefined") return false;
-  const inTelegram = !!sessionStorage.getItem("tgWebAppVersion") || new URLSearchParams(window.location.hash.slice(1)).has("tgWebAppVersion");
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const inTelegram = !!sessionStorage.getItem("tgWebAppVersion") || hash.has("tgWebAppVersion");
   if (!inTelegram) return false;
-  const url = `${window.location.origin}/api/suna?t=${encodeURIComponent(telefon373.replace(/\D/g, ""))}`;
+  const cifre = telefon373.replace(/\D/g, "");
+  const platforma = (sessionStorage.getItem("tgWebAppPlatform") || hash.get("tgWebAppPlatform") || "").toLowerCase();
+  const peTelefon = platforma === "ios" || platforma === "android" || platforma === "android_x";
+  const url = peTelefon ? `tel:+${cifre}` : `${window.location.origin}/api/suna?t=${encodeURIComponent(cifre)}`;
   const w = window as unknown as { TelegramWebviewProxy?: { postEvent: (t: string, d: string) => void } };
   try {
     if (w.TelegramWebviewProxy) w.TelegramWebviewProxy.postEvent("web_app_open_link", JSON.stringify({ url }));

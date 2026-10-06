@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { syncWeatherPoints } from '@/lib/weather';
 import { sendWeeklyDriverPenalties } from '@/lib/driver-penalties-sync';
+import { alertAdmins } from '@/lib/telegram-notify';
 import { verificaLuni, saptaminaLunii } from '@/lib/lde/luni-paznic';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,10 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error('sendWeeklyDriverPenalties error:', e);
     penalties = 'error';
+  }
+  // 05.10: imaginea de uniformă a picat (grupa devenise supergrupă) și nimeni n-a aflat — eșecul ajunge la ADMIN în bot.
+  if (penalties && /^error/.test(penalties)) {
+    await alertAdmins(`⚠️ Imaginea săptămânală cu uniforma n-a plecat în grupa șoferilor: ${penalties}. Retrimitere: /api/cron/driver-penalties?week=…&force=1`).catch(() => false);
   }
   if (penalties) console.log('driver-penalties (luni):', penalties);
 

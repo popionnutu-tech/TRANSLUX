@@ -5,6 +5,35 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Grupa devenită supergrupă (Telegram: «group chat was upgraded to a supergroup chat», cu migrate_to_chat_id). Pe 05.10
+ * grupa Mejgorod a trecut așa și imaginea de uniformă de luni + graficul au picat pe id-ul vechi. Aici: din răspunsul de
+ * eroare se ia id-ul nou, se mută în app_config orice setare care ținea id-ul vechi și se întoarce id-ul nou (apelantul
+ * retrimite o dată). Pur pe text + o scriere; nu aruncă.
+ */
+export function idDupaMigrare(corpEroare: string): string | null {
+  try {
+    const j = JSON.parse(corpEroare) as { parameters?: { migrate_to_chat_id?: number } };
+    const nou = j.parameters?.migrate_to_chat_id;
+    return typeof nou === 'number' && Number.isFinite(nou) ? String(nou) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function mutaGrupa(vechi: string | number, corpEroare: string): Promise<string | null> {
+  const nou = idDupaMigrare(corpEroare);
+  if (!nou) return null;
+  try {
+    const { data } = await getSupabase().from('app_config').update({ value: nou, updated_at: new Date().toISOString() })
+      .eq('value', String(vechi)).select('key');
+    console.warn(`Telegram: grupa ${vechi} a devenit supergrupa ${nou}; setări mutate: ${(data ?? []).map((r: { key: string }) => r.key).join(', ') || '—'}`);
+  } catch (err) {
+    console.error('mutaGrupa: app_config nu s-a actualizat:', err);
+  }
+  return nou;
+}
+
 /** Отправка одного сообщения в Telegram. Никогда не бросает — возвращает успех.
  *  replyMarkup (опционально) — inline-клавиатура, напр. кнопка web_app в Mini App. */
 export async function sendTelegram(chatId: string | number, text: string, replyMarkup?: unknown,
@@ -20,6 +49,10 @@ export async function sendTelegram(chatId: string | number, text: string, replyM
       // Serverless: без таймаута зависший Telegram держит инвокацию до maxDuration.
       signal: AbortSignal.timeout(5000),
     });
+    if (!resp.ok && resp.status === 400) {
+      const nou = await mutaGrupa(chatId, await resp.text().catch(() => ''));
+      if (nou) return sendTelegram(nou, text, replyMarkup, threadId);
+    }
     return resp.ok;
   } catch (err) {
     console.error('sendTelegram failed:', err);
@@ -77,6 +110,8 @@ export async function sendTelegramPhoto(
       // indiciu pentru dispecer/log — fără el, un eșec arată ca «nu merge».
       const body = await resp.text().catch(() => '');
       console.error('sendTelegramPhoto failed:', resp.status, body.slice(0, 300));
+      const nou = resp.status === 400 ? await mutaGrupa(chatId, body) : null;
+      if (nou) return sendTelegramPhoto(nou, png, caption, filename, threadId);
       return { ok: false, messageId: null };
     }
     const json = (await resp.json().catch(() => null)) as { result?: { message_id?: number } } | null;
@@ -111,6 +146,8 @@ export async function sendTelegramAlbum(
     if (!resp.ok) {
       const body = await resp.text().catch(() => '');
       console.error('sendTelegramAlbum failed:', resp.status, body.slice(0, 300));
+      const nou = resp.status === 400 ? await mutaGrupa(chatId, body) : null;
+      if (nou) return sendTelegramAlbum(nou, poze, threadId);
       return { ok: false, messageIds: [] };
     }
     const json = (await resp.json().catch(() => null)) as { result?: { message_id?: number }[] } | null;
@@ -131,7 +168,12 @@ export async function sendTelegramText(chatId: string | number, text: string, th
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(threadId ? { message_thread_id: threadId } : {}) }),
       signal: AbortSignal.timeout(10000),
     });
-    const json = (await resp.json().catch(() => null)) as { ok?: boolean; result?: { message_id?: number } } | null;
+    const corp = await resp.text().catch(() => '');
+    const json = (() => { try { return JSON.parse(corp) as { ok?: boolean; result?: { message_id?: number } }; } catch { return null; } })();
+    if (!json?.ok && resp.status === 400) {
+      const nou = await mutaGrupa(chatId, corp);
+      if (nou) return sendTelegramText(nou, text, threadId);
+    }
     return json?.ok ? json.result?.message_id ?? null : null;
   } catch (err) {
     console.error('sendTelegramText failed:', err);

@@ -5,7 +5,7 @@ vi.mock('./supabase', () => ({
   getSupabase: () => ({ from: fromMock }),
 }));
 
-import { sendTelegram, sendTelegramPhoto, alertAdmins, escapeHtml } from './telegram-notify';
+import { sendTelegram, sendTelegramPhoto, alertAdmins, escapeHtml, idDupaMigrare } from './telegram-notify';
 
 describe('telegram-notify', () => {
   const fetchMock = vi.fn();
@@ -99,5 +99,14 @@ describe('telegram-notify', () => {
     expect(escapeHtml('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(escapeHtml('A & B')).toBe('A &amp; B');
     expect(escapeHtml('normal text')).toBe('normal text');
+  });
+});
+
+describe('idDupaMigrare — grupa devenită supergrupă (05.10, Mejgorod)', () => {
+  it('ia migrate_to_chat_id din eroarea Telegram; altfel null', () => {
+    expect(idDupaMigrare('{"ok":false,"error_code":400,"description":"Bad Request: group chat was upgraded to a supergroup chat","parameters":{"migrate_to_chat_id":-1004371745993}}')).toBe('-1004371745993');
+    expect(idDupaMigrare('{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}')).toBeNull();
+    expect(idDupaMigrare('nu e json')).toBeNull();
+    expect(idDupaMigrare('')).toBeNull();
   });
 });

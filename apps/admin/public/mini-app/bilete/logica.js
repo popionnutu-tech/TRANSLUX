@@ -534,3 +534,79 @@ export function textBanda(verdict, info, lang) {
     default: return { fel: 'bad', titlu: t.rNecT, sub: t.rNecS };
   }
 }
+
+// ───────────────────────── contul șoferului, cache-ul pe cont, coada (ION-272, «Telegram ultrafast» P2+P3) ─────────────────────────
+
+/** id-ul contului Telegram din initData (câmpul `user`, JSON), fără SDK; null dacă lipsește. */
+export function userIdDinInitData(initData) {
+  try {
+    const u = new URLSearchParams(String(initData ?? '')).get('user');
+    const id = u ? Number(JSON.parse(u)?.id) : NaN;
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch { return null; }
+}
+
+export const PREFIX_CHEI = 'bilete-sofer';
+
+/**
+ * Cheile localStorage ale unui cont: pe un telefon cu două conturi Telegram (sau șofer schimbat pe telefonul de serviciu)
+ * lista, starea și coada unuia nu trebuie să apară la celălalt. Fără id — cheile vechi, fără cont (ca înainte).
+ */
+export function cheiCont(userId) {
+  const p = userId ? `${PREFIX_CHEI}:${userId}` : PREFIX_CHEI;
+  return { prefix: p, lang: `${PREFIX_CHEI}:lang`, cache: `${p}:cache`, coada: `${p}:coada`, stare: (c) => `${p}:stare:${c}`, alerte: (c) => `${p}:alerte:${c}` };
+}
+
+export const CACHE_MAX_MS = 12 * 60 * 60_000;
+
+/** Lista din cache e destul de proaspătă ca să fie arătată imediat (SWR), înainte de răspunsul serverului. */
+export function cacheProaspat(cache, acumMs, maxMs = CACHE_MAX_MS) {
+  const t = Date.parse(cache?.descarcatLa ?? '');
+  return Boolean(cache?.date?.curse) && Number.isFinite(t) && acumMs - t >= 0 && acumMs - t <= maxMs;
+}
+
+/**
+ * Mută o singură dată cheile vechi (fără cont) sub contul curent: telefonul era al lui. Coada se ÎMBINĂ (scanările
+ * nesincronizate nu se pierd); cache/stare/alerte se copiază doar dacă contul n-are deja. Cheile altor conturi
+ * (`bilete-sofer:<alt id>:…`) nu se ating. `st` = { get, set, del, keys } peste localStorage. Întoarce câte chei a mutat.
+ */
+export function migreazaCheiVechi(st, userId) {
+  if (!userId) return 0;
+  const vechi = cheiCont(null); const noi = cheiCont(userId);
+  let n = 0;
+  for (const k of st.keys()) {
+    if (!k.startsWith(`${PREFIX_CHEI}:`) || k.startsWith(`${noi.prefix}:`) || k === vechi.lang) continue;
+    if (/^bilete-sofer:\d+:/.test(k)) continue; // alt cont
+    let dest = null;
+    if (k === vechi.cache) dest = noi.cache;
+    else if (k === vechi.coada) dest = noi.coada;
+    else if (k.startsWith(`${PREFIX_CHEI}:stare:`)) dest = noi.stare(k.slice(`${PREFIX_CHEI}:stare:`.length));
+    else if (k.startsWith(`${PREFIX_CHEI}:alerte:`)) dest = noi.alerte(k.slice(`${PREFIX_CHEI}:alerte:`.length));
+    if (!dest) continue;
+    const v = st.get(k); const cur = st.get(dest);
+    if (k === vechi.coada) {
+      const imbinata = [...(Array.isArray(cur) ? cur : [])];
+      for (const s of Array.isArray(v) ? v : []) if (s?.cod && !imbinata.some((x) => x.cod === s.cod)) imbinata.push(s);
+      st.set(dest, imbinata);
+    } else if (cur == null && v != null) st.set(dest, v);
+    st.del(k); n++;
+  }
+  return n;
+}
+
+/**
+ * Ce facem cu coada când serverul refuză un lot (C1 din critica Codex, runda 2): DOAR 403 `cursa_straina` scoate cheia
+ * (cursa) respectivă — telefon partajat, scanări ale altui șofer; 401 → reautentificare (initData reîmprospătat) și o
+ * reîncercare; 429 → reluare după Retry-After (implicit 60 s); orice altceva lasă coada neatinsă. Nicio scanare nu se
+ * pierde în afara cazului 403.
+ */
+export function trateazaEsecCoada(status, corp, cheie, coada, retryAfterS) {
+  const c = Array.isArray(coada) ? coada : [];
+  if (status === 403 && corp?.eroare === 'cursa_straina') {
+    const scoase = c.filter((s) => (s.cheie ?? cheie) === cheie);
+    return { actiune: 'scoate', coada: c.filter((s) => (s.cheie ?? cheie) !== cheie), scoase };
+  }
+  if (status === 401) return { actiune: 'reauth', coada: c, scoase: [] };
+  if (status === 429) { const s = Number(retryAfterS); return { actiune: 'asteapta', coada: c, scoase: [], asteaptaMs: (Number.isFinite(s) && s > 0 ? s : 60) * 1000 }; }
+  return { actiune: 'nimic', coada: c, scoase: [] };
+}

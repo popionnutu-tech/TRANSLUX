@@ -3,15 +3,14 @@
 // Telegram.WebApp, fetch și localStorage. Textele RO/RU: logica.js → T.
 import * as L from './logica.js';
 
-const tg = window.Telegram?.WebApp ?? null;
+// ION-272 («Telegram ultrafast» P2+P3): SDK-ul telegram.org vine cu `defer`, deci se citește leneș, nu la evaluarea modulului;
+// cererea /azi pornește din HTML (window.__azi) înaintea acestui fișier; cheile localStorage sunt pe cont; lista din cache se
+// arată imediat și se reîmprospătează; coada offline nu pierde scanări (doar 403 cursa_straina scoate o cursă).
+const tg = () => window.Telegram?.WebApp ?? null;
 const params = new URLSearchParams(location.search);
 const MOCK = params.get('mock') === '1';
 const BOT = document.body.dataset.bot || 'TransluxMoldova_bot';
 const API = '/api/bilete-sofer';
-const KEY = {
-  lang: 'bilete-sofer:lang', cache: 'bilete-sofer:cache', coada: 'bilete-sofer:coada',
-  stare: (cheie) => `bilete-sofer:stare:${cheie}`, alerte: (cheie) => `bilete-sofer:alerte:${cheie}`,
-};
 const REIMPROSPATARE_MS = 60 * 1000;
 const COADA_MS = 30 * 1000;
 const ACELASI_COD_MS = 3000;
@@ -21,11 +20,17 @@ const ls = {
   get(k) { try { const v = localStorage.getItem(k); return v == null ? null : JSON.parse(v); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* fără spațiu / privat */ } },
   del(k) { try { localStorage.removeItem(k); } catch { /* ignoră */ } },
+  keys() { try { const out = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k) out.push(k); } return out; } catch { return []; } },
 };
+// Cheile sunt PE CONT (user.id din initData, citit din hash/sessionStorage, fără SDK); cheile vechi fără cont se mută o
+// singură dată sub contul curent, ÎNAINTE ca starea să citească coada.
+const USER_ID = MOCK ? null : L.userIdDinInitData(initData());
+const KEY = L.cheiCont(USER_ID);
+L.migreazaCheiVechi(ls, USER_ID);
 
 // ───────────────────────── starea ecranului ─────────────────────────
 const S = {
-  lang: L.limbaInitiala(ls.get(KEY.lang), tg?.initDataUnsafe?.user?.language_code),
+  lang: L.limbaInitiala(ls.get(KEY.lang), tg()?.initDataUnsafe?.user?.language_code),
   ecran: 'incarc', // incarc | principal | nelegat | expirat | eroare | faraCursa
   date: null, descarcatLa: null, decalajMs: 0, cursa: null,
   local: { urcate: {} }, coada: ls.get(KEY.coada) ?? [], alerte: [],
@@ -44,7 +49,7 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 // ───────────────────────── Telegram ─────────────────────────
 /** initData din Telegram sau din fragmentul URL-ului (#tgWebAppData=…), ca la zadachnik. */
 function initData() {
-  if (tg?.initData) return tg.initData;
+  if (tg()?.initData) return tg().initData;
   try {
     const d = new URLSearchParams(location.hash.replace(/^#/, '')).get('tgWebAppData');
     if (d) { try { sessionStorage.setItem('tgInitData', d); } catch { /* ignoră */ } return d; }
@@ -53,7 +58,7 @@ function initData() {
 }
 function haptic(fel) {
   try {
-    const h = tg?.HapticFeedback;
+    const h = tg()?.HapticFeedback;
     if (!h) return;
     if (fel === 'ok') h.notificationOccurred('success');
     else if (fel === 'warn') h.notificationOccurred('warning');
@@ -61,19 +66,20 @@ function haptic(fel) {
   } catch { /* client vechi */ }
 }
 function pregatesteTelegram() {
-  if (!tg) return;
-  try { tg.ready(); tg.expand(); } catch { /* ignoră */ }
-  try { tg.setHeaderColor('#9B1B30'); tg.setBackgroundColor('#f4f1f1'); } catch { /* ignoră */ }
-  try { tg.disableVerticalSwipes?.(); } catch { /* ignoră */ }
+  const w = tg();
+  if (!w) return;
+  try { w.ready(); w.expand(); } catch { /* ignoră */ }
+  try { w.setHeaderColor('#9B1B30'); w.setBackgroundColor('#f4f1f1'); } catch { /* ignoră */ }
+  try { w.disableVerticalSwipes?.(); } catch { /* ignoră */ }
   try {
     // ✕ pe cameră (închidere de către șofer) oprește reluarea automată; închiderea noastră (după cod) nu.
-    tg.onEvent('scanQrPopupClosed', () => {
+    w.onEvent('scanQrPopupClosed', () => {
       if (S.inchidNoi) { S.inchidNoi = false; return; }
       S.scanContinuu = false;
     });
   } catch { /* ignoră */ }
 }
-const poateScana = () => MOCK || Boolean(tg && typeof tg.showScanQrPopup === 'function' && (!tg.isVersionAtLeast || tg.isVersionAtLeast('6.4')));
+const poateScana = () => { const w = tg(); return MOCK || Boolean(w && typeof w.showScanQrPopup === 'function' && (!w.isVersionAtLeast || w.isVersionAtLeast('6.4'))); };
 
 // ───────────────────────── starea locală pe cursă ─────────────────────────
 function incarcaStareaCursei(cheie) {
@@ -105,10 +111,30 @@ async function cereAzi() {
     if (ora && /^\d{1,2}:\d{2}$/.test(ora)) d.acum = `${d.zi}T${ora.padStart(5, '0')}:00+03:00`;
     return { status: 200, date: d };
   }
-  const r = await fetch(`${API}/azi`, { headers: { 'X-Telegram-Init-Data': initData() }, cache: 'no-store' });
+  // Cererea timpurie pornită din HTML (window.__azi), înaintea JS-ului: se consumă o singură dată; un 401 al ei nu e verdict
+  // (hash-ul putea fi fără initData bun) — se reîncearcă o dată cu initData() din SDK.
+  let r = null;
+  const timpurie = window.__azi;
+  if (timpurie) {
+    window.__azi = null;
+    try { r = await timpurie; } catch { r = null; }
+    if (r && r.status === 401) r = null;
+  }
+  if (!r) r = await fetch(`${API}/azi`, { headers: { 'X-Telegram-Init-Data': initData() }, cache: 'no-store' });
   let date = null;
   try { date = await r.json(); } catch { /* corp gol */ }
   return { status: r.status, date };
+}
+
+/** SWR: lista contului din cache (≤ 12 h) pe ecran imediat, înainte de răspunsul serverului; bara «lista de la HH:MM» spune că e veche. */
+function arataDinCache() {
+  if (MOCK || !USER_ID) return false;
+  const c = ls.get(KEY.cache);
+  if (!L.cacheProaspat(c, Date.now())) return false;
+  S.date = c.date; S.descarcatLa = c.descarcatLa ?? null; S.decalajMs = c.decalajMs ?? 0;
+  alegeCursaCurenta();
+  S.ecran = S.date.curse?.length ? 'principal' : 'faraCursa';
+  return true;
 }
 
 /** GET /azi: la deschidere, la revenirea pe ecran și la 60 s. Fără internet rămâne lista din cache. */
@@ -119,6 +145,8 @@ async function incarca() {
     const { status, date } = await cereAzi();
     if (status === 401) {
       S.ecran = date?.eroare === 'expirat' ? 'expirat' : 'nelegat';
+      S.date = null; S.cursa = null;
+      ls.del(KEY.cache); // contul nu mai e al unui șofer: lista lui nu mai apare la următoarea deschidere
       return;
     }
     if (status !== 200 || !date || !Array.isArray(date.curse)) throw new Error(`HTTP ${status}`);
@@ -156,7 +184,14 @@ async function postScan(cheie, scanari, timeoutMs) {
       headers: { 'X-Telegram-Init-Data': initData(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ cheie, scanari }),
     });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!r.ok) {
+      // Statusul și corpul rămân pe eroare: coada decide (logica.trateazaEsecCoada) dacă scoate, reautentifică, așteaptă sau păstrează.
+      const e = new Error(`HTTP ${r.status}`);
+      e.status = r.status;
+      e.corp = await r.json().catch(() => null);
+      e.retryAfter = r.headers.get('Retry-After');
+      throw e;
+    }
     const d = await r.json();
     return Array.isArray(d?.rezultate) ? d.rezultate : [];
   } finally { clearTimeout(tm); }
@@ -165,12 +200,36 @@ async function postScan(cheie, scanari, timeoutMs) {
 /** Coada offline: retrimisă la `online`, la revenirea pe ecran și la fiecare 30 s; răspunsurile întârziate actualizează lista. */
 async function trimiteCoada() {
   if (S.trimitInCoada || S.coada.length === 0 || !online() || !S.cursa) return;
+  if (S.coadaDupa && Date.now() < S.coadaDupa) return; // 429: așteptăm cât a cerut serverul
   S.trimitInCoada = true;
   try {
     const peCheie = new Map();
     for (const s of S.coada) { const k = s.cheie ?? S.cursa.cheie; if (!peCheie.has(k)) peCheie.set(k, []); peCheie.get(k).push({ cod: s.cod, moment_client: s.moment_client, offline: Boolean(s.offline) }); }
     for (const [cheie, scanari] of peCheie) {
-      const rezultate = await postScan(cheie, scanari);
+      let rezultate;
+      try {
+        rezultate = await postScan(cheie, scanari);
+      } catch (e) {
+        const d = L.trateazaEsecCoada(e?.status, e?.corp, cheie, S.coada, e?.retryAfter);
+        if (d.actiune === 'scoate') {
+          // Telefon partajat: scanările altui șofer pe cursa lui — ies din coadă, cu alertă roșie; restul cozii merge mai departe.
+          S.coada = d.coada; salveazaCoada();
+          if (cheie === S.cursa.cheie) {
+            for (const s of d.scoase) if (!S.alerte.some((x) => x.cod === s.cod)) S.alerte.push({ cod: s.cod, verdict: 'alta_cursa', nume: '', cursa_bilet: '', urcat_at: null, urcat_de_altul: false });
+            salveazaStarea();
+          }
+          haptic('bad');
+          continue;
+        }
+        if (d.actiune === 'reauth' && !S.reautentificat) {
+          // initData expirat: îl luăm din nou din SDK și reîncercăm o singură dată; coada rămâne intactă.
+          S.reautentificat = true;
+          try { sessionStorage.removeItem('tgInitData'); } catch { /* ignoră */ }
+          try { rezultate = await postScan(cheie, scanari); } catch { break; }
+        } else if (d.actiune === 'asteapta') { S.coadaDupa = Date.now() + d.asteaptaMs; break; }
+        else break; // 401 a doua oară / rețea / 5xx: rămâne în coadă
+      }
+      S.reautentificat = false;
       const cursa = (S.date?.curse ?? []).find((c) => c.cheie === cheie) ?? null;
       if (cheie === S.cursa.cheie) {
         const r = L.aplicaRezultate(S.local, cursa, rezultate, S.coada);
@@ -201,7 +260,7 @@ function deschideCamera() {
   if (!S.scanContinuu || !S.cursa) return;
   if (MOCK) { S.scanDeschis = true; render(); return; }
   try {
-    tg.showScanQrPopup({ text: t().indreapta }, (text) => {
+    tg().showScanQrPopup({ text: t().indreapta }, (text) => {
       S.inchidNoi = true;
       onCod(text);
       return true; // închide camera; se redeschide după bandă
@@ -210,7 +269,7 @@ function deschideCamera() {
 }
 function inchideCamera() {
   S.scanContinuu = false; S.scanDeschis = false;
-  if (!MOCK) { try { tg.closeScanQrPopup(); } catch { /* ignoră */ } }
+  if (!MOCK) { try { tg()?.closeScanQrPopup(); } catch { /* ignoră */ } }
   render();
 }
 
@@ -507,7 +566,7 @@ document.getElementById('app').addEventListener('click', (ev) => {
   else if (act === 'neprez') { S.neprezDeschis = !S.neprezDeschis; render(); }
   else if (act === 'viz') { S.vizManuala = el.dataset.viz; render(); }
   else if (act === 'reincearca') { S.ecran = 'incarc'; render(); incarca(); }
-  else if (act === 'bot') { const url = el.dataset.url; try { if (tg?.openTelegramLink) tg.openTelegramLink(url); else location.href = url; } catch { location.href = url; } }
+  else if (act === 'bot') { const url = el.dataset.url; try { if (tg()?.openTelegramLink) tg().openTelegramLink(url); else location.href = url; } catch { location.href = url; } }
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -532,5 +591,6 @@ setInterval(() => {
 
 // ───────────────────────── pornirea ─────────────────────────
 pregatesteTelegram();
+arataDinCache(); // lista contului din cache apare imediat (dacă e), apoi /azi o înlocuiește
 render();
 incarca().then(() => trimiteCoada());

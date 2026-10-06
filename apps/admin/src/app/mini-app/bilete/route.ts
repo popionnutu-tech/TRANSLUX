@@ -56,7 +56,12 @@ export async function GET() {
 <title>Biletele cursei · TRANSLUX</title>
 <style>${f.css.replace(/<\/style/gi, '<\\/style')}</style>
 <link rel="modulepreload" href="/mini-app/bilete/dist/${f.manifest.app}">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+// ION-272: cererea /azi pleacă ACUM, înaintea JS-ului și a SDK-ului, cu initData din hash (ca Telegram îl pune) — doar dacă e acolo
+// și nu e modul mock; app.js o consumă (window.__azi) și, la 401, reîncearcă cu initData din SDK.
+(function(){try{if(location.search.indexOf('mock=1')>=0)return;var d=new URLSearchParams(location.hash.slice(1)).get('tgWebAppData');if(!d)return;window.__azi=fetch('/api/bilete-sofer/azi',{headers:{'X-Telegram-Init-Data':d},cache:'no-store'});}catch(e){}})();
+</script>
+<script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body data-bot="${escapeHtml(bot)}" data-v="${escapeHtml(v)}" data-logo="${escapeHtml(logo)}">
 <div id="app"><div class="incarc">Se încarcă…</div></div>

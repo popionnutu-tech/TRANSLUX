@@ -272,3 +272,76 @@ describe('texte', () => {
     expect(textBanda('necunoscut', {}, 'ro').titlu).toBe('Nu urcă · cod necunoscut');
   });
 });
+
+// ION-272 («Telegram ultrafast» P2+P3): contul din initData, cheile pe cont, cache-ul proaspăt, migrarea cheilor vechi, coada la eșec.
+import { cacheProaspat, cheiCont, migreazaCheiVechi, trateazaEsecCoada, userIdDinInitData } from '../../../../public/mini-app/bilete/logica.js';
+
+function stocareFalsa(init: Record<string, unknown>) {
+  const m = new Map(Object.entries(init));
+  return {
+    m,
+    get: (k: string) => (m.has(k) ? m.get(k) : null),
+    set: (k: string, v: unknown) => { m.set(k, v); },
+    del: (k: string) => { m.delete(k); },
+    keys: () => [...m.keys()],
+  };
+}
+
+describe('ION-272: contul și cheile localStorage pe cont', () => {
+  const init = `auth_date=1&user=${encodeURIComponent(JSON.stringify({ id: 448654456, first_name: 'Ion' }))}&hash=abc`;
+  it('userIdDinInitData citește user.id fără SDK; gunoi → null', () => {
+    expect(userIdDinInitData(init)).toBe(448654456);
+    expect(userIdDinInitData('')).toBeNull();
+    expect(userIdDinInitData('user=%7Bgunoi')).toBeNull();
+    expect(userIdDinInitData(`user=${encodeURIComponent('{"id":0}')}`)).toBeNull();
+  });
+  it('cheiCont: cu cont → prefix pe id; fără cont → cheile vechi; limba e comună', () => {
+    const k = cheiCont(448654456);
+    expect(k.cache).toBe('bilete-sofer:448654456:cache');
+    expect(k.stare('2026-10-05|7|false')).toBe('bilete-sofer:448654456:stare:2026-10-05|7|false');
+    expect(k.lang).toBe('bilete-sofer:lang');
+    expect(cheiCont(null).coada).toBe('bilete-sofer:coada');
+  });
+  it('cacheProaspat: ≤ 12 h și cu curse → da; mai vechi sau fără curse → nu', () => {
+    const acum = Date.parse('2026-10-06T12:00:00Z');
+    expect(cacheProaspat({ date: { curse: [] }, descarcatLa: '2026-10-06T08:00:00Z' }, acum)).toBe(true);
+    expect(cacheProaspat({ date: { curse: [] }, descarcatLa: '2026-10-05T08:00:00Z' }, acum)).toBe(false);
+    expect(cacheProaspat({ date: {}, descarcatLa: '2026-10-06T08:00:00Z' }, acum)).toBe(false);
+    expect(cacheProaspat(null, acum)).toBe(false);
+  });
+  it('migreazaCheiVechi: coada veche se ÎMBINĂ în a contului (fără dubluri), starea se copiază doar dacă lipsește, alt cont nu se atinge, limba rămâne', () => {
+    const st = stocareFalsa({
+      'bilete-sofer:lang': 'ru',
+      'bilete-sofer:coada': [{ cod: 'A', cheie: 'c1' }, { cod: 'B', cheie: 'c1' }],
+      'bilete-sofer:448654456:coada': [{ cod: 'B', cheie: 'c1' }, { cod: 'C', cheie: 'c2' }],
+      'bilete-sofer:stare:c1': { urcate: { A: { la: 't' } } },
+      'bilete-sofer:448654456:stare:c1': { urcate: { Z: { la: 'u' } } },
+      'bilete-sofer:alerte:c1': [{ cod: 'A' }],
+      'bilete-sofer:cache': { date: { curse: [] }, descarcatLa: 'x' },
+      'bilete-sofer:999:cache': { date: { curse: [1] } },
+    });
+    const n = migreazaCheiVechi(st, 448654456);
+    expect(n).toBe(4);
+    expect((st.get('bilete-sofer:448654456:coada') as Array<{ cod: string }>).map((s) => s.cod)).toEqual(['B', 'C', 'A']);
+    expect(st.get('bilete-sofer:448654456:stare:c1')).toEqual({ urcate: { Z: { la: 'u' } } });
+    expect(st.get('bilete-sofer:448654456:alerte:c1')).toEqual([{ cod: 'A' }]);
+    expect(st.get('bilete-sofer:448654456:cache')).toEqual({ date: { curse: [] }, descarcatLa: 'x' });
+    expect(st.get('bilete-sofer:999:cache')).toEqual({ date: { curse: [1] } });
+    expect(st.get('bilete-sofer:lang')).toBe('ru');
+    expect(st.keys().filter((k) => /^bilete-sofer:(coada|stare:|alerte:|cache)/.test(k))).toEqual([]);
+    expect(migreazaCheiVechi(st, null)).toBe(0);
+  });
+  it('trateazaEsecCoada: DOAR 403 cursa_straina scoate cheia; 401 → reauth; 429 → așteaptă Retry-After; restul păstrează tot', () => {
+    const coada = [{ cod: 'A', cheie: 'c1' }, { cod: 'B', cheie: 'c2' }, { cod: 'C' }];
+    const s403 = trateazaEsecCoada(403, { eroare: 'cursa_straina' }, 'c1', coada, null);
+    expect(s403.actiune).toBe('scoate');
+    expect(s403.coada.map((s) => s.cod)).toEqual(['B']);
+    expect(s403.scoase.map((s) => s.cod)).toEqual(['A', 'C']);
+    expect(trateazaEsecCoada(403, { eroare: 'altceva' }, 'c1', coada, null)).toMatchObject({ actiune: 'nimic', coada });
+    expect(trateazaEsecCoada(401, null, 'c1', coada, null)).toMatchObject({ actiune: 'reauth', coada });
+    expect(trateazaEsecCoada(429, null, 'c1', coada, '7')).toMatchObject({ actiune: 'asteapta', coada, asteaptaMs: 7000 });
+    expect(trateazaEsecCoada(429, null, 'c1', coada, null).asteaptaMs).toBe(60_000);
+    expect(trateazaEsecCoada(500, null, 'c1', coada, null)).toMatchObject({ actiune: 'nimic', coada });
+    expect(trateazaEsecCoada(undefined, null, 'c1', coada, null)).toMatchObject({ actiune: 'nimic', coada });
+  });
+});

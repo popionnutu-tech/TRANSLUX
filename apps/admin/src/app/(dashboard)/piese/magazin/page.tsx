@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { listWarehouses } from '@/lib/piese';
 import { listClients, saleParts, shopProfit, preturiSchimbate } from '@/lib/piese-ops';
-import { requirePieseIssue, canSeeCost } from '@/lib/piese-access';
+import { requirePieseIssue, canSeeCost, canOverrideStock } from '@/lib/piese-access';
 import MagazinClient from './MagazinClient';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
@@ -49,7 +49,7 @@ export default async function MagazinPage() {
       )}
 
       {shop ? (
-        <MagazinClient shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({ id: p.id, label: partLabel(p), price: Number(p.price) }))} />
+        <MagazinClient canOverrideStock={await canOverrideStock(session)} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({ id: p.id, label: partLabel(p), price: Number(p.price) }))} />
       ) : <div className="card"><div className="empty">Niciun depozit-magazin definit.</div></div>}
     </>
   );

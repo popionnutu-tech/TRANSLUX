@@ -9,8 +9,9 @@ import SearchSelect from '@/components/SearchSelect';
 interface PartOpt { id: number; label: string; price: number }
 interface Opt { id: number; label: string }
 interface Line { part_id: number | ''; qty: number; unit_price: number }
+type Shortage = { part_id: number; name: string; cerut: number; stoc: number; disponibil: number; lipsa: number };
 
-export default function MagazinClient({ shopId, clients, parts }: { shopId: number; clients: Opt[]; parts: PartOpt[] }) {
+export default function MagazinClient({ shopId, clients, parts, canOverrideStock }: { shopId: number; clients: Opt[]; parts: PartOpt[]; canOverrideStock: boolean }) {
   const router = useRouter();
   const [clientId, setClientId] = useState<number | ''>('');
   // Rândul tocmai adăugat primește cursorul, ca omul să scrie mai departe fără să ia mâna de pe
@@ -29,16 +30,25 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
   const [cec, setCec] = useState<Cec | null>(null);
   const [cecBusy, setCecBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Lipsa la vânzare (migr. 379). Până acum magazinul putea vinde marfă inexistentă fără ca nimeni să afle.
+  const [short, setShort] = useState<Shortage[] | null>(null);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const onPart = (i: number, pid: number) => { const p = parts.find((x) => x.id === pid); setLine(i, { part_id: pid, unit_price: p?.price || 0 }); };
   const total = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
 
-  async function submit() {
+  async function submit(allowShort = false) {
     setErr(null); setBusy(true); setReceipt(null);
     try {
-      const r = await submitSale({ warehouse_id: shopId, client_id: clientId ? Number(clientId) : null, invoice_series: series, invoice_number: number, lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_price: l.unit_price })) });
-      setReceipt({ docId: r.docId, total: r.total });
+      const r = await submitSale({ warehouse_id: shopId, client_id: clientId ? Number(clientId) : null, invoice_series: series, invoice_number: number, lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_price: l.unit_price })), allow_short: allowShort });
+      if (!r.ok) {
+        // Nu s-a vândut nimic — baza a anulat tot. Omul vede ce lipsește și decide.
+        if (!r.shortages.length) { setErr('Stocul s-a schimbat între timp. Încearcă din nou.'); return; }
+        setShort(r.shortages as Shortage[]);
+        return;
+      }
+      setShort(null);
+      setReceipt({ docId: r.docId!, total: r.total! });
       setLines([{ part_id: '', qty: 1, unit_price: 0 }]); setNumber('');
       router.refresh();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
@@ -70,6 +80,38 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         <button className="btn" onClick={() => { setLines((ls) => [...ls, { part_id: '', qty: 1, unit_price: 0 }]); setFocusIdx(lines.length); }}>+ Adaugă poziție</button>
         <strong>Total: {total.toFixed(2)} lei</strong>
       </div>
+      {short && (
+        <div className="alert warn" style={{ marginTop: 12 }}>
+          <strong>Nu ajunge marfa în magazin.</strong> Nu s-a vândut nimic.
+          <table style={{ marginTop: 8 }}>
+            <thead><tr><th>Piesa</th><th style={{ width: 90 }}>Ceri</th><th style={{ width: 90 }}>Pe stoc</th><th style={{ width: 90 }}>Lipsesc</th></tr></thead>
+            <tbody>
+              {short.map((x) => (
+                <tr key={x.part_id}><td>{x.name}</td><td>{x.cerut}</td><td>{x.stoc}</td>
+                  <td><span className="badge warn">{x.lipsa}</span></td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted" style={{ fontSize: 12 }}>
+            {canOverrideStock
+              ? 'Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă, poți vinde — dar magazinul rămâne pe minus până la o inventariere.'
+              : 'Verifică raftul. Dacă marfa e acolo, trebuie întâi introdusă recepția — sau cheamă gestionarul.'}
+          </p>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn" onClick={() => setShort(null)} disabled={busy} autoFocus>Închide și verific</button>
+            {canOverrideStock ? (
+              <button className="btn btn-primary" onClick={() => { setShort(null); submit(true); }} disabled={busy}>
+                Vând oricum
+              </button>
+            ) : (
+              <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>
+                Doar gestionarul sau administratorul poate vinde peste stoc.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {err && <div className="alert danger" style={{ marginTop: 12 }}>{err}</div>}
       {receipt && (
         <div className="alert ok" style={{ marginTop: 12 }}>
@@ -86,7 +128,7 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         </div>
       )}
       {cec && <CecModal cec={cec} onClose={() => setCec(null)} />}
-      <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={submit}>{busy ? 'Se emite…' : 'Emite factură + чек'}</button>
+      <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={() => submit()}>{busy ? 'Se emite…' : 'Emite factură + чек'}</button>
     </div>
   );
 }

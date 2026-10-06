@@ -80,9 +80,15 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
           .label-overlay > .card { margin: 0 !important; padding: 0 !important; border: none !important;
                                    box-shadow: none !important; max-width: none !important; }
           .piese-sheet { position: static !important; display: block !important; gap: 0 !important; }
+          /* Înălțimea e cu 2 mm MAI MICĂ decât hârtia, deliberat. Conținutul exact cât pagina se
+             revarsă pe eticheta următoare la cea mai mică diferență între ce declarăm noi și zona pe
+             care driverul chiar o tipărește — iar codul de bare, fiind ultimul, ajungea singur pe o
+             etichetă separată. Văzut pe hârtie, la Eduard.
+             overflow:hidden e perechea ei: dacă totuși nu încape, se taie, nu se mută. */
           .piese-sheet .piese-label { border: none !important; page-break-after: always;
                                       break-after: page; page-break-inside: avoid; break-inside: avoid;
-                                      margin: 0 !important; width: 58mm !important; height: 40mm !important; }
+                                      margin: 0 !important; width: 56mm !important; height: 38mm !important;
+                                      overflow: hidden !important; }
           .piese-sheet .piese-label:last-child { page-break-after: auto; break-after: auto; }
         }
       `}</style>
@@ -176,7 +182,7 @@ const Label = memo(function Label({ l, bars }: { l: SheetLabel; bars: string }) 
   const sub = [l.manufacturer, l.articleCode && `Art: ${l.articleCode}`].filter(Boolean).join(' · ');
   return (
     <div className="piese-label" style={{ width: '58mm', height: '40mm', padding: '2mm', boxSizing: 'border-box', background: '#fff', color: '#000', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column', gap: '0.8mm', border: '1px solid #cbd5e1' }}>
-      <div style={{ fontWeight: 700, fontSize: '8.5pt', lineHeight: 1.08, maxHeight: '8.5mm', overflow: 'hidden' }}>{l.name || '—'}</div>
+      <div style={{ fontWeight: 700, fontSize: '8.5pt', lineHeight: 1.08, maxHeight: '7.5mm', overflow: 'hidden' }}>{l.name || '—'}</div>
       <div style={{ fontSize: '6.5pt', color: '#333', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub || ' '}</div>
       {/* Data recepției — cerută explicit de Eduard, ca să se vadă pe raft cât de veche e marfa. */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.4mm' }}>
@@ -190,7 +196,7 @@ const Label = memo(function Label({ l, bars }: { l: SheetLabel; bars: string }) 
       {/* Codul de bare FĂRĂ cifrele de dedesubt — cerut de Eduard. Scanerul citește barele; cifrele doar
           furau din înălțimea disponibilă, iar pe 40 mm fiecare milimetru contează. */}
       {bars ? (
-        <div style={{ height: '11mm', width: '100%', marginTop: 'auto' }} dangerouslySetInnerHTML={{ __html: bars }} />
+        <div style={{ height: '10mm', width: '100%', marginTop: 'auto', flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: bars }} />
       ) : (
         <div style={{ fontSize: '7pt', color: '#888', marginTop: 'auto', textAlign: 'center', paddingBottom: '2mm' }}>fără cod de bare</div>
       )}

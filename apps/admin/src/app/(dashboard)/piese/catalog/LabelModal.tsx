@@ -35,7 +35,10 @@ export default function LabelModal({ data, onClose }: { data: LabelData; onClose
                            display: block !important; overflow: visible !important; }
           .label-overlay > .card { margin: 0 !important; padding: 0 !important; border: none !important;
                                    box-shadow: none !important; gap: 0 !important; }
-          .piese-label { margin: 0 !important; border: none !important; box-shadow: none !important; }
+          /* 2 mm sub mărimea hârtiei, ca la foaia de recepție: conținutul exact cât pagina se revarsă
+             pe eticheta următoare la cea mai mică diferență de driver. */
+          .piese-label { margin: 0 !important; border: none !important; box-shadow: none !important;
+                         width: 56mm !important; height: 38mm !important; overflow: hidden !important; }
         }
       `}</style>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>

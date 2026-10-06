@@ -309,10 +309,10 @@ export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
 
 export interface CasierRow {
   row_key: string;
-  norm_nr: string | null;      // norm_foaie(sofer_id) — cheia corecției; null la rândurile manuale
+  norm_nr: string | null;      // casier_grup_nr() = foaie#plată (migr. 520) — cheia corecției; null la manuale
   is_manual: boolean;          // true = rând adăugat manual (foaie fizică fără tomberon)
   manual_id: string | null;    // id-ul din casier_manual_rows (doar la rândurile manuale)
-  corrected_fields: string[];  // câmpurile de sumă/comentariu corectate (pentru colorare per-celulă)
+  corrected_fields: string[];  // câmpurile corectate — sume, comentariu, identitate (colorare per-celulă)
   foaie_nr: string;
   ziua: string;            // ziua plății la casă (kiosk)
   data_foaie: string | null; // ziua /grafic pentru această foaie (poate fi alta sau null)
@@ -537,7 +537,12 @@ export async function deleteOverride(
 
 // ─── Corecții sume + rânduri manuale în Document casier ───
 
-/** Corecția pentru o foaie tomberon existentă. null pe un câmp = nicio corecție (păstrează brutul). */
+/**
+ * Corecția pentru o plată tomberon existentă (cheia: norm_nr = foaie#plată, migr. 520).
+ * null pe un câmp = nicio corecție (păstrează brutul). Din migr. 520 se corectează și
+ * identitatea rândului — foaia, ziua foii, șoferul, ruta, mașina —, pentru plata pusă pe
+ * foaia altui șofer. Suma încasată și ora plății NU: vin de la casa automată.
+ */
 export interface CasierCorrectionInput {
   norm_nr: string;
   diagrama: number | null;
@@ -546,6 +551,13 @@ export interface CasierCorrectionInput {
   dt_suma: number | null;
   dop_rashodi: number | null;
   comment: string | null;
+  foaie_nr: string | null;
+  data_foaie: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  crm_route_id: number | null;
+  route_name: string | null;
+  vehicle_plate: string | null;
 }
 
 /**
@@ -576,12 +588,19 @@ export interface CasierManualInput {
 export interface CasierSavePayload {
   corrections: CasierCorrectionInput[];
   manualUpserts: CasierManualInput[];
-  manualDeletes: string[];   // uuid-uri de șters
+  manualDeletes: string[];   // uuid-uri de marcat ca șterse (migr. 522: rândul rămâne, cu urmă)
 }
 
 const CORR_SUM_KEYS = [
   'diagrama', 'ligotniki0_suma', 'ligotniki_vokzal_suma', 'dt_suma', 'dop_rashodi',
 ] as const;
+
+/** Câmpurile de identitate corectabile pe o plată de terminal (migr. 520). */
+const CORR_ID_KEYS = [
+  'foaie_nr', 'data_foaie', 'driver_id', 'driver_name', 'crm_route_id', 'route_name', 'vehicle_plate',
+] as const;
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Sumele vin din payload-ul clientului — `min={0}`/`step` din input-uri sunt doar ajutor de
@@ -640,8 +659,14 @@ export async function saveCasierCorrections(
   if (badCorrection || badManual) {
     return { error: `Sumele trebuie să fie numere între 0 și ${MAX_SUMA.toLocaleString('ro-RO')}. Verifică rândurile marcate.` };
   }
-  if (payload.manualUpserts.some(m => (m.foaie_nr?.trim().length ?? 0) > MAX_FOAIE_LEN)) {
+  if (payload.manualUpserts.some(m => (m.foaie_nr?.trim().length ?? 0) > MAX_FOAIE_LEN)
+      || payload.corrections.some(c => (c.foaie_nr?.trim().length ?? 0) > MAX_FOAIE_LEN)) {
     return { error: `Numărul foii e prea lung (maxim ${MAX_FOAIE_LEN} caractere).` };
+  }
+  if (payload.corrections.some(c =>
+    [c.driver_name, c.route_name, c.vehicle_plate, c.comment].some(t => (t?.length ?? 0) > MAX_TEXT_LEN)
+    || (c.data_foaie != null && !ISO_DATE.test(c.data_foaie)))) {
+    return { error: `Corecția are un text prea lung (maxim ${MAX_TEXT_LEN} caractere) sau o dată invalidă.` };
   }
   // Un rând fără cursă ȘI fără număr de foaie n-are cum să ajungă vreodată pe o rută —
   // banii lui ar rămâne doar în documentul de casier. Îl oprim aici, cu un mesaj clar.
@@ -667,9 +692,13 @@ export async function saveCasierCorrections(
     const toUpsert: Record<string, unknown>[] = [];
     for (const c of payload.corrections) {
       if (!c.norm_nr) continue;
+      // Numărul foii gol nu e o corecție (constrângerea din 520 îl respinge): revine la brut.
+      const foaieNr = c.foaie_nr?.trim() || null;
       const hasAny =
         CORR_SUM_KEYS.some(k => c[k] !== null && c[k] !== undefined) ||
-        (c.comment !== null && c.comment !== undefined);
+        (c.comment !== null && c.comment !== undefined) ||
+        foaieNr !== null ||
+        CORR_ID_KEYS.some(k => k !== 'foaie_nr' && c[k] !== null && c[k] !== undefined);
       if (!hasAny) {
         toDelete.push(c.norm_nr);
       } else {
@@ -682,6 +711,13 @@ export async function saveCasierCorrections(
           dt_suma: c.dt_suma === null ? null : round2(c.dt_suma),
           dop_rashodi: c.dop_rashodi === null ? null : round2(c.dop_rashodi),
           comment: c.comment,
+          foaie_nr: foaieNr,
+          data_foaie: c.data_foaie ?? null,
+          driver_id: c.driver_id ?? null,
+          driver_name: c.driver_name ?? null,
+          crm_route_id: c.crm_route_id ?? null,
+          route_name: c.route_name ?? null,
+          vehicle_plate: c.vehicle_plate ?? null,
           created_by: session.id,
           updated_by: session.id,
           updated_at: now,
@@ -705,11 +741,14 @@ export async function saveCasierCorrections(
     }
 
     // 2. Rânduri manuale: ștergeri (doar în ziua curentă, ca gardă), apoi upsert-uri.
+    // Ștergerea lasă urmă (migr. 522): rândul se marchează, iese din document, din totaluri
+    // și din raport, eliberează cursa, dar rămâne în bază cu cine și când l-a șters.
     if (payload.manualDeletes.length) {
       const { error } = await sb
         .from('casier_manual_rows')
-        .delete()
+        .update({ sters_la: now, sters_de: session.id })
         .eq('ziua', ziua)
+        .is('sters_la', null)
         .in('id', payload.manualDeletes);
       if (error) throw new Error(error.message);
     }
@@ -741,7 +780,8 @@ export async function saveCasierCorrections(
           .from('casier_manual_rows')
           .update(base)
           .eq('id', m.id)
-          .eq('ziua', ziua);
+          .eq('ziua', ziua)
+          .is('sters_la', null);
         if (error) throw new Error(error.message);
       } else {
         // assignment_id se scrie o singură dată, la inserare: e proveniența rândului, nu un

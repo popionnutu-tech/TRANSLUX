@@ -23,6 +23,8 @@ export interface IntervalHarta {
   /** ION-268 (LEAR, «schelet întâi»): rolul cursei din planul zilei, în cuvinte — «Tur s1 · B6 Zăzulenii Noi», «… — neconfirmată (…)»,
    * «Cursă în plus · A9 … — de confirmat», «Posibil cursă schimbul 3 · A8 … — de confirmat» */
   eticheta?: string | null;
+  /** ION-268 (TUR = RETUR, T.1–T.3): cursa făcută arată în `km` km din schelet ai rutei (aceiași la tur și la retur); km GPS ai bucății, informativ */
+  kmGps?: number | null;
 }
 /** ION-268: un slot din planul zilei (s1/s2 × tur/retur; ruta = ruta din schelet confirmată de GPS — Ion, 06.10: «scheletul e universal indiferent de mașină») */
 export interface CursaPlan {
@@ -30,8 +32,10 @@ export interface CursaPlan {
   statut: 'facuta' | 'neconfirmata' | 'lipsa'; t0: number | null; t1: number | null; km: number | null; kmSchelet: number | null; urcari: number; motiv: string | null;
   /** făcută fără urcări ≥ 10 s, dar urma acoperă drumul rutei din schelet (acoperire în %) */
   peDrum?: boolean; acoperire?: number;
-  /** turul și returul schimbului confirmate pe rute diferite (semnal) */
-  rutaDiferita?: boolean;
+  /** km GPS ai cursei, informativ (`km` = km din schelet la cursa făcută) */
+  kmGps?: number | null;
+  /** urma arată altă rută decât a schimbului (cursa rămâne neconfirmată pe ruta schimbului — TUR = RETUR strict) */
+  rutaUrma?: string | null;
 }
 /** ION-268: rezumatul planului unei zile (câte curse din plan, cum s-au făcut) */
 export interface PlanZiSumar { planificate: number; facute: number; neconfirmate: number; lipsa: number; plus: number; s3?: number }
@@ -199,7 +203,9 @@ export function randuriDinIntervale(iv: IntervalHarta[]): RandZi[] {
     const km = `${(Math.round(v.km * 10) / 10).toLocaleString('ro-RO')} km`;
     const drum = v.tip === 'uzina' ? '' : v.de === v.pana ? `pe la ${v.de ?? '—'}, ` : `${v.de ?? '—'} → ${v.pana ?? '—'}, `;
     // ION-268: cursa din plan își spune rolul (Tur/Retur · schimb · rută, statutul) înaintea drumului
-    if (v.tip === 'cursa' && v.eticheta) return { ora: v.ora, tip: v.tip, text: `${v.eticheta}: ${drum}${km}${v.cats?.neconfirmat != null ? '' : ' cu oameni'}`, tare: false };
+    // ION-268 (TUR = RETUR): la cursa făcută km sunt cei din schelet; GPS-ul doar în paranteză, când diferă cu ≥ 1 km
+    const gps = v.kmGps != null && Math.abs(v.kmGps - v.km) >= 1 ? ` (GPS ${(Math.round(v.kmGps * 10) / 10).toLocaleString('ro-RO')} km)` : '';
+    if (v.tip === 'cursa' && v.eticheta) return { ora: v.ora, tip: v.tip, text: `${v.eticheta}: ${drum}${km}${v.cats?.neconfirmat != null ? '' : ` cu oameni, din schelet${gps}`}`, tare: false };
     return { ora: v.ora, tip: v.tip, text: `${drum}${km} ${TEXT_TIP[v.tip]}`, tare: v.tip === 'gol' && v.km >= 20 };
   });
 }
@@ -210,8 +216,8 @@ export function randuriPlan(curse: CursaPlan[]): { cheie: string; text: string; 
   return [...curse].sort((a, b) => a.schimb - b.schimb || (a.sens === b.sens ? 0 : a.sens === 'tur' ? -1 : 1)).map((c) => ({
     cheie: `${c.schimb}-${c.sens}`, statut: c.statut,
     text: `${c.sens === 'tur' ? 'Tur' : 'Retur'} s${c.schimb} · ${c.ruta ?? '—'}${c.capat ? ` ${c.capat}` : ''}: ${SIMB_PLAN[c.statut]}`
-      + (c.km != null && c.statut === 'facuta' ? `, ${(Math.round(c.km * 10) / 10).toLocaleString('ro-RO')} km${c.kmSchelet != null ? ` (schelet ${(Math.round(c.kmSchelet * 10) / 10).toLocaleString('ro-RO')})` : ''}, ${c.peDrum ? `pe drumul rutei (${c.acoperire ?? '—'} %), fără urcări văzute` : `${c.urcari} urcări`}` : '')
-      + (c.rutaDiferita ? ' — tur și retur pe rute diferite' : '')
+      + (c.km != null && c.statut === 'facuta' ? `, ${(Math.round(c.km * 10) / 10).toLocaleString('ro-RO')} km din schelet, ${c.peDrum ? `pe drumul rutei (${c.acoperire ?? '—'} %), fără urcări văzute` : `${c.urcari} urcări`}` : '')
+      + (c.statut === 'neconfirmata' && c.rutaUrma ? ` — urma arată ruta ${c.rutaUrma}` : '')
       + (c.motiv && c.statut === 'lipsa' ? ` — ${c.motiv}` : ''),
   }));
 }

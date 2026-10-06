@@ -298,7 +298,9 @@ export function randuriBriceni(iv: IntervalHarta[]): RandZi[] {
     const drum = v.de === v.pana ? `pe la ${v.de ?? '—'}` : `${v.de ?? '—'} → ${v.pana ?? '—'}`;
     const parti = CAT_BRICENI.filter(([c]) => (v.cats[c] ?? 0) >= 0.1).map(([c, n]) => `${f(v.cats[c])} ${n}`);
     const km = parti.length ? parti.join(' + ') : `${f(v.km)} ${TEXT_TIP[v.tip]}`;
-    return { ora: v.ora, tip: v.tip, text: `${drum}, ${km}${v.nota ? ` · ${v.nota}` : ''}`, tare: (v.cats.livrare ?? 0) >= 20 };
+    // ION-268: cursa suburbană din plan își spune rolul; km cu oameni sunt cei din schelet (tur = retur), GPS-ul în paranteză când diferă cu ≥ 1 km
+    const gps = v.kmGps != null && Math.abs(v.kmGps - v.km) >= 1 ? ` (GPS ${f(v.kmGps)})` : '';
+    return { ora: v.ora, tip: v.tip, text: `${v.eticheta ? `${v.eticheta}: ` : ''}${drum}, ${km}${v.kmGps != null ? ` din schelet${gps}` : ''}${v.nota ? ` · ${v.nota}` : ''}`, tare: (v.cats.livrare ?? 0) >= 20 };
   });
 }
 

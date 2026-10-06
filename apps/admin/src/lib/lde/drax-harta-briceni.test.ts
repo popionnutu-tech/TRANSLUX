@@ -53,3 +53,12 @@ describe('harta Briceni (ION-148)', () => {
     expect(r.porti.map((p) => p.n)).toEqual(['poarta Trox', 'autogara Briceni']);
   });
 });
+
+import { randuriBriceni as rb268 } from './drax-harta';
+describe('Briceni «schelet întâi» (ION-268)', () => {
+  it('cursa din plan: rolul, km din schelet, GPS în paranteză', () => {
+    const r = rb268([{ ora: '07:05–07:25', t0: 0, t1: 1200, tip: 'cursa', cats: { cuOameni: 16 }, km: 16, kmGps: 12.4, eticheta: 'Tur · ruta 44', de: 'Beleavinți', pana: 'Briceni (gară)', ocol: false, lin: '44', prelungit: null, s: [] }]);
+    expect(r[0].text.startsWith('Tur · ruta 44: Beleavinți → Briceni (gară), 16 km')).toBe(true);
+    expect(r[0].text).toContain('din schelet (GPS 12,4 km)');
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curseleZilei, gasesteNeconformitati, textMesaj, type Atribuire, type Trecere } from './neconformitati';
+import { curseleZilei, gasesteNeconformitati, textMesaj, ziuaRu, type Atribuire, type Trecere } from './neconformitati';
 
 const asg = (o: Partial<Atribuire>): Atribuire => ({
   crm_route_id: null, retur_route_id: null, driver_id: null, driver_id_retur: null, vehicle_id: null, vehicle_id_retur: null, ...o,
@@ -35,12 +35,12 @@ describe('gasesteNeconformitati', () => {
   const tur = { ruta: 9, retur: false, driver_id: 'a', vehicle_id: 'x' };
   const retur = { ruta: 9, retur: true, driver_id: 'b', vehicle_id: 'y' };
 
-  it('plecarea înainte de grafic e neconformitate, întârzierea și ora exactă nu', () => {
+  it('plecarea cu 5+ min înainte de grafic e neconformitate; 1–4 min, întârzierea și ora exactă nu (Ion, 07.10)', () => {
     const r = gasesteNeconformitati([
-      tr(9, false, 'Briceni', -1), tr(9, false, 'Edineț', 0), tr(9, false, 'Bălți', 12), tr(9, false, 'Sîngerei', 3),
+      tr(9, false, 'Briceni', -5), tr(9, false, 'Edineț', -4), tr(9, false, 'Bălți', 12), tr(9, false, 'Sîngerei', 3),
     ], [tur]);
     expect(r.lista).toHaveLength(1);
-    expect(r.lista[0]).toMatchObject({ tip: 'devreme', gara: 'Briceni', minute: -1 });
+    expect(r.lista[0]).toMatchObject({ tip: 'devreme', gara: 'Briceni', minute: -5 });
   });
   it('pe retur plecarea devreme din gări nu contează', () => {
     const r = gasesteNeconformitati([tr(9, true, 'Bălți', -20), tr(9, true, 'Sîngerei', 0)], [retur]);
@@ -58,7 +58,7 @@ describe('gasesteNeconformitati', () => {
       { ...tr(9, true, 'Sîngerei', 0, 17), centru_m: 120 },
     ], [tur, retur]);
     expect(r.lista.map((x) => [x.tip, x.retur])).toEqual([['singerei', false]]);
-    expect(textMesaj('marți, 06.10.2026', r, nume)).toContain('Nu a trecut prin centrul Sîngerei — 1');
+    expect(textMesaj('06.10.2026, вторник', r, nume)).toContain('Не заехал в центр Сынджерей — 1');
   });
   it('cursa fără GPS nu se judecă, merge în lista separată', () => {
     const r = gasesteNeconformitati([], [tur]);
@@ -69,16 +69,26 @@ describe('gasesteNeconformitati', () => {
 
 describe('textMesaj', () => {
   it('zi curată', () => {
-    expect(textMesaj('duminică, 04.10.2026', { lista: [], faraGps: [] }, nume)).toContain('✅ Fără neconformități');
+    expect(textMesaj('04.10.2026, воскресенье', { lista: [], faraGps: [] }, nume)).toContain('✅ Нарушений нет');
   });
   it('rândurile cu ruta, șoferul, mașina și ora', () => {
     const r = gasesteNeconformitati([tr(9, false, 'Edineț', -8), tr(9, false, 'Sîngerei', 0)], [{ ruta: 9, retur: false, driver_id: 'a', vehicle_id: 'x' }]);
-    const t = textMesaj('duminică, 04.10.2026', r, nume);
-    expect(t).toContain('Ruta 9 · Șofer a · ABx — Edineț: grafic 06:10, plecat 06:02 (-8 min)');
-    expect(t).not.toContain('Sîngerei —');
+    const t = textMesaj('04.10.2026, воскресенье', r, nume);
+    expect(t.split('\n')[0]).toBe('📅 <b>04.10.2026, воскресенье</b>');
+    expect(t).toContain('Рейс 9 · Șofer a · ABx — Единец: по графику 06:10, выехал 06:02 (-8 мин)');
+    expect(t).not.toContain('Сынджерей');
   });
   it('escapează numele', () => {
     const r = { lista: [{ tip: 'singerei' as const, ruta: 1, retur: true, driver_id: '<b>', vehicle_id: null }], faraGps: [] };
     expect(textMesaj('z', r, nume)).toContain('Șofer &lt;b&gt;');
+  });
+});
+
+describe('ziuaRu + fără GPS', () => {
+  it('data în rusă, iar cursele fără GPS nu apar în mesaj (Ion, 07.10)', () => {
+    expect(ziuaRu('2026-10-06')).toBe('06.10.2026, вторник');
+    const t = textMesaj('06.10.2026, вторник', { lista: [], faraGps: [{ ruta: 8, retur: false, driver_id: null, vehicle_id: null }] }, nume);
+    expect(t).not.toContain('8');
+    expect(t).toContain('✅ Нарушений нет');
   });
 });

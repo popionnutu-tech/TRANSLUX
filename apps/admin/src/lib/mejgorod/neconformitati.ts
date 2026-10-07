@@ -15,6 +15,8 @@ export const GARI_PLECARE = ['Briceni', 'Edineț', 'Bălți'] as const;
 export const SINGEREI = 'Sîngerei';
 /** Trecerea la peste atât de oprirea REALĂ din centru nu e «prin Sîngerei» (Ion, 07.10: «prin centru, nu pe centură»). */
 export const SINGEREI_MAX_M = 300;
+/** Ion, 07.10: «plecat înainte de grafic doar cu 5 min» — 1–4 minute mai devreme nu se raportează. */
+export const PLECARE_DEVREME_MIN = 5;
 
 export interface Trecere {
   crm_route_id: number;
@@ -90,7 +92,7 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
     if (!c.retur) {
       for (const g of GARI_PLECARE) {
         const r = rows.find((x) => x.stop_name === g);
-        if (r && r.offset_min < 0) {
+        if (r && r.offset_min <= -PLECARE_DEVREME_MIN) {
           lista.push({ tip: 'devreme', ruta: c.ruta, retur: false, gara: g, grafic: r.scheduled, plecat: r.passed_at, minute: r.offset_min, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
         }
       }
@@ -114,28 +116,39 @@ export interface Nume {
 }
 
 function cine(n: Nume, driver: string | null, vehicle: string | null): string {
-  return [n.sofer(driver) ?? 'șofer necunoscut', n.masina(vehicle) ?? 'mașină necunoscută'].map(escapeHtml).join(' · ');
+  return [n.sofer(driver) ?? 'водитель неизвестен', n.masina(vehicle) ?? 'машина неизвестна'].map(escapeHtml).join(' · ');
 }
 
-/** Mesajul HTML pentru grupa Mejgorod. `ziua` = «duminică, 04.10.2026». */
+const GARA_RU: Record<string, string> = { Briceni: 'Бричаны', 'Edineț': 'Единец', 'Bălți': 'Бельцы' };
+const ZILE_RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+
+/** «2026-10-06» → «06.10.2026, вторник» */
+export function ziuaRu(dateIso: string): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}, ${ZILE_RU[dow]}`;
+}
+
+/**
+ * Mesajul HTML pentru grupa Mejgorod, în rusă (Ion, 07.10: «data sus, raportul în rusă»), cu data
+ * pe primul rând. `ziua` = ziuaRu(...). Cursele fără GPS nu se mai listează (Ion, 07.10:
+ * «neverificat fără GPS nu trebuie»); ele rămân doar în răspunsul JSON (faraGps).
+ */
 export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: Cursa[] }, n: Nume): string {
   const devreme = r.lista.filter((x) => x.tip === 'devreme');
   const sing = r.lista.filter((x) => x.tip === 'singerei');
-  const out: string[] = [`<b>Neconformități ${escapeHtml(ziua)}</b>`];
-  if (!r.lista.length) out.push('✅ Fără neconformități.');
+  const out: string[] = [`📅 <b>${escapeHtml(ziua)}</b>`, '<b>Нарушения за день</b>'];
+  if (!r.lista.length) out.push('', '✅ Нарушений нет.');
   if (devreme.length) {
-    out.push('', `<b>⏱ Plecat înainte de grafic (Briceni, Edineț, Bălți) — ${devreme.length}</b>`);
+    out.push('', `<b>⏱ Выехал раньше графика на ${PLECARE_DEVREME_MIN}+ мин (Бричаны, Единец, Бельцы) — ${devreme.length}</b>`);
     for (const x of devreme) {
       if (x.tip !== 'devreme') continue;
-      out.push(`Ruta ${x.ruta} · ${cine(n, x.driver_id, x.vehicle_id)} — ${escapeHtml(x.gara)}: grafic ${escapeHtml(x.grafic)}, plecat ${n.ora(x.plecat)} (${x.minute} min)`);
+      out.push(`Рейс ${x.ruta} · ${cine(n, x.driver_id, x.vehicle_id)} — ${escapeHtml(GARA_RU[x.gara] ?? x.gara)}: по графику ${escapeHtml(x.grafic)}, выехал ${n.ora(x.plecat)} (${x.minute} мин)`);
     }
   }
   if (sing.length) {
-    out.push('', `<b>🚫 Nu a trecut prin centrul Sîngerei — ${sing.length}</b>`);
-    for (const x of sing) out.push(`Ruta ${x.ruta} ${x.retur ? 'retur' : 'tur'} · ${cine(n, x.driver_id, x.vehicle_id)}`);
-  }
-  if (r.faraGps.length) {
-    out.push('', `<i>Neverificate (fără GPS sau cursa pe altă oră): ${r.faraGps.map((c) => `${c.ruta} ${c.retur ? 'retur' : 'tur'}`).join(', ')}</i>`);
+    out.push('', `<b>🚫 Не заехал в центр Сынджерей — ${sing.length}</b>`);
+    for (const x of sing) out.push(`Рейс ${x.ruta} ${x.retur ? 'из Кишинёва' : 'в Кишинёв'} · ${cine(n, x.driver_id, x.vehicle_id)}`);
   }
   return out.join('\n');
 }

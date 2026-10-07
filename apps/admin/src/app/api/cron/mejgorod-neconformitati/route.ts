@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import { getSupabase } from '@/lib/supabase';
-import { graficGroupChatId, ziuaRo } from '@/lib/grafic-group';
+import { graficGroupChatId } from '@/lib/grafic-group';
 import { alertAdmins, sendTelegramText } from '@/lib/telegram-notify';
-import { curseleZilei, gasesteNeconformitati, textMesaj, type Atribuire, type Trecere } from '@/lib/mejgorod/neconformitati';
+import { curseleZilei, gasesteNeconformitati, textMesaj, ziuaRu, type Atribuire, type Trecere } from '@/lib/mejgorod/neconformitati';
 
 // Mesajul zilnic cu neconformitățile de ieri în grupa Mejgorod (ION-246): plecat din Briceni/Edineț/
 // Bălți înainte de grafic pe tur, nu a trecut prin Sîngerei pe tur sau retur. N-are cron Vercel (Hobby
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     const rezultat = gasesteNeconformitati(treceri, curse);
     const sofer = new Map((driversRes.data ?? []).map((d) => [d.id as string, d.full_name as string]));
     const masina = new Map((vehiclesRes.data ?? []).map((v) => [v.id as string, v.plate_number as string]));
-    const text = textMesaj(ziuaRo(date), rezultat, {
+    const text = textMesaj(ziuaRu(date), rezultat, {
       sofer: (id) => (id ? sofer.get(id) ?? null : null),
       masina: (id) => (id ? masina.get(id) ?? null : null),
       ora: chisinauTimeOf,

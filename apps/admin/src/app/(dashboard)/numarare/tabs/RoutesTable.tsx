@@ -35,6 +35,26 @@ function formatData(iso: string | null): string {
   return y && m && d ? `${d}.${m}.${y}` : iso;
 }
 
+/**
+ * INC = totalul foii: tot ce a adus cursa, pe rubrici.
+ *
+ * Ion, 07.10: «în INC să fie suma totală pe foaia dată — numerar + ligotnici + ligotnici gară
+ * + combustibil + cheltuieli». Până acum `incasare_lei` din raport era doar numerar + diagramă,
+ * deci restul rubricilor nu se vedeau nicăieri în total, deși erau pe foaie.
+ *
+ * Diagrama e inclusă aici: Ion a enumerat cinci rubrici și a sărit-o, dar ea era deja în
+ * vechiul `incasare_lei` și e o coloană de bani ca celelalte — scoasă, totalul ar fi SCĂZUT
+ * față de ce se vedea până acum. De confirmat; e o singură linie de schimbat.
+ */
+function incTotal(r: GraficRouteRow): number {
+  return Number(r.incasare_numerar || 0)
+    + Number(r.incasare_diagrama || 0)
+    + Number(r.ligotniki0_suma || 0)
+    + Number(r.ligotniki_vokzal_suma || 0)
+    + Number(r.dt_suma || 0)
+    + Number(r.dop_rashodi || 0);
+}
+
 function num(v: number) {
   if (!v || v <= 0) return <span className="text-muted">—</span>;
   return <strong>{Math.round(v)}</strong>;
@@ -100,7 +120,7 @@ export default function RoutesTable({ routes }: Props) {
     const t = { num: 0, inc: 0, nm: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0, extra2t: 0 };
     for (const r of processed) {
       t.num += r.numarare_lei;
-      t.inc += r.incasare_lei;
+      t.inc += incTotal(r);
       t.nm  += r.incasare_numerar;
       t.lg  += r.ligotniki0_suma;
       t.dg  += r.incasare_diagrama;
@@ -148,9 +168,11 @@ export default function RoutesTable({ routes }: Props) {
   // Descifrarea e completă: INC se descompune în NUMERAR + DIAGRAMĂ, iar lângă ele stau
   // celelalte sume ale foii — ligotnici 0, ligotnici gară, rashodi. Fără numerar și fără
   // gară, «descifrarea» nu descifra nimic (Ion, 07.10).
+  // Ruta nu mai ia tot spațiul liber (era `1fr`): are un maxim, iar surplusul trece la Șofer,
+  // unde numele sunt la fel de lungi. Ion, 07.10: «lățimea la rută să fie mai mică».
   const GRID = descifrare
-    ? '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 54px 54px 46px 46px 44px 62px 92px 18px'
-    : '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 62px 92px 18px';
+    ? '76px 92px minmax(130px, 210px) minmax(118px, 1fr) 62px 58px 50px 58px 54px 54px 46px 46px 44px 62px 92px 18px'
+    : '76px 92px minmax(130px, 210px) minmax(118px, 1fr) 62px 58px 50px 58px 62px 92px 18px';
   const selStyle: React.CSSProperties = {
     width: '100%', fontSize: 10, marginTop: 2, border: '1px solid var(--border)',
     borderRadius: 3, padding: '0 1px', background: '#fff',
@@ -158,6 +180,20 @@ export default function RoutesTable({ routes }: Props) {
 
   return (
     <div>
+      {/* Linii între coloane, ca în documentul de casier: cu douăzeci de coloane de cifre,
+          delimitarea pe spațiu alb nu mai ajunge. `gap: 0` + chenar pe fiecare celulă, ca la
+          un tabel adevărat; ultima coloană rămâne fără, să nu dubleze marginea. */}
+      <style>{`
+        .rute-grid > * {
+          border-right: 1px solid rgba(155,27,48,0.12);
+          padding-right: 5px;
+          padding-left: 5px;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .rute-grid > *:last-child { border-right: none; }
+      `}</style>
       {/* Comutatorul rămâne sus, lângă tabel: totalurile au coborât în subsol, dar un
           comutator de coloane căutat cu scroll la fiecare apăsare ar fi fost mai rău. */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6, fontSize: 12 }}>
@@ -171,10 +207,10 @@ export default function RoutesTable({ routes }: Props) {
       </div>
 
       {/* Header */}
-      <div style={{
+      <div className="rute-grid" style={{
         display: 'grid',
         gridTemplateColumns: GRID,
-        gap: 6,
+        gap: 0,
         padding: '4px 10px',
         borderBottom: '1px solid var(--border)',
         fontSize: 10,
@@ -237,11 +273,12 @@ export default function RoutesTable({ routes }: Props) {
             background: stripe,
           }}>
             <div
+              className="rute-grid"
               onClick={() => hasDetails && toggle(r.row_key)}
               style={{
                 display: 'grid',
                 gridTemplateColumns: GRID,
-                gap: 6,
+                gap: 0,
                 alignItems: 'center',
                 padding: '2px 10px',
                 fontSize: 12,
@@ -288,22 +325,30 @@ export default function RoutesTable({ routes }: Props) {
                   ? <span className="text-muted">—</span>
                   : r.extra_2tarife_lei > 0 ? <strong>+{Math.round(r.extra_2tarife_lei)}</strong> : <span className="text-muted">0</span>}
               </span>
-              <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.incasare_lei)}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(incTotal(r))}</span>
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_numerar)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_diagrama)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki0_suma)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki_vokzal_suma)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.dop_rashodi)}</span>}
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                textAlign: 'right',
-                color: r.diff < 0 ? 'var(--danger)' : r.diff > 0 ? 'var(--warning)' : 'var(--text-muted)',
-                fontWeight: 600,
-              }}>
-                {r.status === 'no_numarare' || r.status === 'no_incasare' || r.status === 'cancelled' || r.status === 'empty' || r.status === 'no_data'
-                  ? <span className="text-muted">—</span>
-                  : `${r.diff >= 0 ? '+' : ''}${Math.round(r.diff)}`}
-              </span>
+              {/* Rezultatul se recalculează aici, nu se ia `r.diff` de la server: acela e
+                  numărare − vechiul incasare_lei (numerar + diagramă). De când INC e totalul
+                  foii, cele două ar fi arătat lucruri diferite pe același rând. */}
+              {(() => {
+                const rez = Math.round(r.numarare_lei - incTotal(r));
+                const fara = r.status === 'no_numarare' || r.status === 'no_incasare'
+                  || r.status === 'cancelled' || r.status === 'empty' || r.status === 'no_data';
+                return (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    textAlign: 'right',
+                    color: rez < 0 ? 'var(--danger)' : rez > 0 ? 'var(--warning)' : 'var(--text-muted)',
+                    fontWeight: 600,
+                  }}>
+                    {fara ? <span className="text-muted">—</span> : `${rez >= 0 ? '+' : ''}${rez}`}
+                  </span>
+                );
+              })()}
               <span style={{ color: meta.color, fontSize: 11, fontWeight: 600 }}>
                 {meta.icon} {meta.label}
               </span>
@@ -340,41 +385,48 @@ export default function RoutesTable({ routes }: Props) {
         </p>
       )}
 
-      {/* Totaluri, în subsol: se citesc după ce ai parcurs rândurile, ca la un extras. */}
-      <div className="card" style={{
-        display: 'flex', gap: 18, padding: 10, marginTop: 10, flexWrap: 'wrap', fontSize: 12,
-        // Lipit de ultimul rând, cu o linie de accent deasupra: să se citească drept «total»,
-        // nu drept încă un card rătăcit sub tabel.
-        borderTop: '2px solid var(--primary)', fontWeight: 500,
+      {/* Totaluri, în subsol, FIECARE SUB COLOANA LUI — ca în documentul de casier.
+          Ion, 07.10: «totalurile în documentul PE RUTĂ pune-le așa ca în document casier,
+          fiecare total sub colonița lui». Într-o bară cu etichete trebuia să citești numele
+          ca să știi la ce se referă cifra; aliniate pe grilă, se citesc dintr-o privire. */}
+      <div className="rute-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: GRID,
+        gap: 0,
+        alignItems: 'center',
+        padding: '6px 10px',
+        marginTop: 2,
+        fontSize: 12,
+        fontWeight: 700,
+        background: 'rgba(155,27,48,0.07)',
+        borderTop: '2px solid var(--primary)',
       }}>
-        <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totals.num)} lei</strong></div>
-        {totals.extra2t > 0 && (
-          <div><span className="text-muted">+2T:</span> <strong style={{ color: 'var(--success)' }}>{Math.round(totals.extra2t)} lei</strong></div>
-        )}
-        {/* Aceeași ordine ca pe rânduri și ca în documentul de casier: NUM, TOTAL ÎNCASAT,
-            descifrarea lui, iar la capăt rezultatul. Descifrarea apare doar când e cerută. */}
-        <div><span className="text-muted">Total încasat:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
-        {/* Toate rândurile descifrării, și cele cu zero: dacă o linie apare doar când are
-            valoare, nu poți ști dacă lipsește suma sau lipsește rubrica. */}
-        {descifrare && <>
-          <div><span className="text-muted">Numerar:</span> <strong>{Math.round(totals.nm)} lei</strong></div>
-          <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
-          <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
-          <div><span className="text-muted">Lgotnici gară:</span> <strong>{Math.round(totals.vk)} lei</strong></div>
-          <div><span className="text-muted">Combustibil:</span> <strong>{Math.round(totals.dt)} lei</strong></div>
-          <div><span className="text-muted">Cheltuieli supl.:</span> <strong>{Math.round(totals.rs)} lei</strong></div>
-        </>}
-        <div title="Numărare − total încasat, pe tot ce e afișat">
-          <span className="text-muted">Rezultat:</span>{' '}
-          <strong style={{
-            color: Math.round(totals.num - totals.inc) < 0 ? 'var(--danger)'
-              : Math.round(totals.num - totals.inc) > 0 ? 'var(--warning)' : 'inherit',
-          }}>
-            {Math.round(totals.num - totals.inc) >= 0 ? '+' : ''}{Math.round(totals.num - totals.inc)} lei
-          </strong>
+        <div className="text-muted" style={{ fontSize: 10, textTransform: 'uppercase' }}>Total</div>
+        <div />
+        <div className="text-muted" style={{ fontSize: 10 }}>
+          {processed.length} curse{isFiltered ? ' (filtrat)' : ''}
         </div>
-
-        {isFiltered && <div><span className="text-muted">filtrat:</span> <strong>{processed.length}</strong></div>}
+        <div />
+        <div />
+        <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.num)}</div>
+        <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', color: totals.extra2t > 0 ? 'var(--success)' : undefined }}>
+          {totals.extra2t > 0 ? `+${Math.round(totals.extra2t)}` : ''}
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.inc)}</div>
+        {descifrare && <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.nm)}</div>}
+        {descifrare && <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.dg)}</div>}
+        {descifrare && <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.lg)}</div>}
+        {descifrare && <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.vk)}</div>}
+        {descifrare && <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.rs)}</div>}
+        <div style={{
+          fontFamily: 'var(--font-mono)', textAlign: 'right',
+          color: Math.round(totals.num - totals.inc) < 0 ? 'var(--danger)'
+            : Math.round(totals.num - totals.inc) > 0 ? 'var(--warning)' : 'inherit',
+        }}>
+          {Math.round(totals.num - totals.inc) >= 0 ? '+' : ''}{Math.round(totals.num - totals.inc)}
+        </div>
+        <div />
+        <div />
       </div>
     </div>
   );

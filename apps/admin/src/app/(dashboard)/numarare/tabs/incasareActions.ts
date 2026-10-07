@@ -337,15 +337,59 @@ export interface CasierRow {
   has_grafic_match: boolean;
 }
 
-export async function getCasierDocument(date: string): Promise<CasierRow[]> {
+/** Zilele dintr-un interval, inclusiv capetele. Plafonat, ca o greșeală în selectorul de dată
+ *  să nu ceară zece mii de zile. Peste două luni nu mai e document de casier, e raport. */
+function zileleIntervalului(from: string, to: string, maxZile = 62): string[] {
+  const out: string[] = [];
+  const d = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || Number.isNaN(end.getTime()) || end < d) return [];
+  while (d <= end && out.length < maxZile) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/** Aceleași apeluri, folosite și la citire și la reîncărcarea de după salvare. */
+async function citesteInterval(
+  sb: ReturnType<typeof getSupabase>, from: string, to: string,
+): Promise<{ data?: CasierRow[]; error?: string }> {
+  const zile = zileleIntervalului(from, to);
+  if (!zile.length) return { data: [] };
+  try {
+    const bucati = await Promise.all(zile.map(async zi => {
+      const { data, error } = await sb.rpc('get_casier_document', { p_date: zi });
+      if (error) throw new Error(error.message);
+      return (data as CasierRow[]) || [];
+    }));
+    return { data: bucati.flat() };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Citire eșuată' };
+  }
+}
+
+/**
+ * Documentul de casier pe intervalul [from, to].
+ *
+ * Ion, 06.10: foile de vineri–duminică se predau luni, iar verificarea cere să vezi mai multe
+ * zile deodată. Mai important decât comoditatea: comparația de dubluri se face în interiorul
+ * a ceea ce e încărcat, deci o foaie de vineri introdusă luni nu se compara niciodată cu plata
+ * ei de vineri — exact cazul care scăpa.
+ *
+ * Funcția din bază lucrează pe o zi, iar intervalul se face aici, cu apelurile în PARALEL.
+ * Măsurat pe baza reală: o zi 296 ms, șapte zile 314 ms, treizeci de zile 496 ms — nu se
+ * adună. O funcție nouă pe interval ar fi economisit sub pragul vizibil, dar ar fi legat
+ * ecranul de o migrație aplicată înainte de deploy; pe 05.10 exact legătura asta a lăsat
+ * documentul gol.
+ */
+export async function getCasierDocument(from: string, to: string): Promise<CasierRow[]> {
   const session = await verifySession();
   if (!session) return [];
   if (!isViewer(session.role)) return [];
-
-  const sb = getSupabase();
-  const { data, error } = await sb.rpc('get_casier_document', { p_date: date });
-  if (error) return [];
-  return (data as CasierRow[]) || [];
+  const res = await citesteInterval(getSupabase(), from, to);
+  if (res.error) { console.error('getCasierDocument:', res.error); return []; }
+  return res.data || [];
 }
 
 // ─── Curse din /grafic fără plată la terminal (picker «Document casier Numerar») ───
@@ -544,6 +588,10 @@ export async function deleteOverride(
  * foaia altui șofer. Suma încasată și ora plății NU: vin de la casa automată.
  */
 export interface CasierCorrectionInput {
+  /** Ziua de casă a plății corectate. Cheia corecției e (ziua, norm_nr), iar documentul se
+   *  citește pe interval — deci fiecare corecție își duce propria zi, altfel una făcută pe
+   *  03.10 s-ar salva pe ziua de început a intervalului și ar rata plata pe care o țintea. */
+  ziua: string;
   norm_nr: string;
   diagrama: number | null;
   ligotniki0_suma: number | null;
@@ -637,13 +685,14 @@ function round2(v: number): number {
  * Întoarce documentul reîncărcat, ca UI-ul să primească manual_id/corrected_fields reale.
  */
 export async function saveCasierCorrections(
-  ziua: string,
+  from: string,
+  to: string,
   payload: CasierSavePayload,
 ): Promise<{ error?: string; data?: CasierRow[] }> {
   const session = await verifySession();
   if (!session) return { error: 'Neautorizat' };
   if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate corecta' };
-  if (!ziua) return { error: 'Zi lipsă' };
+  if (!from || !to) return { error: 'Interval lipsă' };
 
   // Payload-ul vine deserializat de la client — nu presupunem nici măcar forma lui.
   if (!Array.isArray(payload?.corrections) || !Array.isArray(payload?.manualUpserts)
@@ -688,7 +737,9 @@ export async function saveCasierCorrections(
   let opError: string | undefined;
   try {
     // 1. Corecții: împarte în cele de șters (toate null) și cele de upsert.
-    const toDelete: string[] = [];
+    // Revocările se șterg grupat pe zi: cheia e (ziua, norm_nr), iar pe interval pot veni
+    // plăți din zile diferite.
+    const toDeletePeZi = new Map<string, string[]>();
     const toUpsert: Record<string, unknown>[] = [];
     for (const c of payload.corrections) {
       if (!c.norm_nr) continue;
@@ -700,10 +751,11 @@ export async function saveCasierCorrections(
         foaieNr !== null ||
         CORR_ID_KEYS.some(k => k !== 'foaie_nr' && c[k] !== null && c[k] !== undefined);
       if (!hasAny) {
-        toDelete.push(c.norm_nr);
+        const l = toDeletePeZi.get(c.ziua);
+        if (l) l.push(c.norm_nr); else toDeletePeZi.set(c.ziua, [c.norm_nr]);
       } else {
         toUpsert.push({
-          ziua,
+          ziua: c.ziua,
           norm_nr: c.norm_nr,
           diagrama: c.diagrama === null ? null : round2(c.diagrama),
           ligotniki0_suma: c.ligotniki0_suma === null ? null : round2(c.ligotniki0_suma),
@@ -725,12 +777,12 @@ export async function saveCasierCorrections(
       }
     }
 
-    if (toDelete.length) {
+    for (const [z, nrs] of toDeletePeZi) {
       const { error } = await sb
         .from('casier_amount_corrections')
         .delete()
-        .eq('ziua', ziua)
-        .in('norm_nr', toDelete);
+        .eq('ziua', z)
+        .in('norm_nr', nrs);
       if (error) throw new Error(error.message);
     }
     if (toUpsert.length) {
@@ -747,14 +799,16 @@ export async function saveCasierCorrections(
       const { error } = await sb
         .from('casier_manual_rows')
         .update({ sters_la: now, sters_de: session.id })
-        .eq('ziua', ziua)
+        .gte('ziua', from)
+        .lte('ziua', to)
         .is('sters_la', null)
         .in('id', payload.manualDeletes);
       if (error) throw new Error(error.message);
     }
     for (const m of payload.manualUpserts) {
       const base = {
-        ziua,
+        // `ziua` o scrie trigger-ul din migr. 507 (ziua introducerii). Pe interval nici n-ar
+        // exista o singură zi de trimis.
         // Trim obligatoriu pe server: norm_foaie() din DB NU face trim, deci ' 142961' ar
         // trece pe lângă indexul unic și pe lângă verificarea de dublură.
         foaie_nr: m.foaie_nr?.trim() || null,
@@ -780,7 +834,8 @@ export async function saveCasierCorrections(
           .from('casier_manual_rows')
           .update(base)
           .eq('id', m.id)
-          .eq('ziua', ziua)
+          .gte('ziua', from)
+          .lte('ziua', to)
           .is('sters_la', null);
         if (error) throw new Error(error.message);
       } else {
@@ -809,14 +864,15 @@ export async function saveCasierCorrections(
   }
 
   // 3. Reîncarcă documentul, cu id-urile/câmpurile reale (și pe eroare, pentru re-sincronizare).
-  const { data, error } = await sb.rpc('get_casier_document', { p_date: ziua });
+  const reincarcat = await citesteInterval(sb, from, to);
+  const { data, error } = reincarcat;
   if (error) {
     // Reîncărcarea a eșuat: NU întoarcem `data` (nici []). Clientul păstrează atunci editările
     // locale în loc să golească tabelul. (Scrierile s-ar putea să fi reușit deja; clientul cere
     // reîncărcarea paginii ca să reconcilieze sigur — evită dublarea rândurilor manuale.)
-    return { error: opError || error.message };
+    return { error: opError || error };
   }
-  return { error: opError, data: (data as CasierRow[]) || [] };
+  return { error: opError, data: data || [] };
 }
 
 export async function confirmDay(

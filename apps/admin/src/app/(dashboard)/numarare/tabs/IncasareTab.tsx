@@ -78,9 +78,27 @@ export default function IncasareTab({ role }: Props) {
     setSubTab(next);
   }
 
+  // Și capătul din dreapta reîncarcă documentul de casier, deci cere aceeași confirmare:
+  // altfel rândurile introduse și nesalvate ar dispărea la o simplă lărgire a intervalului.
+  function selectTo(next: string) {
+    if (next === to) return;
+    if (!confirmaAbandonul('schimbi perioada')) return;
+    setCasierDirty(false);
+    setTo(next);
+  }
+
+  /** Documentul cere trecerea pe ziua de azi ca să poată adăuga: rândul nou intră oricum în
+   *  documentul zilei în care e tastat (migr. 507), iar fila se deschide pe ieri — deci fără
+   *  asta, ce adaugi n-ar apărea în tabelul la care te uiți. */
+  function treciPeZiua(zi: string) {
+    setCasierDirty(false);
+    setFrom(zi);
+    setTo(zi);
+  }
+
   function selectFrom(next: string) {
     if (next === from) return;
-    if (!confirmaAbandonul('schimbi ziua')) return;
+    if (!confirmaAbandonul('schimbi perioada')) return;
     setCasierDirty(false);
     setFrom(next);
     if (next > to) setTo(next);
@@ -139,7 +157,7 @@ export default function IncasareTab({ role }: Props) {
           <span className="text-muted" style={{ fontSize: 13 }}>De la</span>
           <input type="date" value={from} onChange={e => selectFrom(e.target.value)} className="form-control" style={{ width: 150 }} />
           <span className="text-muted" style={{ fontSize: 13 }}>până la</span>
-          <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} className="form-control" style={{ width: 150 }} />
+          <input type="date" value={to} min={from} onChange={e => selectTo(e.target.value)} className="form-control" style={{ width: 150 }} />
         </div>
       </div>
 
@@ -253,7 +271,9 @@ export default function IncasareTab({ role }: Props) {
 
       {subTab === 'casier' && (
         <CasierDocumentTab
-          ziua={from}
+          from={from}
+          to={to}
+          onTreciPeZiua={treciPeZiua}
           operatorName={operatorName}
           mode="terminal"
           onCounts={handleCasierCounts}
@@ -263,7 +283,9 @@ export default function IncasareTab({ role }: Props) {
 
       {subTab === 'numerar' && (
         <CasierDocumentTab
-          ziua={from}
+          from={from}
+          to={to}
+          onTreciPeZiua={treciPeZiua}
           operatorName={operatorName}
           mode="numerar"
           onCounts={handleCasierCounts}

@@ -56,7 +56,12 @@ function loadVehiclesOnce(): Promise<VehicleOption[]> {
 export type CasierMode = 'terminal' | 'numerar';
 
 interface Props {
-  ziua: string;            // ziua selectată (din shapă-le părinte)
+  /** Începutul perioadei alese în «Încasare» — filtrul de sus guvernează documentul. */
+  from: string;
+  /** Sfârșitul perioadei. Egal cu `from` = o singură zi. */
+  to: string;
+  /** Mută perioada de sus pe o zi anume (butonul «Trec pe ziua de azi ca să adaug»). */
+  onTreciPeZiua?: (zi: string) => void;
   operatorName: string;     // numele utilizatorului logat (pentru antet)
   mode: CasierMode;
   /** Raportează în sus câte rânduri are fiecare document (pentru badge-urile sub-tab-urilor). */
@@ -94,6 +99,9 @@ type EditableRow = {
   IsManual: boolean;         // rând adăugat manual (foaie fizică fără tomberon)
   ManualId: string | null;   // id-ul din casier_manual_rows (null = nesalvat încă)
   NormNr: string | null;     // cheia corecției pentru rândurile tomberon (foaie#plată, migr. 520)
+  /** Ziua documentului din care vine rândul: ziua de casă la terminal, ziua introducerii la
+   *  rândurile manuale. Pe interval fiecare rând are alta, iar corecția se salvează pe ea. */
+  Ziua: string;
   Corrected: Set<string>;    // cheile DB corectate (pentru colorare per-celulă + salvare)
   // Rând manual salvat, marcat de șters: rămâne tăiat în tabel, cu «Readu», până la salvare.
   // La salvare primește sters_la (migr. 522) și iese din document.
@@ -134,6 +142,7 @@ function rowFromCasier(c: CasierRow): EditableRow {
     Sters: false,
     __pristine: true,
     __hasGrafic: c.has_grafic_match,
+    Ziua: c.ziua,
   };
 }
 
@@ -157,6 +166,12 @@ function orderRows(data: CasierRow[]): EditableRow[] {
     (a, b) => (pusLaTs(a) - pusLaTs(b)) || (a.foaie_nr || '').localeCompare(b.foaie_nr || ''),
   );
   return renumber(ordered.map(rowFromCasier));
+}
+
+// Zi scurtă pentru antetul pe interval: «01.10».
+function dmyShort(iso: string): string {
+  const [, m, d] = iso.split('-');
+  return d && m ? `${d}.${m}` : iso;
 }
 
 function docNumberFromDate(date: string): string {
@@ -233,11 +248,16 @@ function sortRows(rows: EditableRow[], key: SortKey, dir: SortDir): EditableRow[
   });
 }
 
-export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, onDirtyChange }: Props) {
+export default function CasierDocumentTab({
+  from, to, onTreciPeZiua, operatorName, mode, onCounts, onDirtyChange,
+}: Props) {
   const isNumerar = mode === 'numerar';
   // Ziua de azi la Chișinău, nu a browserului: documentul în care intră orice rând nou.
   const azi = useMemo(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }), []);
-  const [docDate, setDocDate] = useState<string>(ziua);
+  const oSinguraZi = from === to;
+  /** Adăugarea e permisă numai în documentul zilei de azi: rândul nou intră oricum în ziua în
+   *  care e tastat (migr. 507), deci un buton «adaugă» pe alt document ar minți. */
+  const potAdauga = isNumerar && oSinguraZi && from === azi;
   const [rows, setRows] = useState<EditableRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -246,7 +266,9 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
   const [editMode, setEditMode] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   // norm_nr-urile ale căror corecții au fost revocate (revin la valoarea brută din tomberon).
-  const revokedCorrections = useRef<Set<string>>(new Set());
+  // Cheia corecției e (ziua, norm_nr): pe interval, plăți din zile diferite pot purta același
+  // număr de foaie, deci revocarea reține ambele.
+  const revokedCorrections = useRef<Map<string, string>>(new Map());
 
   // Sortare + filtru — afectează DOAR afișarea, niciodată datele din `rows`.
   const [sortKey, setSortKey] = useState<SortKey>('N');
@@ -277,26 +299,12 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     loadVehiclesOnce().then(setVehicles, ignore);
   }, [editMode]);
 
-  // Sincronizare data părinte → data document. Părintele întreabă el înainte de a schimba
-  // data când sunt modificări nesalvate (vezi IncasareTab), deci aici doar urmăm.
+  // Încarcă documentul pe perioada aleasă sus. Părintele cere confirmarea înainte de a o
+  // schimba când sunt modificări nesalvate (vezi IncasareTab).
   useEffect(() => {
-    setDocDate(ziua);
-  }, [ziua]);
-
-  // Schimbarea datei reîncarcă documentul și aruncă starea locală — aceeași gardă ca la
-  // «Anulează», altfel rândurile bifate din picker dispar fără un cuvânt.
-  function requestDocDate(next: string) {
-    if (next === docDate) return;
-    if (hasUnsaved && !confirm('Sunt modificări nesalvate. Schimbi ziua? Modificările se pierd.')) return;
-    setDocDate(next);
-  }
-
-  // Încarcă rândurile din Tomberon pentru ziua aleasă
-  useEffect(() => {
-    if (!docDate) return;
+    if (!from || !to) return;
     setLoading(true);
-    getCasierDocument(docDate)
-      .then(data => {
+    getCasierDocument(from, to)      .then(data => {
         setRows(orderRows(data));
         setHasUnsaved(false);
         setEditMode(false);
@@ -304,7 +312,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
         revokedCorrections.current.clear();
       })
       .finally(() => setLoading(false));
-  }, [docDate]);
+  }, [from, to]);
 
   // Rândurile documentului curent. `rows` ține ambele surse — cealaltă sursă e folosită
   // doar la detectarea dublurilor, niciodată afișată aici.
@@ -517,7 +525,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     const changed = !!target && !target.IsManual && value !== target[uiKey];
     if (changed && target?.NormNr) {
       // Dacă exista o revocare în așteptare pe acest rând, o anulăm — s-a corectat din nou.
-      revokedCorrections.current.delete(target.NormNr);
+      revokedCorrections.current.delete(`${target.Ziua}|${target.NormNr}`);
     }
     setRows(prev => prev.map(r => {
       if (r.row_key !== rowKey) return r;
@@ -534,7 +542,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
   function revokeCorrections(rowKey: string) {
     const target = rows.find(r => r.row_key === rowKey);
     if (!target || target.IsManual || !target.NormNr) return;
-    revokedCorrections.current.add(target.NormNr);
+    revokedCorrections.current.set(`${target.Ziua}|${target.NormNr}`, target.Ziua);
     setRows(prev => prev.map(r =>
       r.row_key === rowKey ? { ...r, Corrected: new Set<string>(), __pristine: false } : r,
     ));
@@ -556,7 +564,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
       Sofer: '',
       Masina: '',
       NumarFoaie: '',
-      DataFoaie: docDate,
+      DataFoaie: azi,
       PusLa: '',
       PusLaReal: false,
       Incasare: 0,
@@ -573,11 +581,12 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
       Sters: false,
       __pristine: false,
       __hasGrafic: false,
+      Ziua: azi,
     };
   }
 
   function addRow() {
-    // Rândul nou primește DataFoaie = docDate; cu filtrul pe altă zi ar fi invizibil.
+    // Rândul nou primește DataFoaie = azi; cu filtrul pe altă zi ar fi invizibil.
     setDateFilter('');
     setRows(prev => renumber([...prev, emptyManualRow()]));
     setHasUnsaved(true);
@@ -600,7 +609,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
         Sofer: c.driver_name || '',
         Masina: c.vehicle_plate || '',
         NumarFoaie: c.foaie_nr || '',
-        DataFoaie: c.data_foaie || docDate,
+        DataFoaie: c.data_foaie || azi,
       })),
     ]));
     setHasUnsaved(true);
@@ -637,7 +646,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
   // sume, și se salvează în casier_amount_corrections — brutul de la terminal rămâne neatins.
   function updateIdentity(rowKey: string, patch: Partial<EditableRow>, dbKey: string) {
     const target = rows.find(r => r.row_key === rowKey);
-    if (target && !target.IsManual && target.NormNr) revokedCorrections.current.delete(target.NormNr);
+    if (target && !target.IsManual && target.NormNr) revokedCorrections.current.delete(`${target.Ziua}|${target.NormNr}`);
     setRows(prev => prev.map(r => {
       if (r.row_key !== rowKey) return r;
       const Corrected = r.IsManual ? r.Corrected : new Set(r.Corrected).add(dbKey);
@@ -648,7 +657,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
 
   function reload() {
     setLoading(true);
-    getCasierDocument(docDate).then(data => {
+    getCasierDocument(from, to).then(data => {
       setRows(orderRows(data));
       setHasUnsaved(false);
       setDateFilter('');
@@ -668,6 +677,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     const corrections: CasierCorrectionInput[] = isNumerar ? [] : rows
       .filter(r => !r.IsManual && r.NormNr && r.Corrected.size > 0)
       .map(r => ({
+        ziua: r.Ziua,
         norm_nr: r.NormNr as string,
         diagrama: r.Corrected.has('diagrama') ? r.Diagrame : null,
         ligotniki0_suma: r.Corrected.has('ligotniki0_suma') ? r.Ligotnici : null,
@@ -718,11 +728,12 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     // Corecțiile revocate: trimit o intrare cu toate câmpurile null → server-ul o șterge.
     // (Sar peste cele care au primit între timp o corecție nouă, deja incluse mai sus.)
     if (!isNumerar) {
-      const alreadySent = new Set(corrections.map(c => c.norm_nr));
-      for (const norm_nr of revokedCorrections.current) {
-        if (alreadySent.has(norm_nr)) continue;
+      const alreadySent = new Set(corrections.map(c => `${c.ziua}|${c.norm_nr}`));
+      for (const [key, ziuaRev] of revokedCorrections.current) {
+        if (alreadySent.has(key)) continue;
         corrections.push({
-          norm_nr,
+          ziua: ziuaRev,
+          norm_nr: key.slice(ziuaRev.length + 1),
           diagrama: null, ligotniki0_suma: null, ligotniki_vokzal_suma: null,
           dt_suma: null, dop_rashodi: null, comment: null,
           foaie_nr: null, data_foaie: null, driver_id: null, driver_name: null,
@@ -741,7 +752,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     }
 
     setSaving(true);
-    const res = await saveCasierCorrections(docDate, { corrections, manualUpserts, manualDeletes });
+    const res = await saveCasierCorrections(from, to, { corrections, manualUpserts, manualDeletes });
     setSaving(false);
 
     if (res.data) {
@@ -859,7 +870,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
       {/* Antet */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr auto auto auto',
+        gridTemplateColumns: '1fr auto auto',
         gap: 16,
         alignItems: 'center',
         marginBottom: 12,
@@ -869,21 +880,25 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
         borderLeft: `4px solid ${accent}`,
         borderRadius: 4,
       }}>
+        {/* Fără selector de dată: perioada se alege o singură dată, sus, în «Încasare».
+            Selectorul propriu a fost chiar mecanismul prin care rândurile de pe 05.10 au ajuns
+            în patru documente diferite. Ziua fiecărui rând se vede oricum în «Introdus la». */}
         <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-          {isNumerar ? 'Document de casier NUMERAR №' : 'Document de casier №'}{' '}
-          <span style={{ fontFamily: 'var(--font-mono)', color: accent }}>
-            {docNumberFromDate(docDate)}
-          </span>
+          {isNumerar ? 'Document de casier NUMERAR' : 'Document de casier'}{' '}
+          {oSinguraZi ? (
+            <>
+              №{' '}
+              <span style={{ fontFamily: 'var(--font-mono)', color: accent }}>
+                {docNumberFromDate(from)}
+              </span>
+            </>
+          ) : (
+            // Un interval n-are număr de document — ar fi un singur număr pentru mai multe.
+            <span style={{ fontFamily: 'var(--font-mono)', color: accent }}>
+              {dmyShort(from)} – {dmyShort(to)}
+            </span>
+          )}
         </h3>
-        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-          Data:
-          <input
-            type="date"
-            value={docDate}
-            onChange={e => requestDocDate(e.target.value)}
-            style={{ fontSize: 12, fontFamily }}
-          />
-        </label>
         <span style={{ fontSize: 12 }}>
           Operator: <strong>{operatorName}</strong>
         </span>
@@ -1127,11 +1142,11 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
                     ) : (dup ? `⚠ ${r.NumarFoaie}` : (r.NumarFoaie || (neidentificat ? '⚠ fără nr.' : '—')))}
                   </td>
                   <td style={corr('data_foaie', cs({
-                    color: r.DataFoaie && r.DataFoaie !== docDate ? '#f57c00' : 'inherit',
-                    fontWeight: r.DataFoaie && r.DataFoaie !== docDate ? 600 : 400,
+                    color: r.DataFoaie && r.DataFoaie !== r.Ziua ? '#f57c00' : 'inherit',
+                    fontWeight: r.DataFoaie && r.DataFoaie !== r.Ziua ? 600 : 400,
                   }))}
-                    title={r.DataFoaie && r.DataFoaie !== docDate
-                      ? `Foaia e pe ${r.DataFoaie}, plata pe ${docDate}` : ''}>
+                    title={r.DataFoaie && r.DataFoaie !== r.Ziua
+                      ? `Foaia e pe ${r.DataFoaie}, în documentul de ${r.Ziua}` : ''}>
                     {canEditRowFields ? (
                       <input
                         type="date"
@@ -1239,14 +1254,14 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
               zilei în care e tastat. Adăugat de aici, ar fi salvat pe azi și n-ar apărea în
               tabelul de ieri la care se uită omul — ar părea pierdut. Deci nu ascundem doar
               butoanele: oferim trecerea pe ziua de azi, cu un clic și scris pe el. */}
-          {isNumerar && editMode && docDate !== azi && (
-            <button type="button" onClick={() => requestDocDate(azi)} className="btn btn-sm btn-primary"
+          {isNumerar && editMode && !potAdauga && onTreciPeZiua && (
+            <button type="button" onClick={() => onTreciPeZiua(azi)} className="btn btn-sm btn-primary"
               style={{ fontFamily }}
-              title="Un rând nou se salvează în documentul zilei în care e introdus. Trec antetul pe ziua de azi ca să vezi acolo ce adaugi.">
+              title="Un rând nou se salvează în documentul zilei în care e introdus. Trec perioada pe ziua de azi ca să vezi acolo ce adaugi.">
               → Trec pe {azi.split('-').reverse().join('.')} ca să adaug
             </button>
           )}
-          {isNumerar && editMode && docDate === azi && (
+          {potAdauga && editMode && (
             <>
               <button type="button" onClick={() => setPickerOpen(true)} className="btn btn-sm btn-primary" style={{ fontFamily }}
                 title="Alege din /grafic cursele pentru care nu s-a întors foaia">
@@ -1320,7 +1335,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
 
       {pickerOpen && (
         <GraficFoiPicker
-          ziua={docDate}
+          ziua={azi}
           foiInDocument={foiInDocument}
           assignmentsInDocument={assignmentsInDocument}
           onClose={() => setPickerOpen(false)}

@@ -7,23 +7,34 @@
 
 import { getSupabase } from '../supabase';
 
-/** Direcțiile uzinelor (legea Clavei: litrii lunii ÷ km GPS); interurbanul și Briceni n-au uzină. */
+/** Direcțiile uzinelor (legea Clavei: litrii lunii ÷ km GPS). */
 export const UZINE_DIRS = ['DRAXELMAIER_BALTI', 'SEBN_ORHEI', 'SEBN_STRASENI', 'LEAR_UNGHENI', 'LEAR_FLORESTI'] as const;
-/** Direcțiile din panou: uzinele + camioanele (legea noastră, pe curse — ION-162). */
-export const PANOU_DIRS = [...UZINE_DIRS, 'camioane'] as const;
+/** Direcțiile din panou: uzinele, interurbanul și suburbanul (legea Clavei) + camioanele (legea noastră, pe curse — ION-162).
+ *  Ion, 07.10.2026: «nu văd interurbane, suburbane, administrație» — administrația n-are direcție în vehicles încă. */
+export const PANOU_DIRS = [...UZINE_DIRS, 'interurban', 'suburban', 'camioane'] as const;
 export const UZINA_NUME: Record<string, string> = {
   DRAXELMAIER_BALTI: 'Drăxlmaier', SEBN_ORHEI: 'SEBN Orhei', SEBN_STRASENI: 'SEBN Strășeni', LEAR_UNGHENI: 'LEAR Ungheni', LEAR_FLORESTI: 'LEAR Florești',
-  camioane: 'Camioane',
+  interurban: 'Interurban', suburban: 'Suburban', camioane: 'Camioane',
 };
 /** Ordinea filelor din panou — fiecare direcție separat (Ion, 07.10.2026: «direcțiile să fie separate»). */
 export const DIRECTII_PANOU = PANOU_DIRS.map((d) => UZINA_NUME[d]);
 export const LUNA_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export type Ales = 'confirmat' | 'media_clava';
+/** Felul motivului când Clava pune media ei (migr. 531) — se grupează lunar, ca legea de calcul să învețe din el. */
+export const MOTIVE = {
+  plin_luna_vecina: 'Plinul a căzut în luna vecină',
+  reparatie: 'Mașina a stat în reparație',
+  gps: 'Km lipsă sau greșiți în GPS',
+  alimentare_gresita: 'Alimentare scrisă greșit (foaie / benzol)',
+  alt: 'Alt motiv',
+} as const;
+export type Motiv = keyof typeof MOTIVE;
+export const MOTIV_MIN = 20;
 export type Reper = { norma_tip: number | null; tip: string | null; medie3: number | null; km3: number };
 export type Decizie = {
   vehicle_id: string; norma_tip: number | null; medie3: number | null; km3: number | null;
-  norma_program: number | null; km: number | null; litri: number | null;
+  norma_program: number | null; km: number | null; litri: number | null; motiv: Motiv | null;
   ales: Ales; norma: number; comentariu: string | null; decis_de: string; decis_la: string;
 };
 export type Confirmare = {
@@ -74,7 +85,7 @@ export async function reperele(luna: string, ids: string[]): Promise<Map<string,
 
 export async function deciziileLunii(luna: string, ids?: string[]): Promise<Map<string, Decizie>> {
   let q = getSupabase().from('lde_norma_luna')
-    .select('vehicle_id, norma_tip, medie3, km3, norma_program, km, litri, ales, norma, comentariu, decis_de, decis_la').eq('luna', primaZi(luna));
+    .select('vehicle_id, norma_tip, medie3, km3, norma_program, km, litri, motiv, ales, norma, comentariu, decis_de, decis_la').eq('luna', primaZi(luna));
   if (ids) q = q.in('vehicle_id', ids);
   const { data, error } = await q.limit(1000);
   if (error) throw new Error(error.message);

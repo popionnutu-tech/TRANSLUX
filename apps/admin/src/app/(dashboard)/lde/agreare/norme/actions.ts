@@ -12,7 +12,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { chisinauTodayIso, chisinauDayBounds } from '@/lib/chisinau-time';
 import {
-  PANOU_DIRS, UZINA_NUME, LUNA_RE, primaZi, ultimaZi, lunaInainte, reperele, deciziileLunii, confirmarea,
+  PANOU_DIRS, UZINA_NUME, LUNA_RE, MOTIVE, MOTIV_MIN, type Motiv, primaZi, ultimaZi, lunaInainte, reperele, deciziileLunii, confirmarea,
   type Ales, type Decizie, type Confirmare,
 } from '@/lib/lde/norma-luna';
 import { recupereazaPoster, BUCATI, type Bucata, type RezultatRecuperare } from '@/lib/lde/combustibil-poster';
@@ -158,7 +158,7 @@ export async function getDetaliuMasina(luna: string, vehicleId: string, soferi: 
 }
 
 /** Clava confirmă media softului sau pune media ei (+ motiv). Media softului se RECALCULEAZĂ aici și se îngheață în rând. */
-export async function decide(luna: string, vehicleId: string, ales: Ales, mediaEi?: number, comentariu?: string): Promise<void> {
+export async function decide(luna: string, vehicleId: string, ales: Ales, mediaEi?: number, comentariu?: string, motiv?: Motiv): Promise<void> {
   const s = await sesiune('ADMIN', 'CONTABIL_LDE');
   if (!LUNA_RE.test(luna) || luna >= lunaCurenta()) throw new Error('Se decide doar o lună închisă');
   if (!/^[0-9a-f-]{36}$/.test(vehicleId)) throw new Error('Mașină invalidă');
@@ -176,6 +176,7 @@ export async function decide(luna: string, vehicleId: string, ales: Ales, mediaE
   const r = (await reperele(luna, [vehicleId])).get(vehicleId)!;
   let norma: number;
   let com: string | null = null;
+  let mot: Motiv | null = null;
   if (ales === 'confirmat') {
     if (program == null) throw new Error('Softul n-are medie pe lună (sub 300 km sau sub 2 alimentări) — pune media ta');
     norma = program;
@@ -183,13 +184,16 @@ export async function decide(luna: string, vehicleId: string, ales: Ales, mediaE
     norma = Number(mediaEi);
     com = (comentariu ?? '').trim();
     if (!Number.isFinite(norma) || norma <= 0 || norma >= 100) throw new Error('Media trebuie să fie între 0 și 100 l/100 km');
-    if (com.length < 5) throw new Error('Scrie de ce (cel puțin câteva cuvinte)');
+    // Ion, 07.10.2026: «motivul ea trebuie să îl descrie bine» — felul motivului + ce s-a întâmplat
+    if (!motiv || !(motiv in MOTIVE)) throw new Error('Alege de ce e altă medie');
+    mot = motiv;
+    if (com.length < MOTIV_MIN) throw new Error(`Descrie ce s-a întâmplat: în ce zile, ce plin sau ce km (cel puțin ${MOTIV_MIN} de caractere)`);
     if (com.length > 1000) throw new Error('Comentariul e prea lung (max. 1000 de caractere)');
     norma = Math.round(norma * 100) / 100;
   }
   const { error } = await db.from('lde_norma_luna').upsert({
     luna: primaZi(luna), vehicle_id: vehicleId, norma_tip: r.norma_tip, medie3: r.medie3, km3: r.km3,
-    norma_program: program, km, litri, ales, norma, comentariu: com, decis_de: s.email, decis_la: new Date().toISOString(),
+    norma_program: program, km, litri, motiv: mot, ales, norma, comentariu: com, decis_de: s.email, decis_la: new Date().toISOString(),
   }, { onConflict: 'luna,vehicle_id' });
   if (error) throw new Error(error.message);
   revalidatePath('/lde/agreare/norme');

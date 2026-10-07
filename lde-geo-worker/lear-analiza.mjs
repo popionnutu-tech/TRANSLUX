@@ -126,7 +126,7 @@ const ZILE_MIN_LEAR = 4;       // zile la poartă din săptămână, ca s-o soco
 const LEI_TIP = { 'DAF': 12.73, 'Sprinter 518': 7.20, 'Sprinter 413': 6.59, 'Sprinter 412': 6.59,
   'Sprinter 315': 6.49, 'Sprinter 313': 6.49, 'Sprinter 312': 5.77 };
 const TIP_MASINA = { '809MUM': 'DAF', '827MUM': 'DAF', '807MUM': 'DAF', '189OMM': 'DAF',
-  '783MUM-DEFECTAT': 'DAF', '145BRAZ': 'Sprinter 315', '537BRAT': 'Sprinter 413',
+  '783MUM-DEFECTAT': 'DAF', '783MUM': 'DAF', '145BRAZ': 'Sprinter 315', '537BRAT': 'Sprinter 413',
   '217RST': 'Sprinter 315', '320BRAT': 'Sprinter 312', '504BRAR': 'Sprinter 518',
   '456BRAX': 'Sprinter 518', '061COY': 'Sprinter 315', '183BZP': 'Sprinter 313',
   '032BRAT': 'Sprinter 312', '732SHS': 'Sprinter 413', '043BRAU': 'Sprinter 518',

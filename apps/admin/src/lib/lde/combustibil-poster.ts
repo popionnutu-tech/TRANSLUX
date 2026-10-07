@@ -326,6 +326,8 @@ type Raspuns = { ok: boolean; refuzat?: boolean; messageId?: number | null };
 export type DepsPoster = {
   citesteStare(luna: string): Promise<{ confirmat: boolean; stare: StarePoster } | null>;
   scrieStare(luna: string, stare: StarePoster, motiv: string | null, gata: boolean): Promise<void>;
+  /** trece bucata în «in_curs» DOAR dacă e încă în starea citită (un singur UPDATE) — două trimiteri deodată nu dublează */
+  ia(luna: string, bucata: Bucata, din: StareBucata, stareNoua: StarePoster): Promise<boolean>;
   grupa(): Promise<{ chatId: string; threadId: number | null } | null>;
   pregateste(luna: string): Promise<{ album: Poza[]; general: Poza | null }>;
   trimiteAlbum(chatId: string, poze: Poza[], threadId: number | null): Promise<Raspuns>;
@@ -371,8 +373,12 @@ export async function recupereazaPoster(luna: string, opts: { explicit?: Bucata[
   let motiv: string | null = null;
   for (const b of BUCATI) {
     if (!deTrimis(b)) { if (stare[b] !== 'ok') break; continue; }   // bucata dinainte nu e ok → nu se sare peste ea
+    const din = stare[b];
     stare[b] = 'in_curs';
-    await deps.scrieStare(luna, stare, null, false);
+    if (!(await deps.ia(luna, b, din, stare))) {
+      stare[b] = din;
+      return { luna, status: 'eroare', stare, motiv: `${b}: altă trimitere e deja în curs` };
+    }
     let r: Raspuns;
     if (b === 'album') {
       const a = poze!.album;
@@ -406,6 +412,13 @@ const depsReale: DepsPoster = {
     if (error) throw new Error(error.message);
     // marcajul vechi (folosit până la 07.10 ca anti-dublură pe lună) rămâne la zi, pentru cine îl citește
     if (gata) await sb.from('app_config').upsert({ key: MARCA_ALBUM_KEY, value: luna }, { onConflict: 'key' });
+  },
+  async ia(luna, bucata, din, stareNoua) {
+    const { data, error } = await getSupabase().from('lde_norma_luna_confirmare')
+      .update({ poster_rezultat: stareNoua, poster_motiv: null })
+      .eq('luna', primaZi(luna)).eq(`poster_rezultat->>${bucata}`, din).select('luna');
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
   },
   async grupa() {
     const sb = getSupabase();

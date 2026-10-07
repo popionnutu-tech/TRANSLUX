@@ -9,8 +9,10 @@ import { getSupabase } from '../supabase';
 /** Direcțiile mașinilor de uzină din panou (camioanele se judecă pe curse, ION-162; interurbanul și Briceni n-au uzină). */
 export const UZINE_DIRS = ['DRAXELMAIER_BALTI', 'SEBN_ORHEI', 'SEBN_STRASENI', 'LEAR_UNGHENI', 'LEAR_FLORESTI'] as const;
 export const UZINA_NUME: Record<string, string> = {
-  DRAXELMAIER_BALTI: 'Drăxlmaier', SEBN_ORHEI: 'SEBN', SEBN_STRASENI: 'SEBN', LEAR_UNGHENI: 'LEAR Ungheni', LEAR_FLORESTI: 'LEAR Florești',
+  DRAXELMAIER_BALTI: 'Drăxlmaier', SEBN_ORHEI: 'SEBN Orhei', SEBN_STRASENI: 'SEBN Strășeni', LEAR_UNGHENI: 'LEAR Ungheni', LEAR_FLORESTI: 'LEAR Florești',
 };
+/** Ordinea filelor din panou — fiecare direcție separat (Ion, 07.10.2026: «direcțiile să fie separate»). */
+export const DIRECTII_PANOU = UZINE_DIRS.map((d) => UZINA_NUME[d]);
 export const LUNA_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export type Ales = 'tip' | 'medie3' | 'clava';

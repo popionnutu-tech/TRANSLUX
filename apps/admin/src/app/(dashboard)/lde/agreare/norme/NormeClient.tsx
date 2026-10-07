@@ -7,13 +7,12 @@ import {
   decide, getDetaliuMasina, confirmaLuna, trimiteDinNou, hotarasteBucata,
   type NormeData, type RandNorma, type Detaliu,
 } from './actions';
-import type { Ales } from '@/lib/lde/norma-luna';
+import { DIRECTII_PANOU, type Ales } from '@/lib/lde/norma-luna';
 import type { Bucata } from '@/lib/lde/combustibil-poster';
 
 // Macheta negociată în plan (revizorul ux-clava + Codex): un rând pe mașină — km, litri, consumul lunii și cele două
 // cifre de ales; detaliul se deschide doar din ▸ / plăcuță. Fără termeni tehnici (EB, r_masina) pe ecran.
 
-const UZINE = ['Toate', 'Drăxlmaier', 'SEBN', 'LEAR Ungheni', 'LEAR Florești'];
 const BORDO = 'var(--primary, #9B1B30)';
 const LUNI = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
 const LUNI_SCURT = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec'];
@@ -250,14 +249,15 @@ function PanouIon({ data }: { data: NormeData }) {
 
 export default function NormeClient({ data }: { data: NormeData }) {
   const router = useRouter();
-  const [uz, setUz] = useState('Toate');
+  // Ion, 07.10.2026: «direcțiile să fie separate» — o filă pe direcție, fără listă amestecată; se deschide pe prima
+  // direcție care mai are ceva de decis
+  const [uz, setUz] = useState(() => DIRECTII_PANOU.find((d) => data.randuri.some((r) => r.uzina === d && !r.decizie)) ?? DIRECTII_PANOU[0]);
   const [filtru, setFiltru] = useState<'toate' | 'de decis' | 'alese'>('toate');
   const confirmata = !!data.confirmare;
   const poateDecide = data.inchisa && (!confirmata || data.esteAdmin);
-  const peUzina = data.randuri.filter((r) => uz === 'Toate' || r.uzina === uz);
+  const peUzina = data.randuri.filter((r) => r.uzina === uz);
   const deDecis = peUzina.filter((r) => !r.decizie).length;
   const vizibile = peUzina.filter((r) => filtru === 'toate' || (filtru === 'de decis' ? !r.decizie : !!r.decizie));
-  const grupe = [...new Set(vizibile.map((r) => r.uzina))];
   const luna = data.luna.slice(5);
 
   return (
@@ -281,7 +281,15 @@ export default function NormeClient({ data }: { data: NormeData }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {UZINE.map((u) => <button key={u} type="button" onClick={() => setUz(u)} style={chip(uz === u)}>{u}</button>)}
+          {DIRECTII_PANOU.map((u) => {
+            const rest = data.randuri.filter((r) => r.uzina === u && !r.decizie).length;
+            const toate = data.randuri.filter((r) => r.uzina === u).length;
+            return (
+              <button key={u} type="button" onClick={() => setUz(u)} style={{ ...chip(uz === u), minHeight: 34, padding: '5px 12px' }}>
+                {u} <span style={{ opacity: 0.8, fontSize: 11 }}>{rest ? `${rest} de decis` : toate ? '✓' : '—'}</span>
+              </button>
+            );
+          })}
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setFiltru(filtru === 'de decis' ? 'toate' : 'de decis')} style={chip(filtru === 'de decis')}>De decis {deDecis}</button>
@@ -294,12 +302,7 @@ export default function NormeClient({ data }: { data: NormeData }) {
           <div /><div>Mașina</div><div style={{ textAlign: 'right' }}>Km</div><div style={{ textAlign: 'right' }}>Litri</div>
           <div style={{ textAlign: 'right' }}>Consum</div><div>Norma lunii — alege</div><div>Stare</div>
         </div>
-        {grupe.map((g) => (
-          <div key={g}>
-            {uz === 'Toate' && <div style={{ padding: '10px 8px 4px', fontSize: 12, fontWeight: 600, color: BORDO }}>{g}</div>}
-            {vizibile.filter((r) => r.uzina === g).map((r) => <Rand key={r.vehicle_id + data.luna} r={r} luna={data.luna} poateDecide={poateDecide} />)}
-          </div>
-        ))}
+        {vizibile.map((r) => <Rand key={r.vehicle_id + data.luna} r={r} luna={data.luna} poateDecide={poateDecide} />)}
         {!vizibile.length && <p style={{ padding: 12, color: '#666' }}>Nicio mașină pe filtrul ales.</p>}
       </div>
 

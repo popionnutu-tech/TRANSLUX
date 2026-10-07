@@ -122,6 +122,10 @@ export async function getDetaliuMasina(luna: string, vehicleId: string, soferi: 
   await sesiune('ADMIN', 'CONTABIL_LDE');
   if (!LUNA_RE.test(luna) || !/^[0-9a-f-]{36}$/.test(vehicleId)) throw new Error('Cerere invalidă');
   const db = getSupabase();
+  // doar mașinile din panou (de uzină) — nu camioanele sau interurbanul (revizia de securitate)
+  const { data: v, error: ev } = await db.from('vehicles').select('directions').eq('id', vehicleId).maybeSingle();
+  if (ev) throw new Error(ev.message);
+  if (!v || !(v.directions as string[]).some((d) => (UZINE_DIRS as readonly string[]).includes(d))) throw new Error('Mașina nu e de uzină');
   const de = primaZi(luna), pana = ultimaZi(luna);
   const [g, b, f] = await Promise.all([
     db.from('lde_vehicle_gps_daily').select('date, km_total, km_patched').eq('vehicle_id', vehicleId).gte('date', de).lte('date', pana).order('date'),

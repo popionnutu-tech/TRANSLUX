@@ -15,6 +15,7 @@ function deps(stare: StarePoster, raspunsuri: Partial<Record<'album' | 'general'
   const d: DepsPoster = {
     citesteStare: async () => (confirmat ? { confirmat: true, stare: { ...stare } } : null),
     scrieStare: async (_l, s) => { scrieri.push({ ...s }); },
+    ia: async (_l, _b, _din, s) => { scrieri.push({ ...s }); return true; },
     grupa: async () => ({ chatId: '-100', threadId: 7 }),
     pregateste: async () => ({ album: [poza('drax'), poza('sebn')], general: poza('general') }),
     trimiteAlbum: async () => { trimise.push('album'); return urm('album'); },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { salveazaAgreare, type AgreareData, type Agreat, type RandAgreare, type SoferOpt } from './actions';
 
@@ -175,7 +176,10 @@ export default function AgreareClient({ data }: { data: AgreareData }) {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 32px 48px', display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 400, color: BORDO }}>Agreare șoferi pe mașini</h1>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 400, color: BORDO }}>Agreare șoferi pe mașini</h1>
+          <Link href={`/lde/agreare/consum?luna=${data.luna}`} style={{ color: BORDO, fontSize: 13 }}>consum pe șofer →</Link>
+        </div>
         <select value={data.luna} onChange={(e) => router.push(`/lde/agreare?luna=${e.target.value}`)} aria-label="Luna"
           style={{ padding: '6px 10px', border: '1px solid rgba(155,27,48,0.15)', borderRadius: 8, background: '#fff', fontSize: 13, minHeight: 34 }}>
           {luniDisponibile(data.luna).map((l) => <option key={l} value={l}>{etichetaLuna(l)}</option>)}

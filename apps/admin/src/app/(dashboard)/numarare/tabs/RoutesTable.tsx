@@ -97,10 +97,11 @@ export default function RoutesTable({ routes }: Props) {
   }, [routes, filterRuta, filterSofer, filterOra, sortKey, sortDir]);
 
   const totals = useMemo(() => {
-    const t = { num: 0, inc: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0, extra2t: 0 };
+    const t = { num: 0, inc: 0, nm: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0, extra2t: 0 };
     for (const r of processed) {
       t.num += r.numarare_lei;
       t.inc += r.incasare_lei;
+      t.nm  += r.incasare_numerar;
       t.lg  += r.ligotniki0_suma;
       t.dg  += r.incasare_diagrama;
       t.vk  += r.ligotniki_vokzal_suma;
@@ -142,9 +143,13 @@ export default function RoutesTable({ routes }: Props) {
    */
   const [descifrare, setDescifrare] = useState(false);
 
-  // Grid: Data | Oră | Rută | Șofer | Foaie | Num | +2T | Inc | [Dg | Lg | Rs] | Δ | Status | expand
+  // Grid: Data | Oră | Rută | Șofer | Foaie | Num | +2T | Inc | [Nm | Dg | Lg | Vk | Rs] | Δ | Status | expand
+  //
+  // Descifrarea e completă: INC se descompune în NUMERAR + DIAGRAMĂ, iar lângă ele stau
+  // celelalte sume ale foii — ligotnici 0, ligotnici gară, rashodi. Fără numerar și fără
+  // gară, «descifrarea» nu descifra nimic (Ion, 07.10).
   const GRID = descifrare
-    ? '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 54px 46px 44px 62px 92px 18px'
+    ? '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 54px 54px 46px 46px 44px 62px 92px 18px'
     : '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 62px 92px 18px';
   const selStyle: React.CSSProperties = {
     width: '100%', fontSize: 10, marginTop: 2, border: '1px solid var(--border)',
@@ -162,12 +167,15 @@ export default function RoutesTable({ routes }: Props) {
         {/* Aceeași ordine ca pe rânduri și ca în documentul de casier: NUM, TOTAL ÎNCASAT,
             descifrarea lui, iar la capăt rezultatul. Descifrarea apare doar când e cerută. */}
         <div><span className="text-muted">Total încasat:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
+        {/* Toate rândurile descifrării, și cele cu zero: dacă o linie apare doar când are
+            valoare, nu poți ști dacă lipsește suma sau lipsește rubrica. */}
         {descifrare && <>
+          <div><span className="text-muted">Numerar:</span> <strong>{Math.round(totals.nm)} lei</strong></div>
           <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
           <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
-          {totals.vk > 0 && <div><span className="text-muted">Vokzal:</span> <strong>{Math.round(totals.vk)} lei</strong></div>}
-          {totals.dt > 0 && <div><span className="text-muted">DT:</span> <strong>{Math.round(totals.dt)} lei</strong></div>}
-          {totals.rs > 0 && <div><span className="text-muted">Rashodi:</span> <strong>{Math.round(totals.rs)} lei</strong></div>}
+          <div><span className="text-muted">Lgotnici gară:</span> <strong>{Math.round(totals.vk)} lei</strong></div>
+          <div><span className="text-muted">Combustibil:</span> <strong>{Math.round(totals.dt)} lei</strong></div>
+          <div><span className="text-muted">Cheltuieli supl.:</span> <strong>{Math.round(totals.rs)} lei</strong></div>
         </>}
         <div title="Numărare − total încasat, pe tot ce e afișat">
           <span className="text-muted">Rezultat:</span>{' '}
@@ -231,9 +239,11 @@ export default function RoutesTable({ routes }: Props) {
         <div style={{ textAlign: 'right' }}>Num</div>
         <div style={{ textAlign: 'right' }}>+2T</div>
         <div style={{ textAlign: 'right' }}>Inc</div>
-        {descifrare && <div style={{ textAlign: 'right' }}>Dg</div>}
-        {descifrare && <div style={{ textAlign: 'right' }}>Lg</div>}
-        {descifrare && <div style={{ textAlign: 'right' }}>Rs</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Numerar — banii încasați la casă">Nm</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Diagrame">Dg</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici 0">Lg</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici gară">Vk</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Cheltuieli suplimentare">Rs</div>}
         <div style={{ textAlign: 'right' }} title="Rezultatul: numărare − total încasat">Δ</div>
         <div>Status</div>
         <div></div>
@@ -305,8 +315,10 @@ export default function RoutesTable({ routes }: Props) {
                   : r.extra_2tarife_lei > 0 ? <strong>+{Math.round(r.extra_2tarife_lei)}</strong> : <span className="text-muted">0</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.incasare_lei)}</span>
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_numerar)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_diagrama)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki0_suma)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki_vokzal_suma)}</span>}
               {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.dop_rashodi)}</span>}
               <span style={{
                 fontFamily: 'var(--font-mono)',

@@ -67,7 +67,7 @@ const TEXT_FIXAT = [
   '3. При посадке: «Сканировать билет» → навести камеру. Зелёный и оранжевый — садится, красный — нет.',
 ].join('\n');
 // Ion, 05.10: «dă-mi mie zilnic raport câți șoferi din cei care stabil apar în grafic sunt legați sau nu».
-// Stabil = cel puțin 3 zile cu cursă în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
+// Stabil = cel puțin 3 zile cu cursă INTERURBANĂ în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
 // (privatul lui Ion) o dată pe zi, cât timp mai e cineva nelegat.
 const RAPORT_ULTIMA = 'raport_legare_sofer_ultima';
 // Ion, 05.10: «trimite lui Iura zilnic mesaj câți s-au logat și cine nu s-a logat» — Iurie, executorul sarcinilor
@@ -80,15 +80,20 @@ async function raportLegare(sb: ReturnType<typeof getSupabase>, azi: string): Pr
   const de = new Date(`${azi}T00:00:00Z`);
   de.setUTCDate(de.getUTCDate() - ZILE_GRAFIC);
   const deLa = de.toISOString().slice(0, 10);
-  const [{ data: da }, { data: dr }] = await Promise.all([
+  const [{ data: da }, { data: dr }, { data: rute }] = await Promise.all([
     sb.from('daily_assignments').select('assignment_date, driver_id, driver_id_retur, crm_route_id, retur_route_id').gte('assignment_date', deLa).lte('assignment_date', azi),
     sb.from('drivers').select('id, full_name, telegram_id').eq('active', true),
+    sb.from('crm_routes').select('id').eq('route_type', 'interurban'),
   ]);
-  if (!da || !dr) return null;
+  if (!da || !dr || !rute) return null;
+  // Ion, 07.10: «o mare parte din șoferi nu sunt în general la interurban, de ce apar în grafic?» — biletele online
+  // sunt doar pe interurban, deci contează DOAR zilele pe o rută interurbană. Suburbanul umplea lista cu 10 șoferi
+  // care n-au nicio cursă interurbană (Gusevatii, Crestianov, Tichem…).
+  const interurban = new Set((rute as { id: number }[]).map(r => r.id));
   const zile = new Map<string, Set<string>>();
   for (const r of da as { assignment_date: string; driver_id: string | null; driver_id_retur: string | null; crm_route_id: number | null; retur_route_id: number | null }[]) {
     for (const [d, ruta] of [[r.driver_id, r.crm_route_id], [r.driver_id_retur, r.retur_route_id]] as const) {
-      if (!d || ruta == null) continue;
+      if (!d || ruta == null || !interurban.has(ruta)) continue;
       if (!zile.has(d)) zile.set(d, new Set());
       zile.get(d)!.add(r.assignment_date);
     }
@@ -102,7 +107,7 @@ async function raportLegare(sb: ReturnType<typeof getSupabase>, azi: string): Pr
   const [y, m, d] = azi.split('-');
   const text = [
     `🔗 <b>Legare Telegram șoferi — ${d}.${m}.${y}</b>`,
-    `În grafic stabil (≥${PRAG_STABIL} zile din ${ZILE_GRAFIC}): <b>${soferi.length}</b> · legați: <b>${legati.length}</b> · nelegați: <b>${nelegati.length}</b>`,
+    `Interurban stabil (≥${PRAG_STABIL} zile din ${ZILE_GRAFIC}): <b>${soferi.length}</b> · legați: <b>${legati.length}</b> · nelegați: <b>${nelegati.length}</b>`,
     '',
     nelegati.length ? '<b>Nelegați</b> (zile în grafic):' : '✅ Toți șoferii stabili sunt legați.',
     ...nelegati.map(x => `• ${x.full_name} — ${x.zile}`),

@@ -21,24 +21,23 @@ const ULTIMA = 'anunt_bilete_online_ultima';
 const LANSAT = 'bilete_online_lansat';
 // ION-234 (Ion, 05.10): «trimite mesaj în rusă în grupă zilnic până pe 12 că șoferul trebuie să se lege în bot».
 const LEGARE_ULTIMA = 'anunt_legare_sofer_ultima';
-const LEGARE_PANA_LA = '2026-10-12';
 const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot';
 const LINK_LEGARE = `https://t.me/${BOT}?start=sofer`;
 // Ion, 06.10: anunțul zilnic = videoul «Мои билеты — пошагово» (1:44) cu textul de mai jos sub el, într-un singur mesaj.
 // Videoul e încărcat o dată la Telegram; file_id-ul stă în app_config (fără el pleacă doar textul).
 const VIDEO_KEY = 'video_sofer_bilete_file_id';
+// Ion, 07.10: «unește aceste 2 mesaje în unul și scurt să fie, nu așa de lung, și de la mine să fie doar 1» —
+// anunțul lung (TEXT_ANUNT) și videoul cu legarea au devenit UN singur mesaj zilnic: videoul + textul ăsta.
 const TEXT_ANUNT_ZILNIC = [
-  '🎫 <b>Онлайн-билеты TRANSLUX — важно для всех водителей</b>',
+  '🎫 <b>Онлайн-билеты TRANSLUX — после 12 октября</b>',
   '',
-  '1️⃣ <b>Привяжите свой Telegram — один раз.</b> Кнопка «🔗 Привязать мой Telegram» ниже → в боте «Отправить мой номер». Это 10 секунд.',
-  '2️⃣ <b>Сначала онлайн-билеты будут только из Бричан и Единец.</b> Позже — в ограниченном количестве из Бельц.',
-  '3️⃣ <b>Продажа закрывается за 2 часа до начала рейса.</b>',
-  '4️⃣ <b>Все онлайн-билеты оплачены заранее картой</b> — это не пустые брони.',
-  '5️⃣ <b>При посадке каждого пассажира с онлайн-билетом нужно отметить:</b> «🎫 Мои билеты» → «Сканировать билет».',
+  '📱 Каждому водителю нужен <b>смартфон с интернетом и Telegram</b>. Без них и без умения сканировать билет <b>к рейсу не допускаем.</b>',
   '',
-  '⚠️ В дальнейшем водитель, который не умеет отмечать пассажира, <b>не будет выпущен в рейс, пока не научится.</b>',
+  '1️⃣ Один раз: «🔗 Привязать мой Telegram» → «Отправить мой номер».',
+  '2️⃣ При посадке: «🎫 Мои билеты» → «Сканировать билет».',
   '',
-  '🎬 На видео — как это работает, пошагово.',
+  'Сначала — Бричаны и Единец, позже Бельцы. Продажа закрывается за 2 часа до рейса, билеты оплачены заранее.',
+  '🎬 На видео — пошагово.',
 ].join('\n');
 const TEXT_LEGARE = [
   '🔗 <b>Привяжите свой Telegram — один раз</b>',
@@ -118,26 +117,6 @@ async function raportLegare(sb: ReturnType<typeof getSupabase>, azi: string): Pr
   return { text, stabili: soferi.length, legati: legati.length };
 }
 
-const TEXT_ANUNT = [
-  '📣 <b>Важное объявление</b>',
-  '',
-  'Уважаемые водители!',
-  '',
-  'В ближайшее время мы запускаем <b>продажу билетов онлайн</b>. Запуск планируется <b>после 12 октября</b>.',
-  '',
-  'Проверка проданных билетов и их подтверждение будут проходить <b>через Telegram</b>. Поэтому у каждого водителя обязательно должны быть:',
-  '',
-  '📱 <b>Современный телефон (смартфон) с интернетом</b> — через него водитель будет идентифицировать пассажиров и подтверждать их билеты.',
-  '',
-  '✅ <b>Аккаунт в Telegram</b> на этом телефоне.',
-  '',
-  '⚠️ <b>Без аккаунта в Telegram и современного телефона водитель не будет допущен к рейсу.</b>',
-  '',
-  'Просим подготовиться заранее: взять с собой современный телефон с интернетом, установить Telegram и войти в аккаунт. По всем вопросам обращайтесь к диспетчеру.',
-  '',
-  'Спасибо за понимание и за вашу работу!',
-  '<i>Администрация TRANSLUX</i>',
-].join('\n');
 
 export async function GET(req: NextRequest) {
   const authError = verifyCronSecret(req);
@@ -193,33 +172,27 @@ export async function GET(req: NextRequest) {
   const val = (k: string) => (cfg ?? []).find(r => r.key === k)?.value?.trim() || null;
   const lansat = val(LANSAT);
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });
-  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_ANUNT_ZILNIC, video: VIDEO_KEY, link: LINK_LEGARE, link_bilete: LINK_BILETE, reply_markup: BUTON_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
+  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT_ZILNIC, caractere: TEXT_ANUNT_ZILNIC.replace(/<[^>]+>/g, '').length, video: VIDEO_KEY, reply_markup: BUTON_LEGARE, raport: await raportLegare(sb, azi) });
   const force = q.get('force') === '1';
   const doarRaport = q.get('raport') === '1'; // retrimite doar raportul (ex. după ce s-a adăugat un destinatar)
   const chatId = await graficGroupChatId();
   if (!chatId) return NextResponse.json({ error: 'Grupa Mejgorod nu e legată (/lega_grafic).' }, { status: 500 });
 
   const out: Record<string, unknown> = { azi };
-  if (doarRaport || (val(ULTIMA) === azi && !force)) out.anunt = 'azi';
-  else {
-    const messageId = await sendTelegramText(chatId, TEXT_ANUNT);
-    if (!messageId) return NextResponse.json({ error: 'Telegram nu a primit anunțul' }, { status: 502 });
-    await sb.from('app_config').upsert({ key: ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
-    console.log('[anunt-bilete-online]', azi, 'message_id', messageId);
-    out.anunt = messageId;
-  }
-
-  // Al doilea mesaj: legarea șoferului, până pe 12.10 inclusiv (ION-234)
-  if (azi > LEGARE_PANA_LA) out.legare = 'expirat';
-  else if (doarRaport || (val(LEGARE_ULTIMA) === azi && !force)) out.legare = 'azi';
+  // UN singur mesaj pe zi (Ion, 07.10): videoul + TEXT_ANUNT_ZILNIC + butoanele, până la lansare. Anunțul lung
+  // de dinainte (TEXT_ANUNT) nu mai pleacă separat; legarea nu mai expiră pe 12.10, rămâne în același mesaj.
+  if (doarRaport || ((val(ULTIMA) === azi || val(LEGARE_ULTIMA) === azi) && !force)) out.anunt = 'azi';
   else {
     const { data: vid } = await sb.from('app_config').select('value').eq('key', VIDEO_KEY).maybeSingle();
     const ok = vid?.value
       ? await sendTelegramVideoId(chatId, String(vid.value), TEXT_ANUNT_ZILNIC, BUTON_LEGARE)
       : await sendTelegram(chatId, TEXT_ANUNT_ZILNIC, BUTON_LEGARE);
-    if (!ok) return NextResponse.json({ ...out, error: 'Telegram nu a primit mesajul de legare' }, { status: 502 });
-    await sb.from('app_config').upsert({ key: LEGARE_ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
-    out.legare = 'trimis';
+    if (!ok) return NextResponse.json({ ...out, error: 'Telegram nu a primit anunțul' }, { status: 502 });
+    await sb.from('app_config').upsert([
+      { key: ULTIMA, value: azi, updated_at: acum },
+      { key: LEGARE_ULTIMA, value: azi, updated_at: acum },
+    ], { onConflict: 'key' });
+    out.anunt = 'trimis';
   }
   // câți șoferi interurbani activi sunt legați (doar în răspuns, nu în grupă)
   const { data: dr } = await sb.from('drivers').select('telegram_id').eq('active', true).eq('is_lde', false);

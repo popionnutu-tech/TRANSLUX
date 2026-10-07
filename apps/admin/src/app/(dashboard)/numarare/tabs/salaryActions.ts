@@ -3,6 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { esteAdminCamere } from '@/lib/roles';
 
 // ─── Интерфейсы ───
 
@@ -39,7 +40,7 @@ function buildMonthBounds(year: number, month: number): { firstDay: string; last
 }
 
 function hasAdminCamereAccess(role: string): boolean {
-  return role === 'ADMIN_CAMERE' || role === 'ADMIN';
+  return esteAdminCamere(role);
 }
 
 // ─── Загрузка тарифов ───

@@ -3,6 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { esteAdminCamere } from '@/lib/roles';
 import {
   executeAntaPriceUpdate,
   applyProposal,
@@ -76,7 +77,7 @@ function parseConfigMap(rows: { key: string; value: string }[]): Record<string, 
 }
 
 function hasAdminCamereAccess(role: string): boolean {
-  return role === 'ADMIN_CAMERE' || role === 'ADMIN';
+  return esteAdminCamere(role);
 }
 
 async function upsertConfigKey(key: string, value: string): Promise<{ error?: string }> {

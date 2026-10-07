@@ -5,11 +5,12 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import type { SavedEntry } from './actions';
 import type { ComparisonInput } from './comparison';
+import { ROLURI_NUMARARE, ROLURI_ADMIN_CAMERE } from '@/lib/roles';
 
-const AUDIT_ROLES = ['ADMIN', 'ADMIN_CAMERE'] as const;
+const AUDIT_ROLES = ROLURI_ADMIN_CAMERE;
 // Intrarea auditului (a doua numărare orb) e permisă și operatorilor.
 // Comparația (getAuditComparison) și resetul (resetAudit) rămân doar la admin.
-const AUDIT_ENTRY_ROLES = ['ADMIN', 'ADMIN_CAMERE', 'OPERATOR_CAMERE'] as const;
+const AUDIT_ENTRY_ROLES = ROLURI_NUMARARE;
 
 /**
  * Blochează sesiunea pentru audit. Doar ADMIN/ADMIN_CAMERE.

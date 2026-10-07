@@ -4,6 +4,7 @@ import { jwtVerify } from 'jose';
 import { isPublicPath } from '@/lib/public-paths';
 import { accountState } from '@/lib/account-state';
 import { sesiuneValida } from '@/lib/login-guard';
+import { calePermisaContabilLde } from '@/lib/roles';
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
@@ -18,8 +19,8 @@ const DISPECER_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
 // OBSERVATOR vede aceleași căi, dar fără drept de scriere — interdicția aceea stă
 // în `poateScrie` (lib/lde/camioane-nav.ts), pe fiecare acțiune de server.
 const OBSERVATOR_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
-// CONTABIL_LDE (Clava, ION-174): doar agrearea lunară a șoferilor.
-const CONTABIL_LDE_ALLOWED = ['/lde/agreare'];
+// CONTABIL_LDE (Clava, ION-174): agrearea, normele și consumul (sub /lde/agreare) + Numărarea ca admin camere
+// (Ion, 07.10.2026). Lista stă în lib/roles.ts, cu test.
 const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI'] as const;
 
 export async function middleware(request: NextRequest) {
@@ -66,8 +67,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (role === 'CONTABIL_LDE') {
-      const allowed = CONTABIL_LDE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) return NextResponse.redirect(new URL('/lde/agreare', request.url));
+      if (!calePermisaContabilLde(pathname)) return NextResponse.redirect(new URL('/lde/agreare/norme', request.url));
     }
 
     if (role === 'UZINE') {

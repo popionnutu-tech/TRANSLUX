@@ -13,6 +13,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { getAgreare } from '../actions';
+import { deciziileLunii, confirmarea } from '@/lib/lde/norma-luna';
 
 const PRAG_KM = 300;
 const PRAG_ALIMENTARI = 2;
@@ -33,7 +34,9 @@ export type RandSofer = {
   abatere_tip: number | null; // litri − reper × km / 100; + = supraconsum
   abatere_3l: number | null;
   soferi_pe_masina: number;
-  peste: boolean;             // peste norma tipului sau peste media celor 3 luni
+  norma_aleasa: number | null; // aleasă de Clava pe panoul normelor (Ion, 07.10.2026)
+  abatere_aleasa: number | null;
+  peste: boolean;             // peste norma aleasă; fără alegere — peste norma tipului sau peste media celor 3 luni
   de_verificat: boolean;      // ≥ 2 șoferi pe mașină și peste: «ne uităm»
 };
 
@@ -53,7 +56,7 @@ export type RandMasina = {
   sub_prag: boolean;
 };
 
-export type ConsumData = { luna: string; pana: string; trei_de: string; trei_pana: string; soferi: RandSofer[]; masini: RandMasina[] };
+export type ConsumData = { luna: string; pana: string; trei_de: string; trei_pana: string; confirmata: boolean; soferi: RandSofer[]; masini: RandMasina[] };
 
 const kmZi = (d: { km_total: number | string; km_patched: number | string | null }) => {
   const t = Number(d.km_total), p = Number(d.km_patched ?? 0);
@@ -73,11 +76,13 @@ export async function getConsumSoferi(lunaParam?: string): Promise<ConsumData> {
   const db = getSupabase();
   const ids = ag.randuri.filter((r) => r.uzina !== 'Camioane').map((r) => r.vehicle_id);
 
-  const [fl, eb, nt] = await Promise.all([
+  const [fl, eb, nt, alese, conf] = await Promise.all([
     db.rpc('lde_fuel_flota', { de: primaZi, pana }),
     ids.length ? db.rpc('lde_fuel_norma_eb', { luna: primaZi, vehicule: ids }) : Promise.resolve({ data: [] as any[], error: null }),
     ids.length ? db.from('lde_vehicle_norms').select('vehicle_id, lde_vehicle_types ( display_name, norm_l_per_100km )').in('vehicle_id', ids)
       : Promise.resolve({ data: [] as any[], error: null }),
+    deciziileLunii(luna, ids),
+    confirmarea(luna),
   ]);
   for (const r of [fl, eb, nt]) if (r.error) throw new Error(r.error.message);
   const flota = new Map<string, any>((fl.data ?? []).map((r: any) => [r.vehicle_id, r]));
@@ -134,15 +139,18 @@ export async function getConsumSoferi(lunaParam?: string): Promise<ConsumData> {
       const litriS = consum != null ? (kmS * consum) / 100 : null;
       const abTip = abatere(litriS, normaTip, kmS);
       const ab3 = abatere(litriS, medie3, kmS);
-      const peste = (abTip ?? 0) > 0 || (ab3 ?? 0) > 0;
+      const aleasa = alese.get(r.vehicle_id)?.norma ?? null;
+      const abAleasa = abatere(litriS, aleasa, kmS);
+      const peste = aleasa != null ? (abAleasa ?? 0) > 0 : (abTip ?? 0) > 0 || (ab3 ?? 0) > 0;
       soferi.push({
         driver_id: a.driver_id, nume: a.nume, m: r.m, uzina: r.uzina, de: a.de, pana: a.pana, agreat: r.salvat,
         km: kmS, litri: litriS, consum, norma_tip: normaTip, medie3, abatere_tip: abTip, abatere_3l: ab3,
+        norma_aleasa: aleasa, abatere_aleasa: abAleasa,
         soferi_pe_masina: r.agreati.length, peste, de_verificat: r.agreati.length >= 2 && peste,
       });
     }
   }
   soferi.sort((a, b) => a.nume.localeCompare(b.nume, 'ro') || a.m.localeCompare(b.m));
   masini.sort((a, b) => a.uzina.localeCompare(b.uzina, 'ro') || a.m.localeCompare(b.m));
-  return { luna, pana, trei_de: e0?.calib_de ?? '', trei_pana: e0?.calib_pana ?? '', soferi, masini };
+  return { luna, pana, trei_de: e0?.calib_de ?? '', trei_pana: e0?.calib_pana ?? '', confirmata: !!conf, soferi, masini };
 }

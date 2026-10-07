@@ -1,5 +1,6 @@
 import { getSupabase } from '../supabase';
-import { sendTelegramPhoto, sendTelegramAlbum, sendTelegramText, pinTelegramMessage, escapeHtml } from '../telegram-notify';
+import { sendTelegramPhoto, sendTelegramAlbum, sendTelegramTextSigur, pinTelegramMessage, escapeHtml } from '../telegram-notify';
+import { normeleConfirmate, primaZi, type StareBucata } from './norma-luna';
 import { poster, CULORI, type Celula, type Coloana } from '../poster-sablon';
 import { COMBUSTIBIL_POSTER_CONFIG_KEY, COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY } from '@translux/db';
 
@@ -80,8 +81,9 @@ export function lunaTrecuta(azi: string) {
 type Nivel = 'investigatie' | 'supraveghere' | 'sub' | null;
 type Masina = { id: string; plate: string; activ: boolean; dir: string; litri: number; km: number;
   fapt: number | null; fapt3: number | null; teoretica: number | null; litriCuKm: number; litriCuKm3: number; km3: number;
-  /** de unde vine norma — cele 3 luni dinainte trase spre tip (ION-154) sau norma de până acum (*) */
-  sursaNorma?: 'eb' | 'veche';
+  /** de unde vine norma — cele 3 luni dinainte trase spre tip (ION-154), norma de până acum (*) sau aleasă de Clava și
+   *  confirmată de Ion pe panoul normelor (✓, Ion 07.10.2026) */
+  sursaNorma?: 'eb' | 'veche' | 'clava';
   /** norma e umflată: mașina consumă de 3 luni cu peste 15 % mai mult decât mașinile de același tip (!) */
   umflata?: boolean;
   /** abaterea în litri față de pragul ION-154 */
@@ -102,6 +104,9 @@ const UMFLATA = 1.15;
 
 // o citire pe lună pentru toate grupurile din aceeași cerere (7 postere într-un apel de ≤ 60 s)
 const flotaPeLuna = new Map<string, Promise<Masina[]>>();
+/** Instanța caldă poate trăi între apeluri: înainte de o trimitere / previzualizare cifrele (și norma Clavei) se citesc din nou.
+ *  (Până la 07.10 se ștergea `delete(luna)`, dar cheia e `luna:true/false` — nu se ștergea nimic.) */
+export function golesteCacheFlota() { flotaPeLuna.clear(); }
 function citesteFlota(luna: string, cuLunaTrecuta = true) {
   const cheie = `${luna}:${cuLunaTrecuta}`;
   if (!flotaPeLuna.has(cheie)) flotaPeLuna.set(cheie, citesteFlotaDinBaza(luna, cuLunaTrecuta).catch((e) => { flotaPeLuna.delete(cheie); throw e; }));
@@ -110,10 +115,11 @@ function citesteFlota(luna: string, cuLunaTrecuta = true) {
 async function citesteFlotaDinBaza(luna: string, cuLunaTrecuta: boolean) {
   const sb = getSupabase();
   const { de, pana } = capete(luna);
-  const [a, eb, trecuta] = await Promise.all([
+  const [a, eb, trecuta, aleseClava] = await Promise.all([
     sb.rpc('lde_fuel_flota', { de, pana }),
     sb.rpc('lde_fuel_norma_eb', { luna: de }),
     cuLunaTrecuta ? citesteFlota(lunaTrecuta(de), false) : Promise.resolve([] as Masina[]),
+    normeleConfirmate(luna),   // Ion, 07.10.2026: norma Clavei, doar pe luna confirmată de el
   ]);
   if (a.error) throw new Error(`lde_fuel_flota: ${a.error.message}`);
   if (eb.error) throw new Error(`lde_fuel_norma_eb: ${eb.error.message}`);
@@ -143,7 +149,10 @@ async function citesteFlotaDinBaza(luna: string, cuLunaTrecuta: boolean) {
       m.km3 = Number(p.km); m.litriCuKm3 = Number(p.litri); m.fapt3 = Number(p.consum);
     }
     const n = norme.get(r.vehicle_id);
-    if (n?.norma != null) {
+    const clava = aleseClava.get(r.vehicle_id);
+    if (clava != null) {
+      m.teoretica = clava; m.sursaNorma = 'clava';   // «!» (normă umflată) nu se pune pe cifra aleasă de om
+    } else if (n?.norma != null) {
       m.teoretica = Number(n.norma); m.sursaNorma = n.sursa === 'eb' ? 'eb' : 'veche';
       m.umflata = n.sursa === 'eb' && n.r_masina != null && n.r_tip != null && Number(n.r_masina) > UMFLATA * Number(n.r_tip);
     } else m.sursaNorma = 'veche';
@@ -206,7 +215,7 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
     { text: nf.format(x.litri) }, { text: nf.format(x.km), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? { text: l100Txt(x.fapt), bold: true } : { text: l100Txt(x.fapt), culoare: CULORI.griDeschis },
     { text: l100Txt(x.fapt3) },
-    { text: l100Txt(x.teoretica) + (x.sursaNorma === 'veche' && x.teoretica != null ? '*' : '') + (x.umflata ? '!' : ''),
+    { text: l100Txt(x.teoretica) + (x.sursaNorma === 'veche' && x.teoretica != null ? '*' : '') + (x.sursaNorma === 'clava' ? '✓' : '') + (x.umflata ? '!' : ''),
       culoare: x.umflata ? CULORI.rosu : CULORI.gri, bold: x.umflata },
     // ION-151: motorină luată fără niciun km (fără GPS / fără drept Wialon) — nimeni n-o poate verifica
     x.km >= PRAG_KM_LUNA ? abatere(x.fapt, x.teoretica, x.nivel, cam)
@@ -214,7 +223,9 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
   ]), { ...TABEL, gol: 'Nicio alimentare în lună' });
   p.nota(cam
     ? 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte. Luna = cursele pornite în lună, până la plinul următor (km din GPS). Camioanele se judecă pe 3 luni, nu pe o lună. ! = peste celelalte camioane. «Fără km» = motorină fără GPS.'
-    : 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte, față de mașinile de același model. Roșu = mult peste normă, fond roșu = de cercetat. ! = de 3 luni peste mașinile de același model. Gri = sub 1.000 km. «Fără km» = motorină fără GPS.');
+    : 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte, față de mașinile de același model'
+      + (m.some((x) => x.sursaNorma === 'clava') ? '; ✓ = normă aleasă de Clava și confirmată' : '')
+      + '. Roșu = mult peste normă, fond roșu = de cercetat. ! = de 3 luni peste mașinile de același model. Gri = sub 1.000 km. «Fără km» = motorină fără GPS.');
   const caption = `<b>Combustibil — ${escapeHtml(g.titlu)}</b>, ${eticheta}\n`
     + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (din iunie ${l100Txt(fapt3)}, normă ${l100Txt(teoretica)})`;
   return { png: await p.png(), caption, randuri: m.length };
@@ -298,65 +309,135 @@ async function genereazaGeneral(luna: string, eticheta: string) {
 export function textIntroducere(luna: string) {
   return [
     `<b>DT · combustibil · ${lunaText(luna)}</b>`,
-    'Litri la 100 km. Normă = consumul din cele 3 luni dinainte. Roșu = mult peste normă, fond roșu = de cercetat.',
-    'Detalii: LDE → Combustibil. Următorul raport: pe 25.',
+    'Litri la 100 km. Normă = consumul din cele 3 luni dinainte; ✓ = normă aleasă de Clava, confirmată. Roșu = mult peste normă, fond roșu = de cercetat.',
+    'Detalii: LDE → Combustibil. Raportul pleacă după confirmarea normelor lunii.',
   ].join('\n');
 }
 
-export interface TrimitereCombustibil { grup: string; status: 'sent' | 'skipped' | 'error'; randuri?: number; reason?: string; messageId?: number | null }
+export type Bucata = 'album' | 'general' | 'introducere';
+export const BUCATI: Bucata[] = ['album', 'general', 'introducere'];
+export type StarePoster = Record<Bucata, StareBucata>;
+export type RezultatRecuperare = { luna: string; status: 'asteapta_confirmarea' | 'trimis' | 'partial' | 'nimic_de_trimis' | 'eroare';
+  stare?: StarePoster; motiv?: string };
+type Poza = { png: Buffer; caption: string; filename: string };
+type Raspuns = { ok: boolean; refuzat?: boolean; messageId?: number | null };
 
-/** Trimite posterele lunii în grupă; idempotent pe grup și lună (app_config combustibil_poster_last_<grup>). */
-export async function trimitePostereCombustibil(opts: { luna: string; grupuri?: string[]; force?: boolean }): Promise<TrimitereCombustibil[]> {
-  // Ion, 29.09: «trimite toate 8 poze ca o postare cu mai multe poze» — un album (sendMediaGroup), apoi introducerea,
-  // fixată sus în tab. Anti-dublură pe lună (app_config combustibil_poster_album_last), nu pe fiecare grup.
-  const sb = getSupabase();
-  const cfg = async (key: string) => {
-    const { data } = await sb.from('app_config').select('value').eq('key', key).maybeSingle();
-    return ((data as { value?: string } | null)?.value ?? '').trim() || null;
-  };
-  const chatId = await cfg(COMBUSTIBIL_POSTER_CHAT_KEY);
-  const threadId = Number(await cfg(COMBUSTIBIL_POSTER_THREAD_KEY)) || null;
-  const ids = opts.grupuri?.length ? GRUP_IDS.filter((g) => opts.grupuri!.includes(g)) : GRUP_IDS;
-  flotaPeLuna.delete(opts.luna);   // instanța poate trăi între apeluri — cifrele se citesc proaspăt
-  if (!chatId) return [{ grup: 'album', status: 'skipped', reason: `grupa nu e setată (app_config.${COMBUSTIBIL_POSTER_CHAT_KEY}) — /lega_dt` }];
-  if (!opts.force && (await cfg(MARCA_ALBUM_KEY)) === opts.luna) return [{ grup: 'album', status: 'skipped', reason: 'luna a plecat deja' }];
+/** Transportul și starea, injectabile în test (fără Telegram și fără bază). */
+export type DepsPoster = {
+  citesteStare(luna: string): Promise<{ confirmat: boolean; stare: StarePoster } | null>;
+  scrieStare(luna: string, stare: StarePoster, motiv: string | null, gata: boolean): Promise<void>;
+  grupa(): Promise<{ chatId: string; threadId: number | null } | null>;
+  pregateste(luna: string): Promise<{ album: Poza[]; general: Poza | null }>;
+  trimiteAlbum(chatId: string, poze: Poza[], threadId: number | null): Promise<Raspuns>;
+  trimiteFoto(chatId: string, poza: Poza, threadId: number | null): Promise<Raspuns>;
+  trimiteText(chatId: string, text: string, threadId: number | null): Promise<Raspuns>;
+};
 
-  const out: TrimitereCombustibil[] = [];
-  const poze: { png: Buffer; caption: string; filename: string }[] = [];
-  for (const grup of ids) {
-    try {
-      const { png, caption, randuri } = await genereazaGrup(grup, opts.luna);
-      if (!randuri) { out.push({ grup, status: 'skipped', randuri, reason: 'nimic în lună' }); continue; }
-      poze.push({ png, caption, filename: `combustibil-${grup}-${opts.luna}.png` });
-      out.push({ grup, status: 'sent', randuri });
-    } catch (e) {
-      out.push({ grup, status: 'error', reason: e instanceof Error ? e.message : String(e) });
+const STARE_GOALA: StarePoster = { album: 'netrimis', general: 'netrimis', introducere: 'netrimis' };
+
+/**
+ * Trimite posterul unei luni CONFIRMATE de Ion, bucată cu bucată (album → general → introducere), cu stare în bază
+ * (lde_norma_luna_confirmare.poster_rezultat). Plan 2026-10-07, rundele Codex 2–3:
+ *  - fiecare bucată trece în «in_curs» ÎNAINTE de trimitere; după răspuns: ok | refuzat (Telegram a zis sigur «nu») |
+ *    incert (timeout / rețea / proces oprit — poate a plecat);
+ *  - recuperarea automată (cron, «Trimite din nou») trimite DOAR bucățile «netrimis» / «refuzat»; «in_curs» / «incert»
+ *    le hotărăște Ion pe panou («A plecat» sau «Retrimite» = `explicit`);
+ *  - o bucată nereușită oprește lanțul (generalul nu pleacă fără album, introducerea nu pleacă fără general).
+ */
+export async function recupereazaPoster(luna: string, opts: { explicit?: Bucata[] } = {}, deps: DepsPoster = depsReale): Promise<RezultatRecuperare> {
+  const st = await deps.citesteStare(luna);
+  if (!st?.confirmat) return { luna, status: 'asteapta_confirmarea' };
+  const stare: StarePoster = { ...STARE_GOALA, ...st.stare };
+  const explicit = new Set(opts.explicit ?? []);
+  const deTrimis = (b: Bucata) => explicit.has(b) || stare[b] === 'netrimis' || stare[b] === 'refuzat';
+  // lanțul se reia de la prima bucată care nu e «ok»; dacă aceea nu se poate retrimite automat, nu pleacă nimic
+  const prima = BUCATI.find((b) => stare[b] !== 'ok');
+  if (!prima) return { luna, status: 'trimis', stare };
+  if (!deTrimis(prima)) {
+    return { luna, status: 'nimic_de_trimis', stare,
+      motiv: `${prima}: rezultat nesigur — verifică în grupă și alege «A plecat» sau «Retrimite»` };
+  }
+  const g = await deps.grupa();
+  if (!g) { await deps.scrieStare(luna, stare, 'grupa nu e setată — /lega_dt în bot', false); return { luna, status: 'eroare', stare, motiv: 'grupa nu e setată — /lega_dt în bot' }; }
+
+  let poze: { album: Poza[]; general: Poza | null } | null = null;
+  if (deTrimis('album') || deTrimis('general')) {
+    try { poze = await deps.pregateste(luna); } catch (e) {
+      const motiv = `posterele nu s-au generat: ${e instanceof Error ? e.message : String(e)}`;
+      await deps.scrieStare(luna, stare, motiv, false);
+      return { luna, status: 'eroare', stare, motiv };
     }
   }
-  // o eroare la un poster oprește tot: un album fără o direcție ar părea complet
-  if (out.some((x) => x.status === 'error')) return out.map((x) => (x.status === 'sent' ? { ...x, status: 'skipped' as const, reason: 'albumul n-a plecat: eroare la alt poster' } : x));
-  if (!poze.length) return out;
-  // Ion, 29.09: posterul general «să se transmită unic, separat» — albumul are posterele direcțiilor și «în afara
-  // flotei», generalul pleacă singur după el
-  const iGen = ids.filter((g) => out.find((x) => x.grup === g)?.status === 'sent').indexOf(GRUP_GENERAL);
-  const general = iGen >= 0 ? poze.splice(iGen, 1)[0] : null;
-  const unu = (p: { png: Buffer; caption: string; filename: string }) =>
-    sendTelegramPhoto(chatId, p.png, p.caption, p.filename, threadId).then((r) => ({ ok: r.ok, messageIds: r.messageId ? [r.messageId] : [] }));
-  const trimis = !poze.length ? { ok: true, messageIds: [] as number[] } : poze.length === 1 ? await unu(poze[0]) : await sendTelegramAlbum(chatId, poze, threadId);
-  if (!trimis.ok) return out.map((x) => (x.status === 'sent' ? { ...x, status: 'error' as const, reason: 'Telegram a refuzat albumul' } : x));
-  const trimisGen = general ? await unu(general) : null;
-  out.forEach((x) => {
-    if (x.status !== 'sent') return;
-    if (x.grup === GRUP_GENERAL) { x.messageId = trimisGen?.messageIds[0] ?? null; if (!trimisGen?.ok) { x.status = 'error'; x.reason = 'Telegram a refuzat posterul general'; } }
-    else x.messageId = trimis.messageIds.shift() ?? null;
-  });
-  await sb.from('app_config').upsert({ key: MARCA_ALBUM_KEY, value: opts.luna }, { onConflict: 'key' });
-
-  // după album: introducerea, fixată sus (doar la trimiterea întreagă)
-  if (ids.length === GRUP_IDS.length) {
-    const intro = await sendTelegramText(chatId, textIntroducere(opts.luna), threadId);
-    if (intro) await pinTelegramMessage(chatId, intro);
-    out.push({ grup: 'introducere', status: intro ? 'sent' : 'error', messageId: intro, reason: intro ? undefined : 'Telegram a refuzat mesajul' });
+  let motiv: string | null = null;
+  for (const b of BUCATI) {
+    if (!deTrimis(b)) { if (stare[b] !== 'ok') break; continue; }   // bucata dinainte nu e ok → nu se sare peste ea
+    stare[b] = 'in_curs';
+    await deps.scrieStare(luna, stare, null, false);
+    let r: Raspuns;
+    if (b === 'album') {
+      const a = poze!.album;
+      r = a.length === 0 ? { ok: true } : a.length === 1 ? await deps.trimiteFoto(g.chatId, a[0], g.threadId) : await deps.trimiteAlbum(g.chatId, a, g.threadId);
+    } else if (b === 'general') {
+      r = poze!.general ? await deps.trimiteFoto(g.chatId, poze!.general, g.threadId) : { ok: true };
+    } else {
+      r = await deps.trimiteText(g.chatId, textIntroducere(luna), g.threadId);
+    }
+    stare[b] = r.ok ? 'ok' : r.refuzat ? 'refuzat' : 'incert';
+    if (!r.ok) motiv = `${b}: ${r.refuzat ? 'Telegram a refuzat' : 'rezultat nesigur (timeout / rețea) — verifică în grupă'}`;
+    const gata = BUCATI.every((x) => stare[x] === 'ok');
+    await deps.scrieStare(luna, stare, motiv, gata);
+    if (!r.ok) break;
   }
-  return out;
+  const gata = BUCATI.every((x) => stare[x] === 'ok');
+  return { luna, status: gata ? 'trimis' : 'partial', stare, motiv: motiv ?? undefined };
 }
+
+const depsReale: DepsPoster = {
+  async citesteStare(luna) {
+    const { data, error } = await getSupabase().from('lde_norma_luna_confirmare').select('poster_rezultat').eq('luna', primaZi(luna)).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? { confirmat: true, stare: (data as any).poster_rezultat as StarePoster } : null;
+  },
+  async scrieStare(luna, stare, motiv, gata) {
+    const sb = getSupabase();
+    const { error } = await sb.from('lde_norma_luna_confirmare')
+      .update({ poster_rezultat: stare, poster_motiv: motiv, ...(gata ? { poster_trimis_la: new Date().toISOString() } : {}) })
+      .eq('luna', primaZi(luna));
+    if (error) throw new Error(error.message);
+    // marcajul vechi (folosit până la 07.10 ca anti-dublură pe lună) rămâne la zi, pentru cine îl citește
+    if (gata) await sb.from('app_config').upsert({ key: MARCA_ALBUM_KEY, value: luna }, { onConflict: 'key' });
+  },
+  async grupa() {
+    const sb = getSupabase();
+    const cfg = async (key: string) => {
+      const { data } = await sb.from('app_config').select('value').eq('key', key).maybeSingle();
+      return ((data as { value?: string } | null)?.value ?? '').trim() || null;
+    };
+    const chatId = await cfg(COMBUSTIBIL_POSTER_CHAT_KEY);
+    return chatId ? { chatId, threadId: Number(await cfg(COMBUSTIBIL_POSTER_THREAD_KEY)) || null } : null;
+  },
+  async pregateste(luna) {
+    golesteCacheFlota();   // cifrele și norma Clavei proaspete
+    const album: Poza[] = []; let general: Poza | null = null;
+    for (const grup of GRUP_IDS) {
+      const { png, caption, randuri } = await genereazaGrup(grup, luna);   // o eroare aici oprește tot, înainte de orice trimitere
+      if (!randuri) continue;
+      const p = { png, caption, filename: `combustibil-${grup}-${luna}.png` };
+      if (grup === GRUP_GENERAL) general = p; else album.push(p);
+    }
+    return { album, general };
+  },
+  async trimiteAlbum(chatId, poze, threadId) {
+    const r = await sendTelegramAlbum(chatId, poze, threadId);
+    return { ok: r.ok, refuzat: r.refuzat, messageId: r.messageIds[0] ?? null };
+  },
+  async trimiteFoto(chatId, p, threadId) {
+    const r = await sendTelegramPhoto(chatId, p.png, p.caption, p.filename, threadId);
+    return { ok: r.ok, refuzat: r.refuzat, messageId: r.messageId };
+  },
+  async trimiteText(chatId, text, threadId) {
+    const r = await sendTelegramTextSigur(chatId, text, threadId);
+    if (r.messageId) await pinTelegramMessage(chatId, r.messageId);
+    return { ok: r.messageId != null, refuzat: r.refuzat, messageId: r.messageId };
+  },
+};

@@ -77,7 +77,8 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
               <th style={st(th)}>Șoferul</th><th style={st(th)}>Mașina</th><th style={st(th)}>Perioada</th>
               <th style={th}>Km GPS</th><th style={th}>Litri</th><th style={th}>l/100</th>
               <th style={th} title="Norma tipului mașinii">Norma tip</th><th style={th}>± l față de tip</th>
-              <th style={th} title="Consumul mașinii în cele 3 luni închise de dinainte">Media 3 luni</th><th style={th}>± l față de 3 luni</th><th style={st(th)}></th>
+              <th style={th} title="Consumul mașinii în cele 3 luni închise de dinainte">Media 3 luni</th><th style={th}>± l față de 3 luni</th>
+              <th style={th} title="Aleasă de Clava pe panoul normelor">Norma aleasă</th><th style={th}>± l față de aleasă</th><th style={st(th)}></th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +95,8 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
                   <td style={abStil(s.abatere_tip)}>{semn(s.abatere_tip)}</td>
                   <td style={{ ...td, color: '#666' }}>{nr(s.medie3, 1)}</td>
                   <td style={abStil(s.abatere_3l)}>{semn(s.abatere_3l)}</td>
+                  <td style={{ ...td, fontWeight: 600 }} title={data.confirmata ? 'Confirmată de Ion' : 'Neconfirmată încă de Ion'}>{nr(s.norma_aleasa, 1)}{s.norma_aleasa != null && !data.confirmata ? ' ·' : ''}</td>
+                  <td style={abStil(s.abatere_aleasa)}>{semn(s.abatere_aleasa)}</td>
                   <td style={st(td)}>
                     {s.de_verificat && <span style={badge('rgba(217,119,6,0.12)', '#b45309')} title="Mai mulți șoferi pe mașină și peste un reper: împărțirea după km nu spune cine a consumat">de verificat · {s.soferi_pe_masina} șoferi</span>}
                     {s.consum == null && <span style={badge('rgba(0,0,0,0.05)', '#666')} title="Mașina are sub 300 km sau sub 2 alimentări în lună">puține date</span>}
@@ -101,7 +104,7 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
                 </tr>
               );
             })}
-            {!soferi.length && <tr><td colSpan={11} style={st({ ...td, color: '#666', padding: 12 })}>Niciun șofer pe filtrul ales.</td></tr>}
+            {!soferi.length && <tr><td colSpan={13} style={st({ ...td, color: '#666', padding: 12 })}>Niciun șofer pe filtrul ales.</td></tr>}
           </tbody>
         </table>
       </div>

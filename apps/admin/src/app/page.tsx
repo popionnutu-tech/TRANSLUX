@@ -16,7 +16,7 @@ export default async function RootPage() {
     case 'EVALUATOR_INCASARI':
       redirect('/numarare');
     case 'CONTABIL_LDE':
-      redirect('/lde/agreare');
+      redirect('/lde/agreare/norme');
     case 'CONTABIL':
       redirect('/piese');
     default:

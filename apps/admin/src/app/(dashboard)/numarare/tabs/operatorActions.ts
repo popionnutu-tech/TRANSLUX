@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { forgetAccountState } from '@/lib/account-state';
 import { verifySession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { ROLURI_ADMIN_CAMERE } from '@/lib/roles';
 
 const { hash } = bcrypt;
 
@@ -32,7 +33,7 @@ export interface OperatorPrudence {
 
 // ─── Авторизация ───
 
-const ALLOWED_ROLES = new Set(['ADMIN', 'ADMIN_CAMERE']);
+const ALLOWED_ROLES = new Set<string>(ROLURI_ADMIN_CAMERE);
 
 async function requireCamereAdmin(): Promise<{ error?: string }> {
   const session = await verifySession();
@@ -103,12 +104,19 @@ export async function toggleOperatorActive(
   if (!ALLOWED_ROLES.has(session.role)) return { error: 'Acces interzis' };
   if (id === session.id) return { error: 'Nu poți dezactiva propriul cont' };
 
-  const { error } = await getSupabase()
+  // Doar conturile de operatori de camere (plan 2026-10-07, revizorii backend + securitate): azi acțiunea primea orice
+  // id, deci un admin de camere putea dezactiva și conturile ADMIN. Adminul de camere — doar OPERATOR_CAMERE;
+  // ADMIN — și ADMIN_CAMERE (contul de camere vechi). Restul conturilor se schimbă din /users.
+  const tinte = session.role === 'ADMIN' ? ['OPERATOR_CAMERE', 'ADMIN_CAMERE'] : ['OPERATOR_CAMERE'];
+  const { data: schimbate, error } = await getSupabase()
     .from('admin_accounts')
     .update({ active })
-    .eq('id', id);
+    .eq('id', id)
+    .in('role', tinte)
+    .select('id');
 
   if (error) return { error: error.message };
+  if (!schimbate?.length) return { error: 'Contul nu e al unui operator de camere' };
   // Dezactivarea crește session_version (trigger, migr. 428) — operatorul iese din sesiunile deschise.
   forgetAccountState(id);
   return {};

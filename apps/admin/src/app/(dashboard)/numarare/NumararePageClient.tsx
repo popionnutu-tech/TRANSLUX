@@ -31,7 +31,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
   // - EVALUATOR_INCASARI → DOAR 'incasare'
   // - alți utilizatori   → fără tab-uri (NumarareClient direct)
   const isAdmin = role === 'ADMIN';
-  const isAdminCamere = role === 'ADMIN_CAMERE';
+  const isAdminCamere = role === 'ADMIN_CAMERE' || role === 'CONTABIL_LDE';   // Clava (Ion, 07.10.2026)
   const isEvaluator = role === 'EVALUATOR_INCASARI';
 
   const visibleTabs: Tab[] = isAdmin

@@ -29,6 +29,7 @@ import { lockAudit, unlockAudit, resetAudit, loadAuditEntries } from './auditAct
 import { isWithinGrace, GRACE_MINUTES } from './calculation';
 import AuditComparisonView from './AuditComparisonView';
 import type { AdminRole } from '@translux/db';
+import { esteAdminCamere } from '@/lib/roles';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -48,7 +49,7 @@ const selectStyle: React.CSSProperties = {
 };
 
 export default function NumarareClient({ role }: { role: AdminRole }) {
-  const canSeeSums = role === 'ADMIN' || role === 'ADMIN_CAMERE';
+  const canSeeSums = esteAdminCamere(role);
   const [date, setDate] = useState(todayChisinau);
   const [dateTo, setDateTo] = useState(todayChisinau);
   const [routes, setRoutes] = useState<RouteForCounting[]>([]);
@@ -70,7 +71,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   const [viewOnly, setViewOnly] = useState(false);
   const [showComparison, setShowComparison] = useState<string | null>(null); // sessionId
 
-  const canAudit = role === 'ADMIN' || role === 'ADMIN_CAMERE';
+  const canAudit = esteAdminCamere(role);
 
   const isPeriod = dateTo > date;
 

@@ -263,7 +263,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
           </table>
           <p className="text-sm text-muted-foreground" style={{ marginTop: '0.5rem' }}>
             Km: GPS-ul nostru pe zi; unde lipsește (înainte de 10.06.2026), km din LDE. Norma faptică se ia din prima zi cu km
-            a fiecărei mașini — camioanele au km doar din iunie. «Din iunie» = consumul plin la plin de la 10.06 până la sfârșitul perioadei. Normă = acest consum la mașinile cu cel puțin 3 pliniri; * = mai puține, norma de până acum. Abaterea = perioada față de normă.
+            a fiecărei mașini — camioanele au km doar din iunie. «Din iunie» = consumul plin la plin de la 10.06 până la sfârșitul perioadei. Normă = acest consum la mașinile cu cel puțin 3 pliniri; * = mai puține, norma de până acum; ✓ = aleasă de Clava și confirmată (doar când perioada e o lună). Abaterea = perioada față de normă.
           </p>
         </CardContent>
       </Card>
@@ -318,7 +318,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                               : `GPS-ul nostru ${r.km_zile_gps} zile, LDE ${r.km_zile_lde} zile`}>{nf.format(r.km)}</td>
                           <td style={{ textAlign: 'right' }}><strong>{r.consum != null ? nf1.format(r.consum) : '—'}</strong></td>
                           <td style={{ textAlign: 'right' }}>{r.consum3 != null ? nf1.format(r.consum3) : '—'}</td>
-                          <td style={{ textAlign: 'right' }}>{r.norma_teoretica != null ? nf1.format(r.norma_teoretica) + (r.norma_veche ? '*' : '') : '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{r.norma_teoretica != null ? nf1.format(r.norma_teoretica) + (r.norma_veche ? '*' : '') + (r.norma_clava ? ' ✓' : '') : '—'}</td>
                           <td style={{ textAlign: 'right' }}><Abatere consum={r.consum} norma={r.norma_teoretica} /></td>
                           <td>{fmtZi(r.prima)} → {fmtZi(r.ultima)}</td>
                         </tr>

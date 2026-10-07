@@ -118,9 +118,10 @@ export async function sendTelegramPhoto(
   filename = 'image.png',
   /** tabul (topicul) dintr-o grupă-forum; lipsă = chatul întreg */
   threadId?: number | null,
-): Promise<{ ok: boolean; messageId: number | null }> {
+): Promise<{ ok: boolean; messageId: number | null; refuzat?: boolean }> {
+  // refuzat = Telegram a răspuns sigur «nu» (nimic n-a plecat); fără el, ok:false poate fi și timeout după livrare
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) return { ok: false, messageId: null };
+  if (!botToken) return { ok: false, messageId: null, refuzat: true };
   try {
     const form = new FormData();
     form.append('chat_id', String(chatId));
@@ -140,7 +141,7 @@ export async function sendTelegramPhoto(
       console.error('sendTelegramPhoto failed:', resp.status, body.slice(0, 300));
       const nou = resp.status === 400 ? await mutaGrupa(chatId, body) : null;
       if (nou) return sendTelegramPhoto(nou, png, caption, filename, threadId);
-      return { ok: false, messageId: null };
+      return { ok: false, messageId: null, refuzat: resp.status >= 400 && resp.status < 500 };
     }
     const json = (await resp.json().catch(() => null)) as { result?: { message_id?: number } } | null;
     return { ok: true, messageId: json?.result?.message_id ?? null };
@@ -157,9 +158,9 @@ export async function sendTelegramAlbum(
   chatId: string | number,
   poze: { png: Buffer | Uint8Array; caption?: string; filename?: string }[],
   threadId?: number | null,
-): Promise<{ ok: boolean; messageIds: number[] }> {
+): Promise<{ ok: boolean; messageIds: number[]; refuzat?: boolean }> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken || poze.length < 2 || poze.length > 10) return { ok: false, messageIds: [] };
+  if (!botToken || poze.length < 2 || poze.length > 10) return { ok: false, messageIds: [], refuzat: true };
   try {
     const form = new FormData();
     form.append('chat_id', String(chatId));
@@ -176,13 +177,38 @@ export async function sendTelegramAlbum(
       console.error('sendTelegramAlbum failed:', resp.status, body.slice(0, 300));
       const nou = resp.status === 400 ? await mutaGrupa(chatId, body) : null;
       if (nou) return sendTelegramAlbum(nou, poze, threadId);
-      return { ok: false, messageIds: [] };
+      return { ok: false, messageIds: [], refuzat: resp.status >= 400 && resp.status < 500 };
     }
     const json = (await resp.json().catch(() => null)) as { result?: { message_id?: number }[] } | null;
     return { ok: true, messageIds: (json?.result ?? []).map((m) => m.message_id ?? 0).filter(Boolean) };
   } catch (err) {
     console.error('sendTelegramAlbum failed:', err);
     return { ok: false, messageIds: [] };
+  }
+}
+
+/** Ca sendTelegramText, dar spune și dacă refuzul e sigur (răspuns 4xx de la Telegram) sau rezultatul e nesigur
+ *  (timeout / rețea — mesajul poate să fi plecat). Folosit unde o retrimitere ar dubla mesajul în grupă. */
+export async function sendTelegramTextSigur(chatId: string | number, text: string, threadId?: number | null): Promise<{ messageId: number | null; refuzat: boolean }> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return { messageId: null, refuzat: true };
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(threadId ? { message_thread_id: threadId } : {}) }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const corp = await resp.text().catch(() => '');
+    const json = (() => { try { return JSON.parse(corp) as { ok?: boolean; result?: { message_id?: number } }; } catch { return null; } })();
+    if (!json?.ok && resp.status === 400) {
+      const nou = await mutaGrupa(chatId, corp);
+      if (nou) return sendTelegramTextSigur(nou, text, threadId);
+    }
+    if (json?.ok) return { messageId: json.result?.message_id ?? null, refuzat: false };
+    return { messageId: null, refuzat: resp.status >= 400 && resp.status < 500 };
+  } catch (err) {
+    console.error('sendTelegramTextSigur failed:', err);
+    return { messageId: null, refuzat: false };
   }
 }
 

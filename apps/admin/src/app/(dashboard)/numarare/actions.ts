@@ -5,6 +5,7 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { resolveReturTime } from '@translux/db';
 import { suburbanFareRound, isWithinGrace } from './calculation';
+import { ROLURI_NUMARARE, ROLURI_ADMIN_CAMERE, esteAdminCamere } from '@/lib/roles';
 
 // ─── Типы ───
 
@@ -114,8 +115,9 @@ export interface RouteForPeriod {
 
 // ─── Текущий пользователь ───
 
-const NUMARARE_ROLES = ['ADMIN', 'ADMIN_CAMERE', 'OPERATOR_CAMERE'] as const;
-const NUMARARE_ADMIN_ROLES = ['ADMIN', 'ADMIN_CAMERE'] as const;
+// Clava (CONTABIL_LDE) e și admin pe camere (Ion, 07.10.2026) — listele stau în lib/roles.ts
+const NUMARARE_ROLES = ROLURI_NUMARARE;
+const NUMARARE_ADMIN_ROLES = ROLURI_ADMIN_CAMERE;
 
 /**
  * Poate utilizatorul curent să editeze sesiunea dată?
@@ -294,7 +296,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   routes.sort((a, b) => parseTur(a.time_nord) - parseTur(b.time_nord));
 
   // Strip financial data for non-admin roles (server-side enforcement)
-  if (session.role !== 'ADMIN' && session.role !== 'ADMIN_CAMERE') {
+  if (!esteAdminCamere(session.role)) {
     for (const r of routes) {
       r.tur_total_lei = null;
       r.retur_total_lei = null;
@@ -397,7 +399,7 @@ export async function getRoutesForPeriod(
   result.sort((a, b) => parseTur(a.time_nord) - parseTur(b.time_nord));
 
   // Strip financial data for non-admin roles
-  if (session.role !== 'ADMIN' && session.role !== 'ADMIN_CAMERE') {
+  if (!esteAdminCamere(session.role)) {
     for (const r of result) {
       r.tur_total_lei = null;
       r.retur_total_lei = null;
@@ -914,7 +916,7 @@ export async function loadSavedEntries(
 
 export async function forceUnlock(sessionId: string): Promise<{ error?: string }> {
   const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'ADMIN_CAMERE')) {
+  if (!session || !esteAdminCamere(session.role)) {
     return { error: 'Acces interzis' };
   }
 

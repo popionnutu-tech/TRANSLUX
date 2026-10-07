@@ -87,7 +87,9 @@ export function adaptorLear(D, { caleSchelet, caleLista } = {}) {
     const laAlta = new Set();
     for (const g of ALTE) { let t = null; for (const p of P) { if (hav(p, g) <= g.r && p.v <= 1) { t ??= p.t; if (p.t - t >= 2 * 60e3) laAlta.add(ziLucru(p.t)); } else t = null; } }
     const zile = [], altaUzina = [];
-    for (const z of zileSapt) { if (!atinge.has(z)) continue; if (laAlta.has(z)) { altaUzina.push(z); continue; } zile.push(z); }
+    for (const z of zileSapt) { if (!atinge.has(z)) continue;
+      if (new Date(`${z}T12:00:00Z`).getUTCDay() === 0 && !D.zileLucru?.duminica) continue;   // duminica uzina nu lucrează (§2.2): atingerea porții nu face plan
+      if (laAlta.has(z)) { altaUzina.push(z); continue; } zile.push(z); }
     // două treceri: întâi fără «pe drumul rutei»; rutele confirmate cu urcări în săptămână + lista = rutele pe care drumul acoperit face cursa făcută
     ctx.peDrumPermis = new Set();
     const Z0 = zile.map((z) => ziua(ctx, z));

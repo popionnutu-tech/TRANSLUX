@@ -236,6 +236,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
                       <span style={{ fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>{l.ora}</span>
                       <span>{l.aN ?? '—'} → <b style={{ color: l.loc ? culoareLoc(l.loc) : 'var(--text-secondary)' }}>{textDrum({ loc: l.loc, acum: l.acum ?? null }, zi.parcare!.locuri)}</b> → {l.bN ?? '—'}</span>
                       <span style={{ fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: 'var(--text-secondary)' }}>{n0(l.real)} → {n0(l.km)} km</span>
+                      {l.explicatie ? <span style={{ gridColumn: '2 / 4', color: 'var(--text-secondary)', fontSize: 11 }}>{l.explicatie}</span> : null}
                     </div>
                   ))}
                 </div>

@@ -33,6 +33,7 @@ export const PARAM_SI = {
   DIAG_MIN: 45,
   // Ion, 06.10 («cursa neconfirmată, dar care merge pe schelet»): capăt + fereastră + sens fără urcări ≥ 10 s e FĂCUTĂ dacă urma acoperă drumul cu oameni
   // al rutei din schelet: ≥ ACOPERIRE din punctele lui la ≤ R_ACOPERIRE de urmă (tracker-ele care încetinesc doar 2–5 s nu mai pierd cursa)
+  CAPAT_DRUM_KM: 3,      // cursa «pe drumul rutei» fără apropiere ≤ 1 km de capăt: capătul la apropierea cea mai mică, cel mult 3 km
   ACOPERIRE: process.env.SI_ACOPERIRE ? +process.env.SI_ACOPERIRE : 0.8, R_ACOPERIRE: 0.3,   // SI_ACOPERIRE doar pentru probă (2 = regula oprită)           // pentru «lipsă»: o sosire / plecare la ≤ 45 min de fereastră se spune în motiv
 };
 const P0 = PARAM_SI;
@@ -160,13 +161,22 @@ function incearca(ctx, sg, sens, ids) {
   // «pe drumul rutei» doar pe rutele pe care mașina are dovadă cu urcări în săptămână (sau din listă): un drum gol acasă pe drumul altei rute nu e cursă
   else if (d.cap && d.n === 0 && !(ctx.peDrumPermis?.has(R.id))) statut = 'neconfirmata';
   else if (d.cap && d.n === 0) { acop = acoperire(P, R.linii?.[sens], sens === 'tur' ? d.cap.t : sg.t0, sens === 'tur' ? sg.t1 : d.cap.t); statut = acop >= P0.ACOPERIRE ? 'facuta' : 'neconfirmata'; }
+  // ION-268 (07.10, 283BRAT 06.10 tur s2 B4): drumul rutei acoperit ≥ ACOPERIRE în sensul cursei e cursă FĂCUTĂ și când urma nu trece la ≤ 1 km de
+  // punctul capătului (Coșeni la 1,3 km) și urcările nu-s în satele din act — capătul se ia atunci la apropierea cea mai mică (≤ CAPAT_DRUM_KM)
+  else if (!d.cap && ctx.peDrumPermis?.has(R.id) && R.capat) {
+    const [a0, a1] = sens === 'tur' ? [tRef, sg.t1] : [sg.t0, tRef];
+    let best = null; for (const p of intre(P, a0, a1)) { const dd = hav(p, R.capat); if (dd <= P0.CAPAT_DRUM_KM && (!best || dd < best.d)) best = { p, d: dd }; }
+    if (!best) return { statut: 'nimic', n: d.n };
+    acop = acoperire(P, R.linii?.[sens], sens === 'tur' ? best.p.t : sg.t0, sens === 'tur' ? sg.t1 : best.p.t);
+    if (acop < P0.ACOPERIRE) return { statut: 'nimic', n: d.n };
+    statut = 'facuta'; d.cap = best.p; d.capAprox = r1(best.d); }
   else return { statut: 'nimic', n: d.n };
   let t0, t1;
   if (sens === 'tur') { t0 = Math.min(d.cap?.t ?? Infinity, d.U[0]?.t0 ?? Infinity); t1 = sg.t1; }
   else { t0 = sg.t0; t1 = Math.max(d.cap?.t ?? -Infinity, d.U.at(-1)?.t1 ?? -Infinity); }
   const capKm = R.km + [...d.peComasat.keys()].reduce((s, id) => s + (ctx.rute.get(id)?.km ?? 0), 0);
   const x = taie(P, t0, t1, capKm, sens === 'tur');
-  return { statut, ruta: R.id, comasate: [...d.peComasat.keys()], t0: x.t0, t1: x.t1, kmGps: r1(kmIntre(P, t0, t1)), km: r1(x.km), kmTaiat: r1(x.taiat), urcari: d.n, urcariAct: d.nAct, acoperire: acop == null ? undefined : r1(acop * 100), peDrum: acop != null && acop >= P0.ACOPERIRE ? true : undefined,
+  return { statut, ruta: R.id, comasate: [...d.peComasat.keys()], t0: x.t0, t1: x.t1, kmGps: r1(kmIntre(P, t0, t1)), km: r1(x.km), kmTaiat: r1(x.taiat), urcari: d.n, urcariAct: d.nAct, acoperire: acop == null ? undefined : r1(acop * 100), peDrum: acop != null && acop >= P0.ACOPERIRE ? true : undefined, kmRuta: R.km, capatAprox: d.capAprox,
     sate: [...new Set(d.U.map((s) => ctx.numeSat?.(s) ?? '?'))], capat: !!d.cap, taiat: d.cap ? 'capat' : 'urcari', sg, sgT0: sg.t0 };
 }
 
@@ -183,7 +193,7 @@ const candidati = (seg, sens, [w0, w1], tol = 0) => seg.filter((s) => (sens === 
 
 /** scorul dovezii: capătul atins, urcările pe drumul rutei (și cele din satele ei din nomenclator), minus urcările din bucată pe care ruta nu le explică */
 const scor = (x, ctx) => !x ? 0 : x.statut !== 'facuta' ? 0
-  : 1000 + (x.capat ? 300 : 0) - (x.peDrum ? 200 : 0) + 20 * x.urcari + 10 * (x.urcariAct ?? 0) - 20 * (x.neexplicate ?? 0) + (ctx.ruteLista?.has(x.ruta) ? 1 : 0);
+  : 1000 + (x.capat ? 300 : 0) - (x.peDrum ? 200 : 0) + (x.peDrum ? 0.5 * (x.kmRuta ?? 0) : 0) + 20 * x.urcari + 10 * (x.urcariAct ?? 0) - 20 * (x.neexplicate ?? 0) + (ctx.ruteLista?.has(x.ruta) ? 1 : 0);
 
 /** sloturile zilei (fără ruta: ruta o alege potrivirea) */
 export function planZi(z, { ferestre }) {

@@ -22,6 +22,14 @@ import type { Raport } from '@/app/(dashboard)/lde/reguli/actions';
 export const LIVRARI_LUNI_LAST_KEY = 'livrari_luni_album_last';
 const LIMITA_SUBTITLU = 1024;   // Telegram: subtitlul unei poze din album
 
+/** ION-268 K.9: controalele de dinaintea cifrelor (control.mjs pe VPS), scrise în lde_analiza_reguli.date.controale */
+export interface ControaleRaport { ok: boolean; rulat?: string; cazuri?: { k: string; text: string }[]; deVerificat?: { k: string; text: string }[] }
+/** motivul posterului oprit: controlul picat, cu primele cazuri — ajunge la ADMIN ca «de verificat» */
+export function motivControlPicat(c: ControaleRaport): string {
+  const L = (c.cazuri ?? []).slice(0, 5).map((x) => `${x.k} ${x.text}`);
+  return `controlul înainte de cifre a picat (K.9) — de verificat: ${L.join('; ') || 'fără detalii'}${(c.cazuri?.length ?? 0) > 5 ? ` … (+${(c.cazuri?.length ?? 0) - 5})` : ''}`;
+}
+
 export interface PosterLuni { id: 'sebn' | 'briceni' | 'lear' | 'floresti' | 'drax'; png: Buffer; caption: string; cheie: string; textDupa?: string }
 export interface SaltLuni { id: string; motiv: string }
 
@@ -48,14 +56,17 @@ export async function pregatestePostereLuni(luni: string, duminica: string): Pro
     postere.push({ id: 'sebn', png: sebn.png, caption: cap, cheie: SEBN_POSTER_LAST_KEY, textDupa: rest.join('\n\n') });
   }
 
-  const briceni = await posterBriceni({ saptamina: luni, pana_la: duminica, trimite: false });
+  const { data: rb } = await sb.from('lde_analiza_reguli').select('date').eq('uzina', 'BRICENI').eq('saptamina', luni).maybeSingle();
+  const cb = (rb?.date as { controale?: ControaleRaport } | undefined)?.controale;
+  const briceni = cb?.ok === false ? { png: null, motiv: motivControlPicat(cb) } : await posterBriceni({ saptamina: luni, pana_la: duminica, trimite: false });
   if (!briceni.png) sarite.push({ id: 'briceni', motiv: briceni.motiv ?? 'fără imagine' });
   else postere.push({ id: 'briceni', png: briceni.png, caption: captionBriceni(luni, duminica), cheie: BRICENI_POSTER_LAST_KEY });
 
   for (const [id, uzina] of [['lear', 'LEAR Ungheni'], ['floresti', 'LEAR Florești']] as const) {
     const { data } = await sb.from('lde_analiza_reguli').select('date').eq('uzina', uzina).eq('saptamina', luni).maybeSingle();
-    const d = data?.date as Pick<Raport, 'pana_la' | 'masini'> | undefined;
+    const d = data?.date as (Pick<Raport, 'pana_la' | 'masini'> & { controale?: ControaleRaport }) | undefined;
     if (!d) { sarite.push({ id, motiv: `raportul ${uzina} al săptămânii nu e scris` }); continue; }
+    if (d.controale?.ok === false) { sarite.push({ id, motiv: motivControlPicat(d.controale) }); continue; }
     const p = await pregatestePosterLear({ saptamina: luni, pana_la: d.pana_la, masini: d.masini ?? [] }, uzina);
     if ('motiv' in p) sarite.push({ id, motiv: p.motiv });
     else postere.push({ id, png: p.png, caption: p.caption, cheie: p.cheie });

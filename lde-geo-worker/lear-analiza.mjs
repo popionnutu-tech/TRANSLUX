@@ -930,7 +930,20 @@ function casaDinUrma(pts) {
   let sat = null;
   for (const l of locuri) { const d = hav(l, best.p);
     if (d <= 4 && (!sat || d < sat.d)) sat = { n: l.name, d, c: [l.lat, l.lon] }; }
-  return sat ? { nume: sat.n, c: sat.c, ore: +(best.min / 60).toFixed(1) } : null;
+  return sat ? { nume: numeCasa(best.p, sat), c: sat.c, ore: +(best.min / 60).toFixed(1) } : null;
+}
+// ION-268 K.10 (Ion, 07.10: «unde doarme… e simplu»): numele locului de noapte = orașul (place=town/city) când punctul nu e la ≤ 1 km de un sat
+// și orașul e la ≤ 3 km de centru, sau când cel mai apropiat loc e un cartier al unui oraș la ≤ 6 km (place=suburb: «Gara Fălești» → «Fălești»); altfel satul cel mai apropiat.
+let ORASE = null, CARTIERE = null;
+function numeCasa(p, sat) {
+  if (!ORASE) { ORASE = []; CARTIERE = new Set();
+    try { for (const l of readFileSync(process.env.PLACES_FILE, 'utf8').split('\n')) { if (!l.includes('"place"')) continue; let g; try { g = JSON.parse(l.replace(/^\x1e/, '')); } catch { continue; }
+      const t = g.properties?.place, n = g.properties?.['name:ro'] || g.properties?.name; if (!n) continue; const [lon, lat] = g.geometry.coordinates;
+      if (t === 'town' || t === 'city') ORASE.push({ n, lat, lon }); else if (t === 'suburb' || t === 'quarter' || t === 'neighbourhood') CARTIERE.add(n); } } catch { /* fără fișier: numele rămâne */ } }
+  const lang = (r) => ORASE.filter((o) => hav(o, p) <= r).sort((a, b) => hav(a, p) - hav(b, p))[0];
+  if (CARTIERE.has(sat.n)) { const o = lang(6); if (o) return o.n; }
+  if (sat.d > 1) { const o = lang(3); if (o) return o.n; }
+  return sat.n;
 }
 
 // ore de noapte (17:00–05:00) stat pe loc la sub 1,5 km de poartă — pentru mașina care doarme la uzină

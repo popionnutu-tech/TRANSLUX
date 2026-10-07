@@ -8,6 +8,8 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 const [RF, PF] = process.argv.slice(2), WRITE = process.argv.includes('--write');
 const OUT = (() => { const i = process.argv.indexOf('--out'); return i > 0 ? process.argv[i + 1] : null; })();
 const FARA = PF === '-';
+// ION-268 K.9: --controale <control.json> (control.mjs) → R.controale; controlul picat se vede în notă și oprește posterul (livrari-luni)
+const CTRL = (() => { const i = process.argv.indexOf('--controale'); return i > 0 && existsSync(process.argv[i + 1]) ? JSON.parse(readFileSync(process.argv[i + 1], 'utf8')) : null; })();
 if (!RF || !PF || !existsSync(RF) || (!FARA && !existsSync(PF))) { console.error('lear-r3-pauze.mjs <raport.json> <parcare.json> [--write] [--out f]'); process.exit(2); }
 const R = JSON.parse(readFileSync(RF, 'utf8')), PK = FARA ? { saptamina: R.saptamina, masini: [], flota: {} } : JSON.parse(readFileSync(PF, 'utf8'));
 if (R.saptamina !== PK.saptamina) { console.error(`săptămâni diferite: raport ${R.saptamina}, parcare ${PK.saptamina}`); process.exit(1); }
@@ -61,12 +63,14 @@ console.log(`${R.uzina} ${R.saptamina}: regula 3 ${R.total.r3_fara_prag} → ${R
 for (const m of [...R.masini].filter((m) => m.masina).sort((a, b) => String(a.masina).localeCompare(String(b.masina)))) if (m.r3 || m.r3_fara_prag)
   console.log(`  ${m.masina.padEnd(8)} R3 ${String(m.r3_fara_prag?.km ?? '—').padStart(6)} km/zi ${String(m.r3_fara_prag?.lei ?? '—').padStart(7)} lei → ${String(m.r3?.km ?? '—').padStart(6)} km/zi ${String(m.r3?.lei ?? '—').padStart(7)} lei` +
     (m.r3?.pauze ? ` · acasă ${m.r3.pauze_acasa ?? 0}, permise ${m.r3.pauze_permise ?? 0}, peste ${m.r3.pauze_peste ?? 0}, model ${m.r3.km_model ?? '—'} km/zi` : ' · (vechi)'));
+if (CTRL) R.controale = { ok: !!CTRL.ok, rulat: CTRL.rulat, cazuri: CTRL.cazuri ?? [], deVerificat: CTRL.deVerificat ?? [], avertismente: CTRL.avertismente ?? [] };
+if (process.argv.includes('--control-picat')) R.controale = { ok: false, rulat: new Date().toISOString(), cazuri: [{ k: 'K.9', text: 'calculul parcării / hărții a picat — cifrele nu sunt verificate' }], deVerificat: [], avertismente: [] };
 if (OUT) writeFileSync(OUT, JSON.stringify(R));
 if (!WRITE) { console.log('(fără --write, nimic scris în bază)'); process.exit(0); }
 const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_KEY;
 const r = await fetch(`${SB}/rest/v1/lde_analiza_reguli?on_conflict=uzina,saptamina`, { method: 'POST', signal: AbortSignal.timeout(60000),
   headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
   body: JSON.stringify({ uzina: R.uzina, saptamina: R.saptamina, rulat_la: new Date().toISOString(), date: R,
-    note: `${R.masini.length} mașini · ${(R.steaguri ?? []).length} steaguri · ${(R.deplasari ?? []).length} deplasări · R-PAUZĂ` }) });
+    note: `${R.controale?.ok === false ? 'CONTROL PICAT (K.9) · ' : ''}${R.masini.length} mașini · ${(R.steaguri ?? []).length} steaguri · ${(R.deplasari ?? []).length} deplasări · R-PAUZĂ` }) });
 if (!r.ok) { console.error(`scrierea a picat: HTTP ${r.status} ${(await r.text()).slice(0, 300)}`); process.exit(1); }
 console.log(`scris în lde_analiza_reguli · ${R.uzina} · ${R.saptamina}`);

@@ -18,6 +18,9 @@ cd "$COD" || exit 1
 export SUFIX=-parcare
 timeout 600 node --env-file="$ENV" nomenclator.mjs "$SAPT" "$DUM" | tail -1 || { echo "nomenclator a picat"; exit 1; }
 timeout 600 node curse.mjs | head -1 || { echo "curse a picat"; exit 1; }
+timeout 300 node plan-si.mjs | tail -1 || { echo "plan-si a picat"; exit 1; }   # ION-268 schelet întâi
+# ION-268 K.9: controlul picat → harta nu se scrie (ce era publicat rămâne)
+node /root/lde-worker/lear-parcare/control.mjs briceni ../date/curse-sub${SUFIX}.json --out ../date/control${SUFIX}.json || { echo "CONTROL PICAT (K.9) — harta Briceni nu se scrie"; exit 3; }
 timeout 600 node --env-file="$ENV" livrare.mjs | head -1 || { echo "livrare a picat"; exit 1; }
 cd "$AICI" || exit 1
 timeout 900 node --env-file="$ENV" harta.mjs --sapt="$SAPT" --sufix=-parcare ${W[@]+"${W[@]}"} || { echo "harta a picat — nimic scris"; exit 1; }

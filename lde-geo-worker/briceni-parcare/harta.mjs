@@ -19,7 +19,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { hav, GARA, POARTA, localToUtc, localMin, hhmm, zileIntre } from '/root/lde-worker/briceni/cod/geo.mjs';
 import { evenimente, bucata, tIn, tOut } from '/root/lde-worker/briceni/cod/evenimente.mjs';
-import { clasificaZi, impartOcol, costPauza, golImpusDeTure, bramburaBucata, celula, loculNoptii, PR, CAT } from '/root/lde-worker/briceni/cod/livrare.mjs';
+import { clasificaZi, impartOcol, costPauza, golImpusDeTure, bramburaBucata, celula, loculNoptii, PR, CAT } from '/root/lde-worker/briceni/cod/livrare.mjs';   // ION-268: pe copia de probă calea e înlocuită
 import { alegeLocuri } from '/root/lde-worker/lear-parcare/lear-parcare-alege.mjs';
 import { tipInterval, linieSchelet, dp, economieZile } from './harta-core.mjs';
 
@@ -134,7 +134,8 @@ for (const M of LS.masini) for (const det of M.detalii) {
   const ta = localToUtc(z, 180).getTime(), tb = localToUtc(ziua(z, 1), 180).getTime();
   const legs = [
     ...CT.curse.filter((c) => c.m === m && c.z === z && c.ruta).map((c) => ({ t0: c.t0, t1: c.t1, kind: 'trox', dir: c.sens, r: c.ruta })),
-    ...CS.filter((c) => c.m === m && c.z === z && (c.tip === 'orar' || c.tip === 'neprog')).map((c) => ({ t0: c.t0, t1: c.t1, kind: c.tip, dir: c.dir, r: String(c.r) })),
+    ...CS.filter((c) => c.m === m && c.z === z && (c.tip === 'orar' || c.tip === 'neprog' || c.tip === 'deconf')).map((c) => ({ t0: c.t0, t1: c.t1, kind: c.tip, dir: c.dir, r: String(c.r),
+      ...(c.plan ? { ref: { plan: c.plan, planId: c.planId, kmSchelet: c.kmSchelet, acoperire: c.acoperire, t0: c.t0, t1: c.t1 } } : {}) })),
   ];
   const rutaZilei = (() => { const f = {}; for (const c of CT.curse.filter((c) => c.m === m && c.z === z && c.ruta)) f[c.ruta] = (f[c.ruta] || 0) + 1;
     return Object.entries(f).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null; })();
@@ -153,7 +154,7 @@ for (const M of LS.masini) for (const det of M.detalii) {
   seg0.forEach((s, i) => { s._i = i; });
   const cm = zileCelula.get(m) ?? new Map(); zileCelula.set(m, cm);
   for (const s of seg0) for (const p of s.bpts ?? []) { const c = celula(p); (cm.get(c) ?? cm.set(c, new Set()).get(c)).add(z); }
-  ZI.push({ m, z, ta, tb, E, day, legs, noapteA, noapteB, seg0: seg0.map((s) => ({ t0: s.t0, t1: s.t1, cat: s.cat, km: s.km, bpts: s.bpts, r: s.r, kind: s.kind, leg: s.leg, motiv: s.motiv, ocol: false })), seg: seg0, det });
+  ZI.push({ m, z, ta, tb, E, day, legs, noapteA, noapteB, seg0: seg0.map((s) => ({ t0: s.t0, t1: s.t1, cat: s.cat, km: s.km, bpts: s.bpts, r: s.r, kind: s.kind, leg: s.leg, motiv: s.motiv, ocol: false, ref: s.ref ?? null })), seg: seg0, det });
 }
 // impartOcol (ocolul pe acasă între curse) — ca livrare.mjs
 const lungimeTrox = (seg) => { const k = seg.filter((s) => s.leg && troxK(s.kind) && s.km > 5).map((s) => s.km).sort((a, b) => a - b); return k.length ? k[Math.floor(k.length / 2)] : null; };
@@ -279,7 +280,7 @@ for (const d of ZI) {
   }
   const motive = d.seg0.map(() => []);
   for (const s of d.seg) if (s.motiv && motive[s._i] && !motive[s._i].includes(s.motiv)) motive[s._i].push(s.motiv);
-  const iv = [];
+  const iv = []; let cuOameniS = 0;
   d.seg0.forEach((s, i) => {
     const c = Object.fromEntries(Object.entries(cats[i]).map(([k, v]) => [k, r1(v)]).filter(([, v]) => v > 0));
     const km = r1(s.km);
@@ -287,14 +288,20 @@ for (const d of ZI) {
     const Q = (s.bpts ?? []).filter((p) => p.lat != null);
     const tip = tipInterval(c);
     const t1 = Math.min(s.t1, d.tb);
-    iv.push({ ora: `${hhmm(s.t0)}–${t1 >= d.tb ? '03:00' : hhmm(t1)}`, t0: Math.round((s.t0 - t00) / 1000), t1: Math.round((t1 - t00) / 1000), tip, cats: c, km,
+    // ION-268 (T.1 tur = retur): cursa suburbană din plan arată km din schelet ai cursei din orar (aceiași la tur și la retur), GPS-ul în kmGps
+    const fac = s.ref && s.cat === 'cuOameni' && s.ref.kmSchelet != null, frac = fac ? Math.min(1, Math.max(0, (s.t1 - s.t0) / Math.max(1, s.ref.t1 - s.ref.t0))) : 0;
+    const kS = fac ? r1(s.ref.kmSchelet * frac) : null;
+    const eticheta = s.ref ? `${s.ref.plan === 'tur' ? 'Tur' : 'Retur'} · ruta ${linieSchelet(s.r) ?? s.r}${s.kind === 'deconf' ? ` — neconfirmată (urma acoperă ${s.ref.acoperire} % din drumul rutei)` : ''}`
+      : s.leg && s.kind === 'neprog' && s.cat === 'nepotrivita' ? `Cursă în plus · ruta ${linieSchelet(s.r) ?? s.r} — de confirmat` : null;
+    if (fac) { cuOameniS += kS; for (const k of Object.keys(c)) if (k === 'cuOameni') c[k] = kS; } else if (s.cat === 'cuOameni') cuOameniS += km;
+    iv.push({ ora: `${hhmm(s.t0)}–${t1 >= d.tb ? '03:00' : hhmm(t1)}`, t0: Math.round((s.t0 - t00) / 1000), t1: Math.round((t1 - t00) / 1000), tip, cats: c, km: fac ? kS : km, ...(fac ? { kmGps: km } : {}), ...(eticheta ? { eticheta } : {}),
       de: numeLoc(Q[0], casa) ?? null, pana: numeLoc(Q.at(-1), casa) ?? null, ocol: d.seg.some((x) => x._i === i && x.ocol), lin: linieSchelet(s.r), prelungit: null,
       s: dp(Q, 15).map((p) => [r5(p.lat), r5(p.lon), Math.round((p.t - t00) / 1000)]), nota: motive[i].join('; ') || null });
   });
   // lipim intervalele vecine «stă» cu același loc (km < 0,2), ca lista să nu se umple de rânduri de 0 km
   const ivL = [];
   for (const v of iv) { const u = ivL.at(-1); if (u && u.tip === 'parcare' && v.tip === 'parcare') { u.t1 = v.t1; u.ora = `${u.ora.slice(0, 5)}–${v.ora.slice(6)}`; u.km = r1(u.km + v.km); u.cats.stat = r1((u.cats.stat ?? 0) + v.km); u.s.push(...v.s.slice(-1)); u.pana = v.pana; } else ivL.push(v); }
-  const kmZi = r1(bucata(d.E.pts, d.ta, d.tb).km), kmIv = r1(ivL.reduce((a, v) => a + v.km, 0));
+  const kmZi = r1(bucata(d.E.pts, d.ta, d.tb).km), kmIv = r1(ivL.reduce((a, v) => a + (v.kmGps ?? v.km), 0));   // controlul pe km GPS
   if (Math.abs(kmIv - kmZi) > Math.max(1, kmZi * 0.03)) difKm.push(`${d.m} ${d.z} ${kmIv}/${kmZi}`);
   // opririle ≥ 5 min (staționările punctelor zilei)
   const stai = d.E.pts.filter((x) => x.stat && Math.min(x.t1, d.tb) - Math.max(x.t0, d.ta) >= 5 * 60e3)
@@ -307,7 +314,7 @@ for (const d of ZI) {
     uzina: 'BRICENI', saptamina: SAPT, m: d.m, z: d.z,
     // cifrele zilei = raportul BRICENI pe categorii (culoarea unui interval amestecat — ocolul pe acasă + drumul impus — e a părții mai mari,
     // deci suma culorilor nu e cifra raportului); «gol» = livrarea, «fortat» = gol pe rută + gol între ture + legătură
-    sumar: { dow: new Date(`${d.z}T12:00:00Z`).getUTCDay(), total: kmZi, cuOameni: r1(d.det.km.cuOameni + d.det.km.nepotrivita), gol: d.det.km.livrare,
+    sumar: { dow: new Date(`${d.z}T12:00:00Z`).getUTCDay(), total: kmZi, cuOameni: r1(cuOameniS), cuOameniGps: r1(d.det.km.cuOameni), deConfirmat: r1(d.det.km.nepotrivita), gol: d.det.km.livrare,
       fortat: r1(d.det.km.golRuta + d.det.km.golTure + d.det.km.legatura), livrare: d.det.km.livrare, brambura: d.det.brambura, economie: ecZ, ideal: null, linii, motivAfara: pk.locuri.length ? null : pk.motivFara,
       economieSapt: pk.economieSapt, locuri: pk.locuri.map((l) => l.n), sursaEconomie: 'parcare' },
     date: {
@@ -354,6 +361,7 @@ if (difRaport.length > ZI.length * 0.05 * CAT.length) { console.error('prea mult
 if (difKm.length > randuri.length * 0.05) { console.error('prea multe zile cu Σ intervale ≠ km zilei — harta NU se scrie'); process.exit(3); }
 const mare = randuri.filter((x) => JSON.stringify(x).length > 400 * 1024).map((x) => `${x.m} ${x.z}`);
 if (mare.length) { console.error(`rânduri peste 400 KB: ${mare.join(', ')} — harta NU se scrie`); process.exit(3); }
+if (process.env.HARTA_OUT) writeFileSync(process.env.HARTA_OUT, JSON.stringify({ randuri, control }));
 if (!WRITE) process.exit(0);
 
 const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_KEY;

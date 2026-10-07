@@ -316,7 +316,10 @@ for (const M of D.masini) {
     real: R, propus: Pp, economieSapt: areLoc ? r1(R - Pp) : 0, zile, ocolSapt, laUzina,
     legi: legi.map((l) => { const j = alegeLeg(l); return { z: l.z, t0: l.t0, t1: l.t1, ora: l.ora, ore: l.ore, dupa: l.dupa, inainte: l.inainte,
       a: [r5(l.E.lat), r5(l.E.lon)], b: [r5(l.S.lat), r5(l.S.lon)], aN: numeLoc(l.E), bN: numeLoc(l.S), acum: l.acum, brut: r1(l.brut), liber: r1(l.liber), real: r1(l.real), realGps: r1(l.realGps ?? l.real), ocol: r1(l.ocol ?? 0), opririMutate: l.opririMutate,
-      loc: areLoc ? (j < 0 ? 0 : ales.idx.indexOf(j) + 1) : null, km: r1(costLeg(l)), pauza: l.pauza ?? null }; }) });
+      loc: areLoc ? (j < 0 ? 0 : ales.idx.indexOf(j) + 1) : null, km: r1(costLeg(l)), pauza: l.pauza ?? null,
+      // K.4 (lde_uzine.reguli_livrare): «acum A → B → C = X km; trebuie A → C = Y km; se taie X − Y», ambele pe șosea; ocolul GPS separat
+      explicatie: areLoc && j >= 0 ? `acum ${numeLoc(l.E)} → ${l.acum?.n ?? 'fără oprire lungă'} → ${numeLoc(l.S)} = ${r1(l.real)} km pe șosea${(l.ocol ?? 0) > 1 ? ` (+${r1(l.ocol)} km ocol GPS)` : ''}; `
+        + `trebuie ${numeLoc(l.E)} → ${cand[j].fel === 'uzina' ? 'poarta LEAR' : cand[j].n} → ${numeLoc(l.S)} = ${r1(costLeg(l))} km; se taie ${r1(l.real - costLeg(l))} km` : null }; }) });
 }
 masini.sort((a, b) => (b.economieSapt ?? 0) - (a.economieSapt ?? 0) || a.m.localeCompare(b.m));
 const sumP = (k) => masini.reduce((s, x) => s + (x.planStat?.[k] ?? 0), 0);

@@ -29,6 +29,8 @@ export interface DrumPropus {
   a: Punct; b: Punct; aN: string | null; bN: string | null; loc: number; km: number; separat: boolean; seara?: boolean; dimineata?: boolean;
   /** ION-143 (LEAR): km de acum ai drumului și unde stă mașina acum; loc 0 = «rămâne cum e» */
   real?: number; acum?: string | null;
+  /** ION-268 K.4 (LEAR): «acum A → B → C = X km pe șosea; trebuie A → loc → C = Y km; se taie X − Y» și km GPS peste drumul direct (ocol, separat) */
+  explicatie?: string | null; ocol?: number;
 }
 /** ION-143 (LEAR): programul pe drum — fiecare drum de parcare prin P1 / P2 sau «rămâne cum e» (loc 0) */
 export interface DrumProgram { z: string; ora: string; de: string | null; spre: string | null; acum: string | null; loc: number; real: number; propus: number }

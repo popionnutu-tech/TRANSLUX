@@ -20,6 +20,7 @@ import {
   adaugaZile, alegeNoapte, bucataLa, bucatiGol, eBriceni, felGol, hav, intervaleZi, judecaPauza, kmPas, miezulNoptii, numeAcum, oraLoc, regula2509,
   statii, ziLocala, ziLucru, PREF, LA_FEL_KM, TOLERANTA, GOL_MAX_H,
 } from './harta-core.mjs';
+import { planMejgorod, cheie } from './mej/plan-si.mjs';
 pg.types.setTypeParser(1114, (v) => new Date(v.replace(' ', 'T') + 'Z'));   // w_date = UTC fără fus (ora-locala.mjs)
 
 const AICI = path.dirname(new URL(import.meta.url).pathname);
@@ -95,6 +96,10 @@ for (const d of devs) for (const p of new Set([normPlate(d.CarName), normPlate(d
 const inSapt = (z) => z >= ZILE[0] && z <= ZILE[6];
 const ATR = N.atribuiri.filter((a) => inSapt(a.z));
 const PLACI = [...new Set(ATR.map((a) => a.m))].sort();
+// ION-268 «schelet întâi»: planul din grafic, GPS-ul confirmă (mej/plan-si.mjs). Muncă = cursele din plan făcute sau neconfirmate (lipsa n-are urmă);
+// nicio bucată de muncă în afara planului (toate cursele vin din atribuiri). Km cu oameni = km din schelet ai curselor făcute, pe porțiunea parcursă.
+const PLAN = planMejgorod(N, C, I, ZILE);
+const statutDe = (c) => PLAN.pe.get(cheie(c)) ?? null;
 const cuUrma = C.curse.filter((c) => !c.motiv && c.t0 && c.t1);
 const randuri = [], control = [], probe = { difKm: [], faraUrma: [], dimLipsa: [] };
 const flota = { real: 0, propus: 0, taiat: 0, liber: 0, regula2509: 0, nopti: 0, noptiScoase: {}, zileScoase: {} };
@@ -209,9 +214,15 @@ for (const m of PLACI) {
       const Q = P.slice(i0, i1), prev = i0 > 0 ? P[i0 - 1] : null;
       const tr2 = (prev && x.t0 > A ? [prev, ...Q] : Q);
       const pozA = Q[0] ?? pozLa(P, x.t0), pozB = Q.at(-1) ?? pozLa(P, x.t1);
-      let nota = null, de = numeLoc(pozA), pana = numeLoc(pozB), lin = null, sir;
+      let nota = null, de = numeLoc(pozA), pana = numeLoc(pozB), lin = null, sir, eticheta = null, kmS = null, neconf = false;
       if (s.tip === 'cursa') {
         nota = s.curse.map((c) => `ruta ${c.r} ${c.s}`).join(' + '); lin = String(s.curse[0].r);
+        // ION-268: rolul din plan și km din schelet (porțiunea parcursă) — cursa a început în ziua ei, km schelet se pun pe intervalul care o conține
+        const pl = s.curse.map((c) => ({ c, p: statutDe(c) }));
+        eticheta = pl.map(({ c, p }) => `${c.s === 'tur' ? 'Tur' : 'Retur'} · ruta ${c.r}${p?.nume ? ` ${p.nume.split(' → ')[c.s === 'tur' ? 0 : 1] ?? ''}` : ''}${p?.statut === 'neconfirmata' ? ` — neconfirmată (${p.motiv})` : p?.capatScurtat ? ' — capăt scurtat' : ''}${p?.perecheCu != null && p.perecheCu !== c.r ? ` (pereche după oră cu ruta ${p.perecheCu})` : ''}`).join(' + ');
+        const fac = pl.filter(({ p }) => p?.statut === 'facuta');
+        kmS = fac.length ? r1(fac.reduce((q, { p }) => q + p.km, 0) * Math.min(1, Math.max(0, (x.t1 - x.t0) / Math.max(1, s.t1 - s.t0)))) : null;
+        neconf = !fac.length;
         sir = dpPuncte(tr2);
       } else if (s.tip === 'parcare') {
         const g = s.gol, dur = Math.round((s.t1 - s.t0) / 6e4);
@@ -227,10 +238,14 @@ for (const m of PLACI) {
         sir = dpPuncte(tr2);
       }
       const km = r1(x.km);
+      // ION-268: cursa făcută arată km din schelet (porțiunea parcursă); km GPS ai bucății rămân în kmGps; cursa neconfirmată = muncă, nu «cu oameni»
+      if (s.tip === 'cursa') return { ora: `${oraLoc(x.t0)}–${x.t1 >= B ? '24:00' : oraLoc(x.t1)}`, t0: Math.round((x.t0 - A) / 1000), t1: Math.round((x.t1 - A) / 1000), tip: 'cursa',
+        cats: neconf ? { neconfirmat: km } : { cuOameni: kmS ?? km }, km: neconf ? km : (kmS ?? km), kmGps: km, eticheta,
+        de, pana, ocol: false, lin, prelungit: null, s: sir.map((p) => [r5(p[0]), r5(p[1]), Math.round((p[2] - A) / 1000)]), nota, durataMin: null };
       return { ora: `${oraLoc(x.t0)}–${x.t1 >= B ? '24:00' : oraLoc(x.t1)}`, t0: Math.round((x.t0 - A) / 1000), t1: Math.round((x.t1 - A) / 1000), tip: s.tip, cats: { [s.tip]: km }, km,
         de, pana, ocol: false, lin, prelungit: null, s: sir.map((p) => [r5(p[0]), r5(p[1]), Math.round((p[2] - A) / 1000)]), nota, durataMin: s.tip === 'parcare' ? Math.round((s.t1 - s.t0) / 6e4) : null };
     });
-    const kmZi = r1(pz.reduce((a, p) => a + p.km, 0)), sumIv = r1(iv.reduce((a, v) => a + v.km, 0));
+    const kmZi = r1(pz.reduce((a, p) => a + p.km, 0)), sumIv = r1(iv.reduce((a, v) => a + (v.kmGps ?? v.km), 0));   // controlul pe km GPS
     if (Math.abs(sumIv - kmZi) > 0.5) throw new Error(`${m} ${z}: Σ intervale ${sumIv} ≠ km zi ${kmZi}`);
     let brut = 0; for (let j = 1; j < pz.length; j++) brut += hav(P[pz[j - 1].i], P[pz[j].i]);
     if (kmZi > 20 && Math.abs(brut - kmZi) > kmZi * 0.05) probe.difKm.push(`${m} ${z} GPS ${kmZi} / brut ${r1(brut)}`);
@@ -248,18 +263,28 @@ for (const m of PLACI) {
     const zp = Lz.length ? { z, masurata: true, motiv: null, real: r1(Lz.reduce((s, g) => s + g.real, 0)), propus: r1(Lz.reduce((s, g) => s + g.propus, 0)),
       economie: r1(Math.max(0, Lz.reduce((s, g) => s + g.real - g.propus, 0))) } : null;
     const liberZi = iv.filter((v) => v.tip === 'liber');
-    const cuOameni = r1(iv.filter((v) => v.tip === 'cursa').reduce((a, v) => a + v.km, 0));
+    // ION-268: km cu oameni = km din schelet ai curselor FĂCUTE care pornesc în ziua asta (porțiunea parcursă); planul zilei din grafic
+    const planZi = PLAN.plan.filter((p) => p.m === m && p.z === z).sort((a, b) => (a.plecareProg ?? 0) - (b.plecareProg ?? 0));
+    const cuOameni = r1(planZi.filter((p) => p.statut === 'facuta').reduce((a, p) => a + p.km, 0));
+    const SIMB = { facuta: '✓', neconfirmata: '?', lipsa: '✗' };
+    const rezumat = planZi.map((p) => `${p.s} ${p.r} ${SIMB[p.statut]}`).join(' · ') || null;
+    const lipsaZi = planZi.filter((p) => p.statut !== 'facuta').map((p) => `${p.s} ${p.r}${p.statut === 'neconfirmata' ? ' (neconfirmată)' : ''}`);
+    const planDate = planZi.length ? { z, faraPoarta: false, plus: [], curse: planZi.map((p) => ({ sens: p.s, schimb: 0, ruta: String(p.r), capat: p.nume ? p.nume.split(' → ')[p.s === 'tur' ? 0 : 1] : null,
+      statut: p.statut, t0: p.t0 ?? null, t1: p.t1 ?? null, km: p.km ?? null, kmSchelet: p.kmPlin ?? null, kmGps: p.kmGps ?? null, urcari: 0, motiv: p.motiv ?? (p.capatScurtat ? `capăt scurtat: ${p.km} din ${p.kmPlin} km ai scheletului` : null),
+      acoperire: p.acoperire, perecheCu: p.perecheCu ?? null })) } : null;
     randuri.push({
       uzina: 'MEJGOROD', saptamina: SAPT, m, z,
-      sumar: { dow: new Date(`${z}T12:00:00Z`).getUTCDay(), total: kmZi, cuOameni, gol: r1(kmZi - cuOameni), economie: locuri.length ? (zp?.economie ?? 0) : null, ideal: null, linii,
+      sumar: { dow: new Date(`${z}T12:00:00Z`).getUTCDay(), total: kmZi, cuOameni, gol: r1(kmZi - iv.filter((v) => v.tip === 'cursa').reduce((a, v) => a + (v.kmGps ?? v.km), 0)), economie: locuri.length ? (zp?.economie ?? 0) : null, ideal: null, linii,
         motivAfara: locuri.length ? null : motivFara, economieSapt: locuri.length ? economieSapt : 0, locuri: locuri.map((l) => l.n), sursaEconomie: 'parcare',
-        liber: r1(liberZi.reduce((a, v) => a + v.km, 0)), liberSapt: kmLiber, regula2509: r1(r25.peZi[z] ?? 0), regula2509Sapt: r25.km },
+        liber: r1(liberZi.reduce((a, v) => a + v.km, 0)), liberSapt: kmLiber, regula2509: r1(r25.peZi[z] ?? 0), regula2509Sapt: r25.km,
+        rezumat, lipsa: lipsaZi, plan: planZi.length ? { planificate: planZi.length, facute: planZi.filter((p) => p.statut === 'facuta').length, neconfirmate: planZi.filter((p) => p.statut === 'neconfirmata').length, lipsa: planZi.filter((p) => p.statut === 'lipsa').length, plus: 0 } : null },
       date: {
         t00: A, casa: null, noapteA: noapte(A), noapteB: noapte(B - 1000), linii, iv, stai, zi: null, ideal: null,
         parcare: { locuri, economieSapt: locuri.length ? economieSapt : 0, idealSapt: null, zi: zp, legi },
         mejgorod: { liberSapt: kmLiber, liber: liber.map((g) => ({ z: ziLocala(g.E.t), ora: `${oraLoc(g.E.t)}–${oraLoc(g.S.t)}`, de: g.E.n, km: r1(g.real), departe: r1(g.departe) })),
           regula2509: { sapt: r25.km, zi: r1(r25.peZi[z] ?? 0), zile: r25.zile, laCapat: r25.laCapat, cazB: r25.cazB },
           nopti: L.length, motivFara: locuri.length ? null : motivFara },
+        plan: planDate,
       },
     });
     zileScrise.push(z);
@@ -299,6 +324,15 @@ for (const [m, z] of [['688AKD', '2026-09-21'], ['735LYY', '2026-09-21'], ['652A
 const mare = randuri.filter((x) => JSON.stringify(x).length > 400 * 1024).map((x) => `${x.m} ${x.z}`);
 if (mare.length) { console.error(`rânduri peste 400 KB: ${mare.join(', ')} — harta NU se scrie`); process.exit(3); }
 fs.writeFileSync(path.join(DATE, `harta-${SAPT}.json`), JSON.stringify({ control, flota }));
+if (process.env.HARTA_OUT) fs.writeFileSync(process.env.HARTA_OUT, JSON.stringify({ randuri, control, plan: PLAN.plan, perechi: PLAN.perechi.map((x) => ({ k: x.k, t: x.t && { r: x.t.r, statut: x.t.statut, km: x.t.km }, r: x.r && { r: x.r.r, statut: x.r.statut, km: x.r.km } })) }));
+{ const st = (q) => PLAN.plan.filter((p) => p.statut === q).length;
+  console.log(`  plan din grafic (schelet întâi): ${PLAN.plan.length} curse · făcute ${st('facuta')} · neconfirmate ${st('neconfirmata')} · lipsă ${st('lipsa')} · capăt scurtat ${PLAN.plan.filter((p) => p.capatScurtat).length} · km cu oameni (schelet, porțiunea parcursă) ${r1(PLAN.plan.filter((p) => p.statut === 'facuta').reduce((a, p) => a + p.km, 0))}`); }
+// ION-268 K.9: controalele înainte de cifre (control.mjs mejgorod) pe rândurile hărții; picat → nimic scris (ce era publicat rămâne)
+{ const f = process.env.HARTA_OUT || path.join(DATE, `harta-out-${SAPT}.json`);
+  if (!process.env.HARTA_OUT) fs.writeFileSync(f, JSON.stringify({ randuri, control, plan: PLAN.plan, perechi: PLAN.perechi.map((x) => ({ k: x.k, t: x.t && { r: x.t.r, statut: x.t.statut, km: x.t.km }, r: x.r && { r: x.r.r, statut: x.r.statut, km: x.r.km } })) }));
+  const { spawnSync } = await import('node:child_process');
+  const c = spawnSync('node', ['/root/lde-worker/lear-parcare/control.mjs', 'mejgorod', f, '--out', path.join(DATE, `control-${SAPT}.json`)], { stdio: 'inherit' });
+  if (c.status !== 0 && WRITE) { console.error('CONTROL PICAT (K.9) — harta mejgorod NU se scrie'); process.exit(3); } }
 if (!WRITE) process.exit(0);
 
 const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_KEY;

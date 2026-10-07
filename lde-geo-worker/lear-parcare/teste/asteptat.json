@@ -1,0 +1,18 @@
+{
+  "_": "ION-268 K.8 — testele fixe ale lanțului LEAR: cazurile confirmate de Ion. Dacă un test iese altfel, schimbarea nu se livrează (teste-fixe.sh).",
+  "teste": [
+    { "id": "043BRAU-0928", "dump": "dump-ungheni-0928.json", "m": "043BRAU", "z": "2026-09-28",
+      "curse": [["tur", 1, "B6", "facuta"], ["retur", 1, "B6", "facuta"], ["tur", 2, "A8", "facuta"], ["retur", 2, "A8", "facuta"]],
+      "sursa": "Ion, 06.10: s1 = Tur B6 + Retur B6; s2 = Tur A8 + Retur A8; restul gol" },
+    { "id": "809MUM-0610", "dump": "dump-ungheni-1005.json", "m": "809MUM", "z": "2026-10-06",
+      "deTaiatZi": [0, 0], "faraPauzaAcasa": true,
+      "sursa": "Ion, 07.10: 809MUM a așteptat la uzină — 0 km de tăiat, pauza nu e R-PAUZĂ" },
+    { "id": "283BRAT-0610", "dump": "dump-ungheni-1005.json", "m": "283BRAT", "z": "2026-10-06",
+      "curse": [["tur", 1, "A4", "facuta"], ["retur", 1, "A4", "facuta"], ["tur", 2, "B4", "facuta"], ["retur", 2, "B4", "facuta"]],
+      "drum": { "oraDe": "05:", "kmAcum": [70, 95], "kmPropus": [25, 40], "loc": "uzina" },
+      "sursa": "Ion + dispecer, 07.10: A4 + B4; pauza LEAR → Fălești → Coșeni ≈ 85 km față de LEAR → Coșeni ≈ 30 km" },
+    { "id": "827MUM-0610", "dump": "dump-ungheni-1005.json", "m": "827MUM", "z": "2026-10-06",
+      "drum": { "oraDe": "23:", "kmAcum": [35, 44], "kmPropus": [10, 20], "loc": "Petrești" },
+      "sursa": "Ion, 07.10: noaptea prin Petrești 39 → 15 km e reală și rămâne" }
+  ]
+}

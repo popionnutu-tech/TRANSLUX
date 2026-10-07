@@ -58,7 +58,21 @@ describe('gasesteNeconformitati', () => {
       { ...tr(9, true, 'Sîngerei', 0, 17), centru_m: 120 },
     ], [tur, retur]);
     expect(r.lista.map((x) => [x.tip, x.retur])).toEqual([['singerei', false]]);
-    expect(textMesaj('06.10.2026, вторник', r, nume)).toContain('Не заехал в центр Сынджерей — 1');
+    expect(textMesaj('06.10.2026, вторник', r, nume)).toContain('Не заехал в центр Сынджерей и не остановился на перекрёстке Врэнешть — 1');
+  });
+  it('oprirea la Intersecția Vrănești (centura) ține loc de centru, la tur și la retur (Ion, 07.10)', () => {
+    const r = gasesteNeconformitati([
+      { ...tr(9, false, 'Sîngerei', 0, 17), centru_m: 957, vranesti_s: 19 },
+      { ...tr(9, true, 'Sîngerei', 0, 17), centru_m: 951, vranesti_s: 10 },
+    ], [tur, retur]);
+    expect(r.lista).toEqual([]);
+  });
+  it('trecut pe lângă Intersecția Vrănești fără oprire (sub 10 s) sau nemăsurat = abatere', () => {
+    const r = gasesteNeconformitati([
+      { ...tr(9, false, 'Sîngerei', 0, 17), centru_m: 957, vranesti_s: 9 },
+      { ...tr(9, true, 'Sîngerei', 0, 17), centru_m: 951, vranesti_s: null },
+    ], [tur, retur]);
+    expect(r.lista.map((x) => [x.tip, x.retur])).toEqual([['singerei', false], ['singerei', true]]);
   });
   it('cursa fără GPS nu se judecă, merge în lista separată', () => {
     const r = gasesteNeconformitati([], [tur]);

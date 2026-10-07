@@ -65,6 +65,40 @@ const SNAP_MAX_M = 3000;     // oprirea mai departe de linie decât atât nu e p
 // opririi → route_stop_passes.centru_m (migr. 526).
 const CENTRU_OBLIGATORIU = new Set(['singerei']);
 const CENTRU_WIN_MIN = 15;   // urma luată în ±15 min de trecerea găsită
+// Excepția de la centru (Ion, 07.10: «dacă șoferii care merg pe interurban la tur sau retur au oprire
+// la Intersecția Vrănești — oprirea pe centura Sîngerei — să nu se considere că el a violat regula de
+// trecere prin Sîngerei»). Punctul = intersecția R6 (centura) cu L282 R6–Vrănești–Iezărenii Vechi (OSM).
+// Pe GPS 23.09–06.10 opririle stau la 16–60 m de ea pe tur și la 25–90 m sau ~230 m (stâlpul de
+// dincolo de intersecție) pe retur, deci raza 250 m; mai departe, prima oprire e la ~490 m.
+// → route_stop_passes.vranesti_s (migr. 527) = cea mai lungă oprire acolo, în secunde.
+const OPRIRE_CENTURA = { singerei: { lat: 47.63225, lon: 28.10694, raza: 250 } };
+const OPRIRE_WIN_MIN = 25;   // intersecția e la ~4 km de oprirea Sîngerei de pe linie: ±25 min de trecere
+const OPRIRE_V_NOD = 4.3;    // viteza trackerului e în noduri: 4,3 nd ≈ 8 km/h = «stă»
+
+/**
+ * Cea mai lungă oprire (s) a urmei la ≤ raza m de p în [lo, hi]: puncte consecutive cu viteza sub
+ * OPRIRE_V_NOD, de la primul punct lent până la primul punct care pleacă (dacă vine în ≤ 2 min; altfel
+ * până la ultimul punct lent — o gaură în urmă nu e oprire). 0 = a trecut fără să stea; null = fără urmă.
+ */
+function oprireMaxS(pts, p, raza, lo, hi) {
+  let max = null, t0 = null, tLast = null;
+  const inchide = (tNext) => {
+    if (t0 == null) return;
+    const end = tNext != null && tNext - tLast <= 2 * 60000 ? tNext : tLast;
+    max = Math.max(max ?? 0, Math.round((end - t0) / 1000));
+    t0 = null;
+  };
+  for (const q of pts) {
+    const t = q.t.getTime();
+    if (t < lo) continue;
+    if (t > hi) break;
+    if (max == null) max = 0;
+    const lent = q.v != null && q.v < OPRIRE_V_NOD && hav(q, p) <= raza;
+    if (lent) { if (t0 == null) t0 = t; tLast = t; } else inchide(t);
+  }
+  inchide(null);
+  return max;
+}
 
 /** Distanța minimă a urmei (pe segmente, ca la trecere) de punctul p, în [lo, hi]. */
 function minDistUrma(pts, p, lo, hi) {
@@ -120,6 +154,9 @@ const routes = await all('crm_routes?select=id,active,tur_ascuns,retur_ascuns');
 const routeById = new Map(routes.map((r) => [r.id, r]));
 const fareBy = new Map(fares.map((f) => [`${f.crm_route_id}:${f.stop_order}`, f]));
 const vehicles = await all('vehicles?select=id,plate_number');
+// Coloana vranesti_s (migr. 527) se scrie doar dacă există: fără migrație, scriptul merge ca înainte.
+const ARE_VRANESTI = await rest('route_stop_passes?select=vranesti_s&limit=1').then(() => true, () => false);
+if (!ARE_VRANESTI) console.log('route_stop_passes.vranesti_s lipsește (migr. 527 neaplicată): oprirea la Intersecția Vrănești nu se scrie');
 const plateById = new Map(vehicles.map((v) => [v.id, normPlate(v.plate_number)]));
 
 const tracker = new pg.Client({
@@ -144,10 +181,10 @@ async function track(plate, fromUtc, toUtc) {
   const ids = devsByPlate.get(plate) || [];
   if (!ids.length) { trackCache.set(key, []); return []; }
   const { rows } = await tracker.query(
-    `SELECT w_date, x, y FROM track WHERE id = ANY($1) AND w_date >= $2 AND w_date < $3 ORDER BY w_date`,
+    `SELECT w_date, x, y, speed FROM track WHERE id = ANY($1) AND w_date >= $2 AND w_date < $3 ORDER BY w_date`,
     [ids, fromUtc.toISOString().replace('T', ' ').replace('Z', ''), toUtc.toISOString().replace('T', ' ').replace('Z', '')],
   );
-  const pts = rows.map((r) => ({ t: r.w_date, lat: nmea(+r.x), lon: nmea(+r.y) })).filter((p) => p.lat > 45 && p.lat < 49 && p.lon > 26 && p.lon < 31);
+  const pts = rows.map((r) => ({ t: r.w_date, lat: nmea(+r.x), lon: nmea(+r.y), v: r.speed == null ? null : +r.speed })).filter((p) => p.lat > 45 && p.lat < 49 && p.lon > 26 && p.lon < 31);
   trackCache.set(key, pts);
   return pts;
 }
@@ -271,6 +308,9 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
           centru_m: CENTRU_OBLIGATORIU.has(normName(st.name))
             ? minDistUrma(pts, st.real, best.t - CENTRU_WIN_MIN * 60000, best.t + CENTRU_WIN_MIN * 60000)
             : null,
+          vranesti_s: OPRIRE_CENTURA[normName(st.name)]
+            ? oprireMaxS(pts, OPRIRE_CENTURA[normName(st.name)], OPRIRE_CENTURA[normName(st.name)].raza, best.t - OPRIRE_WIN_MIN * 60000, best.t + OPRIRE_WIN_MIN * 60000)
+            : null,
         });
       }
       // Mașina din grafic a mers, de fapt, pe altă cursă: pleacă din capăt cu mult față de
@@ -286,9 +326,17 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
   const offs = rows.map((r) => r.offset_min).sort((a, b) => a - b);
   const med = offs.length ? offs[Math.floor(offs.length / 2)] : null;
   console.log(`${day}: ${found}/${tries} opriri găsite, ${mismatched} curse pe altă oră (scoase), abatere mediană ${med} min`);
+  if (args.includes('--singerei')) {
+    // Proba regulii Sîngerei (fără scriere): centru ≤ 300 m SAU oprire ≥ 10 s la Intersecția Vrănești.
+    for (const r of rows.filter((x) => CENTRU_OBLIGATORIU.has(normName(x.stop_name)))) {
+      const ok = (r.centru_m ?? Infinity) <= 300 ? 'centru' : (r.vranesti_s ?? 0) >= 10 ? 'vranesti' : 'ABATERE';
+      console.log(`  sing ${day} ruta ${r.crm_route_id} ${r.going_north ? 'retur' : 'tur'} ${plateById.get(r.vehicle_id)} centru_m=${r.centru_m} vranesti_s=${r.vranesti_s ?? '-'} → ${ok}`);
+    }
+  }
   // Ziua se rescrie întreagă: o cursă scoasă acum (altă oră, altă mașină) nu rămâne din
   // rularea de ieri cu rândurile ei vechi.
   if (WRITE) await rest(`route_stop_passes?date=eq.${day}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+  if (!ARE_VRANESTI) for (const r of rows) delete r.vranesti_s;
   if (WRITE && rows.length) {
     for (let i = 0; i < rows.length; i += 500) {
       await rest('route_stop_passes?on_conflict=date,crm_route_id,going_north,stop_order', {

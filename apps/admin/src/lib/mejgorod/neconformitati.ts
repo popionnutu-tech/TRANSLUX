@@ -5,6 +5,12 @@
 // nu e o problemă, până la grafic este» — neconformitate e plecarea ÎNAINTE de ora din grafic,
 // doar pe tur (spre Chișinău), unde oamenii urcă la gară.
 //
+// Regula Sîngerei (Ion, 07.10): mașina trece prin CENTRUL Sîngerei, nu pe centură — cu o excepție:
+// «dacă șoferii care merg pe interurban la tur sau retur au oprire la Intersecția Vrănești — oprirea pe
+// centura Sîngerei — să nu se considere că el a violat regula de trecere prin Sîngerei». Deci, pe fiecare
+// sens: centru_m ≤ SINGEREI_MAX_M SAU oprire ≥ VRANESTI_MIN_S la Intersecția Vrănești (vranesti_s,
+// migr. 527). Fără niciuna = abatere.
+//
 // Sursa: route_stop_passes (migr. 393), scrisă noaptea de lde-geo-worker/stop-times.mjs. La gări
 // passed_at e plecarea (ultimul punct la ≤150 m de peron), offset_min = minute față de grafic.
 // Logica e pură; citirea și trimiterea stau în /api/cron/mejgorod-neconformitati.
@@ -15,6 +21,8 @@ export const GARI_PLECARE = ['Briceni', 'Edineț', 'Bălți'] as const;
 export const SINGEREI = 'Sîngerei';
 /** Trecerea la peste atât de oprirea REALĂ din centru nu e «prin Sîngerei» (Ion, 07.10: «prin centru, nu pe centură»). */
 export const SINGEREI_MAX_M = 300;
+/** Oprirea (s, sub 8 km/h) la Intersecția Vrănești, pe centura Sîngerei, care ține loc de centru (Ion, 07.10). */
+export const VRANESTI_MIN_S = 10;
 /** Ion, 07.10: «plecat înainte de grafic doar cu 5 min» — 1–4 minute mai devreme nu se raportează. */
 export const PLECARE_DEVREME_MIN = 5;
 
@@ -28,6 +36,8 @@ export interface Trecere {
   distance_m: number;
   /** Distanța urmei brute de oprirea REALĂ (migr. 526); doar la Sîngerei, altfel null. */
   centru_m?: number | null;
+  /** Cea mai lungă oprire (s) la Intersecția Vrănești (migr. 527); doar la Sîngerei, altfel null. */
+  vranesti_s?: number | null;
   vehicle_id: string | null;
 }
 
@@ -101,7 +111,10 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
     // Pe oprirea reală din centru (centru_m), nu pe cea mutată pe linia rutei: linia trece pe centură, deci
     // distance_m ieșea 10–30 m pentru orice autobuz de pe centură (~950 m de centru). Rândurile vechi, fără
     // centru_m, rămân judecate ca înainte.
-    if (!s || (s.centru_m ?? s.distance_m) > SINGEREI_MAX_M) lista.push({ tip: 'singerei', ruta: c.ruta, retur: c.retur, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
+    // Excepția: oprirea la Intersecția Vrănești, pe centură, la tur sau retur, ține loc de centru.
+    const prinCentru = s != null && (s.centru_m ?? s.distance_m) <= SINGEREI_MAX_M;
+    const oprireVranesti = s != null && (s.vranesti_s ?? 0) >= VRANESTI_MIN_S;
+    if (!prinCentru && !oprireVranesti) lista.push({ tip: 'singerei', ruta: c.ruta, retur: c.retur, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
   }
   lista.sort((a, b) => a.ruta - b.ruta || Number(a.retur) - Number(b.retur));
   faraGps.sort((a, b) => a.ruta - b.ruta || Number(a.retur) - Number(b.retur));
@@ -147,7 +160,7 @@ export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: C
     }
   }
   if (sing.length) {
-    out.push('', `<b>🚫 Не заехал в центр Сынджерей — ${sing.length}</b>`);
+    out.push('', `<b>🚫 Не заехал в центр Сынджерей и не остановился на перекрёстке Врэнешть — ${sing.length}</b>`);
     for (const x of sing) out.push(`Рейс ${x.ruta} ${x.retur ? 'из Кишинёва' : 'в Кишинёв'} · ${cine(n, x.driver_id, x.vehicle_id)}`);
   }
   return out.join('\n');

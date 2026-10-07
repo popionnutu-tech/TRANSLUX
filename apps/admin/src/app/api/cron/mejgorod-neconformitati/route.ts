@@ -24,17 +24,23 @@ function ieri(): string {
 }
 
 // O zi are ~25 de treceri × ~60 de curse, peste plafonul PostgREST de 1000 de rânduri: pe pagini.
-async function trecerileZilei(date: string): Promise<Trecere[]> {
+// vranesti_s (migr. 527): dacă coloana încă lipsește (42703), se citește fără ea — excepția Vrănești
+// nu se aplică, restul merge.
+const COLOANE = 'crm_route_id, going_north, stop_name, scheduled, passed_at, offset_min, distance_m, centru_m, vehicle_id';
+async function trecerileZilei(date: string, cuVranesti = true): Promise<Trecere[]> {
   const out: Trecere[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await getSupabase()
       .from('route_stop_passes')
-      .select('crm_route_id, going_north, stop_name, scheduled, passed_at, offset_min, distance_m, centru_m, vehicle_id')
+      .select(cuVranesti ? `${COLOANE}, vranesti_s` : COLOANE)
       .eq('date', date)
       .order('crm_route_id').order('going_north').order('stop_order')
       .range(from, from + 999);
-    if (error) throw new Error(error.message);
-    out.push(...((data ?? []) as Trecere[]));
+    if (error) {
+      if (cuVranesti && error.code === '42703') return trecerileZilei(date, false);
+      throw new Error(error.message);
+    }
+    out.push(...((data ?? []) as unknown as Trecere[]));
     if (!data || data.length < 1000) return out;
   }
 }

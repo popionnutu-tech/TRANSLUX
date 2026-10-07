@@ -252,6 +252,11 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
   const [sortKey, setSortKey] = useState<SortKey>('N');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [dateFilter, setDateFilter] = useState<string>('');  // '' = toate zilele
+  const [filterRuta, setFilterRuta] = useState<string>('');
+  const [filterSofer, setFilterSofer] = useState<string>('');
+  /** «Doar nelămuririle»: la verificarea de dimineață contează rândurile problematice, nu tot
+   *  tabelul. Plăți multiple pe o foaie, fără /grafic, foaie pe alt șofer, sume zero. */
+  const [doarProbleme, setDoarProbleme] = useState(false);
 
   // Contor pentru rândurile adăugate manual: Date.now() singur poate colida la două
   // apăsări în aceeași milisecundă, iar row_key trebuie să fie unic (e ținta editării).
@@ -295,7 +300,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
         setRows(orderRows(data));
         setHasUnsaved(false);
         setEditMode(false);
-        setDateFilter('');  // altă zi → filtrul vechi ar putea ascunde tot
+        setDateFilter(''); setFilterRuta(''); setFilterSofer(''); setDoarProbleme(false);  // altă zi → filtrul vechi ar putea ascunde tot
         revokedCorrections.current.clear();
       })
       .finally(() => setLoading(false));
@@ -381,12 +386,6 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     if (dateFilter && !dateOptions.includes(dateFilter)) setDateFilter('');
   }, [dateFilter, dateOptions]);
 
-  // Ce se vede pe ecran: filtrat, apoi sortat. `rows` rămâne sursa de adevăr.
-  const displayRows = useMemo(() => {
-    const filtered = dateFilter ? modeRows.filter(r => r.DataFoaie === dateFilter) : modeRows;
-    return sortRows(filtered, sortKey, sortDir);
-  }, [modeRows, dateFilter, sortKey, sortDir]);
-
   // route_type per rută (din nomenclator) — pentru afișarea «oră + nume scurt» la interurban.
   const routeTypeById = useMemo(
     () => new Map(routes.map(rt => [rt.id, rt.route_type])),
@@ -428,9 +427,53 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     return ora ? `${ora} ${scurt}` : scurt;
   }
 
-  const isFiltered = dateFilter !== '';
+  const isFiltered = dateFilter !== '' || filterRuta !== '' || filterSofer !== '' || doarProbleme;
 
   // Totalul documentului curent, pe ce e AFIȘAT (cu filtru pus, urmărește ce se vede).
+  /** Foaia e pe un șofer real, dar el nu conduce ruta aceea în ziua aceea — plata n-are de ce
+   *  să se lege de nicio cursă. Rândul NU e roșu (șoferul s-a găsit), deci trecea drept normal,
+   *  iar banii ieșeau tăcut din raport: 04.09.2026, foaia 944925, 6 570 lei, care nu apăreau
+   *  nici pe rută, nici la orfani. Nu se repară singur — se colorează, iar omul decide. */
+  function foaieAltSofer(r: EditableRow): boolean {
+    return !r.IsManual && !!r.DriverId && !r.AssignmentId;
+  }
+
+  /** Rândul cere atenție la verificare. */
+  function areProblema(r: EditableRow): boolean {
+    const faraSume = !r.Incasare && !r.Ligotnici && !r.LigotniciGara
+      && !r.Diagrame && !r.Combustibil && !r.CheltuieliSupl;
+    return dupCount(r) > 1 || (!r.IsManual && !r.__hasGrafic) || foaieAltSofer(r) || faraSume;
+  }
+
+  // Opțiunile filtrelor, pe ce se VEDE în tabel: ruta interurbană apare scurtată («06:55
+  // Lipcani»), deci un filtru pe numele brut ar oferi alegeri care nu seamănă cu rândurile.
+  const rutaOptions = useMemo(
+    () => Array.from(new Set(modeRows.map(rutaDisplay).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ro')),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modeRows, routeTypeById],
+  );
+  const soferOptions = useMemo(
+    () => Array.from(new Set(modeRows.map(r => r.Sofer).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ro')),
+    [modeRows],
+  );
+
+  // Ce se vede pe ecran: filtrat, apoi sortat. `rows` rămâne sursa de adevăr.
+  const displayRows = useMemo(() => {
+    let f = modeRows;
+    if (dateFilter) f = f.filter(r => r.DataFoaie === dateFilter);
+    if (filterRuta) f = f.filter(r => rutaDisplay(r) === filterRuta);
+    if (filterSofer) f = f.filter(r => r.Sofer === filterSofer);
+    if (doarProbleme) f = f.filter(areProblema);
+    return sortRows(f, sortKey, sortDir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeRows, dateFilter, filterRuta, filterSofer, doarProbleme, sortKey, sortDir, routeTypeById, foaieCount]);
+
+  // Un filtru rămas fără rânduri ar goli tabelul fără motiv vizibil.
+  useEffect(() => {
+    if (filterRuta && !rutaOptions.includes(filterRuta)) setFilterRuta('');
+    if (filterSofer && !soferOptions.includes(filterSofer)) setFilterSofer('');
+  }, [filterRuta, filterSofer, rutaOptions, soferOptions]);
+
   const totals = useMemo(() => {
     // Rândul tăiat (de șters la salvare) nu mai intră în bani — totalul arată ce va rămâne.
     const sum = (k: keyof EditableRow) =>
@@ -784,6 +827,12 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     background: sortKey === key ? '#d6e4f0' : '#e8e8e8',
   });
   const sortArrow = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+  // Selectoarele din capul coloanelor, ca în «Pe rute (sumar)»: galben când filtrul e activ.
+  const filtruStyle = (activ: boolean): React.CSSProperties => ({
+    width: '100%', fontSize: 9, fontFamily, marginTop: 2,
+    border: '1px solid #bbb', borderRadius: 2, padding: '0 1px',
+    background: activ ? '#fff3cd' : '#fff', fontWeight: activ ? 600 : 400,
+  });
   const numCellStyle: React.CSSProperties = {
     ...cellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)',
   };
@@ -886,11 +935,23 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
               </th>
               <th style={sortableTh('12%', 'Ruta')} onClick={() => toggleSort('Ruta')}
                 title="Click: sortează alfabetic după rută">
-                Ruta{sortArrow('Ruta')}
+                <div>Ruta{sortArrow('Ruta')}</div>
+                <select value={filterRuta} onClick={e => e.stopPropagation()}
+                  onChange={e => { e.stopPropagation(); setFilterRuta(e.target.value); }}
+                  title="Arată doar o anumită rută" style={filtruStyle(filterRuta !== '')}>
+                  <option value="">toate rutele</option>
+                  {rutaOptions.map(x => <option key={x} value={x}>{x}</option>)}
+                </select>
               </th>
               <th style={sortableTh('9%', 'Sofer')} onClick={() => toggleSort('Sofer')}
                 title="Click: sortează alfabetic după șofer">
-                Șoferi{sortArrow('Sofer')}
+                <div>Șoferi{sortArrow('Sofer')}</div>
+                <select value={filterSofer} onClick={e => e.stopPropagation()}
+                  onChange={e => { e.stopPropagation(); setFilterSofer(e.target.value); }}
+                  title="Arată doar un anumit șofer" style={filtruStyle(filterSofer !== '')}>
+                  <option value="">toți șoferii</option>
+                  {soferOptions.map(x => <option key={x} value={x}>{x}</option>)}
+                </select>
               </th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Mașina</th>
               <th style={{ ...headerCellStyle, width: '7%' }}>Număr<br />foaie</th>
@@ -905,8 +966,8 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
                   style={{
                     width: '100%', fontSize: 10, fontFamily, marginTop: 2,
                     border: '1px solid #bbb', borderRadius: 2, padding: '0 1px',
-                    background: isFiltered ? '#fff3cd' : '#fff',
-                    fontWeight: isFiltered ? 600 : 400,
+                    background: dateFilter ? '#fff3cd' : '#fff',
+                    fontWeight: dateFilter ? 600 : 400,
                   }}
                 >
                   <option value="">toate zilele</option>
@@ -941,7 +1002,14 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
               const neidentificat = isNumerar && !r.Sters && !r.AssignmentId && !r.NumarFoaie.trim();
               // Albastru = rând manual (foaie fizică). Roșu = tomberon fără /grafic. Alb = normal.
               // Gri tăiat = rând marcat de șters, încă nesalvat.
-              const rowBg = r.Sters ? '#f0f0f0' : r.IsManual ? '#e6f0ff' : (!r.__hasGrafic ? '#fdecea' : '#fff');
+              // Violet = foaia e pe un șofer care n-are cursa asta în /grafic. Semnal nou, sub
+              // roșu (fără /grafic) în prioritate, fiindcă acolo lipsește șoferul cu totul.
+              const altSofer = foaieAltSofer(r);
+              const rowBg = r.Sters ? '#f0f0f0'
+                : r.IsManual ? '#e6f0ff'
+                : !r.__hasGrafic ? '#fdecea'
+                : altSofer ? '#f1e7fb'
+                : '#fff';
               const stersStyle: React.CSSProperties = r.Sters ? { textDecoration: 'line-through', color: '#999' } : {};
               const cs = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
                 ...cellStyle, background: rowBg, ...stersStyle, ...overrides,
@@ -1190,15 +1258,35 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
               </button>
             </>
           )}
+          <label style={{
+            fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+            color: doarProbleme ? '#b35309' : '#777', fontWeight: doarProbleme ? 600 : 400,
+          }}
+            title="Arată doar rândurile care cer atenție: foi cu mai multe plăți, fără /grafic, foaie pe un șofer care n-are cursa, sume zero.">
+            <input type="checkbox" checked={doarProbleme} onChange={e => setDoarProbleme(e.target.checked)} />
+            doar nelămuririle
+          </label>
           <span style={{ fontSize: 11, color: '#888' }}>
             {isNumerar
               ? <>{modeRows.filter(r => !r.Sters).length} rânduri introduse manual</>
               : <>{modeRows.length} plăți din Tomberon</>}
             {isFiltered && (
-              <> · <span style={{ color: '#f57c00', fontWeight: 600 }}>{displayRows.length} afișate (filtru pe {dateFilter.split('-').reverse().join('.')})</span></>
+              <> · <span style={{ color: '#f57c00', fontWeight: 600 }}>
+                {displayRows.length} afișate ({[
+                  dateFilter && `ziua foii ${dateFilter.split('-').reverse().join('.')}`,
+                  filterRuta && `ruta ${filterRuta}`,
+                  filterSofer && filterSofer,
+                  doarProbleme && 'doar nelămuririle',
+                ].filter(Boolean).join(' · ')})
+              </span></>
             )}
             {!isNumerar && modeRows.some(r => !r.__hasGrafic) && (
               <> · <span style={{ color: '#c00' }}>{modeRows.filter(r => !r.__hasGrafic).length} fără /grafic</span></>
+            )}
+            {modeRows.some(foaieAltSofer) && (
+              <> · <span style={{ color: '#6b21a8', fontWeight: 600 }}>
+                {modeRows.filter(foaieAltSofer).length} foi fără cursă în /grafic
+              </span></>
             )}
             {duplicateCount > 0 && (
               <> · <span style={{ color: '#c00', fontWeight: 600 }}>
@@ -1264,7 +1352,11 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
             nu se schimbă: vin de la casa automată. Foile primite manual la casă se introduc în
             documentul <b>Numerar</b>.
             Celulele <span style={{ background: '#fffbe6', borderLeft: '2px solid #f5c518', padding: '0 4px', fontWeight: 600 }}>galbene</span> = corectate manual;
-            rândurile <span style={{ background: '#fdecea', padding: '0 4px' }}>roșii</span> = tomberon fără /grafic.
+            rândurile <span style={{ background: '#fdecea', padding: '0 4px' }}>roșii</span> = tomberon fără /grafic;
+            rândurile <span style={{ background: '#f1e7fb', padding: '0 4px' }}>violete</span> = foaia e pe un
+            șofer care n-are cursa asta în /grafic în ziua ei, deci banii nu ajung pe nicio rută — verifică
+            numărul foii și șoferul. Filtrele din capul coloanelor <b>Ruta</b> și <b>Șoferi</b> restrâng tabelul,
+            iar <b>doar nelămuririle</b> lasă numai rândurile care cer atenție.
           </>
         )}
         {' '}Click pe <b>Ruta</b>, <b>Șoferi</b>, <b>DataFoaie</b> sortează (al doilea click inversează);

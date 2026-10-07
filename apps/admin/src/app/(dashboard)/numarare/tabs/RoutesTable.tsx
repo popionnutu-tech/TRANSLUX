@@ -133,8 +133,19 @@ export default function RoutesTable({ routes }: Props) {
 
   const isFiltered = filterRuta !== '' || filterSofer !== '' || filterOra !== '';
 
-  // Grid: Data | Oră | Rută | Șofer | Foaie | Num | +2T | Inc | Dg | Lg | Rs | Δ | Status | expand
-  const GRID = '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 54px 46px 44px 62px 92px 18px';
+  /**
+   * Coloanele de descifrare a încasării (Dg · Lg · Rs) se pot ascunde.
+   *
+   * Ion, 06.10: «ar fi oportun ca coloanele cu descifrare să le pot deschide printr-o bifă —
+   * să fie un tabel mai puțin încărcat vizual și doar la necesitate să se deschidă».
+   * Închis, rămâne ce se citește zilnic: NUM → TOTAL ÎNCASAT → REZULTAT.
+   */
+  const [descifrare, setDescifrare] = useState(false);
+
+  // Grid: Data | Oră | Rută | Șofer | Foaie | Num | +2T | Inc | [Dg | Lg | Rs] | Δ | Status | expand
+  const GRID = descifrare
+    ? '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 54px 46px 44px 62px 92px 18px'
+    : '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 62px 92px 18px';
   const selStyle: React.CSSProperties = {
     width: '100%', fontSize: 10, marginTop: 2, border: '1px solid var(--border)',
     borderRadius: 3, padding: '0 1px', background: '#fff',
@@ -148,13 +159,33 @@ export default function RoutesTable({ routes }: Props) {
         {totals.extra2t > 0 && (
           <div><span className="text-muted">+2T:</span> <strong style={{ color: 'var(--success)' }}>{Math.round(totals.extra2t)} lei</strong></div>
         )}
-        <div><span className="text-muted">Încasare:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
-        <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
-        <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
-        {totals.vk > 0 && <div><span className="text-muted">Vokzal:</span> <strong>{Math.round(totals.vk)} lei</strong></div>}
-        {totals.dt > 0 && <div><span className="text-muted">DT:</span> <strong>{Math.round(totals.dt)} lei</strong></div>}
-        {totals.rs > 0 && <div><span className="text-muted">Rashodi:</span> <strong>{Math.round(totals.rs)} lei</strong></div>}
-        {isFiltered && <div style={{ marginLeft: 'auto' }}><span className="text-muted">filtrat:</span> <strong>{processed.length}</strong></div>}
+        {/* Aceeași ordine ca pe rânduri și ca în documentul de casier: NUM, TOTAL ÎNCASAT,
+            descifrarea lui, iar la capăt rezultatul. Descifrarea apare doar când e cerută. */}
+        <div><span className="text-muted">Total încasat:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
+        {descifrare && <>
+          <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
+          <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
+          {totals.vk > 0 && <div><span className="text-muted">Vokzal:</span> <strong>{Math.round(totals.vk)} lei</strong></div>}
+          {totals.dt > 0 && <div><span className="text-muted">DT:</span> <strong>{Math.round(totals.dt)} lei</strong></div>}
+          {totals.rs > 0 && <div><span className="text-muted">Rashodi:</span> <strong>{Math.round(totals.rs)} lei</strong></div>}
+        </>}
+        <div title="Numărare − total încasat, pe tot ce e afișat">
+          <span className="text-muted">Rezultat:</span>{' '}
+          <strong style={{
+            color: Math.round(totals.num - totals.inc) < 0 ? 'var(--danger)'
+              : Math.round(totals.num - totals.inc) > 0 ? 'var(--warning)' : 'inherit',
+          }}>
+            {Math.round(totals.num - totals.inc) >= 0 ? '+' : ''}{Math.round(totals.num - totals.inc)} lei
+          </strong>
+        </div>
+        <label style={{
+          marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+          fontWeight: descifrare ? 600 : 400,
+        }} title="Arată coloanele care descifrează totalul încasat: diagrama, lgotnici, rashodi.">
+          <input type="checkbox" checked={descifrare} onChange={e => setDescifrare(e.target.checked)} />
+          descifrarea
+        </label>
+        {isFiltered && <div><span className="text-muted">filtrat:</span> <strong>{processed.length}</strong></div>}
       </div>
 
       {/* Header */}
@@ -200,10 +231,10 @@ export default function RoutesTable({ routes }: Props) {
         <div style={{ textAlign: 'right' }}>Num</div>
         <div style={{ textAlign: 'right' }}>+2T</div>
         <div style={{ textAlign: 'right' }}>Inc</div>
-        <div style={{ textAlign: 'right' }}>Dg</div>
-        <div style={{ textAlign: 'right' }}>Lg</div>
-        <div style={{ textAlign: 'right' }}>Rs</div>
-        <div style={{ textAlign: 'right' }}>Δ</div>
+        {descifrare && <div style={{ textAlign: 'right' }}>Dg</div>}
+        {descifrare && <div style={{ textAlign: 'right' }}>Lg</div>}
+        {descifrare && <div style={{ textAlign: 'right' }}>Rs</div>}
+        <div style={{ textAlign: 'right' }} title="Rezultatul: numărare − total încasat">Δ</div>
         <div>Status</div>
         <div></div>
       </div>
@@ -274,9 +305,9 @@ export default function RoutesTable({ routes }: Props) {
                   : r.extra_2tarife_lei > 0 ? <strong>+{Math.round(r.extra_2tarife_lei)}</strong> : <span className="text-muted">0</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.incasare_lei)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_diagrama)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki0_suma)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.dop_rashodi)}</span>
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_diagrama)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki0_suma)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.dop_rashodi)}</span>}
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 textAlign: 'right',

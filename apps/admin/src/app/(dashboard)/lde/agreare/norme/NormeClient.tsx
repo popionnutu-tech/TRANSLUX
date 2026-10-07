@@ -281,7 +281,7 @@ export default function NormeClient({ data }: { data: NormeData }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {DIRECTII_PANOU.map((u) => {
+          {DIRECTII_PANOU.filter((u) => data.randuri.some((r) => r.uzina === u)).map((u) => {   // fila fără mașini nu apare
             const rest = data.randuri.filter((r) => r.uzina === u && !r.decizie).length;
             const toate = data.randuri.filter((r) => r.uzina === u).length;
             return (

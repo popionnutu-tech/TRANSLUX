@@ -29,7 +29,7 @@ async function trecerileZilei(date: string): Promise<Trecere[]> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await getSupabase()
       .from('route_stop_passes')
-      .select('crm_route_id, going_north, stop_name, scheduled, passed_at, offset_min, distance_m, vehicle_id')
+      .select('crm_route_id, going_north, stop_name, scheduled, passed_at, offset_min, distance_m, centru_m, vehicle_id')
       .eq('date', date)
       .order('crm_route_id').order('going_north').order('stop_order')
       .range(from, from + 999);

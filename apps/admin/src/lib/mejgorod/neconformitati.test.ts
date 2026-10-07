@@ -52,6 +52,14 @@ describe('gasesteNeconformitati', () => {
     ], [tur, retur]);
     expect(r.lista.map((x) => [x.tip, x.retur])).toEqual([['singerei', false], ['singerei', true]]);
   });
+  it('Sîngerei pe centură: aproape de linia rutei, dar la 950 m de centru = neconformitate (Ion, 07.10)', () => {
+    const r = gasesteNeconformitati([
+      { ...tr(9, false, 'Sîngerei', 0, 17), centru_m: 950 },
+      { ...tr(9, true, 'Sîngerei', 0, 17), centru_m: 120 },
+    ], [tur, retur]);
+    expect(r.lista.map((x) => [x.tip, x.retur])).toEqual([['singerei', false]]);
+    expect(textMesaj('marți, 06.10.2026', r, nume)).toContain('Nu a trecut prin centrul Sîngerei — 1');
+  });
   it('cursa fără GPS nu se judecă, merge în lista separată', () => {
     const r = gasesteNeconformitati([], [tur]);
     expect(r.lista).toEqual([]);

@@ -59,6 +59,29 @@ function snapToShape(shape, p) {
   return best;
 }
 const SNAP_MAX_M = 3000;     // oprirea mai departe de linie decât atât nu e pe ruta asta
+// Opririle prin al căror CENTRU ruta trebuie să treacă (Ion, 07.10: «mașina trebuie să treacă prin
+// centrul Sîngerei, nu pe centură»). Linia rutei calcă pe centură, deci trecerea pe linie nu spune
+// nimic; aici se mai măsoară, pe urma brută, cât de aproape a ajuns autobuzul de punctul REAL al
+// opririi → route_stop_passes.centru_m (migr. 526).
+const CENTRU_OBLIGATORIU = new Set(['singerei']);
+const CENTRU_WIN_MIN = 15;   // urma luată în ±15 min de trecerea găsită
+
+/** Distanța minimă a urmei (pe segmente, ca la trecere) de punctul p, în [lo, hi]. */
+function minDistUrma(pts, p, lo, hi) {
+  let min = Infinity;
+  const kx = Math.cos((p.lat * Math.PI) / 180);
+  for (let k = 1; k < pts.length; k++) {
+    const p0 = pts[k - 1], p1 = pts[k];
+    const t0 = p0.t.getTime(), t1 = p1.t.getTime();
+    if (t1 < lo) continue;
+    if (t0 > hi) break;
+    if (t1 - t0 > 5 * 60000) { min = Math.min(min, hav(p0, p), hav(p1, p)); continue; }
+    const dx = (p1.lon - p0.lon) * kx, dy = p1.lat - p0.lat, len2 = dx * dx + dy * dy;
+    const u = len2 ? Math.max(0, Math.min(1, (((p.lon - p0.lon) * kx) * dx + (p.lat - p0.lat) * dy) / len2)) : 0;
+    min = Math.min(min, hav({ lat: p0.lat + u * dy, lon: p0.lon + (u * dx) / kx }, p));
+  }
+  return Number.isFinite(min) ? Math.round(min) : null;
+}
 
 async function rest(path, init = {}) {
   const r = await fetch(`${SB}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init.headers || {}) } });
@@ -161,7 +184,8 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
         .map((st) => ({ ...st, fare: fareBy.get(`${s.crm_route_id}:${st.stop_order}`) }))
         .filter((st) => st.fare && Number.isFinite(st.lat))
         // Pe drum: punctul opririi proiectat pe linia rutei; prea departe de linie = scos.
-        .map((st) => { const sn = snapToShape(s.shape || [], st); return sn && sn.d <= SNAP_MAX_M ? { ...st, lat: sn.q.lat, lon: sn.q.lon } : null; })
+        // real = punctul opririi înainte de mutare (pentru CENTRU_OBLIGATORIU).
+        .map((st) => { const sn = snapToShape(s.shape || [], st); return sn && sn.d <= SNAP_MAX_M ? { ...st, lat: sn.q.lat, lon: sn.q.lon, real: { lat: st.lat, lon: st.lon } } : null; })
         .filter(Boolean)
         .map((st) => ({ ...st, hour: goingNorth ? st.fare.hour_from_chisinau : st.fare.hour_from_nord }))
         .filter((st) => hhmmMin(st.hour) !== null)
@@ -244,6 +268,9 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
           date: day, crm_route_id: s.crm_route_id, going_north: goingNorth, stop_order: st.stop_order,
           stop_name: st.name, scheduled: st.hour.padStart(5, '0'), passed_at: new Date(best.t).toISOString(),
           offset_min: Math.round((best.t - sched.getTime()) / 60000), distance_m: Math.round(best.d), vehicle_id: vid,
+          centru_m: CENTRU_OBLIGATORIU.has(normName(st.name))
+            ? minDistUrma(pts, st.real, best.t - CENTRU_WIN_MIN * 60000, best.t + CENTRU_WIN_MIN * 60000)
+            : null,
         });
       }
       // Mașina din grafic a mers, de fapt, pe altă cursă: pleacă din capăt cu mult față de

@@ -13,7 +13,7 @@ import { escapeHtml } from '../telegram-notify';
 
 export const GARI_PLECARE = ['Briceni', 'Edineț', 'Bălți'] as const;
 export const SINGEREI = 'Sîngerei';
-/** Trecerea la peste atât de oprirea de pe linia rutei nu e «prin Sîngerei». */
+/** Trecerea la peste atât de oprirea REALĂ din centru nu e «prin Sîngerei» (Ion, 07.10: «prin centru, nu pe centură»). */
 export const SINGEREI_MAX_M = 300;
 
 export interface Trecere {
@@ -24,6 +24,8 @@ export interface Trecere {
   passed_at: string;
   offset_min: number;
   distance_m: number;
+  /** Distanța urmei brute de oprirea REALĂ (migr. 526); doar la Sîngerei, altfel null. */
+  centru_m?: number | null;
   vehicle_id: string | null;
 }
 
@@ -94,7 +96,10 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
       }
     }
     const s = rows.find((x) => x.stop_name === SINGEREI);
-    if (!s || s.distance_m > SINGEREI_MAX_M) lista.push({ tip: 'singerei', ruta: c.ruta, retur: c.retur, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
+    // Pe oprirea reală din centru (centru_m), nu pe cea mutată pe linia rutei: linia trece pe centură, deci
+    // distance_m ieșea 10–30 m pentru orice autobuz de pe centură (~950 m de centru). Rândurile vechi, fără
+    // centru_m, rămân judecate ca înainte.
+    if (!s || (s.centru_m ?? s.distance_m) > SINGEREI_MAX_M) lista.push({ tip: 'singerei', ruta: c.ruta, retur: c.retur, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
   }
   lista.sort((a, b) => a.ruta - b.ruta || Number(a.retur) - Number(b.retur));
   faraGps.sort((a, b) => a.ruta - b.ruta || Number(a.retur) - Number(b.retur));
@@ -126,7 +131,7 @@ export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: C
     }
   }
   if (sing.length) {
-    out.push('', `<b>🚫 Nu a trecut prin Sîngerei — ${sing.length}</b>`);
+    out.push('', `<b>🚫 Nu a trecut prin centrul Sîngerei — ${sing.length}</b>`);
     for (const x of sing) out.push(`Ruta ${x.ruta} ${x.retur ? 'retur' : 'tur'} · ${cine(n, x.driver_id, x.vehicle_id)}`);
   }
   if (r.faraGps.length) {

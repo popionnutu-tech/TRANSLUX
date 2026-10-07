@@ -3,7 +3,8 @@ import type { BileteComanda } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { elibereazaRefund, executaRefund, revendicaRefund } from '@/lib/maib/refund';
 import { ComandaError } from './comenzi';
-import { poateAnulaPasager } from './refund-reguli';
+import { garantieActiva, inFereastraGarantiei, poateAnulaPasager } from './refund-reguli';
+import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Anularea comenzii de bilete și returnarea banilor — O SINGURĂ funcție-EXECUTOR (ION-194), chemată de dispecer
 // (/plati, apoi /bilete), de sistem (cursă anulată) și de AI-ul din botul Telegram (pasul 6b). Decizia DACĂ se
@@ -20,6 +21,12 @@ import { poateAnulaPasager } from './refund-reguli';
 export type SursaAnulare = 'pasager' | 'admin' | 'sistem' | 'ai';
 
 export { poateAnulaPasager };
+
+/** Garanția de lansare (Ion, 07.10): activă cât app_config.bilete_garantie_100_pana >= azi (Chișinău). */
+export async function garantieLansareActiva(): Promise<boolean> {
+  const { data } = await getSupabase().from("app_config").select("value").eq("key", "bilete_garantie_100_pana").maybeSingle();
+  return garantieActiva(data?.value as string | null, chisinauTodayIso());
+}
 
 async function minuteAnularePasager(): Promise<number> {
   const { data } = await getSupabase().from('app_config').select('value').eq('key', 'bilete_anulare_pasager_min').maybeSingle();
@@ -60,9 +67,18 @@ export async function anuleazaSiReturneaza(
     throw new ComandaError('validare', `comanda e ${inainte.status}, nu se poate anula`);
   }
   if (opt.sursa === 'pasager' || opt.sursa === 'ai') {
-    const min = await minuteAnularePasager();
-    if (!poateAnulaPasager(inainte.departure_at, opt.acumMs ?? Date.now(), min)) {
-      throw new ComandaError('inchis', `anularea online se poate face până cu ${min} de minute înaintea plecării; sună la dispecerat`);
+    const acum = opt.acumMs ?? Date.now();
+    // Garanția de lansare (Ion, 07.10): biletul nefolosit se returnează și după plecare, până la plecare + 24 h;
+    // «nefolosit» îl verifică bilete_anuleaza (BILET_URCAT), atomic.
+    if (await garantieLansareActiva()) {
+      if (!inFereastraGarantiei(inainte.departure_at, acum)) {
+        throw new ComandaError('inchis', 'returnarea în garanția de lansare se cere cel târziu la 24 de ore după plecare; sună la dispecerat');
+      }
+    } else {
+      const min = await minuteAnularePasager();
+      if (!poateAnulaPasager(inainte.departure_at, acum, min)) {
+        throw new ComandaError('inchis', `anularea online se poate face până cu ${min} de minute înaintea plecării; sună la dispecerat`);
+      }
     }
   }
 

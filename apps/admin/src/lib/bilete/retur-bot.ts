@@ -1,7 +1,7 @@
 import 'server-only';
 import { getSupabase } from '@/lib/supabase';
 import { ComandaError } from './comenzi';
-import { anuleazaSiReturneaza } from './refund';
+import { anuleazaSiReturneaza, garantieLansareActiva } from './refund';
 import { trimiteEmailAnulare } from './email';
 import { calculeazaOferta, CIFRE_INCERCARI_MAX, stareRetur, type StareRetur } from './retur-bot-reguli';
 
@@ -86,7 +86,8 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
     }
   }
 
-  const calc = calculeazaOferta(c.departure_at, Number(c.total), Date.now());
+  // Garanția de lansare (Ion, 07.10): biletul nefolosit primește tot și sub 4 h (după plecare — dispecerul, integral).
+  const calc = calculeazaOferta(c.departure_at, Number(c.total), Date.now(), await garantieLansareActiva());
   if (calc.tip === 'fara_bani') return { ok: true, tip: 'fara_bani', motiv: calc.motiv };
   if (calc.tip === 'dispecer') {
     // o alertă deschisă pe comandă ajunge; cererile repetate nu mai inundă dispecerul

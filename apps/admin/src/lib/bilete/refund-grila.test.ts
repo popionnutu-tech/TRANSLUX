@@ -34,3 +34,21 @@ describe('sumaRestituire', () => {
     expect(sumaRestituire(135, 12)).toBe(135);
   });
 });
+
+describe('garanția de lansare (Ion, 07.10)', () => {
+  it('activă până la data din config inclusiv; goală sau trecută → oprită', async () => {
+    const { garantieActiva } = await import('./refund-reguli');
+    expect(garantieActiva('2026-11-30', '2026-10-07')).toBe(true);
+    expect(garantieActiva('2026-11-30', '2026-11-30')).toBe(true);
+    expect(garantieActiva('2026-11-30', '2026-12-01')).toBe(false);
+    expect(garantieActiva('', '2026-10-07')).toBe(false);
+    expect(garantieActiva(null, '2026-10-07')).toBe(false);
+    expect(garantieActiva('mâine', '2026-10-07')).toBe(false);
+  });
+  it('fereastra: până la plecare + 24 h', async () => {
+    const { inFereastraGarantiei } = await import('./refund-reguli');
+    expect(inFereastraGarantiei(plecare, cu(-23))).toBe(true);
+    expect(inFereastraGarantiei(plecare, cu(-25))).toBe(false);
+    expect(inFereastraGarantiei(plecare, cu(5))).toBe(true);
+  });
+});

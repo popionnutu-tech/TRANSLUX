@@ -38,3 +38,22 @@ export function sumaRestituire(total: number, noimi: number): number {
   const n = Math.max(0, Math.min(9, noimi));
   return Math.floor((Math.round(Number(total) * 100) * n) / 9) / 100;
 }
+
+/**
+ * Garanția de lansare (Ion, 07.10.2026: «cred că prima perioadă 100% garantat banii dacă călătoria nu a fost, la
+ * vânzarea online de bilete»): cât e activă, biletul NEFOLOSIT (niciun loc scanat la urcare) se restituie integral,
+ * și după plecare — cererea până la `GARANTIE_ORE_DUPA_PLECARE` ore după plecarea de la oprirea pasagerului.
+ * Activă până la data din app_config.bilete_garantie_100_pana (inclusiv, ziua Chișinăului); goală = oprită.
+ */
+export const GARANTIE_ORE_DUPA_PLECARE = 24;
+
+export function garantieActiva(panaLa: string | null | undefined, aziIso: string): boolean {
+  const p = String(panaLa ?? '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(p) && aziIso <= p;
+}
+
+/** Cât timp se poate cere returnarea în garanție: până la plecare + 24 h. */
+export function inFereastraGarantiei(departureAt: string, nowMs: number): boolean {
+  const t = Date.parse(departureAt);
+  return Number.isFinite(t) && nowMs < t + GARANTIE_ORE_DUPA_PLECARE * 3_600_000;
+}

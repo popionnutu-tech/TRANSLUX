@@ -75,3 +75,20 @@ describe('stareRetur — tabelul 16′/16″', () => {
     expect(stareRetur({ ...d, oferta: of(true, 'eroare') }, folosita + 30_000).stare).toBe('nedeterminat');
   });
 });
+
+describe('calculeazaOferta — garanția de lansare (Ion, 07.10: «100% garantat banii dacă călătoria nu a fost»)', () => {
+  const plecare = Date.parse(PLECARE);
+  it('cu garanție: tot, și sub 4 h, și după plecare până la +24 h', () => {
+    expect(calculeazaOferta(PLECARE, 135, plecare - 30 * 60_000, true)).toMatchObject({ tip: 'oferta', noimi: 9, suma: 135 });
+    expect(calculeazaOferta(PLECARE, 135, plecare + 2 * 3_600_000, true)).toMatchObject({ tip: 'oferta', noimi: 9, suma: 135 });
+    expect(calculeazaOferta(PLECARE, 135, plecare + 25 * 3_600_000, true)).toEqual({ tip: 'fara_bani', motiv: 'plecat' });
+  });
+  it('cu garanție: oferta expiră în 15 min, dar nu după fereastră', () => {
+    const now = plecare + 24 * 3_600_000 - 5 * 60_000;
+    const r = calculeazaOferta(PLECARE, 135, now, true);
+    expect(r).toMatchObject({ tip: 'oferta', expiraMs: plecare + 24 * 3_600_000 });
+  });
+  it('fără garanție: grila neschimbată (sub 4 h nimic)', () => {
+    expect(calculeazaOferta(PLECARE, 135, plecare - 30 * 60_000, false)).toEqual({ tip: 'fara_bani', motiv: 'sub_4h' });
+  });
+});

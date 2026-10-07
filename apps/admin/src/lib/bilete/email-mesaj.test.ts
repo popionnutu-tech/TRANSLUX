@@ -26,7 +26,7 @@ describe('construiesteMesaj', () => {
     const m = construiesteMesaj({ ...baza, lang: 'ru' }, opt);
     expect(m.subiect).toMatch(/^Ваш билет TRANSLUX: Briceni → Chișinău/);
     expect(m.html).toContain(`https://translux.md/ru/bilet/${baza.cod}`);
-    expect(m.text).toContain('Возврат');
+    expect(m.text).toContain('возвращается полностью');
   });
   it('numele cu caractere HTML sunt scăpate', () => {
     const m = construiesteMesaj({ ...baza, passenger_name: 'Pop <script>x</script>' }, opt);

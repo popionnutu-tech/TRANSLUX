@@ -1,7 +1,7 @@
 // Returnarea din botul Telegram (ION-244) — reguli pure, fără bază, testate în retur-bot-reguli.test.ts.
 // Planul: docs/plans/2026-10-05-retur-bot-ai.md (corecturile 1, 4, 15′, 16′, 16″, 17′).
 
-import { noimiRestituire, sumaRestituire } from './refund-reguli';
+import { GARANTIE_ORE_DUPA_PLECARE, inFereastraGarantiei, noimiRestituire, sumaRestituire } from './refund-reguli';
 
 /** Oferta e valabilă 15 minute (Ion, 05.10), dar niciodată după pragul de 4 h înainte de plecare (plasa executorului). */
 export const OFERTA_VALABILA_MS = 15 * 60_000;
@@ -15,8 +15,18 @@ export type CalculOferta =
   | { tip: 'fara_bani'; motiv: 'sub_4h' | 'plecat' }
   | { tip: 'dispecer'; motiv: 'sub_10' };
 
-/** Ce primește clientul ACUM pentru comanda lui: oferta (sumă + expirare), nimic, sau dispecerul. */
-export function calculeazaOferta(departureAt: string, total: number, nowMs: number): CalculOferta {
+/**
+ * Ce primește clientul ACUM pentru comanda lui: oferta (sumă + expirare), nimic, sau dispecerul. Cu `garantie` activă
+ * (lansarea, Ion 07.10) biletul nefolosit primește tot, și după plecare, până la plecare + 24 h (verificarea
+ * «niciun loc urcat» o face apelantul înainte; bilete_anuleaza o mai face o dată, atomic).
+ */
+export function calculeazaOferta(departureAt: string, total: number, nowMs: number, garantie = false): CalculOferta {
+  if (garantie) {
+    const t = Date.parse(departureAt);
+    if (!inFereastraGarantiei(departureAt, nowMs)) return { tip: 'fara_bani', motiv: 'plecat' };
+    if (total < SUMA_MINIMA_REFUND_MDL) return { tip: 'dispecer', motiv: 'sub_10' };
+    return { tip: 'oferta', noimi: 9, suma: Math.round(total * 100) / 100, expiraMs: Math.min(nowMs + OFERTA_VALABILA_MS, t + GARANTIE_ORE_DUPA_PLECARE * 3_600_000) };
+  }
   const t = Date.parse(departureAt);
   if (!Number.isFinite(t) || nowMs >= t) return { tip: 'fara_bani', motiv: 'plecat' };
   const prag = t - PRAG_RETUR_MIN * 60_000;

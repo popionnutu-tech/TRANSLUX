@@ -24,11 +24,14 @@ const IDNO = 'IDNO 1003604001469';
 function oraHHMM(iso: string): string {
   return new Date(iso).toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
 }
+/** Data cursei, OBLIGATORIE pe fiecare bilet (Ion, 07.10): «Azi, 07.10.2026» în ziua cursei, altfel «mar., 14.10.2026». */
 function dataScurta(tripDate: string, lang: 'ro' | 'ru'): string {
-  const azi = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
-  if (tripDate === azi) return TXT[lang].azi;
+  const aziChisinau = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   const [y, m, d] = tripDate.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' });
+  const data = `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`;
+  if (tripDate === aziChisinau) return `${TXT[lang].azi}, ${data}`;
+  const zi = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'UTC', weekday: 'short' });
+  return `${zi}, ${data}`;
 }
 function latime(f: ReturnType<typeof fonts>['b'], t: string, size: number): number {
   const b = f.getPath(t, 0, 0, size).getBoundingBox(); return b.x2 - b.x1;

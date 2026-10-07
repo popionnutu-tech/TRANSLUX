@@ -21,12 +21,14 @@ function oraHHMM(iso: string): string {
   return new Date(iso).toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-/** Colțul din dreapta al cardului: «Azi» în ziua cursei, altfel «mar., 14.10». */
+/** Data cursei, OBLIGATORIE pe fiecare bilet (Ion, 07.10): «Azi, 07.10.2026» în ziua cursei, altfel «mar., 14.10.2026». */
 function dataScurta(tripDate: string, locale: Locale): string {
   const aziChisinau = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
-  if (tripDate === aziChisinau) return TXT[locale].azi;
   const [y, m, d] = tripDate.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' });
+  const data = `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`;
+  if (tripDate === aziChisinau) return `${TXT[locale].azi}, ${data}`;
+  const zi = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'UTC', weekday: 'short' });
+  return `${zi}, ${data}`;
 }
 
 /** Locurile cu QR de arătat: valide sau deja urcate (anulatele/returnatele nu se arată). */

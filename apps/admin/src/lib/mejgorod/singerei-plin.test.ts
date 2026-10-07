@@ -75,7 +75,8 @@ describe('textAnaliza', () => {
     expect(t).toContain('❔ nenumărate pe camere: <b>1</b>');
     expect(t).toContain('Șofer b — 1 · 0 · 0');
     expect(t).toContain('<u>Lu 28.09</u>\nR9 retur · Șofer a · ABx — ✅ 20/20 plin din Chișinău');
-    expect(t).toContain('<u>Ma 29.09</u>\nR4 tur · Șofer b · ABy — ❌ 14/20\nR4 retur');
+    // abaterile nu mai apar în listă (Ion, 07.10: «3. ok»), doar în rezumate
+    expect(t).not.toContain('R4 tur · Șofer b · ABy — ❌');
     expect(t).toContain('Șofer &lt;i&gt; · mașină necunoscută — ❔ nenumărat');
     expect(t).not.toMatch(/Рейс|водитель/);
   });

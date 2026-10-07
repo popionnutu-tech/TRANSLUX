@@ -72,7 +72,8 @@ export async function analizaSaptamana(luni: string): Promise<AnalizaSaptamana> 
   const cheie = (a: { date: string; ruta: number; retur: boolean }) => `${a.date}:${a.ruta}:${a.retur ? 'retur' : 'tur'}`;
   const num = await numararile(zile, new Set(abateri.map(cheie)));
   const rows = abateri.map((a) =>
-    judeca(a, num.get(cheie(a)), (a.vehicle_id ? nume.locuri.get(a.vehicle_id) : null) ?? locuriImplicite));
+    // Ion, 07.10: «20 de locuri pune peste tot» — aceleași locuri pe toate microbuzele, nu vehicles.passenger_seats
+    judeca(a, num.get(cheie(a)), locuriImplicite));
 
   const curseJudecate = ziData.reduce((s, z) => s + z.curse.length - z.rezultat.faraGps.length, 0);
   const zileFaraGps = ziData.filter((z) => !z.treceri.length).map((z) => z.date);

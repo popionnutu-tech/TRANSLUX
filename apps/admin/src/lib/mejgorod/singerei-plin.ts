@@ -137,7 +137,7 @@ export function textAnaliza(rows: CursaFaraSingerei[], ctx: ContextAnaliza, n: N
     `❌ nepline — abatere: <b>${nr('abatere')}</b>`,
     `✅ pline la intrarea în Sîngerei — scoase din analiză: <b>${nr('plin')}</b>`,
     `❔ nenumărate pe camere: <b>${nr('nenumarat')}</b>`,
-    `<i>Plin = pasagerii numărați pe camere pe tronsonul dinainte de Sîngerei ≥ locurile mașinii (${ctx.locuriImplicite} când mașina n-are locurile în bază).</i>`,
+    `<i>Plin = pasagerii numărați pe camere pe tronsonul dinainte de Sîngerei ≥ locurile mașinii (${ctx.locuriImplicite} locuri pe toate microbuzele).</i>`,
   ];
   if (ctx.zileFaraGps?.length) l.push(`⚠️ Zile fără GPS (nejudecate): ${ctx.zileFaraGps.join(', ')}`);
   if (!rows.length) return inMesaje(l);
@@ -148,8 +148,9 @@ export function textAnaliza(rows: CursaFaraSingerei[], ctx: ContextAnaliza, n: N
   bloc('Pe șofer', rezumat(rows, (r) => sofer(r.driver_id)));
   bloc('Pe mașină', rezumat(rows, (r) => masina(r.vehicle_id)));
   bloc('Pe rută', rezumat(rows, (r) => `Ruta ${r.ruta}`).sort((a, b) => b.abatere - a.abatere || Number(a.cheie.slice(5)) - Number(b.cheie.slice(5))));
-  l.push('', '<b>Cursele</b> (tur = spre Chișinău, retur = din Chișinău; pasageri/locuri la intrarea în Sîngerei)');
-  const sortate = [...rows].sort((a, b) => a.date.localeCompare(b.date) || a.ruta - b.ruta || Number(a.retur) - Number(b.retur));
+  // Ion, 07.10 («3. ok»): în listă doar cursele pline și cele nenumărate; abaterile rămân ca număr pe șofer / mașină / rută
+  l.push('', '<b>Cursele pline și nenumărate</b> (tur = spre Chișinău, retur = din Chișinău; pasageri/locuri la intrarea în Sîngerei)');
+  const sortate = rows.filter((r) => r.verdict !== 'abatere').sort((a, b) => a.date.localeCompare(b.date) || a.ruta - b.ruta || Number(a.retur) - Number(b.retur));
   let zi = '';
   for (const r of sortate) {
     if (r.date !== zi) { zi = r.date; l.push(`<u>${ziScurta(r.date)}</u>`); }

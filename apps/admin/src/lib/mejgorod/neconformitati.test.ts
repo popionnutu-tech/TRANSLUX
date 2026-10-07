@@ -92,6 +92,12 @@ describe('textMesaj', () => {
     expect(t).toContain('Рейс 9 · Șofer a · ABx — Единец: по графику 06:10, выехал 06:02 (-8 мин)');
     expect(t).not.toContain('Сынджерей');
   });
+  it('ultimul rând: cursele pline ies din analiză (Ion, 07.10), și în ziua curată', () => {
+    const nota = '<i>Рейсы, на которых микроавтобус был заполнен, будут исключены из анализа (проверка по подсчёту пассажиров).</i>';
+    const r = { lista: [{ tip: 'singerei' as const, ruta: 1, retur: true, driver_id: 'a', vehicle_id: 'x' }], faraGps: [] };
+    expect(textMesaj('z', r, nume).split('\n').at(-1)).toBe(nota);
+    expect(textMesaj('z', { lista: [], faraGps: [] }, nume).split('\n').at(-1)).toBe(nota);
+  });
   it('escapează numele', () => {
     const r = { lista: [{ tip: 'singerei' as const, ruta: 1, retur: true, driver_id: '<b>', vehicle_id: null }], faraGps: [] };
     expect(textMesaj('z', r, nume)).toContain('Șofer &lt;b&gt;');

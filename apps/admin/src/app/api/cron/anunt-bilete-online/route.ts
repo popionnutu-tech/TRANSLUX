@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { alertAdmins, pinTelegramMessage, sendTelegram, sendTelegramPhoto, sendTelegramText, sendTelegramVideoId } from '@/lib/telegram-notify';
+import { deleteTelegramMessage, pinTelegramMessage, sendTelegram, sendTelegramPhoto, sendTelegramText, sendTelegramVideoId } from '@/lib/telegram-notify';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -70,6 +70,8 @@ const TEXT_FIXAT = [
 // Stabil = cel puțin 3 zile cu cursă INTERURBANĂ în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
 // (privatul lui Ion) o dată pe zi, cât timp mai e cineva nelegat.
 const RAPORT_ULTIMA = 'raport_legare_sofer_ultima';
+// id-urile mesajelor raportului trimise azi: {ziua, mesaje:[{chat,id}]} — ca retrimiterea să le poată șterge.
+const RAPORT_MESAJE = 'raport_legare_sofer_mesaje';
 // Ion, 05.10: «trimite lui Iura zilnic mesaj câți s-au logat și cine nu s-a logat» — Iurie, executorul sarcinilor
 // (users.id 34936fff…, rol DIGITAL, are Telegram), primește același raport ca adminii.
 const IURIE_USER_ID = '34936fff-947e-4328-bcd9-7c99ceefe176';
@@ -87,7 +89,7 @@ async function raportLegare(sb: ReturnType<typeof getSupabase>, azi: string): Pr
   ]);
   if (!da || !dr || !rute) return null;
   // Ion, 07.10: «o mare parte din șoferi nu sunt în general la interurban, de ce apar în grafic?» — biletele online
-  // sunt doar pe interurban, deci contează DOAR zilele pe o rută interurbană. Suburbanul umplea lista cu 10 șoferi
+  // sunt doar pe interurban, deci contează DOAR zilele pe o rută interurbană. Suburbanul umplea lista cu 9 șoferi
   // care n-au nicio cursă interurbană (Gusevatii, Crestianov, Tichem…).
   const interurban = new Set((rute as { id: number }[]).map(r => r.id));
   const zile = new Map<string, Set<string>>();
@@ -229,14 +231,33 @@ export async function GET(req: NextRequest) {
     const r = await raportLegare(sb, azi);
     if (!r) out.raport = 'fara_date';
     else {
-      const { data: iurie } = await sb.from('users').select('telegram_id').eq('id', IURIE_USER_ID).eq('active', true).maybeSingle();
-      const [ok, okIurie] = await Promise.all([
-        alertAdmins(r.text),
-        iurie?.telegram_id ? sendTelegram(iurie.telegram_id as number, r.text) : Promise.resolve(false),
+      // Ion, 07.10: «șterge lista dată azi dimineață și pune încă o dată corectat» — retrimiterea din aceeași zi
+      // șterge întâi mesajele trimise azi (id-urile stau în app_config), ca să nu rămână două liste diferite.
+      const { data: prev } = await sb.from('app_config').select('value').eq('key', RAPORT_MESAJE).maybeSingle();
+      let vechi: { ziua?: string; mesaje?: { chat: number; id: number }[] } = {};
+      try { vechi = JSON.parse(prev?.value ?? '{}'); } catch { /* valoare stricată = nimic de șters */ }
+      if (vechi.ziua === azi) {
+        await Promise.all((vechi.mesaje ?? []).map(m => deleteTelegramMessage(m.chat, m.id)));
+      }
+      const [{ data: admini }, { data: iurie }] = await Promise.all([
+        sb.from('users').select('telegram_id').eq('role', 'ADMIN').eq('active', true).not('telegram_id', 'is', null),
+        sb.from('users').select('telegram_id').eq('id', IURIE_USER_ID).eq('active', true).maybeSingle(),
       ]);
-      out.raport_iurie = okIurie;
-      if (ok) await sb.from('app_config').upsert({ key: RAPORT_ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
-      out.raport = ok ? { trimis: true, stabili: r.stabili, legati: r.legati } : 'netrimis';
+      const destinatari = [...new Set([
+        ...(admini ?? []).map(a => Number(a.telegram_id)),
+        ...(iurie?.telegram_id ? [Number(iurie.telegram_id)] : []),
+      ].filter(Boolean))];
+      const ids = await Promise.all(destinatari.map(chat => sendTelegramText(chat, r.text)));
+      const mesaje = destinatari.flatMap((chat, i) => (ids[i] ? [{ chat, id: ids[i] as number }] : []));
+      const ok = mesaje.length > 0;
+      out.raport_iurie = !!iurie?.telegram_id && mesaje.some(m => m.chat === Number(iurie.telegram_id));
+      if (ok) {
+        await sb.from('app_config').upsert([
+          { key: RAPORT_ULTIMA, value: azi, updated_at: acum },
+          { key: RAPORT_MESAJE, value: JSON.stringify({ ziua: azi, mesaje }), updated_at: acum },
+        ], { onConflict: 'key' });
+      }
+      out.raport = ok ? { trimis: true, stabili: r.stabili, legati: r.legati, sterse: vechi.ziua === azi ? vechi.mesaje?.length ?? 0 : 0 } : 'netrimis';
     }
   }
   return NextResponse.json({ ok: true, ...out });

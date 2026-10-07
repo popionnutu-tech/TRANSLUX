@@ -8,7 +8,6 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { chisinauTodayIso, chisinauDayBounds } from '@/lib/chisinau-time';
-import { normeleConfirmate, ultimaZi } from '@/lib/lde/norma-luna';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // «Descriere unificată»: cheia apare de cel puțin atâtea ori pe tot istoricul; restul = izolate
@@ -35,7 +34,6 @@ export type FlotaRow = {
   norma: number | null;       // l/100 km, ca pe /lde/vehicule (măsurată, altfel a tipului)
   norma_teoretica: number | null;  // norma mașinii: consumul propriu plin la plin din 10.06 (≥ 3 pliniri), altfel cea veche
   norma_veche: boolean;       // true = sub 3 pliniri, norma de până acum (măsurată / Clava / a tipului) — «*» pe pagină
-  norma_clava: boolean;       // norma lunii aleasă de Clava pe panoul normelor și confirmată de Ion (perioada = exact o lună)
   consum3: number | null;     // l/100 km plin la plin de la 10.06.2026 până la «to» (ION-138: «aplică logica asta peste tot»)
   prima: string | null;
   ultima: string | null;
@@ -98,9 +96,6 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
     ids.length ? sb.rpc('lde_fuel_norma_eb', { luna: f, vehicule: ids }) : Promise.resolve({ data: [] as any[] }),
   ]);
   const trei = new Map<string, any>((pl.data ?? []).map((r: any) => [r.vehicle_id, r]));
-  // Ion, 07.10.2026: norma aleasă de Clava contează după confirmarea lui — doar când perioada e exact o lună calendaristică
-  const oLuna = f.slice(8) === '01' && t === ultimaZi(f.slice(0, 7));
-  const aleseClava = oLuna ? await normeleConfirmate(f.slice(0, 7)) : new Map<string, number>();
   const norme = new Map<string, any>((eb.data ?? []).map((r: any) => [r.vehicle_id, r]));
 
   const flota: FlotaRow[] = (fl.data ?? []).map((r: any) => ({
@@ -126,10 +121,8 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
       const plin = x && Number(x.intervale) >= 3 && Number(x.km) >= 3000 ? Number(x.consum) : null;
       const n = norme.get(r.vehicle_id);
       const veche = r.norma != null ? Number(r.norma) : r.norma_teoretica != null ? Number(r.norma_teoretica) : null;
-      const clava = aleseClava.get(r.vehicle_id);
-      if (clava != null) return { consum3: plin, norma_teoretica: clava, norma_veche: false, norma_clava: true };
       const norma = n?.norma != null ? Number(n.norma) : veche;
-      return { consum3: plin, norma_teoretica: norma, norma_veche: n?.sursa !== 'eb', norma_clava: false };
+      return { consum3: plin, norma_teoretica: norma, norma_veche: n?.sursa !== 'eb' };
     })(),
     prima: r.prima,
     ultima: r.ultima,

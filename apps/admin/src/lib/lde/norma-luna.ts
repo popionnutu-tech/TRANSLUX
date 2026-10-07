@@ -1,24 +1,29 @@
-// Norma lunii pe mașinile de uzină — panoul Clavei (/lde/agreare/norme), plan docs/plans/2026-10-07-panou-norme-clava.md.
-// Ion, 07.10.2026: «verificarea se face strict tipuri mașini și media 3 luni la această mașină» → două repere; Clava
-// alege unul sau «pune norma pe care o crede și comentariu de ce, ca să învățăm sistemul»; norma ei contează în poster
-// și pe /lde/combustibil «doar după confirmarea mea». Bibliotecă fără verificare de rol: o cheamă acțiunile (cu rol)
-// și posterul (cron).
+// Media lunii pe mașină — panoul Clavei (/lde/agreare/norme), plan docs/plans/2026-10-07-panou-norme-clava.md.
+// Ion, 07.10.2026: «media o face softul după legea pusă de Clava și la camioane legea noastră»; «Clava se uită la media
+// făcută de AI pe lună și pune media ei dacă e diferită» (cu motiv — «ca să învățăm sistemul»); «în octombrie face
+// septembrie». Legea Clavei (interviul ei, «a scris din fișier Word»): litrii mașinii pe lună ÷ km GPS, împărțiți pe
+// șoferi după km. Camioanele: cursele pornite în lună până la plinul următor (ION-162). Ambele vin din lde_fuel_flota.
+// Bibliotecă fără verificare de rol: o cheamă acțiunile (cu rol).
 
 import { getSupabase } from '../supabase';
 
-/** Direcțiile mașinilor de uzină din panou (camioanele se judecă pe curse, ION-162; interurbanul și Briceni n-au uzină). */
+/** Direcțiile uzinelor (legea Clavei: litrii lunii ÷ km GPS); interurbanul și Briceni n-au uzină. */
 export const UZINE_DIRS = ['DRAXELMAIER_BALTI', 'SEBN_ORHEI', 'SEBN_STRASENI', 'LEAR_UNGHENI', 'LEAR_FLORESTI'] as const;
+/** Direcțiile din panou: uzinele + camioanele (legea noastră, pe curse — ION-162). */
+export const PANOU_DIRS = [...UZINE_DIRS, 'camioane'] as const;
 export const UZINA_NUME: Record<string, string> = {
   DRAXELMAIER_BALTI: 'Drăxlmaier', SEBN_ORHEI: 'SEBN Orhei', SEBN_STRASENI: 'SEBN Strășeni', LEAR_UNGHENI: 'LEAR Ungheni', LEAR_FLORESTI: 'LEAR Florești',
+  camioane: 'Camioane',
 };
 /** Ordinea filelor din panou — fiecare direcție separat (Ion, 07.10.2026: «direcțiile să fie separate»). */
-export const DIRECTII_PANOU = UZINE_DIRS.map((d) => UZINA_NUME[d]);
+export const DIRECTII_PANOU = PANOU_DIRS.map((d) => UZINA_NUME[d]);
 export const LUNA_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-export type Ales = 'tip' | 'medie3' | 'clava';
+export type Ales = 'confirmat' | 'media_clava';
 export type Reper = { norma_tip: number | null; tip: string | null; medie3: number | null; km3: number };
 export type Decizie = {
   vehicle_id: string; norma_tip: number | null; medie3: number | null; km3: number | null;
+  norma_program: number | null; km: number | null; litri: number | null;
   ales: Ales; norma: number; comentariu: string | null; decis_de: string; decis_la: string;
 };
 export type Confirmare = {
@@ -69,13 +74,15 @@ export async function reperele(luna: string, ids: string[]): Promise<Map<string,
 
 export async function deciziileLunii(luna: string, ids?: string[]): Promise<Map<string, Decizie>> {
   let q = getSupabase().from('lde_norma_luna')
-    .select('vehicle_id, norma_tip, medie3, km3, ales, norma, comentariu, decis_de, decis_la').eq('luna', primaZi(luna));
+    .select('vehicle_id, norma_tip, medie3, km3, norma_program, km, litri, ales, norma, comentariu, decis_de, decis_la').eq('luna', primaZi(luna));
   if (ids) q = q.in('vehicle_id', ids);
   const { data, error } = await q.limit(1000);
   if (error) throw new Error(error.message);
   return new Map(((data ?? []) as any[]).map((d) => [d.vehicle_id, {
     ...d, norma: Number(d.norma), norma_tip: d.norma_tip != null ? Number(d.norma_tip) : null,
     medie3: d.medie3 != null ? Number(d.medie3) : null, km3: d.km3 != null ? Number(d.km3) : null,
+    norma_program: d.norma_program != null ? Number(d.norma_program) : null,
+    km: d.km != null ? Number(d.km) : null, litri: d.litri != null ? Number(d.litri) : null,
   } as Decizie]));
 }
 
@@ -84,11 +91,4 @@ export async function confirmarea(luna: string): Promise<Confirmare | null> {
     .select('luna, confirmat_de, confirmat_la, poster_rezultat, poster_motiv, poster_trimis_la').eq('luna', primaZi(luna)).maybeSingle();
   if (error) throw new Error(error.message);
   return (data as Confirmare | null) ?? null;
-}
-
-/** Norma Clavei pe mașinile decise, DOAR pentru o lună confirmată de Ion (altfel hartă goală → rapoartele rămân pe EB). */
-export async function normeleConfirmate(luna: string): Promise<Map<string, number>> {
-  if (!(await confirmarea(luna))) return new Map();
-  const d = await deciziileLunii(luna);
-  return new Map([...d].map(([id, x]) => [id, x.norma]));
 }

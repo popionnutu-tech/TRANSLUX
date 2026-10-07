@@ -55,14 +55,14 @@ describe('telegram-notify', () => {
   it('sendTelegramPhoto: răspuns non-2xx → ok=false, fără excepție', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock.mockResolvedValue({ ok: false, status: 400, text: async () => 'chat not found' });
-    await expect(sendTelegramPhoto(1, Buffer.from('x'), 'c')).resolves.toEqual({ ok: false, messageId: null });
+    await expect(sendTelegramPhoto(1, Buffer.from('x'), 'c')).resolves.toEqual({ ok: false, messageId: null, refuzat: true });
     expect(errSpy).toHaveBeenCalled();
     errSpy.mockRestore();
   });
 
   it('sendTelegramPhoto: fără token nu apelează Telegram', async () => {
     vi.stubEnv('TELEGRAM_BOT_TOKEN', '');
-    await expect(sendTelegramPhoto(1, Buffer.from('x'), 'c')).resolves.toEqual({ ok: false, messageId: null });
+    await expect(sendTelegramPhoto(1, Buffer.from('x'), 'c')).resolves.toEqual({ ok: false, messageId: null, refuzat: true });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

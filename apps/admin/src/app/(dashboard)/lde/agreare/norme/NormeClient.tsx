@@ -10,8 +10,8 @@ import {
 import { DIRECTII_PANOU, type Ales } from '@/lib/lde/norma-luna';
 import type { Bucata } from '@/lib/lde/combustibil-poster';
 
-// Macheta negociată în plan (revizorul ux-clava + Codex): un rând pe mașină — km, litri, consumul lunii și cele două
-// cifre de ales; detaliul se deschide doar din ▸ / plăcuță. Fără termeni tehnici (EB, r_masina) pe ecran.
+// Un rând pe mașină — km, litri și media lunii socotită de soft; Clava o confirmă sau pune media ei cu motivul
+// (Ion, 07.10.2026: «Clava nu alege, le confirmă sau infirmă»). Detaliul se deschide doar din ▸ / plăcuță.
 
 const BORDO = 'var(--primary, #9B1B30)';
 const LUNI = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
@@ -19,7 +19,7 @@ const LUNI_SCURT = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep
 const etLuna = (l: string) => { const [y, m] = l.split('-').map(Number); return `${LUNI[m - 1]} ${y}`; };
 const nr = (x: number | null | undefined, z = 0) => (x == null ? '—' : x.toLocaleString('ro-RO', { minimumFractionDigits: z, maximumFractionDigits: z }));
 const semn = (x: number | null) => (x == null ? '—' : `${x > 0 ? '+' : ''}${nr(x)}`);
-const ALES_TEXT: Record<Ales, string> = { tip: 'după tip', medie3: 'media mașinii', clava: 'cifra ta' };
+const ALES_TEXT: Record<Ales, string> = { confirmat: 'confirmată', media_clava: 'media ta' };
 const BUCATA_TEXT: Record<Bucata, string> = { album: 'posterele direcțiilor', general: 'posterul general', introducere: 'mesajul de introducere' };
 
 function luniInchise(luna: string): string[] {
@@ -63,8 +63,8 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
   const [pending, start] = useTransition();
   const [deschis, setDeschis] = useState(false);
   const [alta, setAlta] = useState(false);
-  const [normaEi, setNormaEi] = useState(r.decizie?.ales === 'clava' ? String(r.decizie.norma).replace('.', ',') : '');
-  const [motiv, setMotiv] = useState(r.decizie?.ales === 'clava' ? r.decizie.comentariu ?? '' : '');
+  const [normaEi, setNormaEi] = useState(r.decizie?.ales === 'media_clava' ? String(r.decizie.norma).replace('.', ',') : '');
+  const [motiv, setMotiv] = useState(r.decizie?.ales === 'media_clava' ? r.decizie.comentariu ?? '' : '');
   const [eroare, setEroare] = useState<string | null>(null);
   const [det, setDet] = useState<Detaliu | null>(null);
   const ales = r.decizie?.ales ?? null;
@@ -72,7 +72,7 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
 
   const alege = (a: Ales) => {
     if (!poateDecide) return;
-    if (a === 'clava') { setAlta(!alta); return; }
+    if (a === 'media_clava') { setAlta(!alta); return; }
     setEroare(null);
     start(async () => {
       try { await decide(luna, r.vehicle_id, a); setAlta(false); router.refresh(); } catch (e) { setEroare(e instanceof Error ? e.message : String(e)); }
@@ -81,7 +81,7 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
   const salveazaAlta = () => {
     setEroare(null);
     start(async () => {
-      try { await decide(luna, r.vehicle_id, 'clava', Number(normaEi.replace(',', '.')), motiv); setAlta(false); router.refresh(); }
+      try { await decide(luna, r.vehicle_id, 'media_clava', Number(normaEi.replace(',', '.')), motiv); setAlta(false); router.refresh(); }
       catch (e) { setEroare(e instanceof Error ? e.message : String(e)); }
     });
   };
@@ -89,11 +89,10 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
     const nou = !deschis; setDeschis(nou);
     if (nou && !det) {
       start(async () => {
-        try { setDet(await getDetaliuMasina(luna, r.vehicle_id, r.soferi, r.consum, normaAleasa)); } catch (e) { setEroare(e instanceof Error ? e.message : String(e)); }
+        try { setDet(await getDetaliuMasina(luna, r.vehicle_id, r.soferi, r.media, normaAleasa)); } catch (e) { setEroare(e instanceof Error ? e.message : String(e)); }
       });
     }
   };
-  const peste = r.consum != null && normaAleasa != null && r.consum > normaAleasa;
 
   return (
     <div style={{ opacity: ales && !deschis ? 0.78 : 1 }}>
@@ -105,36 +104,31 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
         </button>
         <div style={{ textAlign: 'right' }}>{nr(r.km)} <span style={{ color: '#888', fontSize: 11 }}>km</span></div>
         <div style={{ textAlign: 'right' }}>{nr(r.litri)} <span style={{ color: '#888', fontSize: 11 }}>l</span></div>
-        <div style={{ textAlign: 'right', fontWeight: 600, color: peste ? '#b91c1c' : '#333' }} title="Consumul lunii: litri ÷ km × 100">
-          {r.consum == null ? <span style={{ color: '#999', fontWeight: 400, fontSize: 11 }}>puține date</span> : nr(r.consum, 1)}
+        <div style={{ textAlign: 'right', fontWeight: 600 }} title="Media softului: litri ÷ km × 100 în lună">
+          {r.media == null ? <span style={{ color: '#999', fontWeight: 400, fontSize: 11 }}>puține date</span> : nr(r.media, 1)}
         </div>
         <div className="nr-alegeri">
-          {r.norma_tip != null && (
-            <button type="button" disabled={pending} onClick={() => alege('tip')} style={alegere(ales === 'tip', !poateDecide)}>{ales === 'tip' ? '✓ ' : ''}După tip {nr(r.norma_tip, 1)}</button>
+          {r.media != null && (
+            <button type="button" disabled={pending} onClick={() => alege('confirmat')} style={alegere(ales === 'confirmat', !poateDecide)}>
+              {ales === 'confirmat' ? '✓ Confirmată' : 'Confirm'}</button>
           )}
-          {r.medie3 != null && (
-            <button type="button" disabled={pending} onClick={() => alege('medie3')} style={alegere(ales === 'medie3', !poateDecide)}
-              title={r.km3 < 3000 ? `Puțini km în ${trei(luna)} (${nr(r.km3)}) — media e slabă` : undefined}>
-              {ales === 'medie3' ? '✓ ' : ''}Media mașinii {nr(r.medie3, 1)}{r.km3 < 3000 ? ' ·' : ''}
-            </button>
-          )}
-          <button type="button" disabled={pending} onClick={() => alege('clava')} style={alegere(ales === 'clava', !poateDecide)}>
-            {ales === 'clava' ? `✓ Cifra ta ${nr(r.decizie!.norma, 1)}` : 'Altă cifră…'}
+          <button type="button" disabled={pending} onClick={() => alege('media_clava')} style={alegere(ales === 'media_clava', !poateDecide)}>
+            {ales === 'media_clava' ? `✓ Media ta ${nr(r.decizie!.norma, 1)}` : 'Altă medie…'}
           </button>
         </div>
         <div className="nr-stare" style={{ fontSize: 11.5, color: ales ? '#15803d' : '#b45309' }}>
-          {ales ? `aleasă: ${ALES_TEXT[ales]}` : r.in_joc > 0 ? `de decis · ${nr(r.in_joc)} l în joc` : 'de decis'}
-          {r.schimbat && <div style={{ color: '#b45309' }} title="Alimentări sau km au venit după alegere">⚠ cifrele s-au schimbat după ce ai ales</div>}
+          {ales ? ALES_TEXT[ales] : 'de confirmat'}
+          {r.schimbat && <div style={{ color: '#b45309' }} title="Alimentări sau km au venit după confirmare">⚠ media s-a schimbat după ce ai confirmat</div>}
         </div>
       </div>
 
       {alta && poateDecide && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start', padding: '4px 8px 10px 36px' }}>
-          <label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>Norma ta
-            <input value={normaEi} onChange={(e) => setNormaEi(e.target.value)} inputMode="decimal" placeholder="18,5" aria-label="Norma ta, litri la 100 km"
+          <label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>Media ta
+            <input value={normaEi} onChange={(e) => setNormaEi(e.target.value)} inputMode="decimal" placeholder="18,5" aria-label="Media ta, litri la 100 km"
               style={{ width: 64, padding: '4px 6px', border: '1px solid rgba(155,27,48,0.25)', borderRadius: 8, fontSize: 13 }} />
             l la 100 km</label>
-          <textarea value={motiv} onChange={(e) => setMotiv(e.target.value)} placeholder="De ce nu e bună niciuna dintre cifre" aria-label="De ce"
+          <textarea value={motiv} onChange={(e) => setMotiv(e.target.value)} placeholder="De ce e alta decât media softului" aria-label="De ce"
             rows={2} maxLength={1000} style={{ flex: '1 1 260px', padding: '6px 8px', border: '1px solid rgba(155,27,48,0.25)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }} />
           <button type="button" disabled={pending} onClick={salveazaAlta} style={{ ...alegere(true), minHeight: 34 }}>Salvează</button>
         </div>
@@ -143,9 +137,8 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
 
       {deschis && (
         <div style={{ padding: '6px 12px 14px 36px', fontSize: 12.5, color: '#444', display: 'flex', flexDirection: 'column', gap: 6, background: 'rgba(155,27,48,0.025)' }}>
-          {r.norma_tip != null && <div><b>După tip {nr(r.norma_tip, 1)}</b> = norma {r.tip} din nomenclator.</div>}
-          {r.medie3 != null && <div><b>Media mașinii {nr(r.medie3, 1)}</b> = cât a consumat mașina asta în {trei(luna)}, pe {nr(r.km3)} km.{r.km3 < 3000 ? ' Puțini km — cifra e slabă.' : ''}</div>}
-          {r.luna_trecuta && <div style={{ color: '#666' }}>Luna trecută: {ALES_TEXT[r.luna_trecuta]}.</div>}
+          <div><b>Media softului {nr(r.media, 1)}</b> = {nr(r.litri)} l ÷ {nr(r.km)} km × 100{r.uzina === 'Camioane' ? ', pe cursele pornite în lună până la plinul următor (km din GPS)' : ', km din GPS'}; {r.alimentari} alimentări.</div>
+          <div style={{ color: '#666' }}>Pentru comparație: norma tipului {r.tip ? `${r.tip} ` : ''}{nr(r.norma_tip, 1)} · media în {trei(luna)} {nr(r.medie3, 1)}{r.luna_trecuta != null ? ` · luna trecută confirmată ${nr(r.luna_trecuta, 1)}` : ''}.</div>
           {r.decizie && (
             <div style={{ color: '#666' }}>
               Ales de {r.decizie.decis_de.split('@')[0]}, {new Date(r.decizie.decis_la).toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -159,7 +152,7 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
                 <thead><tr style={{ color: 'rgba(155,27,48,0.5)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   <th style={{ textAlign: 'left', padding: '3px 8px 3px 0' }}>Șoferii lunii</th><th style={{ textAlign: 'left', padding: '3px 8px' }}>Perioada</th>
                   <th style={{ textAlign: 'right', padding: '3px 8px' }}>Km</th><th style={{ textAlign: 'right', padding: '3px 8px' }}>Litri</th>
-                  <th style={{ textAlign: 'right', padding: '3px 0 3px 8px' }}>Față de normă</th>
+                  <th style={{ textAlign: 'right', padding: '3px 0 3px 8px' }}>Față de media confirmată</th>
                 </tr></thead>
                 <tbody>
                   {det.soferi.map((s) => (
@@ -170,14 +163,14 @@ function Rand({ r, luna, poateDecide }: { r: RandNorma; luna: string; poateDecid
                       <td style={{ padding: '2px 8px', textAlign: 'right' }}>{nr(s.km)}</td>
                       <td style={{ padding: '2px 8px', textAlign: 'right' }}>{nr(s.litri)}</td>
                       <td style={{ padding: '2px 0 2px 8px', textAlign: 'right', fontWeight: (s.abatere ?? 0) > 0 ? 600 : 400, color: (s.abatere ?? 0) > 0 ? '#b91c1c' : '#333' }}>
-                        {normaAleasa == null ? 'alege norma' : `${semn(s.abatere)} l`}</td>
+                        {normaAleasa == null ? '—' : `${semn(s.abatere)} l`}</td>
                     </tr>
                   ))}
                   {!det.soferi.length && <tr><td colSpan={5} style={{ color: '#b45309', padding: '2px 0' }}>Niciun șofer — agreează-l pe pagina de agreare.</td></tr>}
                 </tbody>
               </table>
               {det.soferi.length >= 2 && normaAleasa != null && det.soferi.some((s) => (s.abatere ?? 0) > 0) && (
-                <div style={{ color: '#b45309' }}>De verificat: mai mulți șoferi și consum peste normă — împărțirea după km nu arată cine a consumat.</div>
+                <div style={{ color: '#b45309' }}>De verificat: mai mulți șoferi și consum peste media confirmată — împărțirea după km nu arată cine a consumat.</div>
               )}
               <div title={det.zile.map((z) => `${z.zi}: ${z.km} km`).join(' · ')} style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 26 }}>
                 <span style={{ fontSize: 11, color: '#777', marginRight: 6, alignSelf: 'center' }}>Km pe zile</span>
@@ -216,9 +209,9 @@ function PanouIon({ data }: { data: NormeData }) {
   if (!c) {
     return (
       <div style={{ ...card, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span>{etLuna(data.luna)}: <b>{decise}/{data.randuri.length}</b> mașini decise de Clava · așteaptă confirmarea ta.</span>
+        <span>{etLuna(data.luna)}: <b>{decise}/{data.randuri.length}</b> medii confirmate de Clava · așteaptă confirmarea ta.</span>
         <button type="button" disabled={pending || !data.inchisa}
-          onClick={() => { if (confirm(`Confirm normele pentru ${etLuna(data.luna)} și trimit posterul în grupă?${decise < data.randuri.length ? ` ${data.randuri.length - decise} mașini nedecise rămân pe norma automată.` : ''}`)) rulează(() => confirmaLuna(data.luna)); }}
+          onClick={() => { if (confirm(`Confirm mediile pentru ${etLuna(data.luna)} și trimit posterul în grupă?${decise < data.randuri.length ? ` ${data.randuri.length - decise} mașini n-au media confirmată de Clava.` : ''}`)) rulează(() => confirmaLuna(data.luna)); }}
           style={{ ...alegere(true), minHeight: 34 }}>Confirm normele lunii și trimit posterul</button>
         {mesaj && <span style={{ fontSize: 12, color: '#b45309' }}>{mesaj}</span>}
       </div>
@@ -286,30 +279,30 @@ export default function NormeClient({ data }: { data: NormeData }) {
             const toate = data.randuri.filter((r) => r.uzina === u).length;
             return (
               <button key={u} type="button" onClick={() => setUz(u)} style={{ ...chip(uz === u), minHeight: 34, padding: '5px 12px' }}>
-                {u} <span style={{ opacity: 0.8, fontSize: 11 }}>{rest ? `${rest} de decis` : toate ? '✓' : '—'}</span>
+                {u} <span style={{ opacity: 0.8, fontSize: 11 }}>{rest ? `${rest} de confirmat` : toate ? '✓' : '—'}</span>
               </button>
             );
           })}
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => setFiltru(filtru === 'de decis' ? 'toate' : 'de decis')} style={chip(filtru === 'de decis')}>De decis {deDecis}</button>
-          <button type="button" onClick={() => setFiltru(filtru === 'alese' ? 'toate' : 'alese')} style={chip(filtru === 'alese')}>Alese {peUzina.length - deDecis}</button>
+          <button type="button" onClick={() => setFiltru(filtru === 'de decis' ? 'toate' : 'de decis')} style={chip(filtru === 'de decis')}>De confirmat {deDecis}</button>
+          <button type="button" onClick={() => setFiltru(filtru === 'alese' ? 'toate' : 'alese')} style={chip(filtru === 'alese')}>Confirmate {peUzina.length - deDecis}</button>
         </div>
       </div>
 
       <div style={card}>
         <div className="nr-rand nr-cap nr-capete" style={{ borderBottom: '1px solid rgba(155,27,48,0.1)' }}>
           <div /><div>Mașina</div><div style={{ textAlign: 'right' }}>Km</div><div style={{ textAlign: 'right' }}>Litri</div>
-          <div style={{ textAlign: 'right' }}>Consum</div><div>Norma lunii — alege</div><div>Stare</div>
+          <div style={{ textAlign: 'right' }}>Media</div><div>Confirmă sau pune media ta</div><div>Stare</div>
         </div>
         {vizibile.map((r) => <Rand key={r.vehicle_id + data.luna} r={r} luna={data.luna} poateDecide={poateDecide} />)}
         {!vizibile.length && <p style={{ padding: 12, color: '#666' }}>Nicio mașină pe filtrul ales.</p>}
       </div>
 
       <p style={{ margin: 0, fontSize: 12, color: '#777' }}>
-        Consum = litri ÷ km × 100 în {etLuna(data.luna)}. «După tip» = norma modelului din nomenclator; «Media mașinii» = cât a consumat
-        mașina în {trei(data.luna)}. Dacă nu e bună niciuna, «Altă cifră…» cu motivul. Șoferul primește norma mașinii lui; detaliul se
-        deschide din ▸. Posterul în grupă pleacă după confirmarea lui Ion.
+        Media = litri ÷ km × 100 în {etLuna(data.luna)}, socotită de soft (autobuzele după legea ta: litrii lunii ÷ km GPS; camioanele pe
+        curse, până la plinul următor). «Confirm» dacă e bună; dacă e alta, «Altă medie…» cu motivul. Șoferul primește media mașinii lui;
+        detaliul se deschide din ▸. Posterul în grupă pleacă după confirmarea lui Ion.
       </p>
     </div>
   );

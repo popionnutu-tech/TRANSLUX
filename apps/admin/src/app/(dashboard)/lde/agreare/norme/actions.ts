@@ -1,18 +1,18 @@
 'use server';
 
 // Panoul normelor lunii pentru Clava (plan docs/plans/2026-10-07-panou-norme-clava.md, 3 runde Claude + Codex).
-// Ion, 07.10.2026: «lunar se propun normele la auto și șoferi, și ea fie acceptă, fie nu acceptă și scrie comentariu de
-// ce», «puțină informație încărcat, dar pentru ea să fie ușor, norma pe fiecare mașină, km total, litri total, iar dacă
-// apeși să se deschidă detaliat»; două cifre (tipul / media mașinii pe 3 luni), Clava alege sau «pune norma pe care o
-// crede și comentariu de ce, ca să învățăm sistemul»; luna se decide «după ce s-a închis»; posterul pleacă «doar după
-// confirmarea mea». Norma pe șofer = norma aleasă a mașinii lui.
+// Ion, 07.10.2026: «puțină informație încărcat, dar pentru ea să fie ușor, norma pe fiecare mașină, km total, litri total,
+// iar dacă apeși să se deschidă detaliat»; «Clava nu alege, le confirmă sau infirmă pe cele socotite în program»; «media
+// o face softul după legea pusă de Clava și la camioane legea noastră»; «Clava se uită la media făcută de AI pe lună și
+// pune media ei dacă e diferită» (+ motiv, «ca să învățăm sistemul»); «în octombrie face septembrie»; posterul pleacă
+// «doar după confirmarea mea»; «direcțiile să fie separate».
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { chisinauTodayIso, chisinauDayBounds } from '@/lib/chisinau-time';
 import {
-  UZINE_DIRS, UZINA_NUME, LUNA_RE, primaZi, ultimaZi, lunaInainte, reperele, deciziileLunii, confirmarea,
+  PANOU_DIRS, UZINA_NUME, LUNA_RE, primaZi, ultimaZi, lunaInainte, reperele, deciziileLunii, confirmarea,
   type Ales, type Decizie, type Confirmare,
 } from '@/lib/lde/norma-luna';
 import { recupereazaPoster, BUCATI, type Bucata, type RezultatRecuperare } from '@/lib/lde/combustibil-poster';
@@ -24,12 +24,12 @@ const SCHIMBAT = 0.03;         // reperele de azi diferă cu peste 3 % de cele �
 export type SoferRand = { id: string; nume: string; de: number; pana: number; propunere: boolean };
 export type RandNorma = {
   vehicle_id: string; m: string; uzina: string; tip: string | null;
-  km: number; litri: number; alimentari: number; consum: number | null; km_fara_gps: number;
-  norma_tip: number | null; medie3: number | null; km3: number;
+  km: number; litri: number; alimentari: number; km_fara_gps: number;
+  media: number | null;           // media softului: litri ÷ km × 100 (null sub 300 km sau sub 2 alimentări)
+  norma_tip: number | null; medie3: number | null; km3: number;   // doar ca reper în detaliu
   decizie: Decizie | null;
-  schimbat: boolean;              // reperele s-au mișcat după decizie
-  luna_trecuta: Ales | null;      // ce a ales Clava luna trecută
-  in_joc: number;                 // litri: km × |tip − medie3| / 100 — ce trebuie decis întâi
+  schimbat: boolean;              // media de azi diferă cu peste 3 % de cea confirmată (alimentări venite după)
+  luna_trecuta: number | null;    // media confirmată luna trecută
   soferi: SoferRand[];
 };
 export type NormeData = {
@@ -42,6 +42,9 @@ async function sesiune(...roluri: ('ADMIN' | 'CONTABIL_LDE')[]) {
 }
 const lunaCurenta = () => chisinauTodayIso().slice(0, 7);
 const r1 = (x: number) => Math.round(x * 10) / 10;
+/** Media softului pe lună (legea Clavei; la camioane fereastra pe curse vine deja din lde_fuel_flota, ION-162). */
+const mediaSoft = (km: number, litri: number, alimentari: number) =>
+  km >= PRAG_KM && alimentari >= PRAG_ALIMENTARI && litri > 0 ? r1((litri / km) * 100) : null;
 
 export async function getNorme(lunaParam?: string): Promise<NormeData> {
   const s = await sesiune('ADMIN', 'CONTABIL_LDE');
@@ -52,7 +55,7 @@ export async function getNorme(lunaParam?: string): Promise<NormeData> {
   const de = primaZi(luna), pana = ultimaZi(luna);
 
   const { data: veh, error: ev } = await db.from('vehicles').select('id, plate_number, directions')
-    .eq('active', true).overlaps('directions', [...UZINE_DIRS]).order('plate_number').limit(1000);
+    .eq('active', true).overlaps('directions', [...PANOU_DIRS]).order('plate_number').limit(1000);
   if (ev) throw new Error(ev.message);
   const ids = (veh ?? []).map((v) => v.id);
 
@@ -93,22 +96,20 @@ export async function getNorme(lunaParam?: string): Promise<NormeData> {
     const alimentari = f ? Number(f.benzol_n) + Number(f.foaie_n) : 0;
     const r = rep.get(v.id) ?? { norma_tip: null, tip: null, medie3: null, km3: 0 };
     const d = dec.get(v.id) ?? null;
-    const misc = (a: number | null, b: number | null) => a != null && b != null && b > 0 && Math.abs(a - b) / b > SCHIMBAT;
+    const media = mediaSoft(km, litri, alimentari);
     const uzKey = (v.directions as string[]).find((x) => UZINA_NUME[x]) ?? '';
     randuri.push({
       vehicle_id: v.id, m: v.plate_number, uzina: UZINA_NUME[uzKey] ?? uzKey, tip: r.tip,
-      km, litri, alimentari, km_fara_gps: f ? Number(f.km_zile_lde) : 0,
-      consum: km >= PRAG_KM && alimentari >= PRAG_ALIMENTARI && litri > 0 ? r1((litri / km) * 100) : null,
+      km, litri, alimentari, km_fara_gps: f ? Number(f.km_zile_lde) : 0, media,
       norma_tip: r.norma_tip, medie3: r.medie3, km3: r.km3, decizie: d,
-      schimbat: !!d && (misc(r.norma_tip, d.norma_tip) || misc(r.medie3, d.medie3)),
-      luna_trecuta: decTrec.get(v.id)?.ales ?? null,
-      in_joc: r.norma_tip != null && r.medie3 != null ? Math.round((km * Math.abs(r.norma_tip - r.medie3)) / 100) : 0,
+      schimbat: !!d && d.norma_program != null && media != null && Math.abs(media - d.norma_program) / d.norma_program > SCHIMBAT,
+      luna_trecuta: decTrec.get(v.id)?.norma ?? null,
       soferi: soferi.get(v.id) ?? [],
     });
   }
-  // pe uzină; nedecisele sus, după litrii în joc; decisele jos
+  // pe direcție; nedecisele sus, cele cu mai mulți litri întâi; decisele jos
   randuri.sort((a, b) => a.uzina.localeCompare(b.uzina, 'ro') || Number(!!a.decizie) - Number(!!b.decizie)
-    || b.in_joc - a.in_joc || a.m.localeCompare(b.m));
+    || b.litri - a.litri || a.m.localeCompare(b.m));
   return { luna, zileInLuna, inchisa: luna < curenta, esteAdmin: s.role === 'ADMIN', randuri, confirmare: conf };
 }
 
@@ -125,7 +126,7 @@ export async function getDetaliuMasina(luna: string, vehicleId: string, soferi: 
   // doar mașinile din panou (de uzină) — nu camioanele sau interurbanul (revizia de securitate)
   const { data: v, error: ev } = await db.from('vehicles').select('directions').eq('id', vehicleId).maybeSingle();
   if (ev) throw new Error(ev.message);
-  if (!v || !(v.directions as string[]).some((d) => (UZINE_DIRS as readonly string[]).includes(d))) throw new Error('Mașina nu e de uzină');
+  if (!v || !(v.directions as string[]).some((d) => (PANOU_DIRS as readonly string[]).includes(d))) throw new Error('Mașina nu e în panou');
   const de = primaZi(luna), pana = ultimaZi(luna);
   const [g, b, f] = await Promise.all([
     db.from('lde_vehicle_gps_daily').select('date, km_total, km_patched').eq('vehicle_id', vehicleId).gte('date', de).lte('date', pana).order('date'),
@@ -156,34 +157,39 @@ export async function getDetaliuMasina(luna: string, vehicleId: string, soferi: 
   return { zile, alimentari, soferi: out, km_gps: zile.reduce((s, z) => s + z.km, 0) };
 }
 
-/** Decizia Clavei pe o mașină. Reperele se RECALCULEAZĂ aici (nu vin din browser) și se îngheață în rând. */
-export async function decide(luna: string, vehicleId: string, ales: Ales, normaEi?: number, comentariu?: string): Promise<void> {
+/** Clava confirmă media softului sau pune media ei (+ motiv). Media softului se RECALCULEAZĂ aici și se îngheață în rând. */
+export async function decide(luna: string, vehicleId: string, ales: Ales, mediaEi?: number, comentariu?: string): Promise<void> {
   const s = await sesiune('ADMIN', 'CONTABIL_LDE');
   if (!LUNA_RE.test(luna) || luna >= lunaCurenta()) throw new Error('Se decide doar o lună închisă');
   if (!/^[0-9a-f-]{36}$/.test(vehicleId)) throw new Error('Mașină invalidă');
-  if (!['tip', 'medie3', 'clava'].includes(ales)) throw new Error('Alegere invalidă');
+  if (ales !== 'confirmat' && ales !== 'media_clava') throw new Error('Alegere invalidă');
   const db = getSupabase();
   if (s.role !== 'ADMIN' && (await confirmarea(luna))) throw new Error('Luna e confirmată de Ion — schimbarea o face doar el');
   const { data: v, error: ev } = await db.from('vehicles').select('id, directions').eq('id', vehicleId).maybeSingle();
   if (ev) throw new Error(ev.message);
-  if (!v || !(v.directions as string[]).some((d) => (UZINE_DIRS as readonly string[]).includes(d))) throw new Error('Mașina nu e de uzină');
+  if (!v || !(v.directions as string[]).some((d) => (PANOU_DIRS as readonly string[]).includes(d))) throw new Error('Mașina nu e în panou');
+  const fl = await db.rpc('lde_fuel_flota', { de: primaZi(luna), pana: ultimaZi(luna) });
+  if (fl.error) throw new Error(fl.error.message);
+  const f = ((fl.data ?? []) as any[]).find((x) => x.vehicle_id === vehicleId);
+  const km = f ? Number(f.km) : 0, litri = f ? Number(f.litri_cu_km) : 0;
+  const program = mediaSoft(km, litri, f ? Number(f.benzol_n) + Number(f.foaie_n) : 0);
   const r = (await reperele(luna, [vehicleId])).get(vehicleId)!;
-  let norma: number | null;
+  let norma: number;
   let com: string | null = null;
-  if (ales === 'tip') norma = r.norma_tip;
-  else if (ales === 'medie3') norma = r.medie3;
-  else {
-    norma = Number(normaEi);
+  if (ales === 'confirmat') {
+    if (program == null) throw new Error('Softul n-are medie pe lună (sub 300 km sau sub 2 alimentări) — pune media ta');
+    norma = program;
+  } else {
+    norma = Number(mediaEi);
     com = (comentariu ?? '').trim();
-    if (!Number.isFinite(norma) || norma <= 0 || norma >= 100) throw new Error('Norma trebuie să fie între 0 și 100 l/100 km');
+    if (!Number.isFinite(norma) || norma <= 0 || norma >= 100) throw new Error('Media trebuie să fie între 0 și 100 l/100 km');
     if (com.length < 5) throw new Error('Scrie de ce (cel puțin câteva cuvinte)');
     if (com.length > 1000) throw new Error('Comentariul e prea lung (max. 1000 de caractere)');
     norma = Math.round(norma * 100) / 100;
   }
-  if (norma == null) throw new Error(ales === 'tip' ? 'Mașina n-are tip în nomenclator' : 'Mașina n-are consum în cele 3 luni');
   const { error } = await db.from('lde_norma_luna').upsert({
     luna: primaZi(luna), vehicle_id: vehicleId, norma_tip: r.norma_tip, medie3: r.medie3, km3: r.km3,
-    ales, norma, comentariu: com, decis_de: s.email, decis_la: new Date().toISOString(),
+    norma_program: program, km, litri, ales, norma, comentariu: com, decis_de: s.email, decis_la: new Date().toISOString(),
   }, { onConflict: 'luna,vehicle_id' });
   if (error) throw new Error(error.message);
   revalidatePath('/lde/agreare/norme');

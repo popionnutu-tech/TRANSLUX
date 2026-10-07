@@ -78,7 +78,7 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
               <th style={th}>Km GPS</th><th style={th}>Litri</th><th style={th}>l/100</th>
               <th style={th} title="Norma tipului mașinii">Norma tip</th><th style={th}>± l față de tip</th>
               <th style={th} title="Consumul mașinii în cele 3 luni închise de dinainte">Media 3 luni</th><th style={th}>± l față de 3 luni</th>
-              <th style={th} title="Aleasă de Clava pe panoul normelor">Norma aleasă</th><th style={th}>± l față de aleasă</th><th style={st(th)}></th>
+              <th style={th} title="Media lunii confirmată de Clava pe panoul normelor">Media confirmată</th><th style={th}>± l față de confirmată</th><th style={st(th)}></th>
             </tr>
           </thead>
           <tbody>

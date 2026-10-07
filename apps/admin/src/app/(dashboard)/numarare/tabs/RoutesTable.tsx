@@ -158,42 +158,16 @@ export default function RoutesTable({ routes }: Props) {
 
   return (
     <div>
-      {/* Totals */}
-      <div className="card" style={{ display: 'flex', gap: 18, padding: 10, marginBottom: 10, flexWrap: 'wrap', fontSize: 12 }}>
-        <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totals.num)} lei</strong></div>
-        {totals.extra2t > 0 && (
-          <div><span className="text-muted">+2T:</span> <strong style={{ color: 'var(--success)' }}>{Math.round(totals.extra2t)} lei</strong></div>
-        )}
-        {/* Aceeași ordine ca pe rânduri și ca în documentul de casier: NUM, TOTAL ÎNCASAT,
-            descifrarea lui, iar la capăt rezultatul. Descifrarea apare doar când e cerută. */}
-        <div><span className="text-muted">Total încasat:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
-        {/* Toate rândurile descifrării, și cele cu zero: dacă o linie apare doar când are
-            valoare, nu poți ști dacă lipsește suma sau lipsește rubrica. */}
-        {descifrare && <>
-          <div><span className="text-muted">Numerar:</span> <strong>{Math.round(totals.nm)} lei</strong></div>
-          <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
-          <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
-          <div><span className="text-muted">Lgotnici gară:</span> <strong>{Math.round(totals.vk)} lei</strong></div>
-          <div><span className="text-muted">Combustibil:</span> <strong>{Math.round(totals.dt)} lei</strong></div>
-          <div><span className="text-muted">Cheltuieli supl.:</span> <strong>{Math.round(totals.rs)} lei</strong></div>
-        </>}
-        <div title="Numărare − total încasat, pe tot ce e afișat">
-          <span className="text-muted">Rezultat:</span>{' '}
-          <strong style={{
-            color: Math.round(totals.num - totals.inc) < 0 ? 'var(--danger)'
-              : Math.round(totals.num - totals.inc) > 0 ? 'var(--warning)' : 'inherit',
-          }}>
-            {Math.round(totals.num - totals.inc) >= 0 ? '+' : ''}{Math.round(totals.num - totals.inc)} lei
-          </strong>
-        </div>
+      {/* Comutatorul rămâne sus, lângă tabel: totalurile au coborât în subsol, dar un
+          comutator de coloane căutat cu scroll la fiecare apăsare ar fi fost mai rău. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6, fontSize: 12 }}>
         <label style={{
-          marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
           fontWeight: descifrare ? 600 : 400,
         }} title="Arată coloanele care descifrează totalul încasat: diagrama, lgotnici, rashodi.">
           <input type="checkbox" checked={descifrare} onChange={e => setDescifrare(e.target.checked)} />
           descifrarea
         </label>
-        {isFiltered && <div><span className="text-muted">filtrat:</span> <strong>{processed.length}</strong></div>}
       </div>
 
       {/* Header */}
@@ -365,6 +339,43 @@ export default function RoutesTable({ routes }: Props) {
           {isFiltered ? 'Niciun rezultat pentru filtrul ales.' : 'Nu există rute pentru perioada selectată.'}
         </p>
       )}
+
+      {/* Totaluri, în subsol: se citesc după ce ai parcurs rândurile, ca la un extras. */}
+      <div className="card" style={{
+        display: 'flex', gap: 18, padding: 10, marginTop: 10, flexWrap: 'wrap', fontSize: 12,
+        // Lipit de ultimul rând, cu o linie de accent deasupra: să se citească drept «total»,
+        // nu drept încă un card rătăcit sub tabel.
+        borderTop: '2px solid var(--primary)', fontWeight: 500,
+      }}>
+        <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totals.num)} lei</strong></div>
+        {totals.extra2t > 0 && (
+          <div><span className="text-muted">+2T:</span> <strong style={{ color: 'var(--success)' }}>{Math.round(totals.extra2t)} lei</strong></div>
+        )}
+        {/* Aceeași ordine ca pe rânduri și ca în documentul de casier: NUM, TOTAL ÎNCASAT,
+            descifrarea lui, iar la capăt rezultatul. Descifrarea apare doar când e cerută. */}
+        <div><span className="text-muted">Total încasat:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
+        {/* Toate rândurile descifrării, și cele cu zero: dacă o linie apare doar când are
+            valoare, nu poți ști dacă lipsește suma sau lipsește rubrica. */}
+        {descifrare && <>
+          <div><span className="text-muted">Numerar:</span> <strong>{Math.round(totals.nm)} lei</strong></div>
+          <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
+          <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
+          <div><span className="text-muted">Lgotnici gară:</span> <strong>{Math.round(totals.vk)} lei</strong></div>
+          <div><span className="text-muted">Combustibil:</span> <strong>{Math.round(totals.dt)} lei</strong></div>
+          <div><span className="text-muted">Cheltuieli supl.:</span> <strong>{Math.round(totals.rs)} lei</strong></div>
+        </>}
+        <div title="Numărare − total încasat, pe tot ce e afișat">
+          <span className="text-muted">Rezultat:</span>{' '}
+          <strong style={{
+            color: Math.round(totals.num - totals.inc) < 0 ? 'var(--danger)'
+              : Math.round(totals.num - totals.inc) > 0 ? 'var(--warning)' : 'inherit',
+          }}>
+            {Math.round(totals.num - totals.inc) >= 0 ? '+' : ''}{Math.round(totals.num - totals.inc)} lei
+          </strong>
+        </div>
+
+        {isFiltered && <div><span className="text-muted">filtrat:</span> <strong>{processed.length}</strong></div>}
+      </div>
     </div>
   );
 }

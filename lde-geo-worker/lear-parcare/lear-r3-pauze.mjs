@@ -35,6 +35,22 @@ for (const m of FARA ? [] : R.masini) {
     peste.slice(0, 4).map((x) => `${x.z.slice(5)} ${x.ora} ${x.de} → ${x.spre} (+${n1(x.cost)} km)`).join('; '));
   if (p.permise) m.note.push(`R-PAUZĂ: ${p.permise} ${p.permise === 1 ? 'pauză acasă permisă' : 'pauze acasă permise'} (≤ ${p.prag} km față de poartă) — nu intră în economie`);
 }
+// ION-268 «schelet întâi»: planul săptămânii pe mașină (făcute / neconfirmate / lipsă / în plus / posibil schimbul 3) — în raport și ca notă pe /lde/reguli
+for (const m of FARA ? [] : R.masini) { const ps = pk.get(m.masina)?.planStat; if (!ps) continue;
+  m.plan = { rotatie: ps.rotatie, rute: ps.rute, planificate: ps.planificate, facute: ps.facute, pe_drum: ps.peDrum, neconfirmate: ps.neconfirmate, lipsa: ps.lipsa, rute_diferite: ps.ruteDiferite, plus: ps.plus, s3: ps.s3, zile_fara_poarta: ps.zileFaraPoarta };
+  const zile = pk.get(m.masina)?.plan?.zile ?? [];
+  const lips = zile.flatMap((z) => z.curse.filter((c) => !z.faraPoarta && (c.statut === 'lipsa' || c.statut === 'neconfirmata')).map((c) => `${z.z.slice(5)} ${c.sens} s${c.schimb} ${c.ruta ?? '—'}${c.statut === 'neconfirmata' ? ' (neconfirmată)' : ''}`));
+  const plus = zile.flatMap((z) => z.plus.filter((x) => !x.s3).map((x) => `${z.z.slice(5)} ${x.ruta} (${x.urcari} urcări)`));
+  const s3 = zile.flatMap((z) => z.plus.filter((x) => x.s3).map((x) => `${z.z.slice(5)} ${x.ruta} ${new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit' }).format(new Date(x.t0))} (${x.urcari} urcări)`));
+  const ruteF = zile.flatMap((z) => [1, 2].map((sc) => z.curse.filter((c) => c.schimb === sc && c.statut === 'facuta').map((c) => c.ruta))).flat();
+  const frec = [...ruteF.reduce((m, r) => m.set(r, (m.get(r) ?? 0) + 1), new Map())].sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ×${n}`);
+  (m.note ??= []).push(`Plan din schelet: ${ps.facute} din ${ps.planificate} curse făcute (rutele ${frec.join(', ') || '—'})${ps.peDrum ? `, din care ${ps.peDrum} pe drumul rutei fără urcări` : ''}${ps.neconfirmate ? `, ${ps.neconfirmate} neconfirmate` : ''}${ps.lipsa ? `, ${ps.lipsa} lipsă` : ''}${ps.ruteDiferite ? `, ${ps.ruteDiferite} unde urma arată altă rută decât a schimbului (neconfirmate)` : ''}`);
+  if (lips.length) m.note.push(`Lipsă / neconfirmate: ${lips.slice(0, 6).join('; ')}${lips.length > 6 ? ` … (+${lips.length - 6})` : ''}`);
+  const sch = zile.flatMap((z) => z.curse.filter((c) => c.schimbCu).map((c) => `${z.z.slice(5)} ${c.sens} s${c.schimb} pe ${c.ruta} (cu ${c.schimbCu})`));
+  if (sch.length) m.note.push(`Schimb de rută cu altă mașină, confirmat după oră: ${sch.join('; ')}`);
+  if (s3.length) m.note.push(`Posibil cursă schimbul 3 (de confirmat): ${s3.slice(0, 6).join('; ')}${s3.length > 6 ? ` … (+${s3.length - 6})` : ''}`);
+  if (plus.length) m.note.push(`Curse în plus (de confirmat): ${plus.slice(0, 6).join('; ')}${plus.length > 6 ? ` … (+${plus.length - 6})` : ''}`); }
+if (!FARA) R.total.plan = PK.flota?.plan ?? null;
 if (FARA) console.log('parcarea lipsește — raportul se scrie neschimbat, fără R-PAUZĂ');
 const S_ = (f) => R.masini.reduce((s, m) => s + Math.max(0, f(m) || 0), 0);
 if (!FARA) R.total.r3_fara_prag = S_((m) => (m.r3_fara_prag ?? m.r3)?.lei);
@@ -42,7 +58,7 @@ R.total.r3 = S_((m) => m.r3?.lei);
 R.total.masini_r3 = R.masini.filter((m) => (m.r3?.lei || 0) > 0).length;
 if (!FARA) R.total.prag_pauza_km = PK.flota?.pauze?.prag ?? null;
 console.log(`${R.uzina} ${R.saptamina}: regula 3 ${R.total.r3_fara_prag} → ${R.total.r3} lei/lună (R-PAUZĂ)`);
-for (const m of [...R.masini].sort((a, b) => a.masina.localeCompare(b.masina))) if (m.r3 || m.r3_fara_prag)
+for (const m of [...R.masini].filter((m) => m.masina).sort((a, b) => String(a.masina).localeCompare(String(b.masina)))) if (m.r3 || m.r3_fara_prag)
   console.log(`  ${m.masina.padEnd(8)} R3 ${String(m.r3_fara_prag?.km ?? '—').padStart(6)} km/zi ${String(m.r3_fara_prag?.lei ?? '—').padStart(7)} lei → ${String(m.r3?.km ?? '—').padStart(6)} km/zi ${String(m.r3?.lei ?? '—').padStart(7)} lei` +
     (m.r3?.pauze ? ` · acasă ${m.r3.pauze_acasa ?? 0}, permise ${m.r3.pauze_permise ?? 0}, peste ${m.r3.pauze_peste ?? 0}, model ${m.r3.km_model ?? '—'} km/zi` : ' · (vechi)'));
 if (OUT) writeFileSync(OUT, JSON.stringify(R));

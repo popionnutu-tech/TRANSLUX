@@ -288,6 +288,7 @@ async function drum(a, b, eticheta) {
 }
 
 // ─── citirea săptămânii din tracker ──────────────────────────────────────────
+const FARA_PLACUTA = [];
 async function citesteSaptamina(t, de_la, pana_la) {
   const { rows: devs } = await t.query(`SELECT id,"CarName" FROM devices WHERE active=true`);
   // poarta în NMEA (DDMM.mmmm), din POARTA — nu scrisă în cod: la Florești e altă poartă
@@ -308,6 +309,9 @@ async function citesteSaptamina(t, de_la, pana_la) {
 
   const out = [];
   for (const d of flota) {
+    // ION-268: unitatea fără plăcuță în tracker (CarName gol) nu poate fi nici raportată, nici legată de o rută — se scoate la citire, cu avertisment
+    // (07.10: una a trecut pragul de zile la poartă și analiza + parcarea cădeau pe `null.padEnd` / `null.localeCompare`)
+    if (!String(d.CarName ?? '').trim()) { console.warn(`⚠ unitatea tracker ${d.id} n-are plăcuță (CarName gol) — scoasă din analiză`); FARA_PLACUTA.push(String(d.id)); continue; }
     const { rows } = await t.query(
       `SELECT w_date,x,y,speed FROM track WHERE id=$1 AND w_date>=$2 AND w_date<$3 ORDER BY w_date`,
       [d.id, de_la, pana_la]);

@@ -27,10 +27,14 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { local, ziLucru } from '/root/lde-worker/ora-locala.mjs';
 import { alegeLocuri } from './lear-parcare-alege.mjs';
+import { adaptorLear } from './adaptor-lear.mjs';
+import { aplicaSchimburiDeRuta } from './schelet-intai.mjs';
 
 const [IN, OUT] = process.argv.slice(2);
 if (!IN || !OUT || !existsSync(IN)) { console.error('lear-parcare.mjs <dump.json> <ieșire.json>'); process.exit(2); }
 const D = JSON.parse(readFileSync(IN, 'utf8'));
+// ION-268: unitatea fără plăcuță (m gol) se scoate la citire, cu avertisment — altfel sortarea finală cade pe null
+D.masini = (D.masini ?? []).filter((M) => { if (String(M.m ?? '').trim()) return true; console.warn('⚠ mașină fără plăcuță în dump — scoasă din parcare'); return false; });
 if (!D.masini?.every((m) => Array.isArray(m.lista))) { console.error('dump fără lista rută-pe-mașină — rulează lear-analiza.mjs cu ION-143 dump v2'); process.exit(2); }
 const DOAR = process.env.PARCARE_DOAR ? new Set(process.env.PARCARE_DOAR.split(',')) : null, DEBUG = process.env.DEBUG_M ?? null;
 const R_POARTA = 0.7, R_CAPAT = 1, PAUZA_CURSA_MIN = 25, GOL_SEMNAL_MIN = 30, OPRIRE_LUNGA_MIN = 60, R_STAT = 0.3, SALT_KM = 5;
@@ -57,8 +61,12 @@ const UN_SCHIMB = process.env.LEAR_UN_SCHIMB === '1';
 const URC_MIN_S = 10, URC_MAX_S = 300, URC_O3 = 3, TOL_RUTA = 1.05;
 const CALE_SCH = process.env.LEAR_SCHELET_F || (D.uzina === 'LEAR_FLORESTI' ? '/root/lde-worker/floresti-schelet.json' : '/root/lde-worker/lear-schelet.json');
 const SCH = JSON.parse(readFileSync(CALE_SCH, 'utf8'));
+const SI_A = adaptorLear(D, { caleSchelet: CALE_SCH });
+// ION-268: planul tuturor mașinilor întâi (schimburile de rută între mașini se confirmă pe flotă, după oră), apoi calculul pe mașină
+const SI_ALL = new Map(D.masini.filter((M) => !DOAR || DOAR.has(M.m)).map((M) => [M.m, SI_A.masina(M)]));
+const SCHIMBURI_RUTA = aplicaSchimburiDeRuta(SI_ALL, SI_A.ruteU);
 // satele de pe drumul plin al fiecărei rute (tur + retur) și satele ei din act (r.sate), cu lungimea rutei (etalon)
-const RUTE_S = new Map(SCH.rute.map((r) => [r.id, { id: r.id, etalon: r.etalon ?? null, act: new Set(r.sate ?? []),
+const RUTE_S = new Map(SCH.rute.map((r) => [r.id, { id: r.id, etalon: r.etalon ?? null, act: new Set(r.sate ?? []), capat: r.capat ?? null,
   sate: [...(r.g?.tur?.sate ?? []), ...(r.g?.retur?.sate ?? [])].map((x) => ({ n: x.n, lat: x.c[0], lon: x.c[1] })) }]));
 const PARAM = { R_POARTA, R_CAPAT, PAUZA_CURSA_MIN, OPRIRE_LUNGA_MIN, V_OPRIRE_KMH: 8, V_LENT_KMH: 15, R_SAT, SEC_LENT, GOL_MAX_H, IESIRE_POARTA_KM,
   R_DEPOZIT, RAZA_CAND, PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA, VAL_F, PRAG_PAUZA_KM, R_PAUZA_ACASA, PAUZA_ACASA_MIN, UN_SCHIMB, URC_MIN_S, URC_MAX_S, URC_O3, TOL_RUTA };
@@ -130,91 +138,33 @@ for (const M of D.masini) {
   const baza = { m: M.m, casa: M.casa, rute: [...new Set([...M.rute, ...M.lista].map((r) => `${r.id} ${r.capat}`))], locuri: [], legi: [], zile: [], bucati: [] };
   if (P.length < 100) { masini.push({ ...baza, motivFara: 'urmă prea scurtă' }); continue; }
 
-  // 1. cursele: tăiate la poartă (lipit cât timp nu iese din rază), la staționări > 25 min și la golurile de semnal > 30 min
-  const ancore = [];   // {t0, t1, poarta}
-  { let cur = null;
-    for (let i = 0; i < P.length; i++) { const p = P[i];
-      if (hav(p, G) <= R_POARTA) { if (cur?.poarta && (i === 0 || hav(P[i - 1], G) <= R_POARTA)) cur.t1 = p.t; else { cur = { t0: p.t, t1: p.t, poarta: true }; ancore.push(cur); } }
-      else cur = null; } }
-  { let a0 = 0;
-    for (let i = 1; i <= P.length; i++) {
-      const rupt = i === P.length || hav(P[a0], P[i]) > R_STAT || P[i].t - P[i - 1].t > GOL_SEMNAL_MIN * 60e3;
-      if (rupt) { if (P[i - 1].t - P[a0].t >= PAUZA_CURSA_MIN * 60e3 && hav(P[a0], G) > R_POARTA) ancore.push({ t0: P[a0].t, t1: P[i - 1].t, poarta: false, lat: P[a0].lat, lon: P[a0].lon });
-        if (i < P.length && P[i].t - P[i - 1].t > GOL_SEMNAL_MIN * 60e3) ancore.push({ t0: P[i - 1].t, t1: P[i].t, poarta: false, semnal: true, peLoc: hav(P[i - 1], P[i]) <= 0.5, lat: P[i - 1].lat, lon: P[i - 1].lon });
-        a0 = i; } } }
-  ancore.sort((a, b) => a.t0 - b.t0);
-  // ancorele care se suprapun (semnal rar cât mașina stă la poartă: un punct pe oră) se lipesc; cea care atinge poarta e poartă
-  for (let k = ancore.length - 1; k > 0; k--) { const a = ancore[k - 1], b = ancore[k];
-    if (b.t0 <= a.t1 + 60e3) { a.t1 = Math.max(a.t1, b.t1); a.poarta = a.poarta || b.poarta; a.peLoc = (a.semnal ? !!a.peLoc : true) && (b.semnal ? !!b.peLoc : true); a.semnal = !!(a.semnal && b.semnal); ancore.splice(k, 1); } }
-  const curse = [];
-  for (let k = 0; k + 1 < ancore.length; k++) { const a = ancore[k], b = ancore[k + 1]; if (b.t0 <= a.t1) continue;
-    const Q = P.filter((p) => p.t >= a.t1 && p.t <= b.t0); if (Q.length < 2) continue;
-    curse.push({ t0: a.t1, t1: b.t0, dePoarta: a.poarta, laPoarta: b.poarta, Q }); }
-  // opririle în sate (§4.8), fără satele de lângă poartă / casă și fără primul / ultimul km al cursei
-  function opresteLaQ(Q, c, r) { let t = null; for (const p of Q) { if (hav(p, c) <= r && p.v <= 1) { t ??= p.t; if (p.t - t >= DEPOZIT_MIN * 60e3) return true; } else t = null; } return false; }
-  // O.2 (ION-265): în fiecare trecere printr-un sat DE PE O RUTĂ DIN SCHELET, opririle continue sub 8 km/h; urcare = 10 s – 5 min (sub 90 s nu în celulele de intersecție);
-  // peste 5 min = așteptare. Satul intră în listă doar cu ≥ 1 urcare; `rute` = rutele din schelet pe drumul cărora stă satul.
-  function opriri(c) { const out = []; const Q = c.Q, s0 = Q[0], s1 = Q.at(-1); let run = null, st = null;
-    const inchideSt = () => { if (st && run) { if (st.d >= URC_MIN_S && st.d <= URC_MAX_S && !(st.d < 90 && INFRA.has(st.cel))) run.u++; else if (st.d > URC_MAX_S) run.astept++; } st = null; };
-    const inchide = () => { inchideSt(); if (run && run.u && ruteSat(run.sat).length) out.push({ n: run.sat.n, t: run.t, t1: run.t1, lat: run.sat.lat, lon: run.sat.lon, u: run.u, rute: ruteSat(run.sat) }); run = null; };
-    for (let i = 1; i < Q.length; i++) { const p = Q[i], sat = satLa(p);
-      const ok = sat && hav(sat, G) > R_SAT_POARTA && !(casa && hav(sat, casa) <= R_SAT_CASA) && hav(p, s0) > MARGINE_KM && hav(p, s1) > MARGINE_KM;
-      if (!ok || (run && run.sat !== sat)) inchide(); if (!ok) continue;
-      run ??= { sat, t: p.t, t1: p.t, u: 0, astept: 0 }; run.t1 = p.t;
-      const dt = Math.min(600, (p.t - Q[i - 1].t) / 1000);
-      if (p.v < V_OPRIRE) { st ??= { d: 0, cel: CEL(p) }; st.d += dt; } else inchideSt(); }
-    inchide(); return out.filter((o, i, a) => i === 0 || a[i - 1].n !== o.n || o.t - a[i - 1].t > 10 * 60e3); }
-  const ruteSatC = new Map();
-  function ruteSat(sat) { const k = `${sat.lat},${sat.lon}`; if (!ruteSatC.has(k)) ruteSatC.set(k, [...RUTE_S.values()].filter((r) => r.sate.some((x) => hav(x, sat) <= R_SAT)).map((r) => r.id)); return ruteSatC.get(k); }
-  // urcările pe rută: id → număr de urcări în satele de pe drumul ei
-  const urcPeRuta = (op) => { const m = new Map(); for (const o of op) for (const id of o.rute) m.set(id, (m.get(id) ?? 0) + o.u); return m; };
-  const ruteMasina = new Set([...M.lista, ...M.rute, ...M.comasate].map((r) => r.id));
-  // O.4: altă rută a mașinii «legată» în aceeași cursă = are urcări într-un sat DIN ACTUL ei care nu e pe drumul rutei principale
-  const legate = (op, id) => [...ruteMasina].filter((x) => x !== id && RUTE_S.has(x) && op.some((o) => RUTE_S.get(x).act.has(o.n) && !(RUTE_S.get(id)?.sate ?? []).some((y) => hav(y, o) <= R_SAT)));
-  // O.1: tăierea la lungimea rutei — dinspre poartă (tur: păstrează sfârșitul; retur: păstrează începutul)
-  function taie(t0, t1, cap, pastreazaSfarsit) {
-    if (!(cap > 0)) return { t0, t1, taiat: 0 };
-    const tot = kmIntre(P, t0, t1); if (tot <= cap * TOL_RUTA) return { t0, t1, taiat: 0 };
-    const Qx = P.filter((p) => p.t >= t0 && p.t <= t1); let s = 0;
-    if (pastreazaSfarsit) { for (let i = Qx.length - 1; i > 0; i--) { s += kmIntre(P, Qx[i - 1].t, Qx[i].t); if (s > cap * TOL_RUTA) return { t0: Qx[i].t, t1, taiat: tot - kmIntre(P, Qx[i].t, t1) }; } }
-    else { for (let i = 1; i < Qx.length; i++) { s += kmIntre(P, Qx[i - 1].t, Qx[i].t); if (s > cap * TOL_RUTA) return { t0, t1: Qx[i - 1].t, taiat: tot - kmIntre(P, t0, Qx[i - 1].t) }; } }
-    return { t0, t1, taiat: 0 };
-  }
-  const o3 = { respinse: 0, kmTaiatO1: 0, lista: [] };
-  // apropierea de capăt (≤ 1 km): pe tur prima, pe retur ultima — punctul cel mai apropiat din acea trecere
-  function apropiere(Q, ultima) { const runs = []; let r = null;
-    for (const p of Q) { const c = capete.find((x) => hav(p, x) <= R_CAPAT); if (c && r && r.c === c) r.pts.push(p); else if (c) { r = { c, pts: [p] }; runs.push(r); } else r = null; }
-    const x = ultima ? runs.at(-1) : runs[0]; if (!x) return null;
-    return x.pts.reduce((b, p) => (hav(p, x.c) < hav(b, x.c) ? p : b)); }
-  const munca = [];
-  for (const c of curse) {
-    const op = opriri(c), n = op.reduce((x, o) => x + o.u, 0), U = urcPeRuta(op);
-    // ruta cursei: a capătului atins; altfel ruta mașinii cu cele mai multe urcări; altfel orice rută din schelet cu cele mai multe urcări
-    const celeMai = (filtru) => [...U].filter(([id]) => filtru(id)).sort((a, b) => b[1] - a[1])[0] ?? null;
-    const alegeRuta = (ap) => (ap?.c?.id && RUTE_S.has(ap.c.id) ? ap.c.id : (celeMai((id) => ruteMasina.has(id)) ?? celeMai(() => true))?.[0] ?? null);
-    const o3ok = () => (celeMai(() => true)?.[1] ?? 0) >= URC_O3;   // O.3: ≥ 3 urcări reale pe o rută din schelet
-    const capDe = (id) => { if (!id) return null; const L = RUTE_S.get(id)?.etalon; if (!L) return null; return L + legate(op, id).reduce((x, y) => x + (RUTE_S.get(y)?.etalon ?? 0), 0); };
-    const respinge = (fel, motiv) => { o3.respinse++; if (o3.lista.length < 40) o3.lista.push(`${ziLucru(c.t0)} ${oraL(c.t0)}–${oraL(c.t1)} ${fel}: ${motiv}`); };
-    if (DEBUG === M.m) console.error(`  cursa ${oraL(c.t0)}–${oraL(c.t1)} ${ziLucru(c.t0)} ${c.dePoarta ? 'P' : '·'}→${c.laPoarta ? 'P' : '·'} ${r1(kmIntre(P, c.t0, c.t1))} km · urcări ${op.map((o) => `${o.n}×${o.u}[${o.rute.join(',')}]`).join(' ') || '—'}`);
-    if (c.laPoarta && !c.dePoarta) { const ap = apropiere(c.Q, false), inF = FT.some((f) => inFer(minZi(c.t1), f));
-      if (!(inF ? (ap ? true : n >= 2) : o3ok())) { if (ap || n) respinge('tur', inF ? `fără capăt și ${n} urcări` : `în afara ferestrelor, ${celeMai(() => true)?.[1] ?? 0} urcări pe rută (O.3)`); continue; }
-      const id = alegeRuta(ap), t00 = ap ? ap.t : (op[0]?.t ?? c.t0), x = taie(t00, c.t1, capDe(id), true); o3.kmTaiatO1 += x.taiat;
-      munca.push({ fel: 'tur', t0: x.t0, t1: c.t1, de: pozLa(P, x.t0), pana: G, taiat: ap ? 'capat' : 'opriri', opriri: n, ruta: id }); }
-    else if (c.dePoarta && !c.laPoarta) { const ap = apropiere(c.Q, true), inF = FR.some((f) => inFer(minZi(c.t0), f));
-      if (!(inF ? (ap ? true : n >= 2) : o3ok())) { if (ap || n) respinge('retur', inF ? `fără capăt și ${n} urcări` : `în afara ferestrelor, ${celeMai(() => true)?.[1] ?? 0} urcări pe rută (O.3)`); continue; }
-      const id = alegeRuta(ap), t11 = ap ? ap.t : (op.at(-1)?.t ?? c.t1), x = taie(c.t0, t11, capDe(id), false); o3.kmTaiatO1 += x.taiat;
-      munca.push({ fel: 'retur', t0: c.t0, t1: x.t1, de: G, pana: pozLa(P, x.t1), taiat: ap ? 'capat' : 'opriri', opriri: n, ruta: id }); }
-    else if (c.dePoarta && c.laPoarta) { if (!n) continue;
-      // poartă → poartă: în fereastră (tur la sosire / retur la plecare) e un retur + tur — cel mult de două ori ruta; în afara lor O.3, o singură rută
-      const inF = FT.some((f) => inFer(minZi(c.t1), f)) || FR.some((f) => inFer(minZi(c.t0), f));
-      if (!(inF ? n >= 1 && U.size > 0 : o3ok())) { respinge('plus', inF ? 'urcări în afara rutelor din schelet' : `în afara ferestrelor, ${celeMai(() => true)?.[1] ?? 0} urcări pe rută (O.3)`); continue; }
-      const id = alegeRuta(null), cap = capDe(id), x = taie(c.t0, c.t1, cap == null ? null : (inF ? 2 : 1) * cap, true); o3.kmTaiatO1 += x.taiat;
-      munca.push({ fel: 'plus', t0: x.t0, t1: c.t1, de: pozLa(P, x.t0), pana: G, taiat: apropiere(c.Q, false) ? 'capat' : 'opriri', opriri: n, ruta: id }); }
-    else if (n >= 2 && !opresteLaQ(c.Q, PARC, R_BALTI) && hav(c.Q.at(-1), PARC) > R_BALTI) {
-      if (!o3ok()) { respinge('fără poartă', `${celeMai(() => true)?.[1] ?? 0} urcări pe rută (O.3)`); continue; }
-      const id = alegeRuta(null), x = taie(op[0].t, op.at(-1).t, capDe(id), true); o3.kmTaiatO1 += x.taiat;
-      munca.push({ fel: 'fara-poarta', t0: x.t0, t1: x.t1, de: pozLa(P, x.t0), pana: pozLa(P, x.t1), taiat: apropiere(c.Q, false) ? 'capat' : 'opriri', opriri: n, ruta: id }); }
-  }
+  // ION-268 «SCHELET ÎNTÂI» (S.1–S.5): cursele cu oameni NU se mai taie din urmă și apoi se lipesc de rute. Vin din PLANUL zilei (scheletul +
+  // 4 sloturi pe zi, ORICE rută din schelet — Ion, 06.10: «scheletul e universal indiferent de mașină»), iar GPS-ul doar le confirmă (schelet-intai.mjs,
+  // adaptor-lear.mjs): făcută (urcări, sau drumul rutei acoperit ≥ 80 %) / neconfirmată (capăt + fereastră + sens, fără drumul rutei) / lipsă; «în plus»
+  // doar cu ≥ 3 urcări în satele unei rute din schelet, iar cea din afara ferestrelor = «posibil cursă schimbul 3». Tot restul e gol.
+  // Neconfirmata și cursele în plus NU sunt «cu oameni» în km, dar nici gol de optimizat: rămân pe loc în lanț (nu intră în parcare / R-PAUZĂ).
+  const SIm = SI_ALL.get(M.m);
+  const ancore = SIm.ctx.ancore;
+  const munca = [], planZile = [];
+  const o3 = { respinse: 0, kmTaiatO1: 0, lista: [], cazuri: [] };
+  for (const Z of SIm.zile) {
+    const zp = { z: Z.z, faraPoarta: Z.faraPoarta, curse: [], plus: [] };
+    for (const c of Z.plan) {
+      zp.curse.push({ sens: c.sens, schimb: c.schimb, tura: c.tura, ruta: c.ruta, capat: c.capatN ?? null, statut: c.statut, peDrum: c.peDrum ?? undefined, acoperire: c.acoperire ?? undefined, rutaUrma: c.rutaUrma ?? undefined, schimbCu: c.schimbCu ?? undefined, t0: c.t0 ?? null, t1: c.t1 ?? null,
+        km: c.km ?? null, kmSchelet: c.kmSchelet ?? null, kmGps: c.kmGps ?? null, urcari: c.urcari ?? 0, sate: c.sate ?? [], motiv: c.motiv ?? null, comasate: c.comasate?.length ? c.comasate : undefined });
+      if (c.t0 == null || c.statut === 'lipsa') continue;
+      o3.kmTaiatO1 += c.kmTaiat ?? 0;
+      munca.push({ fel: c.sens, schimb: c.schimb, t0: c.t0, t1: c.t1, de: pozLa(P, c.t0), pana: pozLa(P, c.t1), taiat: c.capat ? 'capat' : 'urcari', opriri: c.urcari ?? 0,
+        ruta: c.ruta, rutaPlan: c.ruta, statut: c.statut, peDrum: !!c.peDrum, rutaUrma: c.rutaUrma ?? null, schimbCu: c.schimbCu ?? null, kmS: c.statut === 'facuta' ? c.km : null }); }
+    for (const x of Z.plus) {
+      zp.plus.push({ ruta: x.ruta, sens: x.sens, t0: x.t0, t1: x.t1, km: x.km, urcari: x.urcari, sate: x.sate, s3: !!x.s3 });
+      munca.push({ fel: 'plus', schimb: null, t0: x.t0, t1: x.t1, de: pozLa(P, x.t0), pana: pozLa(P, x.t1), taiat: 'urcari', opriri: x.urcari, ruta: x.ruta, rutaPlan: null, statut: x.s3 ? 's3' : 'plus', sensPlus: x.sens }); }
+    planZile.push(zp); }
+  const numara = (st) => planZile.reduce((n, z) => n + z.curse.filter((c) => c.statut === st && !z.faraPoarta).length, 0);
+  const planStat = { rotatie: SIm.rotatie, rute: SIm.ruteMasina, zile: planZile.length, zileFaraPoarta: planZile.filter((z) => z.faraPoarta).map((z) => z.z), altaUzina: SIm.altaUzina,
+    planificate: planZile.reduce((n, z) => n + (z.faraPoarta ? 0 : z.curse.length), 0), facute: numara('facuta'), peDrum: planZile.reduce((n, z) => n + z.curse.filter((c) => c.statut === 'facuta' && c.peDrum).length, 0),
+    neconfirmate: numara('neconfirmata'), schimburiRuta: planZile.reduce((n, z) => n + z.curse.filter((c) => c.schimbCu).length, 0), lipsa: numara('lipsa'), ruteDiferite: planZile.reduce((n, z) => n + z.curse.filter((c) => c.rutaUrma).length, 0),
+    plus: planZile.reduce((n, z) => n + z.plus.filter((x) => !x.s3).length, 0), s3: planZile.reduce((n, z) => n + z.plus.filter((x) => x.s3).length, 0) };
   munca.sort((a, b) => a.t0 - b.t0);
   if (DEBUG === M.m) for (const w of munca) console.error(`  ${w.fel} ${oraL(w.t0)}–${oraL(w.t1)} ${ziLucru(w.t0)} ${numeLoc(w.de)} → ${numeLoc(w.pana)} taiat=${w.taiat} opriri=${w.opriri}`);
   // schimburile măsurate (§8.3): o fereastră de tur / retur a schimbului atinsă în ≥ 2 zile
@@ -222,15 +172,20 @@ for (const M of D.masini) {
   // sosirea cu oameni (tur, sau cursa «în plus» care vine la poartă) în fereastra de tur și plecarea cu oameni în fereastra de retur
   const puneSchimb = (f, t) => { if (f && zileM.has(ziLucru(t))) (zileSchimb.get(f.shift_number) ?? zileSchimb.set(f.shift_number, new Set()).get(f.shift_number)).add(ziLucru(t)); };
   for (const w of munca) {
-    if (w.fel === 'tur' || w.fel === 'plus') puneSchimb(FT.find((x) => inFer(minZi(w.t1), x)), w.t1);
-    if (w.fel === 'retur' || w.fel === 'plus') puneSchimb(FR.find((x) => inFer(minZi(w.t0), x)), w.t0); }
+    if (w.statut !== 'facuta') continue;   // ION-268: schimbul e «măsurat» doar pe curse făcute
+    if (w.fel === 'tur') puneSchimb(FT.find((x) => inFer(minZi(w.t1), x)), w.t1);
+    if (w.fel === 'retur') puneSchimb(FR.find((x) => inFer(minZi(w.t0), x)), w.t0); }
   const schimburi = [...zileSchimb.values()].filter((s) => s.size >= 2).length;
-  const tr = munca.filter((w) => w.fel === 'tur' || w.fel === 'retur'), peOpriri = tr.filter((w) => w.taiat === 'opriri').length;
+  const tr = munca.filter((w) => (w.fel === 'tur' || w.fel === 'retur') && w.statut !== 'neconfirmata'), peOpriri = tr.filter((w) => w.taiat === 'urcari').length;
   const stat = { tur: munca.filter((w) => w.fel === 'tur').length, retur: munca.filter((w) => w.fel === 'retur').length, plus: munca.filter((w) => w.fel === 'plus').length,
     faraPoarta: munca.filter((w) => w.fel === 'fara-poarta').length, taiatePeOpriri: peOpriri, schimburi,
-    respinseO3: o3.respinse, kmTaiatO1: r1(o3.kmTaiatO1), kmCuOameni: r1(munca.reduce((x, w) => x + kmIntre(P, w.t0, w.t1), 0)), respinse: o3.lista, scurte: 0, lungi: 0, laPoarta: 0, depozit: 0, altaUzina: 0, kmLiberScos: 0, goluriCuOpriri: 0, goluriTaiate: 0 };
+    respinseO3: 0, kmTaiatO1: r1(o3.kmTaiatO1), kmCuOameni: r1(munca.filter((w) => w.statut === 'facuta').reduce((x, w) => x + (w.kmS ?? 0), 0)),   // T.2: suma km din schelet ai curselor făcute
+    kmCuOameniGps: r1(munca.filter((w) => w.statut === 'facuta').reduce((x, w) => x + kmIntre(P, w.t0, w.t1), 0)),
+    kmNeconfirmat: r1(munca.filter((w) => w.statut !== 'facuta').reduce((x, w) => x + kmIntre(P, w.t0, w.t1), 0)), respinse: o3.lista, scurte: 0, lungi: 0, laPoarta: 0, depozit: 0, altaUzina: 0, kmLiberScos: 0, goluriCuOpriri: 0, goluriTaiate: 0 };
   // bucățile care se suprapun se lipesc
-  const lant = []; for (const w of munca) { const u = lant.at(-1); if (u && w.t0 <= u.t1) { if (w.t1 > u.t1) { u.t1 = w.t1; u.pana = w.pana; u.fel += `+${w.fel}`; } } else lant.push({ ...w }); }
+  // rolul fiecărei curse cu oameni (Ion, 06.10: «nu e clar care tură face tur/retur»): tip, schimbul (după fereastră; null = schimbul 3 / în afara lor), ruta
+  const rol = (w) => ({ tip: w.fel, schimb: w.schimb ?? null, ruta: w.ruta ?? null, capat: RUTE_S.get(w.ruta)?.capat ?? null, statut: w.statut ?? null, rutaPlan: w.rutaPlan ?? null, sensPlus: w.sensPlus ?? null, rutaUrma: w.rutaUrma ?? null, schimbCu: w.schimbCu ?? null, kmS: w.kmS ?? null });
+  const lant = []; for (const w of munca) { const u = lant.at(-1); if (u && w.t0 <= u.t1) { u.roluri.push(rol(w)); if (w.t1 > u.t1) { u.t1 = w.t1; u.pana = w.pana; u.fel += `+${w.fel}`; } } else lant.push({ ...w, roluri: [rol(w)] }); }
   // 3. golurile
   const legi = [];
   for (let i = 0; i + 1 < lant.length; i++) {
@@ -251,7 +206,7 @@ for (const M of D.masini) {
     // capăt se duc până la ultima oprire dinaintea staționării, cei luați înainte de capăt de la prima oprire de după ea — drumul de parcare
     // rămâne între ele. Fără staționare lungă, golul cu opriri nu e drum de parcare deloc.
     // O.3 (ION-265): opririle din gol fac muncă doar dacă sunt ≥ URC_O3 urcări reale pe o rută din schelet; altfel golul rămâne gol
-    const op0 = opriri({ Q }).filter((o) => !(sta && hav(o, sta) <= 1.5)), op = Math.max(0, ...urcPeRuta(op0).values()) >= URC_O3 ? op0 : [];
+    const op = [];   // ION-268: S.3 / S.5 — opririle din gol sunt gol (cursele în plus le-a scos planul)
     let tE = a.t1, tS = b.t0;
     if (op.length) {
       if (!sta) { stat.goluriCuOpriri++; continue; }
@@ -273,7 +228,6 @@ for (const M of D.masini) {
       brut, liber, real: brut - liber, acum: sta ? { lat: sta.lat, lon: sta.lon, n: sta.poarta ? 'poarta LEAR' : numeLoc(sta), min: Math.round(sta.d / 60e3) } : null });
   }
   stat.kmLiberScos = r1(stat.kmLiberScos);
-  for (const l of legi) { const Q2 = P.filter((p) => p.t >= l.t0 && p.t <= l.t1); const rest0 = opriri({ Q: Q2 }).filter((o) => !(l.acum && hav(o, l.acum) <= 1.5)), rest = Math.max(0, ...urcPeRuta(rest0).values()) >= URC_O3 ? rest0 : []; if (rest.length) (stat.control ??= []).push(`${l.ora} ${rest.map((o) => o.n).join(', ')}`); }
 
   // R-PAUZĂ: pe fiecare drum de parcare (gol între două curse cu oameni) — e acasă? cât costă acasă față de poartă?
   const pauze = { prag: PRAG_PAUZA_KM, acasa: 0, permise: 0, peste: 0, kmPermisSapt: 0, r3Sapt: 0, r3ModelSapt: 0, zile: zileM.size, lista: [] };
@@ -284,10 +238,15 @@ for (const M of D.masini) {
     for (const l of legi) {
       // noaptea nu e pauză între ture (R1 / parcarea o judecă separat): golul care trece peste miezul nopții sau începe înainte de 04:00
       if (minZi(l.t0) > minZi(l.t1) || minZi(l.t0) < 240) { pauze.nopti = (pauze.nopti ?? 0) + 1; continue; }
-      let acasa = !!(l.acum && hav(l.acum, casa) <= R_PAUZA_ACASA);
-      if (!acasa) { let min = 0, prev = null; for (const p of P) { if (p.t < l.t0) continue; if (p.t > l.t1) break;
-        if (prev && hav(p, casa) <= R_PAUZA_ACASA) min += Math.min(30, (p.t - prev.t) / 60e3); prev = p; } acasa = min >= PAUZA_ACASA_MIN; }
-      if (!acasa) continue;
+      // ION-268 (06.10, 809MUM 06.10 15:16–23:25): R-PAUZĂ e DOAR pauza petrecută acasă. Mașina care a așteptat la poartă / uzină nu face
+      // pauză acasă, chiar dacă trece pe lângă casă pe drum: atunci economia e doar a parcării P1/P2, nu a regulii 3.
+      let minCasa = 0, minPoarta = 0, prev = null;
+      for (const p of P) { if (p.t < l.t0) continue; if (p.t > l.t1) break;
+        if (prev) { const dt = Math.min(30, (p.t - prev.t) / 60e3); if (hav(p, casa) <= R_PAUZA_ACASA) minCasa += dt; if (hav(p, G) <= R_POARTA + 0.3) minPoarta += dt; } prev = p; }
+      const staLaPoarta = !!(l.acum && hav(l.acum, G) <= R_POARTA + 0.3);
+      if (staLaPoarta) minPoarta = Math.max(minPoarta, l.acum.min ?? 0);   // la poartă tracker-ul trimite rar (un punct pe oră): durata vine din staționare
+      const acasa = (!!(l.acum && hav(l.acum, casa) <= R_PAUZA_ACASA) || minCasa >= PAUZA_ACASA_MIN) && !(staLaPoarta && minPoarta >= minCasa) && minCasa > minPoarta;
+      if (!acasa) { if (minPoarta > 0 && minCasa >= PAUZA_ACASA_MIN) pauze.laPoartaNuAcasa = (pauze.laPoartaNuAcasa ?? 0) + 1; continue; }
       const prinPoarta = Vr(l.E, Gp) + Vr(Gp, l.S), cost = r1(Vr(l.E, casa) + Vr(casa, l.S) - prinPoarta), permis = cost <= PRAG_PAUZA_KM;
       // peste prag: economia = km GPS ai pauzei (fără timp liber / brambura) − drumul prin poartă (× 1,05, ca restul parcării)
       const eco = permis ? 0 : r1(Math.max(0, l.real - (V(l.E, Gp) + V(Gp, l.S))));
@@ -298,19 +257,28 @@ for (const M of D.masini) {
     for (const k of ['kmPermisSapt', 'r3Sapt', 'r3ModelSapt']) pauze[k] = r1(pauze[k]);
   } else pauze.motiv = !casa ? 'fără casă' : hav(casa, G) <= 3 ? 'casa e la poartă' : 'niciun drum de parcare';
   pauze.r3Zi = r1(pauze.r3Sapt / Math.max(1, zileM.size)); pauze.r3ModelZi = r1(pauze.r3ModelSapt / Math.max(1, zileM.size));
+  // ION-268 (07.10, 809MUM 06.10 «Mănoilești −42 km» fals): baza de comparație a parcării = drumul pe șosea (Valhalla) prin locul unde mașina
+  // stă ACUM (sau direct, fără staționare), nu km GPS. Diferența GPS − drumul acesta e «ocol» (km în plus față de drumul direct), raportat
+  // separat, nu ca parcare. Locul propus se compară deci Valhalla cu Valhalla.
+  if (legi.length) { const acumP = legi.map((l) => l.acum).filter(Boolean);
+    if (acumP.length) { await matrice(legi.map((l) => l.E), acumP); await matrice(acumP, legi.map((l) => l.S)); }
+    await matrice(legi.map((l) => l.E), legi.map((l) => l.S));
+    for (const l of legi) { const prinAcum = l.acum ? V(l.E, l.acum) + V(l.acum, l.S) : V(l.E, l.S);
+      l.realGps = l.real; l.real = Math.min(l.real, prinAcum); l.ocol = Math.max(0, l.realGps - l.real); } }
+  const ocolSapt = r1(legi.reduce((s, l) => s + (l.ocol ?? 0), 0));
   const legiAlege = legi.filter((l) => !l.pauza?.permis), ix = new Map(legiAlege.map((l, i) => [l, i]));
-  const bucati = lant.map((w) => ({ fel: w.fel, t0: w.t0, t1: w.t1, de: [r5(w.de.lat), r5(w.de.lon)], pana: [r5(w.pana.lat), r5(w.pana.lon)], taiat: w.taiat }));
-  const cuStat = { ...baza, stat, bucati, pauze };
+  const bucati = lant.map((w) => ({ fel: w.fel, t0: w.t0, t1: w.t1, de: [r5(w.de.lat), r5(w.de.lon)], pana: [r5(w.pana.lat), r5(w.pana.lon)], taiat: w.taiat, roluri: w.roluri }));
+  const cuStat = { ...baza, stat, bucati, pauze, plan: { ...planStat, zile: planZile }, planStat };
   if (stat.control?.length) { masini.push({ ...cuStat, motivFara: `controlul §10: opriri în drumul de parcare (${stat.control.slice(0, 3).join('; ')})` }); continue; }
   if (schimburi < 2 && !UN_SCHIMB) { masini.push({ ...cuStat, motivFara: 'un singur schimb măsurat în săptămână (§8.3)' }); continue; }
   if (schimburi < 2) cuStat.unSchimb = true;
   if (tr.length && peOpriri / tr.length > CAPETE_TAIATE_PE_OPRIRI_MAX) { masini.push({ ...cuStat, motivFara: `rute neverificate: ${peOpriri} din ${tr.length} tururi și retururi nu trec pe la capătul rutelor ei` }); continue; }
   if (!legi.length) { masini.push({ ...cuStat, motivFara: 'niciun gol în care mașina să stea (≥ 60 min) în zilele de lucru' }); continue; }
   if (!legiAlege.length) { const R0 = r1(legi.reduce((s, l) => s + l.real, 0));
-    masini.push({ ...cuStat, motivFara: `toate pauzele sunt acasă, cu ocol ≤ ${PRAG_PAUZA_KM} km față de poartă (R-PAUZĂ) — rămân cum sunt`, real: R0, propus: R0, economieSapt: 0, locuri: [] }); continue; }
+    masini.push({ ...cuStat, ocolSapt, motivFara: `toate pauzele sunt acasă, cu ocol ≤ ${PRAG_PAUZA_KM} km față de poartă (R-PAUZĂ) — rămân cum sunt`, real: R0, propus: R0, economieSapt: 0, locuri: [] }); continue; }
   // 5. candidații (doar drumurile care nu-s pauze acasă permise)
   const capL = legiAlege.flatMap((l) => [l.E, l.S]);
-  const cand = LOC.filter((L) => capL.some((p) => hav(p, L) <= RAZA_CAND) && hav(L, PARC) > 3).map((L) => ({ n: L.n, lat: L.lat, lon: L.lon, fel: L.fel }));
+  let cand = LOC.filter((L) => capL.some((p) => hav(p, L) <= RAZA_CAND) && hav(L, PARC) > 3).map((L) => ({ n: L.n, lat: L.lat, lon: L.lon, fel: L.fel }));
   cand.push({ n: 'la uzină (poarta LEAR)', lat: G.lat, lon: G.lon, fel: 'uzina' });
   if (casa) cand.push({ n: `acasă (${M.casa})`, lat: casa.lat, lon: casa.lon, fel: 'casa' });
   const opr = legi.map((l) => l.acum).filter(Boolean);
@@ -321,9 +289,15 @@ for (const M of D.masini) {
   const faraDrumProba = process.env.LEAR_PARCARE_FARA_DRUM === M.m;
   const areDrum = (a, b) => !faraDrumProba && (hav(a, b) < 0.3 || cache.has(kc(a, b)));
   for (let q = cand.length - 1; q >= 0; q--) if (!legiAlege.every((l) => areDrum(l.E, cand[q]) && areDrum(cand[q], l.S))) { stat.candFaraDrum = (stat.candFaraDrum ?? 0) + 1; cand.splice(q, 1); }
-  const cost = legiAlege.map((l) => cand.map((c) => V(l.E, c) + V(c, l.S)));
+  let cost = legiAlege.map((l) => cand.map((c) => V(l.E, c) + V(c, l.S)));
   if (!cand.length) { masini.push({ ...cuStat, motivFara: 'niciun loc cu drum pe șosea (Valhalla) spre capetele drumurilor ei' }); continue; }
-  const { ales, b1, b2, alege, costAles, folosit } = alegeLocuri({ legi: legiAlege, cand, cost, hav, P: { PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA } });
+  let res = alegeLocuri({ legi: legiAlege, cand, cost, hav, P: { PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA } }), laUzina = false;
+  // (a) poarta e comparată pe Valhalla cu locul ales: dacă e cea mai bună sau la ±5 %, rămâne la uzină — fără loc nou
+  { const gi = cand.findIndex((c) => c.fel === 'uzina');
+    if (gi >= 0 && !(res.ales.idx.length === 1 && res.ales.idx[0] === gi)) { const cG = [cand[gi]], kG = cost.map((r) => [r[gi]]);
+      const rG = alegeLocuri({ legi: legiAlege, cand: cG, cost: kG, hav, P: { PRAG_AL_DOILEA, MIN_DRUMURI, TOLERANTA } });
+      if (rG.ales.t <= res.ales.t * 1.05) { cand = cG; cost = kG; res = rG; laUzina = true; } } }
+  const { ales, b1, b2, alege, costAles, folosit } = res;
   // pauzele acasă permise intră cu km de acum și în real, și în propus (economie 0 pe ele)
   const costLeg = (l) => (ix.has(l) ? costAles(ales.idx, ix.get(l)) : l.real), alegeLeg = (l) => (ix.has(l) ? alege(ales.idx, ix.get(l)) : -1);
   const real = legi.reduce((s, l) => s + l.real, 0), propus = ales.t + legi.filter((l) => !ix.has(l)).reduce((s, l) => s + l.real, 0);
@@ -333,25 +307,28 @@ for (const M of D.masini) {
   const locuri = areLoc ? ales.idx.map((j, n) => ({ nr: n + 1, n: cand[j].n, fel: cand[j].fel, pref: cand[j].pref, c: [r5(cand[j].lat), r5(cand[j].lon)], drumuri: folosit(ales.idx, j) })) : [];
   const zile = [...zileM].sort().map((z) => { const L = legi.filter((l) => l.z === z);
     const re = L.reduce((s, l) => s + l.real, 0), pr = L.reduce((s, l) => s + costLeg(l), 0);
-    return { z, drumuri: L.length, real: r1(re), propus: r1(pr), economie: r1(re - pr) }; });
+    return { z, drumuri: L.length, real: r1(re), propus: r1(pr), economie: r1(re - pr), ocol: r1(L.reduce((s, l) => s + (l.ocol ?? 0), 0)) }; });
   // real, propus și economia se rotunjesc o dată, ca economie = real − propus pe rând
   const R = r1(real), Pp = r1(propus);
   masini.push({ ...cuStat, locuri, motivFara,
     castigAlDoilea: locuri.length === 2 ? r1(b1.t - ales.t) : null, unLoc: { n: cand[b1.idx[0]].n, kmSapt: r1(b1.t) },
     doiLocuri: b2 ? { n: b2.idx.map((j) => cand[j].n), kmSapt: r1(b2.t), castig: r1(b1.t - b2.t) } : null,
-    real: R, propus: Pp, economieSapt: areLoc ? r1(R - Pp) : 0, zile,
+    real: R, propus: Pp, economieSapt: areLoc ? r1(R - Pp) : 0, zile, ocolSapt, laUzina,
     legi: legi.map((l) => { const j = alegeLeg(l); return { z: l.z, t0: l.t0, t1: l.t1, ora: l.ora, ore: l.ore, dupa: l.dupa, inainte: l.inainte,
-      a: [r5(l.E.lat), r5(l.E.lon)], b: [r5(l.S.lat), r5(l.S.lon)], aN: numeLoc(l.E), bN: numeLoc(l.S), acum: l.acum, brut: r1(l.brut), liber: r1(l.liber), real: r1(l.real), opririMutate: l.opririMutate,
+      a: [r5(l.E.lat), r5(l.E.lon)], b: [r5(l.S.lat), r5(l.S.lon)], aN: numeLoc(l.E), bN: numeLoc(l.S), acum: l.acum, brut: r1(l.brut), liber: r1(l.liber), real: r1(l.real), realGps: r1(l.realGps ?? l.real), ocol: r1(l.ocol ?? 0), opririMutate: l.opririMutate,
       loc: areLoc ? (j < 0 ? 0 : ales.idx.indexOf(j) + 1) : null, km: r1(costLeg(l)), pauza: l.pauza ?? null }; }) });
 }
 masini.sort((a, b) => (b.economieSapt ?? 0) - (a.economieSapt ?? 0) || a.m.localeCompare(b.m));
-const flota = { masini: masini.length, economieSapt: r1(masini.reduce((s, x) => s + (x.economieSapt ?? 0), 0)), doiLocuri: masini.filter((x) => x.locuri.length === 2).length,
+const sumP = (k) => masini.reduce((s, x) => s + (x.planStat?.[k] ?? 0), 0);
+const flota = { schimburiRuta: SCHIMBURI_RUTA, plan: { schimburiRuta: sumP('schimburiRuta'), planificate: sumP('planificate'), facute: sumP('facute'), peDrum: sumP('peDrum'), neconfirmate: sumP('neconfirmate'), lipsa: sumP('lipsa'), ruteDiferite: sumP('ruteDiferite'), plus: sumP('plus'), s3: sumP('s3') }, masini: masini.length, economieSapt: r1(masini.reduce((s, x) => s + (x.economieSapt ?? 0), 0)), doiLocuri: masini.filter((x) => x.locuri.length === 2).length,
   faraPropunere: masini.filter((x) => !x.locuri.length).map((x) => `${x.m}: ${x.motivFara}`), faraValhalla,
   pauze: { prag: PRAG_PAUZA_KM, acasa: masini.reduce((s, x) => s + (x.pauze?.acasa ?? 0), 0), permise: masini.reduce((s, x) => s + (x.pauze?.permise ?? 0), 0),
     peste: masini.reduce((s, x) => s + (x.pauze?.peste ?? 0), 0), r3Sapt: r1(masini.reduce((s, x) => s + (x.pauze?.r3Sapt ?? 0), 0)),
     r3ModelSapt: r1(masini.reduce((s, x) => s + (x.pauze?.r3ModelSapt ?? 0), 0)) } };
-writeFileSync(OUT, JSON.stringify({ uzina: D.uzina, nume: D.nume, saptamina: D.saptamina, rulat: new Date().toISOString(), parametri: PARAM, flota, masini }));
+writeFileSync(OUT, JSON.stringify({ uzina: D.uzina, nume: D.nume, saptamina: D.saptamina, rulat: new Date().toISOString(), parametri: PARAM, flota, masini,
+  ruteCapat: Object.fromEntries(SCH.rute.map((r) => [r.id, r.capat])), scheletIntai: true }));
 writeFileSync(CACHE_F, JSON.stringify(Object.fromEntries(cache)));
+console.log(`${D.nume} ${D.saptamina} — plan: ${JSON.stringify(flota.plan)}`);
 console.log(`${D.nume} ${D.saptamina}: ${flota.masini} mașini · de tăiat ${flota.economieSapt} km/săpt. · două locuri ${flota.doiLocuri} · perechi fără Valhalla ${faraValhalla}${lipsaV.length ? ` (${lipsaV.join('; ')})` : ''}`);
 for (const x of masini) if (x.pauze?.acasa) console.log(`  R-PAUZĂ ${x.m.padEnd(8)} acasă ${x.pauze.acasa} · permise ${x.pauze.permise} · peste ${x.pauze.peste} · r3 ${x.pauze.r3Zi} km/zi GPS (${x.pauze.r3ModelZi} model) · ${x.pauze.lista.map((p) => `${p.z.slice(5)} ${p.ora} ${p.de}→${p.spre} ${p.cost}${p.permis ? '✓' : '✗'}`).join(' | ')}`);
 for (const x of masini) console.log(`  ${x.m.padEnd(8)} ${String(x.economieSapt ?? 0).padStart(6)} (real ${x.real ?? '—'} → ${x.propus ?? '—'}) · ${x.locuri.length ? x.locuri.map((l) => `P${l.nr} ${l.n}${['', '·oraș', '·deja'][l.pref]} (${l.drumuri})`).join(' + ') : x.motivFara} · casa ${x.casa} · ${JSON.stringify(x.stat ?? {})}`);

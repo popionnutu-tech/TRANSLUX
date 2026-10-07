@@ -41,6 +41,17 @@ const t03 = (z) => { const u = Date.parse(`${z}T03:00:00Z`); return u - offsetLo
 const FMT = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
 const ora = (t) => FMT.format(new Date(t));
 const pkM = new Map(PK.masini.map((x) => [x.m, x]));
+// ION-268: eticheta unei curse din plan, în cuvinte (pagina /lde/harta o arată pe rândul cursei)
+const numeR = (id) => { const r = (PK.ruteCapat ?? {})[id]; return id ? `${id}${r ? ` ${r}` : ''}` : '?'; };
+function etRol(r) {
+  if (r.tip === 'plus' && r.statut === 's3') return `Posibil cursă schimbul 3${r.sensPlus ? ` (${r.sensPlus})` : ''} · ${numeR(r.ruta)} — de confirmat`;
+  if (r.tip === 'plus') return `Cursă în plus${r.sensPlus ? ` (${r.sensPlus})` : ''} · ${numeR(r.ruta)} — de confirmat`;
+  const baza = `${r.tip === 'tur' ? 'Tur' : 'Retur'} s${r.schimb ?? '?'} · ${numeR(r.rutaPlan ?? r.ruta)}`;
+  if (r.statut === 'facuta' && r.schimbCu) return `${r.tip === 'tur' ? 'Tur' : 'Retur'} s${r.schimb ?? '?'} · ${numeR(r.ruta)} — schimb de rută cu ${r.schimbCu}`;
+  if (r.statut === 'neconfirmata' && r.rutaUrma) return `${baza} — neconfirmată (urma arată ruta ${r.rutaUrma})`;
+  if (r.statut === 'neconfirmata') return `${baza} — neconfirmată (capăt atins, fără drumul rutei și fără urcări)`;
+  return baza;
+}
 const ID = D.uzina;   // LEAR_UNGHENI / LEAR_FLORESTI
 
 const randuri = [], probe = { zile: 0, difKm: [] };
@@ -54,36 +65,58 @@ for (const M of D.masini) {
     if (Q.length < 2) continue;
     // intervalele: cursele (tur / retur) ale zilei, tăiate la fereastra zilei; între ele golurile
     const iv = []; let t = t00;
-    const adauga = (a, b, tip) => { if (b - a < 60e3) return; const S = P.filter((p) => p.t >= a && p.t <= b); if (S.length < 2) return;
+    const adauga = (a, b, tip, buc) => { if (b - a < 60e3) return; const S = P.filter((p) => p.t >= a && p.t <= b); if (S.length < 2) return;
       let tipF = tip;
       if (tip === 'gol') { if (S.every((p) => hav(p, G) <= 1.5)) tipF = 'uzina'; else if (S.some((p) => hav(p, PARC) <= R_PARC_ZONA)) tipF = 'munca'; }
       const k = r1(km(S)); const cat = tipF === 'cursa' ? 'cuOameni' : tipF === 'uzina' ? 'golTure' : tipF === 'munca' ? 'service' : 'gol';
       iv.push({ ora: `${ora(a)}–${ora(b)}`, t0: Math.round((a - t00) / 1000), t1: Math.round((b - t00) / 1000), tip: tipF, cats: { [cat]: k }, km: k,
         de: numeLoc(S[0]), pana: numeLoc(S.at(-1)), ocol: false, lin: null, prelungit: null,
-        s: dp(S, 15).map((p) => [r5(p.lat), r5(p.lon), Math.round((p.t - t00) / 1000)]) }); };
+        // ION-268: rolul cursei din PLANUL zilei (schelet întâi) — Tur/Retur · schimb · rută, statutul (făcută / neconfirmată / în plus / posibil schimbul 3)
+        ...(tipF === 'cursa' && buc?.roluri?.length ? { rol: buc.roluri[0], roluri: buc.roluri, eticheta: buc.roluri.map(etRol).join(' + ') } : {}),
+        ...(tipF === 'cursa' && buc?.roluri?.every((r) => r.statut !== 'facuta') ? { cats: { neconfirmat: k } } : {}),
+        s: dp(S, 15).map((p) => [r5(p.lat), r5(p.lon), Math.round((p.t - t00) / 1000)]) });
+      // T.1–T.3 (TUR = RETUR): cursa făcută arată km din schelet ai rutei — aceiași la tur și la retur; km GPS ai bucății rămân informativi (kmGps)
+      const fac = tipF === 'cursa' ? (buc?.roluri ?? []).filter((r) => r.statut === 'facuta' && r.kmS != null) : [];
+      if (fac.length) { const v = iv.at(-1), kS = r1(fac.reduce((q, r) => q + r.kmS, 0)); v.kmGps = k; v.km = kS; v.cats = { cuOameni: kS }; } };
     for (const b of buc.filter((x) => x.t1 > t00 && x.t0 < t11 && x.fel !== 'poarta').sort((x, y) => x.t0 - y.t0)) {
       const a0 = Math.max(b.t0, t00), a1 = Math.min(b.t1, t11);
       if (a0 > t) adauga(t, a0, 'gol');
-      adauga(Math.max(a0, t), a1, 'cursa'); t = Math.max(t, a1);
+      adauga(Math.max(a0, t), a1, 'cursa', b); t = Math.max(t, a1);
     }
     if (t < t11) adauga(t, Math.min(t11, Q.at(-1).t), 'gol');
-    const kmZi = km(Q), kmIv = iv.reduce((s, v) => s + v.km, 0);
+    // ION-268: rezumatul zilei = PLANUL (schelet + listă + rotație) față de ce a confirmat GPS-ul; «lipsă» = cursele din plan nefăcute
+    const zp = (pk.plan?.zile ?? []).find((x) => x.z === z) ?? null;
+    const SIMB = { facuta: '✓', neconfirmata: '?', lipsa: '✗' };
+    const rez = [], lipsa = [];
+    if (zp) {
+      for (const sc of [1, 2]) { const L = zp.curse.filter((c) => c.schimb === sc); if (!L.length) continue;
+        rez.push(`s${sc}: ${L.map((c) => `${c.sens} ${c.ruta ?? '—'}${c.schimbCu ? ` (schimb de rută cu ${c.schimbCu})` : ''} ${SIMB[c.statut] ?? ''}`).join(' · ')}`);
+        for (const c of L) if (c.statut === 'lipsa' || c.statut === 'neconfirmata') lipsa.push(`${c.sens} s${sc} ${c.ruta ?? '—'}${c.statut === 'neconfirmata' ? ' (neconfirmată)' : ''}`); }
+      const pl = zp.plus.filter((x) => !x.s3), s3 = zp.plus.filter((x) => x.s3);
+      if (pl.length) rez.push(`în plus: ${pl.map((x) => `${x.ruta} ${ora(x.t0)}`).join(', ')}`);
+      if (s3.length) rez.push(`posibil schimbul 3: ${s3.map((x) => `${x.ruta} ${ora(x.t0)}`).join(', ')}`);
+      if (zp.faraPoarta) rez.push('ziua fără poartă');
+    }
+    const rezumat = rez.join('; ');
+    const kmZi = km(Q), kmIv = iv.reduce((s, v) => s + (v.kmGps ?? v.km), 0);   // controlul pe km GPS (cursa făcută arată km din schelet)
     if (Math.abs(kmIv - kmZi) > Math.max(3, kmZi * 0.05)) probe.difKm.push(`${M.m} ${z} ${r1(kmIv)}/${r1(kmZi)}`);
     // opririle ≥ 5 min
     const stai = []; let a0 = null, prev = null;
     for (const p of Q) { if (!a0 || hav(a0, p) > 0.3) { if (a0 && prev.t - a0.t >= 5 * 60e3) stai.push([r5(a0.lat), r5(a0.lon), Math.round((a0.t - t00) / 1000), Math.round((prev.t - t00) / 1000), numeLoc(a0)]); a0 = p; } prev = p; }
     if (a0 && prev.t - a0.t >= 5 * 60e3) stai.push([r5(a0.lat), r5(a0.lon), Math.round((a0.t - t00) / 1000), Math.round((prev.t - t00) / 1000), numeLoc(a0)]);
     const necalc = pk.real == null && !!pk.motivFara && !/^niciun gol/.test(pk.motivFara);
-    const zp = pk.zile.find((x) => x.z === z) ?? null, cuOameni = iv.filter((v) => v.tip === 'cursa').reduce((s, v) => s + v.km, 0);
+    const zpk = (pk.zile ?? []).find((x) => x.z === z) ?? null, cuOameni = iv.filter((v) => v.tip === 'cursa' && !v.cats.neconfirmat).reduce((s, v) => s + v.km, 0);
     const legi = pk.locuri.length ? (pk.legi ?? []).filter((l) => l.z === z).map((l) => ({ z: l.z, zUrm: null, parte: 'intre', ora: l.ora, oraDim: null, a: l.a, b: l.b, aN: l.aN, bN: l.bN, loc: l.loc, km: l.km, separat: false, real: l.real, acum: l.acum?.n ?? null })) : [];
     const dow = new Date(`${z}T12:00:00Z`).getUTCDay();
     randuri.push({ uzina: ID, saptamina: D.saptamina, m: M.m, z,
       sumar: { dow, total: r1(kmZi), cuOameni: r1(cuOameni), gol: r1(iv.filter((v) => v.tip === 'gol').reduce((s, v) => s + v.km, 0)),
-        economie: pk.locuri.length && zp ? zp.economie : null, ideal: null, motivAfara: pk.locuri.length ? null : pk.motivFara ?? null,
+        economie: pk.locuri.length && zpk ? zpk.economie : null, ideal: null, motivAfara: pk.locuri.length ? null : pk.motivFara ?? null,
         // ION-263: mașina scoasă din calcul (motivFara fără cifre) are economia «necalculat» (null), nu 0 km de tăiat
-        economieSapt: necalc ? null : pk.economieSapt ?? 0, locuri: pk.locuri.map((l) => l.n), sursaEconomie: 'parcare', linii },
+        economieSapt: necalc ? null : pk.economieSapt ?? 0, locuri: pk.locuri.map((l) => l.n), sursaEconomie: 'parcare', linii, rezumat, lipsa, plan: zp ? { planificate: zp.faraPoarta ? 0 : zp.curse.length, facute: zp.curse.filter((c) => c.statut === 'facuta').length,  neconfirmate: zp.curse.filter((c) => c.statut === 'neconfirmata').length, lipsa: zp.curse.filter((c) => c.statut === 'lipsa').length, plus: zp.plus.length } : null },
       date: { t00, casa: M.casaC ? { n: M.casa, c: [r5(M.casaC[0]), r5(M.casaC[1])] } : null, noapteA: null, noapteB: null, linii, iv, stai, zi: null, ideal: null,
-        parcare: { locuri: pk.locuri, economieSapt: necalc ? null : pk.economieSapt ?? 0, idealSapt: null, zi: zp ? { z, masurata: true, motiv: null, real: zp.real, propus: zp.propus, economie: zp.economie } : null, legi } } });
+        parcare: { locuri: pk.locuri, economieSapt: necalc ? null : pk.economieSapt ?? 0, idealSapt: null, zi: zpk ? { z, masurata: true, motiv: null, real: zpk.real, propus: zpk.propus, economie: zpk.economie } : null, legi },
+        // ION-268: planul zilei din schelet și ce a confirmat GPS-ul
+        plan: zp } });
     probe.zile++;
   }
 }

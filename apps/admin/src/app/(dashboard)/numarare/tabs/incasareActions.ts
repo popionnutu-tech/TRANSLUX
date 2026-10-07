@@ -335,6 +335,9 @@ export interface CasierRow {
   comment: string | null;
   fiscal_nrs: string | null;
   has_grafic_match: boolean;
+  /** Momentul ultimei salvări a zilei, dar numai dacă rândul era deja în document atunci.
+   *  null = a intrat după ultima trecere a casierului, deci e de verificat acum. Migr. 525. */
+  verificat_la: string | null;
 }
 
 /** Zilele dintr-un interval, inclusiv capetele. Plafonat, ca o greșeală în selectorul de dată

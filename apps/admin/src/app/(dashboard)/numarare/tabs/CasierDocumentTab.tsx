@@ -102,6 +102,8 @@ type EditableRow = {
   /** Ziua documentului din care vine rândul: ziua de casă la terminal, ziua introducerii la
    *  rândurile manuale. Pe interval fiecare rând are alta, iar corecția se salvează pe ea. */
   Ziua: string;
+  /** Ora ultimei verificări a zilei, dacă rândul era deja acolo. null = nou, de verificat. */
+  VerificatLa: string | null;
   Corrected: Set<string>;    // cheile DB corectate (pentru colorare per-celulă + salvare)
   // Rând manual salvat, marcat de șters: rămâne tăiat în tabel, cu «Readu», până la salvare.
   // La salvare primește sters_la (migr. 522) și iese din document.
@@ -143,6 +145,7 @@ function rowFromCasier(c: CasierRow): EditableRow {
     __pristine: true,
     __hasGrafic: c.has_grafic_match,
     Ziua: c.ziua,
+    VerificatLa: c.verificat_la ?? null,
   };
 }
 
@@ -582,6 +585,7 @@ export default function CasierDocumentTab({
       __pristine: false,
       __hasGrafic: false,
       Ziua: azi,
+      VerificatLa: null,   // rând nou: nesalvat, deci neverificat
     };
   }
 
@@ -1020,10 +1024,15 @@ export default function CasierDocumentTab({
               // Violet = foaia e pe un șofer care n-are cursa asta în /grafic. Semnal nou, sub
               // roșu (fără /grafic) în prioritate, fiindcă acolo lipsește șoferul cu totul.
               const altSofer = foaieAltSofer(r);
+              // Rândul era în document la ultima apăsare de «OK»: verificat într-o trecere
+              // anterioară. Verdele se pune DOAR peste alb — roșul, violetul și albastrul sunt
+              // semnale care cer acțiune, iar verdele doar liniștește.
+              const verificat = !!r.VerificatLa;
               const rowBg = r.Sters ? '#f0f0f0'
                 : r.IsManual ? '#e6f0ff'
                 : !r.__hasGrafic ? '#fdecea'
                 : altSofer ? '#f1e7fb'
+                : verificat ? '#f0f7ef'
                 : '#fff';
               const stersStyle: React.CSSProperties = r.Sters ? { textDecoration: 'line-through', color: '#999' } : {};
               const cs = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
@@ -1053,7 +1062,12 @@ export default function CasierDocumentTab({
               );
               return (
                 <tr key={r.row_key}>
-                  <td style={cs({ textAlign: 'center', color: '#888' })}>{r.N}</td>
+                  <td style={cs({ textAlign: 'center', color: '#888' })}
+                    title={verificat
+                      ? `Verificat la ${formatPusLa(r.VerificatLa as string)} (ora Chișinăului)`
+                      : 'Nou de la ultima verificare — încă nu a fost confirmat'}>
+                    {r.N}{verificat && <span style={{ color: '#2e7d32', fontWeight: 700 }}> ✓</span>}
+                  </td>
                   <td style={cs({ textAlign: 'center', color: (r.PusLaReal || r.IsManual) ? '#555' : '#bbb' })}
                     title={r.PusLaReal && pusLaText
                       ? `Plătită la casă la ${pusLaText} (ora Chișinăului)`
@@ -1298,6 +1312,11 @@ export default function CasierDocumentTab({
             {!isNumerar && modeRows.some(r => !r.__hasGrafic) && (
               <> · <span style={{ color: '#c00' }}>{modeRows.filter(r => !r.__hasGrafic).length} fără /grafic</span></>
             )}
+            {modeRows.some(r => !r.VerificatLa) && (
+              <> · <span style={{ color: '#1b5e20', fontWeight: 600 }}>
+                {modeRows.filter(r => !r.VerificatLa).length} de verificat
+              </span></>
+            )}
             {modeRows.some(foaieAltSofer) && (
               <> · <span style={{ color: '#6b21a8', fontWeight: 600 }}>
                 {modeRows.filter(foaieAltSofer).length} foi fără cursă în /grafic
@@ -1370,7 +1389,11 @@ export default function CasierDocumentTab({
             rândurile <span style={{ background: '#fdecea', padding: '0 4px' }}>roșii</span> = tomberon fără /grafic;
             rândurile <span style={{ background: '#f1e7fb', padding: '0 4px' }}>violete</span> = foaia e pe un
             șofer care n-are cursa asta în /grafic în ziua ei, deci banii nu ajung pe nicio rută — verifică
-            numărul foii și șoferul. Filtrele din capul coloanelor <b>Ruta</b> și <b>Șoferi</b> restrâng tabelul,
+            numărul foii și șoferul. Rândurile cu <span style={{ color: '#2e7d32', fontWeight: 700 }}>✓</span>
+            și fundal <span style={{ background: '#f0f7ef', padding: '0 4px' }}>verde pal</span> erau deja în
+            document la ultima apăsare de «OK» — ora exactă e în tooltip-ul numărului; cele fără bifă au intrat
+            după aceea și te așteaptă. Ziua se poate lucra în treceri: la 20:00 sunt intrate ~86% din încasări,
+            restul vine până la miezul nopții. Filtrele din capul coloanelor <b>Ruta</b> și <b>Șoferi</b> restrâng tabelul,
             iar <b>doar nelămuririle</b> lasă numai rândurile care cer atenție.
           </>
         )}

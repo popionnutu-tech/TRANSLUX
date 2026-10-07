@@ -30,6 +30,7 @@ const card: React.CSSProperties = { background: 'rgba(255,255,255,0.6)', border:
 const th: React.CSSProperties = { padding: '9px 8px', fontSize: 10, fontWeight: 600, color: 'rgba(155,27,48,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(155,27,48,0.08)' };
 const td: React.CSSProperties = { padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(155,27,48,0.04)' };
 const st = (s: React.CSSProperties): React.CSSProperties => ({ ...s, textAlign: 'left' });
+const abStil = (x: number | null): React.CSSProperties => ({ ...td, fontWeight: (x ?? 0) > 0 ? 600 : 400, color: (x ?? 0) > 0 ? '#b91c1c' : '#333' });
 const badge = (bg: string, col: string): React.CSSProperties => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: bg, color: col, whiteSpace: 'nowrap' });
 
 export default function ConsumClient({ data }: { data: ConsumData }) {
@@ -38,9 +39,10 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
   const [doarAbateri, setDoarAbateri] = useState(false);
   const luna = data.luna.slice(5);
 
-  const soferi = data.soferi.filter((s) => (uz === 'Toate' || s.uzina === uz) && (!doarAbateri || (s.abatere_l ?? 0) > 0));
+  const soferi = data.soferi.filter((s) => (uz === 'Toate' || s.uzina === uz) && (!doarAbateri || s.peste));
   const masini = data.masini.filter((m) => uz === 'Toate' || m.uzina === uz);
-  const peste = data.soferi.filter((s) => (s.abatere_l ?? 0) > 0).length;
+  const peste = data.soferi.filter((s) => s.peste).length;
+  const ddmm = (d: string) => (d ? `${d.slice(8)}.${d.slice(5, 7)}` : '');
   const verificat = data.soferi.filter((s) => s.de_verificat).length;
   const neagreate = new Set(data.soferi.filter((s) => !s.agreat).map((s) => s.m)).size;
 
@@ -73,13 +75,13 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
           <thead>
             <tr>
               <th style={st(th)}>Șoferul</th><th style={st(th)}>Mașina</th><th style={st(th)}>Perioada</th>
-              <th style={th}>Km GPS</th><th style={th}>Litri</th><th style={th}>l/100</th><th style={th}>Norma</th>
-              <th style={th}>Abatere l</th><th style={th}>%</th><th style={st(th)}></th>
+              <th style={th}>Km GPS</th><th style={th}>Litri</th><th style={th}>l/100</th>
+              <th style={th} title="Norma tipului mașinii">Norma tip</th><th style={th}>± l față de tip</th>
+              <th style={th} title="Consumul mașinii în cele 3 luni închise de dinainte">Media 3 luni</th><th style={th}>± l față de 3 luni</th><th style={st(th)}></th>
             </tr>
           </thead>
           <tbody>
             {soferi.map((s) => {
-              const rosu = (s.abatere_l ?? 0) > 0;
               return (
                 <tr key={s.driver_id + s.m} style={{ background: s.de_verificat ? 'rgba(217,119,6,0.05)' : 'transparent' }}>
                   <td style={st({ ...td, fontWeight: 600 })}>{s.nume}</td>
@@ -88,17 +90,18 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
                   <td style={td}>{nr(s.km)}</td>
                   <td style={td}>{nr(s.litri)}</td>
                   <td style={td}>{nr(s.consum, 1)}</td>
-                  <td style={{ ...td, color: '#666' }}>{nr(s.norma, 1)}</td>
-                  <td style={{ ...td, fontWeight: rosu ? 600 : 400, color: rosu ? '#b91c1c' : '#333' }}>{semn(s.abatere_l)}</td>
-                  <td style={{ ...td, color: rosu ? '#b91c1c' : '#666' }}>{semn(s.abatere_pct, 1)}</td>
+                  <td style={{ ...td, color: '#666' }}>{nr(s.norma_tip, 1)}</td>
+                  <td style={abStil(s.abatere_tip)}>{semn(s.abatere_tip)}</td>
+                  <td style={{ ...td, color: '#666' }}>{nr(s.medie3, 1)}</td>
+                  <td style={abStil(s.abatere_3l)}>{semn(s.abatere_3l)}</td>
                   <td style={st(td)}>
-                    {s.de_verificat && <span style={badge('rgba(217,119,6,0.12)', '#b45309')} title="Mai mulți șoferi pe mașină și supraconsum: împărțirea după km nu spune cine a consumat">de verificat · {s.soferi_pe_masina} șoferi</span>}
+                    {s.de_verificat && <span style={badge('rgba(217,119,6,0.12)', '#b45309')} title="Mai mulți șoferi pe mașină și peste un reper: împărțirea după km nu spune cine a consumat">de verificat · {s.soferi_pe_masina} șoferi</span>}
                     {s.consum == null && <span style={badge('rgba(0,0,0,0.05)', '#666')} title="Mașina are sub 300 km sau sub 2 alimentări în lună">puține date</span>}
                   </td>
                 </tr>
               );
             })}
-            {!soferi.length && <tr><td colSpan={10} style={st({ ...td, color: '#666', padding: 12 })}>Niciun șofer pe filtrul ales.</td></tr>}
+            {!soferi.length && <tr><td colSpan={11} style={st({ ...td, color: '#666', padding: 12 })}>Niciun șofer pe filtrul ales.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -109,19 +112,20 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
           <thead>
             <tr>
               <th style={st(th)}>Mașina</th><th style={st(th)}>Uzina</th><th style={th}>Alimentări</th><th style={th}>Litri</th>
-              <th style={th}>Km</th><th style={th}>l/100</th><th style={th}>Norma</th><th style={th}>Km fără șofer</th>
+              <th style={th}>Km</th><th style={th}>l/100</th><th style={th}>Norma tip</th><th style={th}>Media 3 luni</th><th style={th}>Km fără șofer</th>
             </tr>
           </thead>
           <tbody>
             {masini.map((m) => (
               <tr key={m.vehicle_id}>
                 <td style={st({ ...td, fontWeight: 600 })}>{m.m}</td>
-                <td style={st({ ...td, color: '#666' })}>{m.uzina}</td>
+                <td style={st({ ...td, color: '#666' })}>{m.uzina}{m.tip ? ` · ${m.tip}` : ' · fără tip'}</td>
                 <td style={td}>{m.alimentari}</td>
                 <td style={td}>{nr(m.litri)}</td>
                 <td style={td}>{nr(m.km)}</td>
-                <td style={{ ...td, color: m.consum != null && m.norma != null && m.consum > m.norma ? '#b91c1c' : '#333' }}>{m.sub_prag ? 'puține date' : nr(m.consum, 1)}</td>
-                <td style={{ ...td, color: '#666' }}>{nr(m.norma, 1)}</td>
+                <td style={{ ...td, color: m.consum != null && ((m.norma_tip != null && m.consum > m.norma_tip) || (m.medie3 != null && m.consum > m.medie3)) ? '#b91c1c' : '#333' }}>{m.sub_prag ? 'puține date' : nr(m.consum, 1)}</td>
+                <td style={{ ...td, color: m.consum != null && m.norma_tip != null && m.consum > m.norma_tip ? '#b91c1c' : '#666' }}>{nr(m.norma_tip, 1)}</td>
+                <td style={{ ...td, color: m.consum != null && m.medie3 != null && m.consum > m.medie3 ? '#b91c1c' : '#666' }} title={m.km3 ? `din ${nr(m.km3)} km` : 'fără km în cele 3 luni'}>{nr(m.medie3, 1)}</td>
                 <td style={{ ...td, color: m.km_fara_sofer > 0 ? '#b45309' : '#666' }}>{m.km_fara_sofer > 0 ? nr(m.km_fara_sofer) : '—'}</td>
               </tr>
             ))}
@@ -131,7 +135,8 @@ export default function ConsumClient({ data }: { data: ConsumData }) {
 
       <p style={{ margin: 0, fontSize: 12, color: '#666' }}>
         {etichetaLuna(data.luna)}{Number(data.pana.slice(8)) < new Date(Number(data.luna.slice(0, 4)), Number(luna), 0).getDate() ? ` până la ${data.pana.slice(8)}.${luna}` : ''}: consumul mașinii = toți litrii lunii ÷ toți km-ii; partea șoferului = km-ii lui din GPS pe zilele agreate × consumul mașinii.
-        Norma e cea pusă de mecanic și director (/lde/vehicule: măsurată, altfel a tipului). «De verificat» = doi sau mai mulți șoferi pe mașină și supraconsum: împărțirea după km nu arată cine a consumat, se verifică de mână.
+        Verificarea se face pe două repere: norma tipului mașinii și media mașinii în cele 3 luni închise de dinainte{data.trei_de ? ` (${ddmm(data.trei_de)}–${ddmm(data.trei_pana)})` : ''}; roșu = peste reper.
+        «De verificat» = doi sau mai mulți șoferi pe mașină și peste un reper: împărțirea după km nu arată cine a consumat, se verifică de mână.
         {verificat > 0 ? ` Luna aceasta: ${verificat} rânduri de verificat.` : ''} Reținerea o decide șeful.
       </p>
     </div>

@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 
-import { listWarehouses } from '@/lib/piese';
+import { listWarehouses, partLabel } from '@/lib/piese';
 import { listClients, saleParts, shopProfit, preturiSchimbate, raportZi } from '@/lib/piese-ops';
 import { requirePieseIssue, canSeeCost, canOverrideStock } from '@/lib/piese-access';
 import MagazinClient from './MagazinClient';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
-const partLabel = (p: any) => `${p.grp} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
+// Eticheta e cea COMUNĂ (`partLabel` din lib/piese), ca peste tot. Aici exista o variantă locală care
+// construia textul din GRUPĂ și marcă — fără denumirea piesei. Vânzătorul vedea în listă „Кузов и ЛКМ —
+// Taclar (312)" pentru o mână de ușă: categoria, nu marfa. Cu 84 de poziții în câteva categorii, alegerea
+// era ghicitoare, iar căutarea după cod sau cod de bare nu găsea nimic, fiindcă filtrul se uită la
+// etichetă. Vederea `piese_sale_parts` nici nu întorcea denumirea — acum o întoarce (migr. 394).
 
 export default async function MagazinPage() {
   const session = await requirePieseIssue();
@@ -78,7 +82,13 @@ export default async function MagazinPage() {
       )}
 
       {shop ? (
-        <MagazinClient canOverrideStock={await canOverrideStock(session)} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({ id: p.id, label: partLabel(p), price: Number(p.price) }))} />
+        <MagazinClient canOverrideStock={await canOverrideStock(session)} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({
+          id: p.id, label: partLabel(p), price: Number(p.price),
+          // Ce se CAUTĂ, pe lângă ce se vede: articul, OEM și TOATE codurile de bare. Lista magazinului
+          // n-avea nici măcar denumirea (vederea întorcea doar grupa, marca și prețul), deci eticheta ieșea
+          // „— Taclar (312)", iar scanarea unui cod nu găsea nimic — exact reclamația lui Eduard.
+          search: [partLabel(p), p.article_code, p.oem_code, p.barcodes_all].filter(Boolean).join(' '),
+        }))} />
       ) : <div className="card"><div className="empty">Niciun depozit-magazin definit.</div></div>}
     </>
   );

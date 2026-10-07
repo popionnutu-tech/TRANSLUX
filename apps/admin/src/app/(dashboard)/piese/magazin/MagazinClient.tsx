@@ -6,7 +6,7 @@ import { submitSale, incarcaCec } from './actions';
 import CecModal, { type Cec } from './CecModal';
 import SearchSelect from '@/components/SearchSelect';
 
-interface PartOpt { id: number; label: string; price: number }
+interface PartOpt { id: number; label: string; price: number; search?: string }
 interface Opt { id: number; label: string }
 interface Line { part_id: number | ''; qty: number; unit_price: number }
 type Shortage = { part_id: number; name: string; cerut: number; stoc: number; disponibil: number; lipsa: number };

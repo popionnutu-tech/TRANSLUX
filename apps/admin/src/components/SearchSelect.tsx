@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 
-export interface SSOption { id: number; label: string }
+// `search` = textul după care se CAUTĂ, dacă diferă de cel afișat. Magazinul are nevoie de el: vânzătorul
+// scanează un cod de bare, dar codul n-are ce căuta în eticheta de pe ecran — ar îneca denumirea piesei.
+export interface SSOption { id: number; label: string; search?: string }
 
 // Aceeași referință de fiecare dată, ca `setAsyncResults(EMPTY)` să nu producă o randare inutilă:
 // un `[]` proaspăt e mereu „alt" array pentru React.
@@ -62,7 +64,7 @@ export default function SearchSelect({ value, onSelect, placeholder = '— caut�
   // bon poate avea zeci de poziții: zeci de mii de alocări de string per pas de randare, degeaba, fiindcă
   // rezultatul nu se folosește când dropdown-ul e închis — adică aproape mereu.
   const localResults = useMemo(
-    () => (!open || isAsync ? EMPTY : (options || []).filter((o) => o.label.toLowerCase().includes(q)).slice(0, maxShown)),
+    () => (!open || isAsync ? EMPTY : (options || []).filter((o) => (o.search || o.label).toLowerCase().includes(q)).slice(0, maxShown)),
     [open, isAsync, options, q, maxShown],
   );
   const results = isAsync ? asyncResults : localResults;

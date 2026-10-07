@@ -65,6 +65,11 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
     // Aceeași lecție ca la coduri și la adaos: salvarea scrie exact ce vede formularul, deci un câmp
     // netrimis se pierde. O piesă б/у editată din catalog ar fi redevenit „nouă" în tăcere.
     is_used: !!edit.is_used,
+    // Vezi comentariul de la coduri: salvarea e un „replace complet", deci un câmp care nu ajunge în
+    // prefill se golește. Numele de bon scris de mână s-ar fi pierdut la prima editare din Catalog.
+    nume_bon: (edit.nume_bon as string) ?? '',
+    nume_bon_propus: (edit.nume_bon_propus as string) ?? '',
+    tva_cota: (edit.tva_cota as number | null) ?? 20,
     origin_part_id: (edit.origin_part_id as number | null) ?? '',
     origin_label: (edit.origin_label as string) ?? '',
   };

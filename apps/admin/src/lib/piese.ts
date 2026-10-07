@@ -185,8 +185,12 @@ export async function catalogPage(opts: { search?: string; groupId?: number; pag
   // din prețul de vânzare — pe care ARE dreptul să-l vadă — costul de achiziție se calculează exact
   // (`cost = preț / (1 + adaos/100)`), deci `*` ar fi ocolit tăcut `canSeeCost`. Adaosul e nevoie doar la
   // EDITARE, iar editarea e a rolurilor care oricum văd costul.
+  // `nume_bon`, `tva_cota` și propunerea NU sunt sensibile (nu lasă să se deducă niciun cost) și TREBUIE
+  // să vină cu rândul: formularul scrie exact ce vede, deci o coloană care lipsește din prefill ar fi
+  // ștearsă la prima salvare din Catalog. Aceeași lecție ca la coduri, adaos și б/у.
   const cols = 'id, group_id, name_long, name_ro, manufacturer, model, article_code, oem_code, '
-    + 'barcode, barcodes_all, unit, is_for_sale, active, created_at, group_name'
+    + 'barcode, barcodes_all, unit, is_for_sale, active, created_at, group_name, '
+    + 'nume_bon, tva_cota, nume_bon_propus'
     + (opts.withCost ? ', markup_pct' : '');
   let q = getSupabase()
     .from('piese_catalog_rows')

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { requirePieseNomenclator, LOOKUP_ADMIN_ROLES } from '@/lib/piese-access';
-import { listWarehouses, listGroups, listSuppliers, listMechanics, listReasons } from '@/lib/piese';
+import { listWarehouses, listGroups, listSuppliers, listMechanics, listReasons, listVehicles } from '@/lib/piese';
 import { listClients } from '@/lib/piese-ops';
 import NomenclatorClient from './NomenclatorClient';
 
@@ -10,10 +10,10 @@ import NomenclatorClient from './NomenclatorClient';
 // formular și view proprii (PartForm + savePart în part-actions.ts, gardat cu aceleași roluri:
 // ADMIN/DEPOZITAR/GESTIONAR). Dacă schimbi rolurile pentru piese, actualizează AICI + în part-actions.ts.
 const SECTIONS_BY_ROLE: Record<string, string[]> = {
-  ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
-  DEPOZITAR: ['groups', 'suppliers', 'parts'],
+  ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'vehicles', 'reasons', 'parts'],
+  DEPOZITAR: ['groups', 'suppliers', 'vehicles', 'parts'],
   VINZATOR: ['clients', 'mechanics', 'reasons'],
-  GESTIONAR: ['groups', 'suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
+  GESTIONAR: ['groups', 'suppliers', 'clients', 'mechanics', 'vehicles', 'reasons', 'parts'],
 };
 
 export default async function NomenclatorPage() {
@@ -23,8 +23,9 @@ export default async function NomenclatorPage() {
     ...(SECTIONS_BY_ROLE[session.role] || []),
     ...(LOOKUP_ADMIN_ROLES.includes(session.role) ? ['lookups'] : []),
   ];
-  const [warehouses, groups, suppliers, clients, mechanics, reasons] = await Promise.all([
+  const [warehouses, groups, suppliers, clients, mechanics, reasons, vehicles] = await Promise.all([
     listWarehouses(), listGroups(), listSuppliers(), listClients(), listMechanics(), listReasons(),
+    listVehicles(),
   ]);
   return (
     <>
@@ -34,7 +35,7 @@ export default async function NomenclatorPage() {
       </div>
       <NomenclatorClient
         sections={sections}
-        data={{ warehouses, groups, suppliers, clients, mechanics, reasons } as Record<string, any[]>}
+        data={{ warehouses, groups, suppliers, clients, mechanics, reasons, vehicles } as Record<string, any[]>}
       />
     </>
   );

@@ -37,6 +37,13 @@ const SECTIONS: SectionCfg[] = [
   { key: 'mechanics', title: 'Mecanici', fields: [
     { key: 'name', label: 'Nume', required: true },
   ] },
+  { key: 'vehicles', title: 'Mașini', fields: [
+    // Numărul se salvează fără spații, ca toate celelalte din listă — normalizarea e în server, nu aici,
+    // ca să nu depindă de formular cine o face.
+    { key: 'plate', label: 'Număr', required: true, placeholder: 'ex: 745RSN' },
+    { key: 'model', label: 'Model', placeholder: 'ex: Autobuz/microbuz' },
+    { key: 'km_current', label: 'Km curenți', type: 'number' },
+  ] },
   { key: 'reasons', title: 'Motive defecțiune', fields: [
     { key: 'name', label: 'Denumire', required: true },
     { key: 'category', label: 'Categorie' },

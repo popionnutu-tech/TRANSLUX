@@ -22,6 +22,9 @@ export interface PartFormValues {
   is_used?: boolean;                     // piesă б/у — articol de catalog distinct (migr. 345)
   origin_part_id?: number | string | null; // piesa NOUĂ corespunzătoare; de acolo vine sugestia de valoare
   origin_label?: string;                 // textul ei, pentru combobox — vezi comentariul de la câmp
+  nume_bon?: string;                     // numele scurt de pe bonul fiscal (migr. 393); gol = propunerea
+  nume_bon_propus?: string;              // propunerea calculată de BAZĂ, doar de afișat (nu se salvează)
+  tva_cota?: number | string | null;     // cota TVA a piesei; implicit 20
 }
 
 // Formular COMUN de piesă (adăugare + editare). Folosit în Nomenclator (tab „Piese") și inline în Prihod.
@@ -55,6 +58,9 @@ export default function PartForm({
     unit: initial?.unit ?? 'buc',
     is_for_sale: initial?.is_for_sale ?? false,
     markup_pct: initial?.markup_pct ?? '',
+    nume_bon: initial?.nume_bon ?? '',
+    nume_bon_propus: initial?.nume_bon_propus ?? '',
+    tva_cota: initial?.tva_cota ?? 20,
     is_used: initial?.is_used ?? false,
     origin_part_id: initial?.origin_part_id ?? '',
     origin_label: initial?.origin_label ?? '',
@@ -310,6 +316,30 @@ export default function PartForm({
           <input type="number" min={0} max={1000} step="any" value={f.markup_pct ?? ''}
             onChange={(e) => set('markup_pct', e.target.value)} placeholder="ca grupa" />
           <div style={hint}>gol = adaosul grupei</div>
+        </div>
+      )}
+      {/* Bonul fiscal (migr. 393). Apar doar la piesele care se vând — pe o piesă de uz intern n-au ce
+          căuta, iar formularul e oricum încărcat. */}
+      {f.is_for_sale && (
+        <div className="form-group" style={{ marginBottom: 0, minWidth: 110 }}>
+          <label>TVA %</label>
+          <input type="number" min={0} max={100} step="any" value={f.tva_cota ?? ''}
+            onChange={(e) => set('tva_cota', e.target.value)} placeholder="20" />
+          <div style={hint}>standard 20%</div>
+        </div>
+      )}
+      {f.is_for_sale && (
+        <div className="form-group" style={{ marginBottom: 0, minWidth: 260, flex: 1 }}>
+          <label>Nume pe bonul fiscal</label>
+          {/* Placeholder-ul e PROPUNEREA calculată de bază, nu un text inventat aici: aparatul fiscal taie
+              denumirea la o limită fixă, iar dacă n-o scurtăm noi o taie el de unde apucă. Gol = se
+              tipărește propunerea, deci câmpul nu e obligatoriu. */}
+          <input value={(f.nume_bon as string) ?? ''} maxLength={30}
+            onChange={(e) => set('nume_bon', e.target.value)}
+            placeholder={(f.nume_bon_propus as string) || 'se propune automat'} />
+          <div style={hint}>
+            max 30 caractere · gol = <strong>{(f.nume_bon_propus as string) || 'propunerea automată'}</strong>
+          </div>
         </div>
       )}
       {children}

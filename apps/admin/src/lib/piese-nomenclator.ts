@@ -61,6 +61,14 @@ const partRow = (d: any) => ({
   // nouă corespunzătoare și alimentează sugestia de valoare la intrarea prin document „Donor".
   is_used: d.is_used === true || d.is_used === 'true' || d.is_used === '1' || d.is_used === 'da',
   origin_part_id: Number(d.origin_part_id) > 0 ? Number(d.origin_part_id) : null,
+  // Numele scurt de pe bonul fiscal (migr. 393). GOL = folosește propunerea automată, nu „bon fără nume":
+  // de aceea `null`, nu șir gol — iar `piese_nume_bon` tratează ambele la fel, ca să nu depindem de
+  // disciplina apelantului.
+  nume_bon: txtOrNull(d.nume_bon),
+  // Cota TVA a piesei. Implicit 20 în bază; aici se trimite doar dacă formularul a dat o valoare validă,
+  // altfel rămâne ce era — o cotă ștearsă din greșeală ar falsifica bonul.
+  tva_cota: d.tva_cota === '' || d.tva_cota == null || !Number.isFinite(Number(d.tva_cota))
+    ? 20 : Number(d.tva_cota),
 });
 function validatePart(d: any) {
   if (!Number(d.group_id)) throw new Error('Grupa (categoria) este obligatorie');
@@ -276,6 +284,43 @@ export async function createMechanic(d: any) {
 export async function updateMechanic(id: number, d: any) {
   if (!txt(d.name)) throw new Error('Numele mecanicului este obligatoriu');
   check(await getSupabase().from('piese_mechanics').update({ name: txt(d.name) }).eq('id', id));
+}
+
+// ── Mașini ──
+// Lipseau cu totul din nomenclator: mașinile intrau în `piese_vehicles` doar prin migrații și scripturi,
+// deci la fiecare mașină nouă din parc trebuia un programator. Eliberarea de piese se face PE MAȘINĂ,
+// deci o mașină care nu există în listă blochează lucrul depozitarului.
+//
+// Numărul se normalizează la MAJUSCULE FĂRĂ SPAȚII, formatul în care sunt deja scrise toate celelalte
+// („827MUM", „350KAJ"). Nu e cosmetică: o singură mașină scrisă cândva „692 TWK" cu spațiu a produs un
+// duplicat real, fiindcă verificarea „există deja?" compara forma normalizată cu valoarea stocată.
+const plateNorm = (v: unknown) => txt(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+async function plateFree(plate: string, exceptId?: number) {
+  let q = getSupabase().from('piese_vehicles').select('id, plate').eq('plate', plate);
+  if (exceptId) q = q.neq('id', exceptId);
+  const { data, error } = await q.limit(1);
+  if (error) throw new Error('Nu am putut verifica numărul mașinii');
+  if ((data as any[])?.length) throw new Error(`Mașina ${plate} există deja în listă`);
+}
+
+export async function createVehicle(d: any) {
+  const plate = plateNorm(d.plate);
+  if (!plate) throw new Error('Numărul mașinii este obligatoriu');
+  await plateFree(plate);
+  check(await getSupabase().from('piese_vehicles').insert({
+    plate, model: txtOrNull(d.model), km_current: Number(d.km_current) > 0 ? Number(d.km_current) : 0,
+    active: true,
+  }));
+}
+
+export async function updateVehicle(id: number, d: any) {
+  const plate = plateNorm(d.plate);
+  if (!plate) throw new Error('Numărul mașinii este obligatoriu');
+  await plateFree(plate, id);
+  check(await getSupabase().from('piese_vehicles').update({
+    plate, model: txtOrNull(d.model), km_current: Number(d.km_current) > 0 ? Number(d.km_current) : 0,
+  }).eq('id', id));
 }
 
 // ── Motive defecțiune ──

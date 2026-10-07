@@ -11,6 +11,7 @@ import {
   createSupplier, updateSupplier,
   createClient, updateClient,
   createMechanic, updateMechanic,
+  createVehicle, updateVehicle,
   createReason, updateReason,
   listLookupAdmin, renameLookup, setLookupActive, lookupSnapshot, type LookupKind,
 } from '@/lib/piese-nomenclator';
@@ -39,6 +40,10 @@ const HANDLERS: Record<string, Handler> = {
     entity: 'mechanic', table: 'piese_mechanics', audit: ['name'] },
   reasons: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createReason, update: updateReason,
     entity: 'reason', table: 'piese_breakdown_reasons', audit: ['name', 'category'] },
+  // Mașinile: aceleași roluri ca la furnizori — cine face recepții și eliberări știe ce mașini sunt în
+  // parc. Vânzătorul nu, el vinde în magazin, nu eliberează pe mașină.
+  vehicles: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createVehicle, update: updateVehicle,
+    entity: 'vehicle', table: 'piese_vehicles', audit: ['plate', 'model', 'km_current'] },
 };
 
 export async function createNomenclator(section: string, data: Record<string, unknown>) {

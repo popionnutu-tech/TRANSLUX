@@ -5,9 +5,13 @@ import PrintPortal from '@/components/PrintPortal';
 
 export type Cec = {
   doc_id: number; serie: string; numar: string; data: string; client: string; depozit: string;
-  total: number;
-  linii: { nume: string; articol: string; um: string; cant: number; pret: number; suma: number }[];
+  total: number; tva_total?: number; plata?: string; incasat?: number | null; rest?: number | null;
+  linii: { nume: string; nume_bon?: string; articol: string; um: string; cant: number; pret: number;
+           suma: number; cota_tva?: number; tva?: number }[];
 };
+
+// Cum se numește metoda de plată pe hârtie. Codul din bază e pentru mașini, bonul e pentru om.
+const PLATA: Record<string, string> = { NUMERAR: 'Numerar', CARD: 'Card', TRANSFER: 'Transfer' };
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -59,7 +63,9 @@ export default function CecModal({ cec, onClose }: { cec: Cec; onClose: () => vo
               <div key={i} style={{ marginBottom: '1.2mm' }}>
                 {/* Denumirea pe rândul ei, întreagă: pe 58 mm nu încape alături de cifre, iar trunchierea
                     ar lăsa clientul cu „Переключатель пово…" pe bon. */}
-                <div style={{ fontWeight: 600, wordBreak: 'break-word' }}>{l.nume}</div>
+                {/* Numele SCURT, cel care va merge și la aparatul fiscal (migr. 393) — ca bonul nostru de
+                    azi și bonul fiscal de mâine să spună același lucru despre aceeași piesă. */}
+                <div style={{ fontWeight: 600, wordBreak: 'break-word' }}>{l.nume_bon || l.nume}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#333' }}>{l.cant} {l.um} × {lei(l.pret)}</span>
                   <strong>{lei(l.suma)}</strong>
@@ -71,6 +77,31 @@ export default function CecModal({ cec, onClose }: { cec: Cec; onClose: () => vo
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10pt', fontWeight: 800 }}>
               <span>TOTAL</span><span>{lei(cec.total)} lei</span>
             </div>
+            {/* TVA, modul de plată, încasat și rest — cerute de HG 141/2019 pentru bonul fiscal. Prețurile
+                sunt CU TVA inclus (așa intră și costurile la recepție), deci taxa se EXTRAGE din total,
+                nu se adaugă: de aceea scrie „din care". */}
+            {cec.tva_total != null && cec.tva_total > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#333' }}>
+                <span>din care TVA {cec.linii[0]?.cota_tva ?? 20}%</span><span>{lei(cec.tva_total)} lei</span>
+              </div>
+            )}
+            {cec.plata && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1mm' }}>
+                <span>Plata</span><span>{PLATA[cec.plata] || cec.plata}</span>
+              </div>
+            )}
+            {/* Numai la numerar: la card nu există „primit" și „rest", iar rândurile goale pe un bon de
+                58 mm sunt exact ce nu trebuie. */}
+            {cec.incasat != null && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Primit</span><span>{lei(cec.incasat)} lei</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                  <span>Rest</span><span>{lei(cec.rest ?? 0)} lei</span>
+                </div>
+              </>
+            )}
             <div style={{ textAlign: 'center', fontSize: '6.5pt', marginTop: '2mm' }}>Mulțumim!</div>
           </div>
 

@@ -59,6 +59,9 @@ const PART_AUDIT = [
   // opera Donor poate și s-o pună. Bifezi piesa nouă ca б/у, o bagi la ce valoare vrei, o debifezi la loc.
   // Documentul rămâne, dar fără urma flagului nimeni n-ar înțelege ce s-a întâmplat.
   'is_used', 'origin_part_id',
+  // Bonul fiscal (migr. 393). Amândouă schimbă ce se TIPĂREȘTE pentru client și ce se declară la fisc:
+  // o cotă TVA mutată de la 20 la 0, sau un nume de bon rescris, nu au voie să treacă fără urmă.
+  'nume_bon', 'tva_cota',
 ] as const;
 
 function pick(d: Record<string, unknown>): AuditFields {

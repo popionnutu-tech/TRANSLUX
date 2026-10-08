@@ -64,7 +64,7 @@ export async function loadGraficPages(date: string, canSeeReceipt: boolean): Pro
       .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
       .eq('assignment_date', date)
       .eq('auto_copied', false),
-    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).neq('is_test', true).eq('is_lde', false),
     db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
     db.from('crm_stop_fares').select('id, crm_route_id, name_ro').eq('is_visible', true).order('stop_order', { ascending: true }),
     canSeeReceipt

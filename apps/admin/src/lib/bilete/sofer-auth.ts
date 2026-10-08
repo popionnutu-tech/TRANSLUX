@@ -7,7 +7,8 @@ import { telegramIdDinInitData } from './sofer-reguli';
 // auth_date ≤ 24 h, apoi `drivers` după telegram_id (legat prin /start sofer, ION-234) și active.
 // 401 «nelegat» = semnătură rea, user lipsă sau șofer nelegat/inactiv; 401 «expirat» = initData mai vechi de 24 h.
 
-export interface SoferAutentificat { id: string; nume: string; telegram_id: number }
+/** `is_test` = șoferul de probă (migr. 532): vede și scanează doar comenzile proba_fizica. */
+export interface SoferAutentificat { id: string; nume: string; telegram_id: number; is_test: boolean }
 export type SoferAuth =
   | { ok: true; sofer: SoferAutentificat }
   | { ok: false; status: 401; eroare: 'nelegat' | 'expirat' };
@@ -17,14 +18,14 @@ export async function soferDinInitData(initData: string | null | undefined): Pro
   if (!v.ok) return { ok: false, status: 401, eroare: v.eroare };
   const { data, error } = await getSupabase()
     .from('drivers')
-    .select('id, full_name, telegram_id')
+    .select('id, full_name, telegram_id, is_test')
     .eq('telegram_id', v.telegramId)
     .eq('active', true)
     .maybeSingle();
   if (error) throw new Error(`drivers: ${error.message}`);
   if (!data) return { ok: false, status: 401, eroare: 'nelegat' };
-  const d = data as { id: string; full_name: string; telegram_id: number };
-  return { ok: true, sofer: { id: d.id, nume: d.full_name, telegram_id: Number(d.telegram_id) } };
+  const d = data as { id: string; full_name: string; telegram_id: number; is_test: boolean | null };
+  return { ok: true, sofer: { id: d.id, nume: d.full_name, telegram_id: Number(d.telegram_id), is_test: d.is_test === true } };
 }
 
 /**

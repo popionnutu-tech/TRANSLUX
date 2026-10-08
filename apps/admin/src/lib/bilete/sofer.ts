@@ -42,8 +42,22 @@ export async function atribuirileZilelor(db: Db, zile: string[]): Promise<Map<st
   return out;
 }
 
-/** Cursele (rută + sens) ale șoferului în ziua dată, din atribuiri — fără opriri și pasageri. */
-export async function curseleSoferului(db: Db, driverId: string, zi: string): Promise<Array<{ crm_route_id: number; going_north: boolean }>> {
+/**
+ * Cursele șoferului de probă (migr. 532, Ion 08.10: «pui Iura unic șofer»): fără atribuiri în grafic — cursele (rută +
+ * sens) care au comenzi de probă plătite în ziua dată.
+ */
+export async function curseleProbei(db: Db, zi: string): Promise<Array<{ crm_route_id: number; going_north: boolean }>> {
+  const { data, error } = await db.from('bilete_comenzi').select('crm_route_id, going_north')
+    .eq('trip_date', zi).eq('status', 'platita').eq('proba_fizica', true);
+  if (error) throw new Error(`bilete_comenzi: ${error.message}`);
+  const vazute = new Map<string, { crm_route_id: number; going_north: boolean }>();
+  for (const r of (data || []) as Array<{ crm_route_id: number; going_north: boolean }>) vazute.set(`${r.crm_route_id}|${r.going_north}`, r);
+  return [...vazute.values()];
+}
+
+/** Cursele (rută + sens) ale șoferului în ziua dată, din atribuiri (șoferul de probă: din comenzile de probă) — fără opriri și pasageri. */
+export async function curseleSoferului(db: Db, driverId: string, zi: string, proba = false): Promise<Array<{ crm_route_id: number; going_north: boolean }>> {
+  if (proba) return curseleProbei(db, zi);
   const pe = await atribuirileZilelor(db, [zi]);
   return curseDinAtribuiri(pe.get(zi) ?? [], driverId);
 }
@@ -85,9 +99,12 @@ interface ComandaRand {
   bilete: Array<{ cod_qr: string; nr: number; loc_nr: number | null; status: string; urcat_at: string | null }> | null;
 }
 
-/** Cursele zilei cu opriri, ore și pasageri — forma din contract. `atribuiri` = rândurile zilei deja citite (altfel se citesc). */
-export async function curseCuPasageri(db: Db, driverId: string, zi: string, atribuiri?: RawAssignment[]): Promise<CursaApi[]> {
-  const curse = atribuiri ? curseDinAtribuiri(atribuiri, driverId) : await curseleSoferului(db, driverId, zi);
+/**
+ * Cursele zilei cu opriri, ore și pasageri — forma din contract. `atribuiri` = rândurile zilei deja citite (altfel se citesc).
+ * `proba` = șoferul de probă (532): cursele din comenzile de probă și DOAR pasagerii lor; șoferii reali nu văd comenzi test.
+ */
+export async function curseCuPasageri(db: Db, driverId: string, zi: string, atribuiri?: RawAssignment[], proba = false): Promise<CursaApi[]> {
+  const curse = proba ? await curseleProbei(db, zi) : atribuiri ? curseDinAtribuiri(atribuiri, driverId) : await curseleSoferului(db, driverId, zi);
   if (!curse.length) return [];
   const ids = [...new Set(curse.map((c) => c.crm_route_id))];
   // Nomenclatorul (cache) și comenzile cu biletele încorporate (FK unică bilete.comanda_id, migr. 483) — în paralel.
@@ -95,7 +112,7 @@ export async function curseCuPasageri(db: Db, driverId: string, zi: string, atri
     nomenclator.pentru(ids),
     db.from('bilete_comenzi')
       .select('id, crm_route_id, going_north, passenger_name, phone, from_stop_order, from_name, to_name, seats, bilete(cod_qr, nr, loc_nr, status, urcat_at)')
-      .eq('trip_date', zi).eq('status', 'platita').eq('test', false).in('crm_route_id', ids)
+      .eq('trip_date', zi).eq('status', 'platita').eq(proba ? 'proba_fizica' : 'test', proba).in('crm_route_id', ids)
       .order('nr', { referencedTable: 'bilete', ascending: true }),
   ]);
   if (rC.error) throw new Error(`bilete_comenzi: ${rC.error.message}`);
@@ -145,7 +162,7 @@ function ziUrmatoare(zi: string): string {
 }
 
 export interface RaspunsAzi {
-  sofer: { id: string; nume: string };
+  sofer: { id: string; nume: string; is_test?: boolean };
   zi: string;
   acum: string;
   curse: CursaApi[];
@@ -155,16 +172,17 @@ export interface RaspunsAzi {
 }
 
 /** GET /api/bilete-sofer/azi: cursele de azi + cursa curentă (C1, v1 fără GPS → «orar»); fără cursă azi → și «maine». */
-export async function raspunsAzi(sofer: { id: string; nume: string }, now = new Date()): Promise<RaspunsAzi> {
+export async function raspunsAzi(sofer: { id: string; nume: string; is_test?: boolean }, now = new Date()): Promise<RaspunsAzi> {
   const db = getSupabase();
   const zi = chisinauTodayIso();
   const maine = ziUrmatoare(zi);
   const ora = chisinauTimeOf(now.toISOString());
   const atribuiri = await atribuirileZilelor(db, [zi, maine]);
-  const curse = await curseCuPasageri(db, sofer.id, zi, atribuiri.get(zi) ?? []);
+  const proba = sofer.is_test === true;
+  const curse = await curseCuPasageri(db, sofer.id, zi, atribuiri.get(zi) ?? [], proba);
   const curenta = alegeCurenta(curse.filter((c) => c.plecare).map((c) => ({ cheie: c.cheie, plecare: c.plecare as string, sosire: c.sosire })), ora);
   const r: RaspunsAzi = { sofer, zi, acum: chisinauInstantIso(zi, ora), curse, curenta, motiv_curenta: 'orar' };
   // Fără cursă curentă sau viitoare azi (nicio atribuire, sau toate au trecut) → ziua următoare, cu aceeași formă (atribuirile sunt deja citite).
-  if (!curenta) r.maine = await curseCuPasageri(db, sofer.id, maine, atribuiri.get(maine) ?? []);
+  if (!curenta) r.maine = await curseCuPasageri(db, sofer.id, maine, atribuiri.get(maine) ?? [], proba);
   return r;
 }

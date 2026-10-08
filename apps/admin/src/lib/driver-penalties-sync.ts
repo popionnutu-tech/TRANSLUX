@@ -60,7 +60,7 @@ export async function loadPenaltyDrivers(): Promise<DriverRef[]> {
   const { data, error } = await getSupabase()
     .from('drivers')
     .select('id, full_name')
-    .eq('active', true)
+    .eq('active', true).neq('is_test', true)
     .or('is_lde.is.null,is_lde.eq.false')
     .order('full_name');
   if (error) throw new Error(`drivers: ${error.message}`);

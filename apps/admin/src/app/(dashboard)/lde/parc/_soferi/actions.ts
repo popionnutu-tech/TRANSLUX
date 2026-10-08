@@ -52,7 +52,7 @@ export async function getLdeSoferi(uzina_id?: string): Promise<LdeSoferRow[]> {
   const { data, error } = await sb
     .from('drivers')
     .select('id, full_name, active, lde_driver_extras(uzina_id, home_address, lde_salary_category, parking_location, notes)')
-    .eq('active', true)
+    .eq('active', true).neq('is_test', true)
     .order('full_name');
 
   if (error) throw new Error(error.message);

@@ -98,7 +98,7 @@ export async function getActiveDrivers(): Promise<DriverOption[]> {
   const { data } = await getSupabase()
     .from('drivers')
     .select('id, full_name, phone')
-    .eq('active', true)
+    .eq('active', true).neq('is_test', true)
     .eq('is_lde', false)
     .order('full_name');
   return (data || []) as DriverOption[];

@@ -144,3 +144,19 @@ describe('curseDinAtribuiri — harta tur/retur cu override, din rândurile tutu
     expect(curseDinAtribuiri(randuri, A)).toEqual([]);
   });
 });
+
+describe('biletPermis — proba fizică (532), fail-closed', async () => {
+  const { biletPermis } = await import('./sofer-reguli');
+  it('șoferul real: doar bilete ne-test; șoferul de probă: doar proba_fizica; câmp lipsă → nu', () => {
+    expect(biletPermis(false, { test: false, proba_fizica: false })).toBe(true);
+    expect(biletPermis(false, { test: true, proba_fizica: true })).toBe(false);
+    expect(biletPermis(false, { test: true, proba_fizica: false })).toBe(false);
+    expect(biletPermis(true, { test: true, proba_fizica: true })).toBe(true);
+    expect(biletPermis(true, { test: true, proba_fizica: false })).toBe(false);
+    expect(biletPermis(true, { test: false, proba_fizica: false })).toBe(false);
+    expect(biletPermis(false, null)).toBe(false);
+    expect(biletPermis(true, undefined)).toBe(false);
+    expect(biletPermis(false, { test: null, proba_fizica: false })).toBe(false);
+    expect(biletPermis(false, {})).toBe(false);
+  });
+});

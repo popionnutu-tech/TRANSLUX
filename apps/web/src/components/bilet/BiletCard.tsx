@@ -10,8 +10,8 @@ import { OPERATOR } from '@/components/legal/legal-content';
 const RED = '#9B1B30';
 
 const TXT = {
-  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: '✓ Achitat online', urcat: '✓ Urcat' },
-  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: '✓ Оплачено онлайн', urcat: '✓ Посадка выполнена' },
+  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: '✓ Achitat online', urcat: '✓ Urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE' },
+  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: '✓ Оплачено онлайн', urcat: '✓ Посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ' },
 } as const;
 
 const nfPret = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
@@ -59,6 +59,8 @@ export function BiletCard({ comanda: c, bilet: b, locale }: { comanda: ComandaPu
   const nume = numeRuta(c, locale);
   return (
     <div className="bilet-card" style={{ background: '#fff', borderRadius: 22, boxShadow: '0 6px 24px rgba(0,0,0,0.10)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#1a1a1a' }}>
+      {/* Proba fizică (migr. 532): biletul de probă se vede de departe — nu e valabil pe o cursă reală. */}
+      {c.proba && <div style={{ background: '#b91c1c', color: '#fff', textAlign: 'center', padding: '10px 14px', fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{tx.proba}</div>}
       {/* Partea de sus: cursa */}
       <div style={{ padding: '18px 22px 14px' }}>
         {/* Ion, 05.10: «sus la șoferi și la clienți pune logo-ul nostru» — logo-ul bordo în capul cardului. */}

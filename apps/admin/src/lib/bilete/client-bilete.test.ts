@@ -17,7 +17,7 @@ const initDataPentru = (id: number, authDate = ACUM_S - 60) =>
   semneazaInitData({ query_id: 'AAEAAQ', user: JSON.stringify({ id, first_name: 'Ion' }), auth_date: String(authDate) }, TOKEN);
 
 const comandaPublica = (cod: string): ComandaPublica => ({
-  cod, numar: cod.slice(0, 8).toUpperCase(), status: 'platita', trip_date: '2026-10-05', from_name: 'Chișinău', to_name: 'Briceni',
+  cod, numar: cod.slice(0, 8).toUpperCase(), status: 'platita', proba: false, trip_date: '2026-10-05', from_name: 'Chișinău', to_name: 'Briceni',
   departure_at: '2026-10-05T14:00:00+03:00', sosire: '18:30', seats: 1, price_per_seat: 200, total: 200, passenger_name: 'Pop Ion',
   lang: 'ro', paid_at: null, cancelled_at: null, ruta: null, punct_urcare: null, bilete: [],
 });

@@ -161,7 +161,7 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
         .not('driver_id', 'is', null).not('factory_route_id', 'is', null)),
     citesteTot<{ vehicle_id: string; lat: number; lon: number }>(
       () => sb.from('lde_gps_stops').select('vehicle_id, lat, lon').eq('is_base', true).gte('date', de)),
-    sb.from('drivers').select('id, full_name').eq('active', true),
+    sb.from('drivers').select('id, full_name').eq('active', true).neq('is_test', true),
     sb.from('lde_factory_routes').select('id, uzina_id, route_number').eq('active', true),
     sb.from('lde_uzine_gates').select('uzina_id, lat, lon').eq('active', true),
     sb.from('lde_uzina_shift_boundaries').select('uzina_id, shift_number, tip, minute_zi'),

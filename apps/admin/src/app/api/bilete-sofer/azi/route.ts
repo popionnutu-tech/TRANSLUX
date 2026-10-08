@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const auth = await autentificaSofer(req.headers.get('x-telegram-init-data'));
   if (!auth.ok) return NextResponse.json({ eroare: auth.eroare }, { status: auth.status, headers: ANTETE });
   try {
-    const r = await raspunsAzi({ id: auth.sofer.id, nume: auth.sofer.nume });
+    const r = await raspunsAzi({ id: auth.sofer.id, nume: auth.sofer.nume, is_test: auth.sofer.is_test });
     return NextResponse.json(r, { headers: ANTETE });
   } catch (e) {
     console.error('[bilete-sofer/azi]', e instanceof Error ? e.message : e);

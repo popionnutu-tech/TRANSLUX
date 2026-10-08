@@ -59,9 +59,15 @@ export interface ComandaInput {
   locuriAlese?: number[] | null;
 }
 
+/** Prețul unui loc pe pagina de probă fizică (Ion, 08.10.2026: «pui să fie biletul 10 lei ieftin»); = minimul plății maib. */
+export const PRET_PROBA = 10;
 export interface ComandaOptiuni {
-  /** `test_admin` ocolește steagurile de vânzare; permis DOAR dintr-o acțiune cu requireRole('ADMIN'). */
-  mod: 'public' | 'test_admin';
+  /**
+   * `test_admin` ocolește steagurile de vânzare; permis DOAR dintr-o acțiune cu requireRole('ADMIN').
+   * `proba` = pagina de probă fizică (532, Ion 08.10): test + proba_fizica, preț forțat PRET_PROBA, fără steaguri și
+   * fără «cursa are șofer» (o vede doar șoferul is_test); permis DOAR din acțiunea paginii, după cheia secretă.
+   */
+  mod: 'public' | 'test_admin' | 'proba';
   /** Adresa panoului (pentru callbackUrl) și a site-ului (pentru successUrl/failUrl). */
   bazaAdmin: string;
   bazaSite: string;
@@ -261,7 +267,7 @@ function urlBiletImplicit(bazaSite: string) {
  */
 export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): Promise<Rezultat> {
   const v = valideaza(input);
-  if (opt.mod === 'public' && !input.ipHash) throw new ComandaError('validare', 'ip_hash lipsește');
+  if ((opt.mod === 'public' || opt.mod === 'proba') && !input.ipHash) throw new ComandaError('validare', 'ip_hash lipsește');
   const locuriAlese = valideazaLocuriAlese(input.locuriAlese, input.seats, input.goingNorth);
   const db = getSupabase();
 
@@ -290,8 +296,8 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
   if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa);
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
-  if (!pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
-  if (!sofer) throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
+  if (opt.mod !== 'proba' && !pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
+  if (!sofer && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
 
   const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);
   const pornireRutaAt = chisinauInstantIso(input.tripDate, cursa.pornireRuta ?? cursa.trip.time);
@@ -300,7 +306,8 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   }
   if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input);
 
-  const pricePerSeat = cursa.trip.price;
+  // Proba fizică (Ion, 08.10: «pui să fie biletul 10 lei»): prețul forțat; totalul se socotește după, deci amount = total.
+  const pricePerSeat = opt.mod === 'proba' ? PRET_PROBA : cursa.trip.price;
   const total = Number((pricePerSeat * input.seats).toFixed(2));
 
   // Punctul de urcare (ION-198): din bază, după numele canonic al opririi; copia nume/coordonate o face serverul.
@@ -335,7 +342,8 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       email: v.email,
       lang: v.lang,
       ip_hash: input.ipHash ?? '',
-      test: opt.mod === 'test_admin',
+      test: opt.mod !== 'public',
+      proba_fizica: opt.mod === 'proba',
       punct_urcare_id: punct?.id ?? null,
       punct_urcare_nume_ro: punct?.nume_ro ?? null,
       punct_urcare_nume_ru: punct?.nume_ru ?? null,
@@ -354,6 +362,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       // Excepția din funcție anulează orice INSERT din ea — alerta se scrie de aici.
       await db.from('bilete_alerte').insert({ tip: 'plafon_atins', detalii: 'plafonul global de comenzi deschise (50 / 30 min) a fost atins' });
     }
+    if (/PLAFON_PROBA/.test(error.message)) throw new ComandaError('plafon', 's-au făcut deja 10 comenzi de probă azi');
     if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
   }

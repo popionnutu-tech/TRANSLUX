@@ -64,7 +64,7 @@ export async function getAgreare(lunaParam?: string): Promise<AgreareData> {
   const [veh, nopti, drv, atrib, agr] = await Promise.all([
     db.from('vehicles').select('id, plate_number, directions').eq('active', true).overlaps('directions', Object.keys(UZINE)).order('plate_number').limit(1000),
     db.rpc('lde_agreare_nopti', { p_luna: primaZi }),
-    db.from('drivers').select('id, full_name, lde_driver_extras(uzina_id, home_address)').eq('active', true).limit(1000),
+    db.from('drivers').select('id, full_name, lde_driver_extras(uzina_id, home_address)').eq('active', true).neq('is_test', true).limit(1000),
     db.from('lde_active_assignments').select('driver_id, vehicle_id').is('valid_to', null).limit(1000),
     db.from('lde_agreare_sofer').select('vehicle_id, driver_id, de, pana, sursa, confirmat_la, confirmat_de').eq('luna', primaZi).limit(1000),
   ]);

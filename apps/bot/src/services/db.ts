@@ -149,7 +149,7 @@ export async function searchDrivers(query: string): Promise<Driver[]> {
   const { data } = await db()
     .from('drivers')
     .select('*')
-    .eq('active', true)
+    .eq('active', true).neq('is_test', true)
     .eq('is_lde', false)
     .ilike('full_name', `%${query}%`)
     .order('full_name')
@@ -1633,7 +1633,7 @@ export async function listReferencedDriverIds(): Promise<Set<string>> {
 }
 
 export async function listActiveDrivers(): Promise<Array<{ id: string; full_name: string }>> {
-  const { data, error } = await db().from('drivers').select('id, full_name').eq('active', true);
+  const { data, error } = await db().from('drivers').select('id, full_name').eq('active', true).neq('is_test', true);
   if (error) throw error;
   return (data as Array<{ id: string; full_name: string }> | null) ?? [];
 }

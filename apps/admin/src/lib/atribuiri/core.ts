@@ -561,7 +561,7 @@ export async function atribuieSofer(rowId: string, driverId: string | null, user
 /** Lista șoferilor pentru picker: întâi cei cu direcția respectivă, apoi restul. */
 export async function soferiForPicker(direction: string): Promise<Array<{ id: string; name: string; inDirection: boolean }>> {
   const { data } = await getSupabase()
-    .from('drivers').select('id, full_name, directions').eq('active', true).order('full_name');
+    .from('drivers').select('id, full_name, directions').eq('active', true).neq('is_test', true).order('full_name');
   return (data ?? []).map((d: { id: string; full_name: string; directions: string[] | null }) => ({
     id: d.id,
     name: d.full_name,

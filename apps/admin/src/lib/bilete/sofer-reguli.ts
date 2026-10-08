@@ -171,3 +171,13 @@ export function curseDinAtribuiri(randuri: RawAssignment[], driverId: string): A
   for (const [rid, d] of buildReturAssignmentMap(all)) if (d.driver_id === driverId) out.push({ crm_route_id: rid, going_north: true });
   return out;
 }
+
+/**
+ * Proba fizică (migr. 532), fail-closed: ce bilet are voie să vadă și să scaneze șoferul. Șoferul real — doar bilete
+ * NE-test; șoferul de probă — doar bilete proba_fizica. Biletul fără comandă citită → nu. Biletul nepermis se tratează ca
+ * absent pentru tot răspunsul scanării (fără nume, loc, cursă), ca să nu scurgă datele pasagerului (critica C3).
+ */
+export function biletPermis(soferProba: boolean, comanda: { test?: boolean | null; proba_fizica?: boolean | null } | null | undefined): boolean {
+  if (!comanda || typeof comanda.test !== 'boolean' || typeof comanda.proba_fizica !== 'boolean') return false;
+  return soferProba ? comanda.proba_fizica === true : comanda.test === false;
+}

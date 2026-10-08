@@ -83,7 +83,7 @@ async function raportLegare(sb: ReturnType<typeof getSupabase>, azi: string): Pr
   const deLa = de.toISOString().slice(0, 10);
   const [{ data: da }, { data: dr }, { data: rute }] = await Promise.all([
     sb.from('daily_assignments').select('assignment_date, driver_id, driver_id_retur, crm_route_id, retur_route_id').gte('assignment_date', deLa).lte('assignment_date', azi),
-    sb.from('drivers').select('id, full_name, telegram_id').eq('active', true),
+    sb.from('drivers').select('id, full_name, telegram_id').eq('active', true).neq('is_test', true),
     sb.from('crm_routes').select('id').eq('route_type', 'interurban'),
   ]);
   if (!da || !dr || !rute) return null;
@@ -195,7 +195,7 @@ export async function GET(req: NextRequest) {
     out.anunt = 'trimis';
   }
   // câți șoferi interurbani activi sunt legați (doar în răspuns, nu în grupă)
-  const { data: dr } = await sb.from('drivers').select('telegram_id').eq('active', true).eq('is_lde', false);
+  const { data: dr } = await sb.from('drivers').select('telegram_id').eq('active', true).neq('is_test', true).eq('is_lde', false);
   out.soferi = { legati: (dr ?? []).filter(r => r.telegram_id != null).length, activi: (dr ?? []).length };
 
   // Raportul zilnic pentru Ion: șoferii stabili din grafic, legați / nelegați (o dată pe zi, cât mai e cineva nelegat)

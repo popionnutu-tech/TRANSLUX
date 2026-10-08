@@ -60,7 +60,7 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
       .select('crm_route_id, driver_id, retur_route_id')
       .eq('assignment_date', date)
       .eq('auto_copied', false),
-    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).neq('is_test', true).eq('is_lde', false),
   ]);
 
   const routes = (routesRes.data || []) as any[];
@@ -347,7 +347,7 @@ export async function getActiveDrivers(): Promise<DriverOption[]> {
   const { data } = await db
     .from('drivers')
     .select('id, full_name, phone')
-    .eq('active', true)
+    .eq('active', true).neq('is_test', true)
     .eq('is_lde', false)
     .order('full_name');
   return (data || []) as DriverOption[];
@@ -435,7 +435,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
       .in('crm_route_id', routeIds)
       .eq('assignment_date', date)
       .eq('auto_copied', false),
-    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).neq('is_test', true).eq('is_lde', false),
     db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
     canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr, crm_route_id').eq('ziua', date)

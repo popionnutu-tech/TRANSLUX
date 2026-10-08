@@ -150,6 +150,8 @@ export interface ComandaPublica {
   cancelled_at: string | null;
   ruta: { id: number; nume_ro: string; nume_ru: string } | null;
   punct_urcare?: { nume_ro: string; nume_ru: string; lat: number; lon: number } | null;
+  /** Comandă de probă (migr. 532): pe bilet scrie «BILET DE PROBĂ — NU E VALABIL LA URCARE». */
+  proba?: boolean;
   bilete: BiletPublic[];
 }
 

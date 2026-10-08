@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
   const unul = req.nextUrl.searchParams.get('chat_id');
   const sb = getSupabase();
-  let q = sb.from('drivers').select('id, full_name, telegram_id').eq('active', true).not('telegram_id', 'is', null);
+  let q = sb.from('drivers').select('id, full_name, telegram_id').eq('active', true).neq('is_test', true).not('telegram_id', 'is', null);
   if (unul) q = q.eq('telegram_id', Number(unul));
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

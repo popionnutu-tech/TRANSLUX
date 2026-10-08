@@ -941,7 +941,7 @@ export async function getActiveDriversForPicker(): Promise<DriverOption[]> {
   const { data } = await sb
     .from('drivers')
     .select('id, full_name')
-    .eq('active', true)
+    .eq('active', true).neq('is_test', true)
     .eq('is_lde', false)
     .order('full_name');
   return (data || []) as DriverOption[];

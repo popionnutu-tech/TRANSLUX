@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { chisinauTimeOf } from '@/lib/chisinau-time';
 import { autentificaSofer } from '@/lib/bilete/sofer-auth';
 import { curseleSoferului } from '@/lib/bilete/sofer';
-import { COD_QR_RE, cheieCursa, clasificaScanare, parseazaCheie, parseazaScanari, type RezultatScanare } from '@/lib/bilete/sofer-reguli';
+import { COD_QR_RE, biletPermis, cheieCursa, clasificaScanare, parseazaCheie, parseazaScanari, type RezultatScanare } from '@/lib/bilete/sofer-reguli';
 
 // POST /api/bilete-sofer/scan — lotul de scanări al șoferului (ION-239, contractul ION-190 pașii 7–8; coada offline
 // trimite mai multe deodată). Corp: { cheie: «2026-10-05|7|false», scanari: [{cod, moment_client, offline}] }.
@@ -25,7 +25,7 @@ interface BiletRand {
   id: string; comanda_id: string; cod_qr: string; nr: number; loc_nr: number | null;
   status: 'valid' | 'urcat' | 'anulat' | 'returnat'; urcat_at: string | null; urcat_de: string | null;
   trip_date: string; crm_route_id: number; going_north: boolean;
-  comanda: { passenger_name: string; from_name: string; to_name: string; departure_at: string } | null;
+  comanda: { passenger_name: string; from_name: string; to_name: string; departure_at: string; test: boolean; proba_fizica: boolean } | null;
 }
 
 interface RezultatApi {
@@ -33,7 +33,7 @@ interface RezultatApi {
   cursa_bilet: string | null; urcat_at: string | null; urcat_de_altul: boolean;
 }
 
-const SEL = 'id, comanda_id, cod_qr, nr, loc_nr, status, urcat_at, urcat_de, trip_date, crm_route_id, going_north, comanda:bilete_comenzi(passenger_name, from_name, to_name, departure_at)';
+const SEL = 'id, comanda_id, cod_qr, nr, loc_nr, status, urcat_at, urcat_de, trip_date, crm_route_id, going_north, comanda:bilete_comenzi(passenger_name, from_name, to_name, departure_at, test, proba_fizica)';
 
 async function citesteBilet(db: ReturnType<typeof getSupabase>, cod: string): Promise<BiletRand | null> {
   const { data, error } = await db.from('bilete').select(SEL).eq('cod_qr', cod).maybeSingle();
@@ -62,14 +62,16 @@ export async function POST(req: NextRequest) {
 
   const db = getSupabase();
   try {
-    const ale = await curseleSoferului(db, auth.sofer.id, cheie.tripDate);
+    const ale = await curseleSoferului(db, auth.sofer.id, cheie.tripDate, auth.sofer.is_test);
     if (!ale.some((c) => c.crm_route_id === cheie.crmRouteId && c.going_north === cheie.goingNorth)) {
       return NextResponse.json({ eroare: 'cursa_straina' }, { status: 403, headers: ANTETE });
     }
 
     const rezultate: RezultatApi[] = [];
     for (const s of scanari) {
-      const b = COD_QR_RE.test(s.cod) ? await citesteBilet(db, s.cod) : null;
+      // Biletul nepermis (test la șofer real, real la șoferul de probă, comandă necitită) = absent pentru tot răspunsul (532).
+      const citit = COD_QR_RE.test(s.cod) ? await citesteBilet(db, s.cod) : null;
+      const b = citit && biletPermis(auth.sofer.is_test, citit.comanda) ? citit : null;
       const cheieBilet = b ? cheieCursa(b.trip_date, b.crm_route_id, b.going_north) : null;
       let okDejaScrisa = false;
       if (b && b.status === 'urcat' && b.urcat_de === auth.sofer.id) {

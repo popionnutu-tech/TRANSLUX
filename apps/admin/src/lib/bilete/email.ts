@@ -41,7 +41,7 @@ export async function trimiteEmailBilet(comandaId: string): Promise<RezultatEmai
     const m = construiesteMesaj({
       cod: c.cod, lang, from_name: c.from_name, to_name: c.to_name, departure_at: c.departure_at, seats: c.seats,
       total: Number(c.total), passenger_name: c.passenger_name, ruta: numeRuta,
-      numar: c.id.slice(0, 8).toUpperCase(), platit_la: c.paid_at,
+      numar: c.id.slice(0, 8).toUpperCase(), platit_la: c.paid_at, proba: c.test === true,
       bilete: bilete.map((b: { nr: number; cod_qr: string }) => ({ nr: b.nr, cod_qr: b.cod_qr })),
     }, {
       bazaSite: process.env.SITE_URL || 'https://translux.md',

@@ -18,6 +18,8 @@ export interface DateEmail {
   /** ION-235: numărul comenzii (primele 8 caractere ale id-ului) și momentul plății. */
   numar?: string;
   platit_la?: string | null;
+  /** Comandă de probă (migr. 532): subiectul și capul mesajului spun «BILET DE PROBĂ — NU E VALABIL LA URCARE». */
+  proba?: boolean;
 }
 
 export interface MesajEmail {
@@ -37,6 +39,7 @@ const T = {
     subiect: (de: string, spre: string, cand: string) => `Biletul tău TRANSLUX: ${de} → ${spre}, ${cand}`,
     salut: (n: string) => `Bună, ${n}!`,
     intro: 'Plata a trecut. Mai jos e biletul tău: arată codul QR șoferului la urcare. Fiecare cod e un loc.',
+    proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', probaScurt: 'PROBĂ',
     comanda: 'Comanda nr.', platita: 'Plătită', cursa: 'Cursa', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc',
     deschide: 'Deschide biletul pe site', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     retur: 'Garanția de lansare: până la 31.12.2026 biletul nefolosit se restituie integral, și dacă ai întârziat. Până la plecare — prin botul nostru din Telegram, după plecare — la telefon +373 60 401 010, în 24 de ore. Detalii: translux.md/ro/conditii-vanzare.',
@@ -47,6 +50,7 @@ const T = {
     subiect: (de: string, spre: string, cand: string) => `Ваш билет TRANSLUX: ${de} → ${spre}, ${cand}`,
     salut: (n: string) => `Здравствуйте, ${n}!`,
     intro: 'Оплата прошла. Ниже ваш билет: покажите QR-код водителю при посадке. Каждый код — одно место.',
+    proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', probaScurt: 'ТЕСТ',
     comanda: 'Заказ №', platita: 'Оплачен', cursa: 'Рейс', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место',
     deschide: 'Открыть билет на сайте', telegram: '📍 Билет и ваш автобус в Telegram',
     retur: 'Гарантия запуска: до 31.12.2026 неиспользованный билет возвращается полностью, даже если вы опоздали. До отправления — через наш бот в Telegram, после отправления — по телефону +373 60 401 010, в течение 24 часов. Подробнее: translux.md/ru/conditii-vanzare.',
@@ -89,6 +93,7 @@ export function construiesteMesaj(d: DateEmail, opt: { bazaSite: string; bot: st
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1f1;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#222;">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;padding:24px;">
+${d.proba ? `<tr><td style="background:#b91c1c;color:#fff;font-weight:bold;text-align:center;padding:10px;border-radius:8px;">${esc(t.proba)}</td></tr>` : ''}
 <tr><td style="font-size:20px;font-weight:bold;color:${RED};padding-bottom:8px;">TRANSLUX</td></tr>
 <tr><td style="font-size:16px;padding-bottom:6px;">${esc(t.salut(prenume))}</td></tr>
 <tr><td style="font-size:14px;color:#555;padding-bottom:16px;">${esc(t.intro)}</td></tr>
@@ -117,6 +122,7 @@ ${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
 </table></td></tr></table></body></html>`;
 
   const text = [
+    ...(d.proba ? [t.proba, ''] : []),
     t.salut(prenume),
     '',
     t.intro,
@@ -139,5 +145,5 @@ ${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
     t.nuRaspunde,
   ].join('\n');
 
-  return { subiect: t.subiect(d.from_name, d.to_name, cand), html, text, qrIds };
+  return { subiect: `${d.proba ? `[${t.probaScurt}] ` : ''}${t.subiect(d.from_name, d.to_name, cand)}`, html, text, qrIds };
 }

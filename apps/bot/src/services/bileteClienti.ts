@@ -18,6 +18,8 @@ export interface ComandaClient {
   trip_date: string;
   crm_route_id: number;
   going_north: boolean;
+  /** Comandă de probă (migr. 532): biletul spune «BILET DE PROBĂ»; clientul nu primește telefonul șoferului real. */
+  test?: boolean | null;
   /** ION-274 (migr. 516): livrat automat în chat o dată; doar în selecția jobului «Bilete noi». */
   telegram_livrat_la?: string | null;
   telegram_mesaj_id?: number | null;
@@ -33,7 +35,7 @@ export const FEREASTRA_DUPA_PLECARE_MS = 12 * 60 * 60_000;
 /** ION-266: cât timp după plată botul mai trimite singur biletul în chat (comenzile mai vechi nu se mai ating). */
 export const FEREASTRA_PLATA_MS = 48 * 60 * 60_000;
 
-const COLOANE = 'cod, status, lang, from_name, to_name, departure_at, seats, telegram_id, trip_date, crm_route_id, going_north';
+const COLOANE = 'cod, status, lang, from_name, to_name, departure_at, seats, telegram_id, trip_date, crm_route_id, going_north, test';
 
 export interface RepoBileteClienti {
   comandaDupaCod(cod: string): Promise<ComandaClient | null>;
@@ -42,7 +44,7 @@ export interface RepoBileteClienti {
   /** Comenzile active legate de cont, cu plecarea după `nowMs − 12 h`, cele mai apropiate întâi. */
   comenziLegate(telegramId: number, nowMs: number): Promise<ComandaClient[]>;
   /** Telefonul șoferului cursei din graficul zilei (tur/retur cu override), sau null. */
-  telefonSofer(c: Pick<ComandaClient, 'trip_date' | 'crm_route_id' | 'going_north'>): Promise<string | null>;
+  telefonSofer(c: Pick<ComandaClient, 'trip_date' | 'crm_route_id' | 'going_north' | 'test'>): Promise<string | null>;
   /** Contul e al unui șofer activ (are butonul lui de meniu «🎫 Билеты», nu-l atingem). */
   esteSofer?(telegramId: number): Promise<boolean>;
   /** ION-248: biletele (locurile) valabile ale comenzii, cu codul QR, în ordinea locurilor. */
@@ -120,6 +122,8 @@ export function creeazaRepoBileteClienti(db: () => SupabaseClient): RepoBileteCl
     },
 
     async telefonSofer(c) {
+      // Comanda de probă n-are șofer real (o vede doar șoferul de probă, migr. 532).
+      if (c.test === true) return null;
       const { data, error } = await db()
         .from('daily_assignments')
         .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')

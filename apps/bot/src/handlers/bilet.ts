@@ -42,14 +42,17 @@ function dataOra(iso: string, lang: 'ro' | 'ru'): string {
 /** Mesajul pentru client, pur (testat): textul și linkul paginii biletului. */
 export function mesajBilet(c: {
   cod: string; status: string; lang: string | null; from_name: string; to_name: string; departure_at: string; seats: number;
+  test?: boolean | null;
 }): { text: string; url: string; buton: string } {
   const lang: 'ro' | 'ru' = c.lang === 'ru' ? 'ru' : 'ro';
   const stare = STARE[c.status]?.[lang] ?? c.status;
   const text = lang === 'ru'
     ? `🎫 Билет TRANSLUX\n${c.from_name} → ${c.to_name}\n${dataOra(c.departure_at, lang)} · мест: ${c.seats}\n${stare}`
     : `🎫 Bilet TRANSLUX\n${c.from_name} → ${c.to_name}\n${dataOra(c.departure_at, lang)} · locuri: ${c.seats}\n${stare}`;
+  // Proba fizică (migr. 532): biletul de probă se vede din prima linie.
+  const proba = c.test === true ? (lang === 'ru' ? '⚠️ ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ\n' : '⚠️ BILET DE PROBĂ — NU E VALABIL LA URCARE\n') : '';
   return {
-    text,
+    text: proba + text,
     url: `${SITE}/${lang}/bilet/${c.cod}`,
     buton: lang === 'ru' ? 'Открыть билет (QR)' : 'Deschide biletul (QR)',
   };

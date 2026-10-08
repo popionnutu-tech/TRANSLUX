@@ -31,6 +31,9 @@ export const PUBLIC_PREFIXES = [
   // singur prin CAMIOANE_API_KEY. Fără prefixul ăsta, cererea fără cookie era
   // redirectată la /login și celălalt serviciu primea HTML în loc de JSON.
   '/api/extern/',
+  // Pagina de probă fizică a biletelor online (migr. 532): fără sesiune, se apără singură — cheia secretă din
+  // BILETE_PROBA_CHEIE + termenul BILETE_PROBA_PANA_LA, verificate și în pagină, și în fiecare acțiune.
+  '/proba-bilete/',
 ] as const;
 
 /**

@@ -250,3 +250,13 @@ describe('ION-251: biletul într-un singur mesaj, fixat sus', () => {
     expect((await porneste({ legat: ME, sofer: true })).meniu).toHaveLength(0);
   });
 });
+
+describe('mesajBilet — biletul de probă (migr. 532)', () => {
+  it('comanda de probă începe cu inscripția; cea reală nu', async () => {
+    const { mesajBilet } = await import('./bilet.js');
+    const c = { cod: 'a'.repeat(32), status: 'platita', lang: 'ro', from_name: 'Briceni', to_name: 'Chișinău', departure_at: '2026-10-08T03:00:00Z', seats: 1 };
+    expect(mesajBilet({ ...c, test: true }).text.startsWith('⚠️ BILET DE PROBĂ — NU E VALABIL LA URCARE\n')).toBe(true);
+    expect(mesajBilet({ ...c, lang: 'ru', test: true }).text.startsWith('⚠️ ТЕСТОВЫЙ БИЛЕТ')).toBe(true);
+    expect(mesajBilet(c).text.startsWith('🎫')).toBe(true);
+  });
+});

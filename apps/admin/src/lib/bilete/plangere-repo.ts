@@ -19,7 +19,7 @@ async function plangeriDeLa(telegramId: number, deLa: string): Promise<number> {
 
 async function comanda(cod: string): Promise<ComandaPlangere | null> {
   const { data, error } = await getSupabase().from('bilete_comenzi')
-    .select('id, telegram_id, trip_date, crm_route_id, going_north, from_name, to_name, departure_at, passenger_name, phone')
+    .select('id, telegram_id, trip_date, crm_route_id, going_north, from_name, to_name, departure_at, passenger_name, phone, test')
     .eq('cod', cod).maybeSingle();
   if (error) throw new Error(`bilete_comenzi: ${error.message}`);
   if (!data) return null;

@@ -40,6 +40,8 @@ export interface ComandaPublica {
   ruta: { id: number; nume_ro: string; nume_ru: string } | null;
   /** ION-198: unde urcă pasagerul (copia de la comandă). */
   punct_urcare: { nume_ro: string; nume_ru: string; lat: number; lon: number } | null;
+  /** Comandă de probă (migr. 532): biletul arată «BILET DE PROBĂ — NU E VALABIL LA URCARE». */
+  proba: boolean;
   bilete: BiletPublic[];
 }
 

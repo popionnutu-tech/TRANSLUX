@@ -131,6 +131,8 @@ export interface Driver {
   beard_exempt?: boolean;
   /** De ce e scutit: cine a hotărât și când. */
   beard_exempt_note?: string | null;
+  /** Șoferul de probă al biletelor online (migr. 532): vede/scanează doar comenzile proba_fizica. */
+  is_test?: boolean;
 }
 
 export interface Vehicle {
@@ -1002,6 +1004,8 @@ export interface BileteComanda {
   ip_hash: string | null;
   /** comandă de probă din /plati (mod test_admin); nu intră în digest și în online_lei */
   test: boolean;
+  /** Comanda de pe pagina de probă fizică (migr. 532): test=true, 10 lei/loc, o vede doar șoferul is_test. */
+  proba_fizica: boolean;
   /** ION-198 (migr. 490): punctul de urcare ales + copia numelui și a coordonatelor la momentul comenzii. */
   punct_urcare_id?: number | null;
   punct_urcare_nume_ro?: string | null;

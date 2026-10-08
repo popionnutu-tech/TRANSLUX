@@ -63,6 +63,8 @@ export interface ComandaPlangere {
   to_name: string;
   departure_at: string;
   passenger_name: string;
+  /** Comandă de probă (migr. 532): plângerea nu se leagă de șoferul real al cursei. */
+  test?: boolean;
   phone: string;
 }
 
@@ -189,7 +191,7 @@ export async function inregistreazaPlangerea(cerere: CererePlangere, deps: DepsP
     return { status: 429, corp: { ok: false, cod: 'plafon' }, notifica: null };
   }
   const comanda = await comandaContului(deps.repo, cerere);
-  const sofer = comanda ? await deps.repo.soferulCursei(comanda) : null;
+  const sofer = comanda && comanda.test !== true ? await deps.repo.soferulCursei(comanda) : null;
   const rand = randPlangere(cerere, comanda, sofer, deps);
   const scris = await deps.repo.insereaza(rand);
   return { status: 200, corp: { ok: true }, notifica: scris === 'inserata' ? notificare(rand, deps) : null };

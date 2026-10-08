@@ -14,8 +14,8 @@ const BG = '#f1efef';
 const RED = '#9B1B30';
 
 const TXT = {
-  ro: { online: 'BILET ONLINE', locul: 'Locul', pret: 'Preț', achitat: 'Achitat online', azi: 'Azi', din: (n: number, t: number) => `biletul ${n} din ${t}` },
-  ru: { online: 'ОНЛАЙН-БИЛЕТ', locul: 'Место', pret: 'Цена', achitat: 'Оплачено онлайн', azi: 'Сегодня', din: (n: number, t: number) => `билет ${n} из ${t}` },
+  ro: { online: 'BILET ONLINE', locul: 'Locul', pret: 'Preț', achitat: 'Achitat online', azi: 'Azi', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', din: (n: number, t: number) => `biletul ${n} din ${t}` },
+  ru: { online: 'ОНЛАЙН-БИЛЕТ', locul: 'Место', pret: 'Цена', achitat: 'Оплачено онлайн', azi: 'Сегодня', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', din: (n: number, t: number) => `билет ${n} из ${t}` },
 } as const;
 
 const OPERATOR = 'TRANSLUX · S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni”';
@@ -49,10 +49,15 @@ export async function imagineBilet(c: ComandaPublica, nr: number): Promise<Buffe
   // antet: logo + data
   out.push(`<image x="${L}" y="30" width="${(22 * 1318) / 192}" height="22" href="data:image/png;base64,${logoBase64()}"/>`);
   out.push(textPath(bold, dataScurta(c.trip_date, c.lang === 'ru' ? 'ru' : 'ro'), R, 47, 13, '#555', 'end'));
-  // pastila
-  const wPast = latime(bold, t.online, 10.5) + 28;
-  out.push(`<rect x="${L}" y="64" width="${wPast}" height="26" rx="13" fill="#fbe9e3"/>`);
-  out.push(textPath(bold, t.online, L + 14, 81, 10.5, '#d9532b'));
+  // pastila; biletul de probă (migr. 532): bandă roșie pe toată lățimea în locul ei
+  if (c.proba) {
+    out.push(`<rect x="${L}" y="64" width="${R - L}" height="26" rx="13" fill="#b91c1c"/>`);
+    out.push(textPath(bold, truncText(bold, t.proba, 10.5, R - L - 20), W / 2, 81, 10.5, '#fff', 'middle'));
+  } else {
+    const wPast = latime(bold, t.online, 10.5) + 28;
+    out.push(`<rect x="${L}" y="64" width="${wPast}" height="26" rx="13" fill="#fbe9e3"/>`);
+    out.push(textPath(bold, t.online, L + 14, 81, 10.5, '#d9532b'));
+  }
   // orele
   const plecare = oraHHMM(c.departure_at);
   const sosire = c.sosire ?? '—:—';

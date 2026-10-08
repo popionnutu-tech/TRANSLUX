@@ -441,7 +441,7 @@ export async function getFilterOptions() {
   if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const [routesRes, driversRes] = await Promise.all([
     getSupabase().from('routes').select('id, name').eq('active', true).order('name'),
-    getSupabase().from('drivers').select('id, full_name').eq('active', true).eq('is_lde', false).order('full_name'),
+    getSupabase().from('drivers').select('id, full_name').eq('active', true).neq('is_test', true).eq('is_lde', false).order('full_name'),
   ]);
   return {
     routes: (routesRes.data || []) as Array<{ id: string; name: string }>,

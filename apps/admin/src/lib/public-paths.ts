@@ -15,8 +15,6 @@ export const PUBLIC_PREFIXES = [
   '/api/voice/custom-llm/',
   // Init-webhook ElevenLabs (salut după ora zilei) — se protejează singur prin VOICE_API_KEY.
   '/api/voice/webhooks/',
-  '/api/fb-bot/',
-  '/api/facebook/',
   '/api/tiktok/',
   '/api/schedule-image',
   // Mini App задачника: открывается в Telegram, защищается сам через initData (без cookie-сессии).

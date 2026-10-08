@@ -42,6 +42,13 @@ describe('gasesteNeconformitati', () => {
     expect(r.lista).toHaveLength(1);
     expect(r.lista[0]).toMatchObject({ tip: 'devreme', gara: 'Briceni', minute: -5 });
   });
+  it('ruta 14: returul din Chișinău merge pe centură fără abatere, turul ei trece prin Sîngerei (Ion, 08.10)', () => {
+    const r = gasesteNeconformitati([tr(14, true, 'Bălți', 0), tr(14, false, 'Bălți', 0)], [
+      { ruta: 14, retur: true, driver_id: 'a', vehicle_id: 'x' },
+      { ruta: 14, retur: false, driver_id: 'a', vehicle_id: 'x' },
+    ]);
+    expect(r.lista.map((x) => [x.tip, x.ruta, x.retur])).toEqual([['singerei', 14, false]]);
+  });
   it('pe retur plecarea devreme din gări nu contează', () => {
     const r = gasesteNeconformitati([tr(9, true, 'Bălți', -20), tr(9, true, 'Sîngerei', 0)], [retur]);
     expect(r.lista).toEqual([]);

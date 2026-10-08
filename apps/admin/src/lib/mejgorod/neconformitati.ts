@@ -11,6 +11,10 @@
 // sens: centru_m ≤ SINGEREI_MAX_M SAU oprire ≥ VRANESTI_MIN_S la Intersecția Vrănești (vranesti_s,
 // migr. 527). Fără niciuna = abatere.
 //
+// Excepția rutei 14 (Ion, 08.10): «ruta 10:00 plecare din Chișinău să meargă pe centură la Bălți, nu prin
+// Sîngerei», «fără abateri, dar doar de la Chișinău spre Bălți» — returul rutei 14 (Chișinău 10:10 → Criva)
+// nu se judecă la Sîngerei; turul ei (Criva → Chișinău) trece prin Sîngerei ca toate.
+//
 // Sursa: route_stop_passes (migr. 393), scrisă noaptea de lde-geo-worker/stop-times.mjs. La gări
 // passed_at e plecarea (ultimul punct la ≤150 m de peron), offset_min = minute față de grafic.
 // Logica e pură; citirea și trimiterea stau în /api/cron/mejgorod-neconformitati.
@@ -23,6 +27,8 @@ export const SINGEREI = 'Sîngerei';
 export const SINGEREI_MAX_M = 300;
 /** Oprirea (s, sub 8 km/h) la Intersecția Vrănești, pe centura Sîngerei, care ține loc de centru (Ion, 07.10). */
 export const VRANESTI_MIN_S = 10;
+/** Rutele al căror RETUR (din Chișinău spre nord) merge pe centura Bălți, nu prin Sîngerei (Ion, 08.10). */
+export const RETUR_PE_CENTURA: ReadonlySet<number> = new Set([14]);
 /** Ion, 07.10: «plecat înainte de grafic doar cu 5 min» — 1–4 minute mai devreme nu se raportează. */
 export const PLECARE_DEVREME_MIN = 5;
 
@@ -107,6 +113,7 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
         }
       }
     }
+    if (c.retur && RETUR_PE_CENTURA.has(c.ruta)) continue;
     const s = rows.find((x) => x.stop_name === SINGEREI);
     // Pe oprirea reală din centru (centru_m), nu pe cea mutată pe linia rutei: linia trece pe centură, deci
     // distance_m ieșea 10–30 m pentru orice autobuz de pe centură (~950 m de centru). Rândurile vechi, fără

@@ -36,9 +36,9 @@ export async function pregatesteSpisanie(docId: number): Promise<
   const sb = getSupabase();
 
   const doc = check(await sb.from('piese_stock_documents')
-    .select('id, doc_type, created_at, warehouse_id, vehicle_id, mechanic_id')
+    .select('id, doc_type, created_at, invoice_date, warehouse_id, vehicle_id, mechanic_id')
     .eq('id', docId).maybeSingle()) as {
-      id: number; doc_type: string; created_at: string;
+      id: number; doc_type: string; created_at: string; invoice_date: string | null;
       warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null } | null;
   if (!doc) throw new Error('Documentul nu există.');
   if (doc.doc_type !== 'ISSUE') throw new Error('Doar eliberările se trimit ca «Списание запчастей».');
@@ -79,7 +79,11 @@ export async function pregatesteSpisanie(docId: number): Promise<
 
   const date: DateSpisanie = {
     docGuid,
-    data: String(doc.created_at).slice(0, 10),
+    // Data facturii FISCALE, dacă există; altfel ziua intrării în depozit. Contabilitatea are nevoie de
+    // data documentului fiscal, nu de ziua în care marfa a ajuns pe raft — iar la noi cele două chiar
+    // diferă: factura internă aduce piesele, cea fiscală vine peste o zi sau o săptămână (Eduard, 08.10).
+    // Rezerva pe `created_at` e pentru documentele de dinainte de câmp și pentru cele fără factură.
+    data: String(doc.invoice_date || doc.created_at).slice(0, 10),
     comentariu: `Creat de programul Piese (document ${docId})`,
     depozitGuid: depozit!.guid_1c!,
     masinaGuid: null,                       // ТранспортноеСредство rămâne gol — evidența e pe costuri

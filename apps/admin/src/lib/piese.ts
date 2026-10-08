@@ -497,14 +497,14 @@ export async function finalizeReceipt(
 
 // ── Modificarea unei recepții (#1b) ──
 // Antetul unui document de recepție (pentru ecranul de modificare). Doar RECEIPT ne-anulat.
-export async function receiptDocHeaderForEdit(docId: number): Promise<{ id: number; warehouseId: number; supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null; createdAt: string; status: string } | null> {
+export async function receiptDocHeaderForEdit(docId: number): Promise<{ id: number; warehouseId: number; supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null; invoiceDate: string | null; createdAt: string; status: string } | null> {
   const { data, error } = await getSupabase().from('piese_stock_documents')
-    .select('id, warehouse_id, supplier_id, invoice_series, invoice_number, note, invoice_total, created_at, status, doc_type')
+    .select('id, warehouse_id, supplier_id, invoice_series, invoice_number, note, invoice_total, invoice_date, created_at, status, doc_type')
     .eq('id', docId).maybeSingle();
   if (error) throw new Error('Nu am putut încărca documentul');
   const d = data as any;
   if (!d || d.doc_type !== 'RECEIPT') return null;
-  return { id: d.id, warehouseId: d.warehouse_id, supplierId: d.supplier_id ?? null, series: d.invoice_series ?? null, number: d.invoice_number ?? null, note: d.note ?? null, invoiceTotal: d.invoice_total == null ? null : Number(d.invoice_total), createdAt: d.created_at, status: d.status };
+  return { id: d.id, warehouseId: d.warehouse_id, supplierId: d.supplier_id ?? null, series: d.invoice_series ?? null, number: d.invoice_number ?? null, note: d.note ?? null, invoiceTotal: d.invoice_total == null ? null : Number(d.invoice_total), invoiceDate: d.invoice_date ?? null, createdAt: d.created_at, status: d.status };
 }
 
 // Poate fi editat pe LINII documentul? (adevărat doar dacă niciun strat FIFO al recepției nu a fost consumat.)
@@ -543,11 +543,13 @@ export async function receiptEditInfo(docId: number): Promise<{ canEditLines: bo
 }
 
 // Modifică DOAR antetul (furnizor/serie/număr/comentariu) — sigur chiar și când marfa a fost consumată (nu atinge stocul).
-export async function updateReceiptHeader(docId: number, h: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; invoice_total?: number | null }): Promise<void> {
+export async function updateReceiptHeader(docId: number, h: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; invoice_total?: number | null; invoice_date?: string | null }): Promise<void> {
   // `invoice_total` se scrie DOAR dacă apelantul l-a trimis: `undefined` = „nu atinge", `null` = „golește".
   // Fără asta, un apelant care omite câmpul ar șterge tăcut suma de control.
   const patch: Record<string, unknown> = { supplier_id: h.supplier_id, invoice_series: h.invoice_series, invoice_number: h.invoice_number, note: h.note };
   if (h.invoice_total !== undefined) patch.invoice_total = h.invoice_total;
+  // Data facturii fiscale: aceeași regulă `undefined` = „nu atinge", `null` = „golește".
+  if (h.invoice_date !== undefined) patch.invoice_date = h.invoice_date;
   const { data, error } = await getSupabase().from('piese_stock_documents')
     .update(patch)
     .eq('id', docId).eq('doc_type', 'RECEIPT').eq('status', 'CONFIRMED').select('id');

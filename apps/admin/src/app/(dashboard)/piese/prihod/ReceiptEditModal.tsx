@@ -62,6 +62,9 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   const [number, setNumber] = useState('');
   const [note, setNote] = useState('');
   const [invoiceTotal, setInvoiceTotal] = useState(''); // suma de control (migr. 288) — se ÎNCARCĂ, ca salvarea să n-o șteargă
+  // Data facturii FISCALE, care vine după marfă (Eduard, 08.10: factura internă aduce piesele, cea
+  // fiscală apare peste o zi sau o săptămână). Nu e data intrării în depozit — aceea nu se schimbă.
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [canEditLines, setCanEditLines] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
@@ -84,6 +87,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
         setNumber(d.header.number || '');
         setNote(d.header.note || '');
         setInvoiceTotal(d.header.invoiceTotal == null ? '' : String(d.header.invoiceTotal));
+        setInvoiceDate(d.header.invoiceDate ? String(d.header.invoiceDate).slice(0, 10) : '');
         setCreatedAt(d.header.createdAt);
         setLines(d.lines.map((l) => ({ part_id: l.part_id, label: l.label, qty: l.qty, unit_cost: l.unit_cost })));
         setCanEditLines(d.canEditLines);
@@ -111,7 +115,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   async function saveHeader() {
     setBusy(true); setMsg(null);
     try {
-      await saveReceiptHeader(docId, { supplier_id: supplierId ? Number(supplierId) : null, series, number, note, invoice_total: invoiceTotal });
+      await saveReceiptHeader(docId, { supplier_id: supplierId ? Number(supplierId) : null, series, number, note, invoice_total: invoiceTotal, invoice_date: invoiceDate });
       onSaved(); onClose();
     } catch (e: any) { setMsg({ t: 'danger', m: e?.message || 'Eroare la salvare' }); } finally { setBusy(false); }
   }
@@ -120,7 +124,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
     setBusy(true); setMsg(null);
     try {
       await saveReceiptLines(docId, {
-        supplier_id: supplierId ? Number(supplierId) : null, series, number, note, invoice_total: invoiceTotal,
+        supplier_id: supplierId ? Number(supplierId) : null, series, number, note, invoice_total: invoiceTotal, invoice_date: invoiceDate,
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: Number(l.qty), unit_cost: Number(l.unit_cost) })),
       });
       onSaved(); onClose();
@@ -161,6 +165,12 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
               </div>
               <div className="form-row"><label>Serie</label>{canEdit ? <input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /> : <div>{series || '—'}</div>}</div>
               <div className="form-row"><label>Număr</label>{canEdit ? <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /> : <div>{number || '—'}</div>}</div>
+              {/* Data facturii fiscale. Se poate completa ORICÂND, inclusiv după ce documentul a ieșit din
+                  fereastra de corecție — nu mișcă stoc și nu atinge FIFO, doar pleacă în 1C. De aceea
+                  câmpul nu e gardat de `canEdit`, spre deosebire de restul antetului. */}
+              <div className="form-row"><label>Data facturii <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>(fiscală)</span></label>
+                <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
+              </div>
               <div className="form-row"><label>Total factură (control)</label>{canEdit ? <input type="number" min={0} step="0.01" value={invoiceTotal} onChange={(e) => setInvoiceTotal(e.target.value)} placeholder="opțional" style={{ textAlign: 'right' }} /> : <div>{invoiceTotal || '—'}</div>}</div>
               <div className="form-row" style={{ flex: 1, minWidth: 180 }}><label>Comentariu</label>{canEdit ? <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="observații la factură" /> : <div>{note || '—'}</div>}</div>
             </div>

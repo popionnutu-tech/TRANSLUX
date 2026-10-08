@@ -160,7 +160,7 @@ async function canEditDay(session: Session, createdAt: string): Promise<boolean>
   return age <= (await editWindowDays(session));
 }
 
-function cleanHeader(h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null }) {
+function cleanHeader(h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; invoice_date?: string | null }) {
   return {
     supplier_id: h.supplier_id && Number(h.supplier_id) > 0 ? Number(h.supplier_id) : null,
     invoice_series: (h.series || '').trim().slice(0, 60) || null,
@@ -170,7 +170,30 @@ function cleanHeader(h: { supplier_id?: number | null; series?: string | null; n
     // Fără distincția asta, orice apelant care omite câmpul ar șterge tăcut suma de control —
     // exact cum s-a întâmplat înainte ca modalul de editare să înceapă să o trimită.
     invoice_total: h.invoice_total !== undefined ? cleanTotal(h.invoice_total) : undefined,
+    // Data facturii fiscale. Doar formatul ISO din `<input type="date">`; orice altceva se tratează ca
+    // golire, nu se încearcă ghicirea.
+    invoice_date: h.invoice_date !== undefined
+      ? (/^\d{4}-\d{2}-\d{2}$/.test(String(h.invoice_date || '').trim()) ? String(h.invoice_date).trim() : null)
+      : undefined,
   };
+}
+
+// Câmpurile FACTURII FISCALE — seria, numărul și data. Ele vin DUPĂ marfă: factura internă aduce piesele,
+// iar factura fiscală pentru contabilitate apare peste o zi sau peste o săptămână (Eduard, 08.10).
+//
+// Niciunul nu mișcă stoc, nu schimbă vreun cost și nu atinge ordinea FIFO. De aceea se pot corecta ȘI în
+// afara ferestrei de corecție — altfel regula s-ar bate cap în cap cu realitatea: Eduard are fereastră de
+// o zi, iar factura vine peste o săptămână, adică exact când n-ar mai avea voie să scrie nimic.
+//
+// Tot ce poate strica registrul — furnizorul, totalul de control, comentariul, liniile — rămâne sub
+// fereastră.
+const CAMPURI_FACTURA = ['invoice_series', 'invoice_number', 'invoice_date'] as const;
+
+function doarFacturaSeSchimba(h: ReturnType<typeof cleanHeader>, header: { supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null }): boolean {
+  if (h.supplier_id !== header.supplierId) return false;
+  if ((h.note ?? null) !== (header.note ?? null)) return false;
+  if (h.invoice_total !== undefined && h.invoice_total !== header.invoiceTotal) return false;
+  return true;
 }
 
 // Refuză documentele care nu pot fi editate din acest ecran (soldul inițial). Aceeași regulă ca RPC-ul (SOLD_INITIAL),
@@ -180,7 +203,7 @@ function assertEditableDoc(series: string | null): void {
 }
 
 // Gardă comună la salvare: rol + depozit + status + regula pe zi + nu-e-sold. Reîncarcă antetul (sursă de adevăr pe server).
-async function guardReceiptEdit(docId: number) {
+async function guardReceiptEdit(docId: number, sareZiua = false) {
   const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
   const header = await receiptDocHeaderForEdit(Number(docId));
   if (!header) throw new Error('Document inexistent');
@@ -189,7 +212,9 @@ async function guardReceiptEdit(docId: number) {
   // corectat" ar confirma statusul unui document din alt depozit, la care contul n-are acces.
   await assertWarehouseAllowed(session, header.warehouseId); // cont legat: doar depozitul lui
   if (header.status !== 'CONFIRMED') throw new Error('Documentul nu mai poate fi modificat (a fost deja corectat).');
-  if (!(await canEditDay(session, header.createdAt))) throw new Error('Documentul e mai vechi decât fereastra ta de corecție. Cere administratorului.');
+  // `sareZiua` e adevărat DOAR când se schimbă strict seria/numărul/data facturii — vezi CAMPURI_FACTURA.
+  // Rolul, depozitul și starea documentului se verifică în continuare, toate.
+  if (!sareZiua && !(await canEditDay(session, header.createdAt))) throw new Error('Documentul e mai vechi decât fereastra ta de corecție. Cere administratorului.');
   return { session, header };
 }
 
@@ -209,7 +234,7 @@ export async function loadReceiptForEdit(docId: number) {
     auditHistoryForDoc('receipt', Number(docId)).catch(() => null),
   ]);
   return {
-    header: { supplierId: header.supplierId, series: header.series, number: header.number, note: header.note, invoiceTotal: header.invoiceTotal, createdAt: header.createdAt },
+    header: { supplierId: header.supplierId, series: header.series, number: header.number, note: header.note, invoiceTotal: header.invoiceTotal, invoiceDate: header.invoiceDate, createdAt: header.createdAt },
     lines: lines.map((l) => ({ part_id: l.partId, label: l.article ? `${l.name} · ${l.article}` : l.name, qty: l.qty, unit_cost: l.unitCost })),
     canEditLines: info.canEditLines,
     consumedBy: info.consumedBy,
@@ -219,9 +244,13 @@ export async function loadReceiptForEdit(docId: number) {
 }
 
 // Salvează DOAR antetul (furnizor/serie/număr/comentariu/total factură) — permis chiar și când marfa a fost consumată.
-export async function saveReceiptHeader(docId: number, h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null }) {
-  const { session, header } = await guardReceiptEdit(Number(docId));
+export async function saveReceiptHeader(docId: number, h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; invoice_date?: string | null }) {
+  // Se citește antetul ÎNAINTE de gardă, ca să știm dacă se schimbă doar datele facturii — singurul caz
+  // în care fereastra de corecție nu se aplică. Citirea nu dezvăluie nimic: garda de rol și de depozit
+  // vine imediat după, în `guardReceiptEdit`, care recitește oricum.
+  const actual = await receiptDocHeaderForEdit(Number(docId));
   const hh = cleanHeader(h);
+  const { session, header } = await guardReceiptEdit(Number(docId), !!actual && doarFacturaSeSchimba(hh, actual));
   if (hh.invoice_series === 'SOLD') throw new Error('Seria „SOLD" e rezervată soldului inițial.');
   // Totalul se verifică față de liniile CURENTE ale documentului (aici se schimbă doar antetul), ca martorul
   // salvat să nu poată rămâne în dezacord cu marfa. Necompletat → fără verificare.
@@ -243,7 +272,7 @@ export async function saveReceiptHeader(docId: number, h: { supplier_id?: number
 
 
 // Salvează antet + LINII (anulare + refacere prin RPC). Întoarce id-ul documentului nou corectat.
-export async function saveReceiptLines(docId: number, payload: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
+export async function saveReceiptLines(docId: number, payload: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; invoice_date?: string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
   const { session, header } = await guardReceiptEdit(Number(docId));
   const hh = cleanHeader(payload);
   const lines = (payload.lines || [])
@@ -290,17 +319,21 @@ export async function saveReceiptLines(docId: number, payload: { supplier_id?: n
 async function auditHeaderChange(
   adminId: string,
   docId: number,
-  before: { supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null },
-  after: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; invoice_total?: number | null },
+  before: { supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null; invoiceDate?: string | null },
+  after: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; invoice_total?: number | null; invoice_date?: string | null },
 ): Promise<void> {
   const b: AuditFields = {
     furnizor: before.supplierId, serie: before.series, numar: before.number,
     comentariu: before.note, total_factura: before.invoiceTotal,
+    data_factura: before.invoiceDate ?? null,
   };
   const a: AuditFields = {
     furnizor: after.supplier_id, serie: after.invoice_series, numar: after.invoice_number,
     comentariu: after.note,
     ...(after.invoice_total !== undefined ? { total_factura: after.invoice_total } : {}),
+    // Data facturii intră în jurnal: e dată contabilă, pleacă în 1C și se poate schimba în afara
+    // ferestrei de corecție — adică e singurul câmp pe care cineva îl poate atinge pe un document vechi.
+    ...(after.invoice_date !== undefined ? { data_factura: after.invoice_date } : {}),
   };
   const diff = changedFields(b, a);
   if (!diff) return; // nimic schimbat → niciun rând (jurnalul rămâne citibil)

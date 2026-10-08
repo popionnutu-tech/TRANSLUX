@@ -152,6 +152,8 @@ export interface ComandaPublica {
   punct_urcare?: { nume_ro: string; nume_ru: string; lat: number; lon: number } | null;
   /** Comandă de probă (migr. 532): pe bilet scrie «BILET DE PROBĂ — NU E VALABIL LA URCARE». */
   proba?: boolean;
+  /** Echipajul cursei (migr. 538): după bifa dispecerului placa + prenumele șoferului (+ telefonul cu 3 h înainte de plecare). */
+  echipaj?: { stare: 'astept' | 'anulat' | 'gata'; placa: string | null; sofer: string | null; telefon: string | null } | null;
   bilete: BiletPublic[];
 }
 

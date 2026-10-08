@@ -47,7 +47,7 @@ export async function getCombustibilImport(): Promise<CombustibilData> {
     db.from('lde_fuel_statie').select('*').order('sursa').order('nume_fisier').limit(200),
     db.from('lde_fuel_import_rand').select('sursa, cod, stare, litri, motiv, statie').gte('zi_local', de90).lte('zi_local', azi).limit(10000),
     db.from('vehicles').select('id, plate_number').eq('active', true).order('plate_number').limit(1000),
-    db.from('drivers').select('id, full_name').eq('active', true).order('full_name').limit(1000),
+    db.from('drivers').select('id, full_name').eq('active', true).neq('is_test', true).order('full_name').limit(1000),
   ]);
   for (const r of [imp, port, rez, sta, rnd, veh, drv]) if (r.error) throw new Error(r.error.message);
 

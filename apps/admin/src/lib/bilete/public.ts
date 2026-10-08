@@ -4,6 +4,8 @@ import { getSupabase } from '@/lib/supabase';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { citesteConfigBilete } from './comenzi';
 import { asambleazaComanda, COLOANE_BILET, COLOANE_COMANDA, type BiletRand, type ComandaRand, type OprireSosireRand, type RutaRand } from './bilet-asamblare';
+import { echipajeZile } from './echipaj';
+import { echipajPentruBilet, type EchipajBilet } from './echipaj-reguli';
 
 // Ce vede pasagerul (pagina biletului de pe site, prin API cu codul din link ca secret) și ce vede site-ul
 // (configurația vânzării). Fără alți pasageri, fără ip_hash, fără telegram_id.
@@ -42,6 +44,8 @@ export interface ComandaPublica {
   punct_urcare: { nume_ro: string; nume_ru: string; lat: number; lon: number } | null;
   /** Comandă de probă (migr. 532): biletul arată «BILET DE PROBĂ — NU E VALABIL LA URCARE». */
   proba: boolean;
+  /** Echipajul cursei (migr. 538): după bifa dispecerului placa + prenumele (+ telefonul în fereastra plecare ± 3 h). */
+  echipaj: EchipajBilet | null;
   bilete: BiletPublic[];
 }
 
@@ -84,16 +88,17 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (cErr) throw new BazaIndisponibilaError(cErr.message); // «nu există» ≠ «baza nu răspunde» (Codex X11)
   if (!c) return null;
   const comanda = c as unknown as ComandaRand;
-  const [rB, rR, rS] = await Promise.all([
+  const [rB, rR, rS, echipaje] = await Promise.all([
     db.from('bilete').select(COLOANE_BILET).eq('comanda_id', comanda.id).order('nr'),
     db.from('crm_routes').select('id, dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', comanda.crm_route_id).maybeSingle(),
     // ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii (biletul arată plecare → sosire)
     db.from('crm_stop_fares').select('hour_from_chisinau, hour_from_nord').eq('crm_route_id', comanda.crm_route_id).eq('stop_order', comanda.to_stop_order ?? -1).maybeSingle(),
+    echipajPentruComenzi([comanda]),
   ]);
   if (rB.error) throw new BazaIndisponibilaError(rB.error.message);
   if (rR.error) throw new BazaIndisponibilaError(rR.error.message);
   // ION-276: aceeași asamblare ca lista clientului din mini app (bilet-asamblare.ts).
-  return asambleazaComanda(comanda, (rB.data ?? []) as BiletRand[], (rR.data as RutaRand | null) ?? null, (rS.data as OprireSosireRand | null) ?? null);
+  return asambleazaComanda(comanda, (rB.data ?? []) as BiletRand[], (rR.data as RutaRand | null) ?? null, (rS.data as OprireSosireRand | null) ?? null, echipaje.get(comanda.id) ?? null);
 }
 
 /** Capacitatea autobuzului (ION-239, migr. 501): 1 față + 5 × 3 + 4 spate. */
@@ -155,4 +160,24 @@ export async function configPublica(): Promise<ConfigPublica> {
     rute: (rute || []).map((r: { id: number; bilete_online_tur: boolean; bilete_online_retur: boolean }) => ({ id: r.id, tur: Boolean(r.bilete_online_tur), retur: Boolean(r.bilete_online_retur) })),
     localitati: localitatiPentruPublic(cfg.localitati),
   };
+}
+
+/**
+ * Echipajul de pe bilet (migr. 538), sau null: doar comenzile plătite, până la plecare + 6 h. Baza căzută → null
+ * (biletul se arată oricum; rândul echipajului lipsește).
+ */
+export async function echipajPentruComenzi<T extends ComandaRand>(comenzi: T[], nowMs = Date.now()): Promise<Map<string, EchipajBilet>> {
+  const out = new Map<string, EchipajBilet>();
+  const vii = comenzi.filter((c) => (c.status === 'platita' || c.status === 'platita_fara_bilet') && Date.parse(c.departure_at) + 6 * 3_600_000 > nowMs);
+  if (!vii.length) return out;
+  try {
+    const e = await echipajeZile(getSupabase(), vii.map((c) => c.trip_date));
+    for (const c of vii) {
+      const x = e(c);
+      if (x) out.set(c.id, echipajPentruBilet(x, c.departure_at, nowMs));
+    }
+  } catch (err) {
+    console.warn('[bilete] echipaj indisponibil:', err instanceof Error ? err.message : err);
+  }
+  return out;
 }

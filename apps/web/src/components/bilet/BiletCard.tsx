@@ -10,8 +10,8 @@ import { OPERATOR } from '@/components/legal/legal-content';
 const RED = '#9B1B30';
 
 const TXT = {
-  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: '✓ Achitat online', urcat: '✓ Urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE' },
-  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: '✓ Оплачено онлайн', urcat: '✓ Посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ' },
+  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: '✓ Achitat online', urcat: '✓ Urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
+  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: '✓ Оплачено онлайн', urcat: '✓ Посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
 } as const;
 
 const nfPret = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
@@ -89,6 +89,14 @@ export function BiletCard({ comanda: c, bilet: b, locale }: { comanda: ComandaPu
           <span style={{ color: '#666' }}>{tx.pret}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{nfPret.format(Number(c.price_per_seat))} MDL</span>
         </div>
         <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{c.passenger_name}</div>
+        {/* Echipajul cursei (migr. 538, Ion 08.10: «număr mașină și șofer final»): după bifa dispecerului. */}
+        {c.echipaj?.stare === 'gata' && (
+          <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 12, background: '#f4f1f1', fontSize: 15 }}>
+            <b>🚌 {c.echipaj.placa}</b>{c.echipaj.sofer ? ` · ${tx.sofer} ${c.echipaj.sofer}` : ''}
+            {c.echipaj.telefon && <div style={{ marginTop: 4 }}><a href={`tel:${c.echipaj.telefon.replace(/[^+\d]/g, '')}`} style={{ color: '#1b7f3b', fontWeight: 700, textDecoration: 'none' }}>📞 {c.echipaj.telefon}</a></div>}
+          </div>
+        )}
+        {c.echipaj && c.echipaj.stare !== 'gata' && <div style={{ marginTop: 8, fontSize: 13, color: c.echipaj.stare === 'anulat' ? '#b42318' : '#888' }}>{c.echipaj.stare === 'anulat' ? tx.anulat : tx.astept}</div>}
         {/* Biletul arată operatorul și codul fiscal (nota ecc.md, 07.2025: «denumirea operatorului, codul fiscal, ruta, data, ora, locul»). */}
         <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{OPERATOR.brand} · {OPERATOR.name} · IDNO {OPERATOR.idno}</div>
       </div>

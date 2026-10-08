@@ -325,8 +325,8 @@ function Istoric({ ecran, acum, locale }: { ecran: Ecran; acum: number; locale: 
 }
 
 const TXT_MINI = {
-  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', inDrum: (spre: string) => `În drum spre ${spre}`, locul: 'Locul', suna: 'Sună șoferul', apasaSuna: 'Apasă ca să suni', azi: 'Azi', maine: 'Mâine' },
-  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', inDrum: (spre: string) => `В пути в ${spre}`, locul: 'Место', suna: 'Позвонить водителю', apasaSuna: 'Нажмите, чтобы позвонить', azi: 'Сегодня', maine: 'Завтра' },
+  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', inDrum: (spre: string) => `În drum spre ${spre}`, locul: 'Locul', suna: 'Sună șoferul', apasaSuna: 'Apasă ca să suni', azi: 'Azi', maine: 'Mâine', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul', anulat: 'Cursa a fost anulată — sună la +373 60 401 010' },
+  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', inDrum: (spre: string) => `В пути в ${spre}`, locul: 'Место', suna: 'Позвонить водителю', apasaSuna: 'Нажмите, чтобы позвонить', azi: 'Сегодня', maine: 'Завтра', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график', anulat: 'Рейс отменён — звоните +373 60 401 010' },
 } as const;
 
 /**
@@ -342,7 +342,12 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
   const stare = !aziHarta ? ziCursa(c.trip_date, locale, tx.azi, tx.maine)
     : cursa?.plecata || (!cursa && plecat) ? tx.inDrum(c.to_name)
     : !cursa ? tx.nuEPeDrum : cursa.at_stop?.mine ? tx.aici : tx.vine(Math.max(0, cursa.eta_min ?? cursa.minutes_until), cursa.eta ?? cursa.departure);
-  const masina = cursa ? [cursa.driver, cursa.plate].filter(Boolean).join(' · ') : '';
+  // Echipajul cursei (migr. 538, Ion 08.10): din comandă, după bifa dispecerului; harta dă doar poziția autobuzului.
+  const e = c.echipaj;
+  const masina = e?.stare === 'gata' ? [e.placa, e.sofer ? `${tx.sofer} ${e.sofer}` : null].filter(Boolean).join(' · ')
+    : !e && cursa ? [cursa.driver, cursa.plate].filter(Boolean).join(' · ') : '';
+  const notaEchipaj = e?.stare === 'astept' ? tx.astept : e?.stare === 'anulat' ? tx.anulat : null;
+  const telefon = e ? e.telefon : cursa?.phone ?? null;
   return (
     <div className="tg-mini">
       <style>{`
@@ -370,12 +375,13 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
         </div>
         <div className="tg-mini-jos">
           <div className="tg-mini-date">
-            {masina && <strong>{masina}</strong>}
+            {masina && <strong>🚌 {masina}</strong>}
+            {notaEchipaj && <span>{notaEchipaj}</span>}
             {b && <span>{tx.locul} {b.loc_nr ?? b.nr} · {c.passenger_name}</span>}
-            {cursa?.phone && <a className="tg-mini-suna" href={phoneTel(cursa.phone)}
-              onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>📞 {phoneText(cursa.phone)}</a>}
-            {cursa?.phone && <a className="tg-mini-suna-nota" href={phoneTel(cursa.phone)}
-              onClick={(e) => { if (cursa.phone && suna(phoneTel(cursa.phone).replace(/\D/g, ''))) e.preventDefault(); }}>{tx.apasaSuna}</a>}
+            {telefon && <a className="tg-mini-suna" href={phoneTel(telefon)}
+              onClick={(ev) => { if (suna(phoneTel(telefon).replace(/\D/g, ''))) ev.preventDefault(); }}>📞 {phoneText(telefon)}</a>}
+            {telefon && <a className="tg-mini-suna-nota" href={phoneTel(telefon)}
+              onClick={(ev) => { if (suna(phoneTel(telefon).replace(/\D/g, ''))) ev.preventDefault(); }}>{tx.apasaSuna}</a>}
           </div>
           {/* SVG-ul QR vine de la panou, generat din codul biletului (nu din text de la utilizator). */}
           {b && <div className="tg-mini-qr" aria-label="QR" dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}

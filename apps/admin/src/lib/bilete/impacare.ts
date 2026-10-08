@@ -7,6 +7,7 @@ import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refun
 import { areSofer, leagaSesiuneExistenta } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
 import { alertAdmins } from '@/lib/telegram-notify';
+import { ruleazaEchipajul, type RaportEchipaj } from './echipaj-job';
 import { mesajAlerte, type AlertaPentruMesaj } from './alerte-mesaj';
 import { INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
 
@@ -29,6 +30,8 @@ export interface RaportImpacare {
   cursa_fara_sofer: ContorJob;
   email: ContorJob;
   alerte: ContorJob;
+  /** G (migr. 538): echipajul cursei trimis clientului în chat după bifa dispecerului și la fiecare schimbare. */
+  echipaj?: RaportEchipaj;
   durata_ms: number;
   oprit_de_buget: boolean;
 }
@@ -206,6 +209,12 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
         raport.alerte.erori = 1;
       }
     }
+  }
+
+  // G. echipajul în chat (migr. 538), ULTIMUL: are nevoie de timp pentru trimiteri și nu are voie să-i ia timpul lui F.
+  if (maiAmTimp()) {
+    try { raport.echipaj = await ruleazaEchipajul({ dry: opt.dry, ramasMs: () => buget - (Date.now() - start) }); }
+    catch (e) { console.error('[impacare] echipaj:', e); raport.echipaj = { verificate: 0, de_trimis: 0, trimise: 0, blocate: 0, temporare: 0, erori: 1 }; }
   }
 
   raport.durata_ms = Date.now() - start;

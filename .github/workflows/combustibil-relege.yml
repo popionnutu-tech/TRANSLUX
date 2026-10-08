@@ -1,0 +1,25 @@
+name: combustibil-relege
+
+# Fișierele Petrom / Intelect încărcate de Clava (plan 2026-10-08): noaptea, după importul foilor LDE de pe VPS (03:00
+# ora VPS), se re-evaluează legările automate și proiecția în lde_fuel_alimentari. 02:15 UTC = 05:15 Chișinău vara.
+
+on:
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  relege:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-legarea combustibilului din fișiere
+        run: |
+          code=$(curl -s -m 320 -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://central-hub-md.vercel.app/api/cron/combustibil-relege")
+          echo "combustibil-relege: HTTP $code"
+          cat /tmp/body; echo
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::combustibil-relege returned HTTP $code"
+            exit 1
+          fi

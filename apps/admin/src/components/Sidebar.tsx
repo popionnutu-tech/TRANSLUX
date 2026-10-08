@@ -58,6 +58,8 @@ const ldeChildren: NavItem[] = [
   // ION-174 (02.10): agrearea lunară a șoferilor pe mașinile de uzină — pagina Clavei (rol CONTABIL_LDE) și a adminului.
   // Ion, 07.10.2026: panoul normelor lunare al Clavei (tip / media mașinii pe 3 luni / cifra ei + motiv), confirmat de Ion
   { href: '/lde/agreare/norme',  label: 'Normele lunii',  adminOnly: true, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z' },
+  // Ion, 08.10.2026: fișierele Petrom (.txt) și Intelect (.xls) le încarcă Clava; fișierul devine sursa pentru DT
+  { href: '/lde/agreare/combustibil', label: 'Combustibil din fișiere', adminOnly: true, icon: 'M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77zM12 10H6V5h6v5z' },
   { href: '/lde/agreare',        label: 'Agreare șoferi', adminOnly: true, icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
   { href: '/lde/combustibil',    label: 'Combustibil',    adminOnly: true, icon: 'M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77zM12 10H6V5h6v5zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z' },
   { href: '/lde/livrare-reguli', label: 'Livrare — regula', adminOnly: true, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3h2v2h-2V6zm0 4h2v8h-2v-8z' },
@@ -508,7 +510,7 @@ export function meniuPentruRol(role: AdminRole) {
       ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: ldeNomenclator.filter(c => c.href === '/lde/parc'), subGroup: undefined }))
     : role === 'CONTABIL_LDE'   // Clava: normele, agrearea și Numărarea (Ion, 07.10.2026)
       ? moduleItems.filter(m => m.href === '/lde' || m.href === '/numarare').map(m => (m.href === '/numarare' ? { ...m, children: undefined }
-          : { ...m, children: m.children?.filter(c => c.href === '/lde/agreare/norme' || c.href === '/lde/agreare'), subGroup: undefined }))
+          : { ...m, children: m.children?.filter(c => c.href === '/lde/agreare/norme' || c.href === '/lde/agreare' || c.href === '/lde/agreare/combustibil'), subGroup: undefined }))
     : role === 'DISPECER' || role === 'OBSERVATOR'
       ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/camioane'), subGroup: undefined }))
     : [];

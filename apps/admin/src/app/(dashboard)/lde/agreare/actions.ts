@@ -182,4 +182,14 @@ export async function salveazaAgreare(luna: string, vehicleId: string, lista: Ag
     const { error } = await db.from('lde_agreare_sofer').upsert(randuri, { onConflict: 'luna,vehicle_id,driver_id' });
     if (error) throw new Error(error.message);
   }
+  // Combustibilul din fișierele Petrom / Intelect (plan 2026-10-08): alimentările de pe portofelul unui șofer se pun pe
+  // mașina din agreare — se re-leagă șoferii VECHI ∪ NOI ai mașinii (și cei scoși), apoi proiecția. Dacă pică, agrearea
+  // rămâne salvată, iar jobul de noapte (combustibil-relege) reface legarea.
+  const soferi = [...new Set([...(existente ?? []).map((r) => r.driver_id as string), ...vazuti])];
+  if (soferi.length) {
+    const ultima = ziIso(zileInLuna);
+    const r1 = await db.rpc('lde_fuel_releaga', { p_de: primaZi, p_pana: ultima, p_soferi: soferi });
+    const r2 = r1.error ? r1 : await db.rpc('lde_fuel_import_sincronizeaza', { p_de: primaZi, p_pana: ultima });
+    if (r2.error) console.error('agreare → combustibil re-legare:', r2.error.message);
+  }
 }

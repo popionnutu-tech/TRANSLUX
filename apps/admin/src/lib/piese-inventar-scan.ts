@@ -45,6 +45,31 @@ export async function unscan(sessionId: number, partId: number): Promise<void> {
   check(await getSupabase().rpc('piese_inv_unscan', { p_session: sessionId, p_part: partId }));
 }
 
+// ── Codurile de bare scanate care nu duc (încă) la nicio piesă (migr. 397) ──
+// Cerut de Eduard: un cod necunoscut nu mai oprește numărătoarea. Se reține cu cantitatea lui, iar numele
+// i se dă mai târziu, la birou.
+export type ScanCode = { code: string; location_label: string; counted_qty: number; updated_at: string };
+
+export async function scanUnknownCode(sessionId: number, code: string, location: string, qty: number | null) {
+  return check(await getSupabase().rpc('piese_inv_scan_cod', {
+    p_session: sessionId, p_code: code, p_location: location, p_qty: qty,
+  })) as { code: string; qty: number; location: string };
+}
+
+// Mută în rânduri normale codurile care au căpătat între timp o piesă. Se cheamă ÎNAINTE de fiecare
+// citire a foii — asta e «обновляем страницу и она заменяет штрихкод на название».
+export async function resolveCodes(sessionId: number): Promise<number> {
+  return (check(await getSupabase().rpc('piese_inv_rezolva_coduri', { p_session: sessionId })) as unknown as number) || 0;
+}
+
+export async function sessionCodes(sessionId: number): Promise<ScanCode[]> {
+  return (check(await getSupabase().rpc('piese_inv_coduri', { p_session: sessionId })) as ScanCode[]) || [];
+}
+
+export async function deleteCode(sessionId: number, code: string): Promise<void> {
+  check(await getSupabase().rpc('piese_inv_sterge_cod', { p_session: sessionId, p_code: code }));
+}
+
 export async function sessionLines(sessionId: number): Promise<ScanLine[]> {
   return (check(await getSupabase().rpc('piese_inv_lines', { p_session: sessionId })) as ScanLine[]) || [];
 }

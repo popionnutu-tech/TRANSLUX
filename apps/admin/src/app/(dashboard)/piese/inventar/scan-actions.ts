@@ -8,6 +8,7 @@ import { autorFor } from '@/lib/audit';
 import {
   openSession, sessionOwner, scan, unscan, sessionLines, sessionMissing,
   commitSession, cancelSession, partsByCode, type PartMatch,
+  scanUnknownCode, resolveCodes, sessionCodes, deleteCode, type ScanCode,
 } from '@/lib/piese-inventar-scan';
 
 // Numărarea prin scanare SCRIE adrese de raft la fiecare bip, deci cere PART_WRITE_ROLES — nu lista mai
@@ -58,13 +59,15 @@ function verificaAdresa(location: string): string {
 // Pe un terminal cu rețea slabă asta se simțea ca o pauză între bipuri.
 export async function bipCode(sessionId: number, code: string, location: string): Promise<
   | { ok: true; part: PartMatch; line: { part_id: number; qty: number; location: string } }
-  | { ok: false; reason: 'unknown' }
+  | { ok: false; reason: 'unknown'; cod: { code: string; qty: number; location: string } }
   | { ok: false; reason: 'ambiguous'; options: PartMatch[] }
 > {
   await guardSession(sessionId);
   const loc = verificaAdresa(location);
   const gasite = await partsByCode(code);
-  if (!gasite.length) return { ok: false, reason: 'unknown' };
+  // Codul necunoscut nu mai oprește numărătoarea: se reține cu cantitatea lui, iar numele i se dă mai
+  // târziu (migr. 397). Omul rămâne la raft, nu intră în nomenclator cu marfa în mână.
+  if (!gasite.length) return { ok: false, reason: 'unknown', cod: await scanUnknownCode(sessionId, code, loc, null) };
   // Mai multe piese pe același cod de articol (azi 161 de coduri sunt în situația asta) — nu ghicim.
   if (gasite.length > 1) return { ok: false, reason: 'ambiguous', options: gasite };
   const part = gasite[0];
@@ -92,11 +95,42 @@ export async function unscanPart(sessionId: number, partId: number) {
 // îmbină local propriile bipuri, deci nu le vede pe ale celuilalt până nu recitește.
 export async function refreshLines(sessionId: number) {
   await guardSession(sessionId);
+  // ÎNTÂI mutăm codurile care au căpătat între timp o piesă, abia apoi citim foaia — altfel reîncărcarea
+  // ar arăta și codul, și rândul piesei, până la următoarea apăsare.
+  await resolveCodes(sessionId);
   return sessionLines(sessionId);
 }
 
 // „Заполнить по остаткам" — abia acum se arată cifra programului. Până atunci omul numără ce vede, nu
 // spre ce scrie programul.
+// Foaia completă: rândurile cu piesă + codurile rămase fără piesă. Rezolvarea se face întâi, ca un cod
+// căruia i s-a dat nume între timp să apară direct ca denumire.
+export async function refreshAll(sessionId: number): Promise<{ lines: Awaited<ReturnType<typeof sessionLines>>; codes: ScanCode[]; mutate: number }> {
+  await guardSession(sessionId);
+  const mutate = await resolveCodes(sessionId);
+  const [lines, codes] = await Promise.all([sessionLines(sessionId), sessionCodes(sessionId)]);
+  return { lines, codes, mutate };
+}
+
+// Corecția manuală a cantității unui cod încă nerezolvat.
+export async function setCodeQty(sessionId: number, code: string, qty: number) {
+  await guardSession(sessionId);
+  if (!Number.isFinite(qty) || qty < 0 || qty > MAX_QTY) {
+    throw new Error(`Cantitate invalidă (între 0 și ${MAX_QTY.toLocaleString('ro-RO')}).`);
+  }
+  const l = await sessionCodes(sessionId);
+  const linia = l.find((c) => c.code.toLowerCase() === code.trim().toLowerCase());
+  if (!linia) throw new Error('Codul nu mai e în foaie.');
+  return scanUnknownCode(sessionId, code, linia.location_label, qty);
+}
+
+// Supapa pentru codul care nu e al nimănui (ambalaj străin, etichetă veche). Fără ea, un singur cod
+// neidentificabil ar ține numărătoarea deschisă la nesfârșit.
+export async function dropCode(sessionId: number, code: string) {
+  await guardSession(sessionId);
+  await deleteCode(sessionId, code);
+}
+
 export async function revealStock(sessionId: number) {
   await guardSession(sessionId);
   const [lines, missing] = await Promise.all([sessionLines(sessionId), sessionMissing(sessionId)]);
@@ -120,6 +154,12 @@ export async function finishScanSession(sessionId: number, zeroPartIds: number[]
     const msg = String(e?.message || '');
     if (msg.includes('MOVED')) {
       return { ok: false as const, reason: 'moved' as const, parts: await miscateDeLaNumarare(sessionId) };
+    }
+    // Coduri scanate care n-au ajuns la nicio piesă. Sunt bucăți numărate pe raft: o închidere care le-ar
+    // lăsa deoparte ar scrie un stoc mai mic decât realitatea, fără ca nimeni să afle. Ca și la `MOVED`,
+    // lista se RECITEȘTE — DETAIL-ul excepției nu trece prin PostgREST într-o formă pe care să te bazezi.
+    if (msg.includes('CODURI_NEREZOLVATE')) {
+      return { ok: false as const, reason: 'coduri' as const, codes: await sessionCodes(sessionId) };
     }
     throw e;
   }

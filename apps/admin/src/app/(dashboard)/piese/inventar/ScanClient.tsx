@@ -5,7 +5,8 @@ import SearchSelect from '@/components/SearchSelect';
 import { searchParts } from '../search-parts';
 import { locationError, LOCATION_EXAMPLE, LOCATION_FORMAT } from '@/lib/piese-location';
 import {
-  startScanSession, bipCode, scanPart, unscanPart, revealStock, refreshLines, finishScanSession, dropScanSession,
+  startScanSession, bipCode, scanPart, unscanPart, revealStock, refreshAll, finishScanSession, dropScanSession,
+  setCodeQty, dropCode,
 } from './scan-actions';
 
 type Opt = { id: number; label: string };
@@ -13,6 +14,8 @@ type Line = { part_id: number; name: string; article: string; location_label: st
 type Missing = Omit<Line, 'counted'>;
 type Match = { id: number; name: string; article: string; unit: string; via: 'barcode' | 'article' };
 type Moved = { part_id: number; name: string; counted: number; stoc_program: number };
+// Cod scanat care nu duce (încă) la nicio piesă (migr. 397).
+type Cod = { code: string; location_label: string; counted_qty: number };
 
 const nr = (n: number) => Number(n).toLocaleString('ro-RO', { maximumFractionDigits: 3 });
 
@@ -32,6 +35,7 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
   const [manual, setManual] = useState(false);
   const [ambigue, setAmbigue] = useState<Match[] | null>(null);
   const [miscate, setMiscate] = useState<Moved[] | null>(null);
+  const [coduri, setCoduri] = useState<Cod[]>([]);
 
   const codRef = useRef<HTMLInputElement>(null);
   // Scanerul e o tastatură: la un cititor rapid pot pleca două cereri înainte ca prima să se întoarcă.
@@ -102,10 +106,16 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
       await laRand(async () => {
         const r = await bipCode(sessionId, c, celula);
         if (!r.ok && r.reason === 'unknown') {
-          // NU ghicim piesa. Un cod necunoscut care ar nimeri „cea mai apropiată" ar adăuga bucăți la
+          // NU ghicim piesa — un cod necunoscut nimerit pe „cea mai apropiată" ar adăuga bucăți la
           // articolul greșit, iar diferența ar ieși la iveală peste luni, ca lipsă inexplicabilă.
-          setErr(`Codul „${c}" nu e al niciunei piese. Caut-o pe nume mai jos și adaug-o cu mâna.`);
-          setManual(true);
+          // Dar nici nu-l pierdem: codul se reține cu cantitatea lui (migr. 397), iar numele i se dă mai
+          // târziu. Numărătoarea curge, omul rămâne la raft.
+          setCoduri((cs) => {
+            const i = cs.findIndex((x) => x.code.toLowerCase() === r.cod.code.toLowerCase());
+            const nou = { code: r.cod.code, location_label: r.cod.location, counted_qty: r.cod.qty };
+            return i >= 0 ? cs.map((x, j) => (j === i ? nou : x)) : [...cs, nou];
+          });
+          setInfo(`+1 cod „${c}" — fără piesă încă`);
           return;
         }
         if (!r.ok) {
@@ -191,11 +201,41 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
     if (sessionId == null) return;
     setBusy(true); setErr(null);
     try {
-      const l = await laRand(() => refreshLines(sessionId));
-      setLines(l as Line[]);
-      setInfo(`Foaie reîncărcată: ${l.length} ${l.length === 1 ? 'poziție' : 'poziții'}.`);
+      // Reîncărcarea face ȘI trecerea codurilor care au căpătat între timp o piesă — asta e cererea lui
+      // Eduard: „обновляем страницу инвентаризации, она заменяет штрихкод на название".
+      const r = await laRand(() => refreshAll(sessionId));
+      setLines(r.lines as Line[]); setCoduri(r.codes as Cod[]);
+      setInfo(`Foaie reîncărcată: ${r.lines.length} ${r.lines.length === 1 ? 'poziție' : 'poziții'}`
+        + (r.mutate ? `, ${r.mutate} ${r.mutate === 1 ? 'cod a primit denumire' : 'coduri au primit denumire'}` : '')
+        + (r.codes.length ? `, ${r.codes.length} încă fără piesă` : '') + '.');
     } catch (e: any) { setErr(e.message); }
     finally { setBusy(false); }
+  }
+
+  async function schimbaCantitateCod(code: string, val: string) {
+    if (sessionId == null) return;
+    const q = Number(val);
+    if (!Number.isFinite(q) || q < 0) return;
+    setErr(null);
+    try {
+      await laRand(async () => {
+        const r = await setCodeQty(sessionId, code, q);
+        setCoduri((cs) => cs.map((x) => (x.code.toLowerCase() === code.toLowerCase()
+          ? { code: r.code, location_label: r.location, counted_qty: r.qty } : x)));
+      });
+    } catch (e: any) { setErr(e.message); }
+  }
+
+  async function scoateCod(code: string) {
+    if (sessionId == null) return;
+    if (!confirm(`Scoți codul „${code}" din numărătoare? Folosește asta doar dacă nu e codul niciunei piese de-ale noastre.`)) return;
+    setErr(null);
+    try {
+      await laRand(async () => {
+        await dropCode(sessionId, code);
+        setCoduri((cs) => cs.filter((x) => x.code.toLowerCase() !== code.toLowerCase()));
+      });
+    } catch (e: any) { setErr(e.message); }
   }
 
   async function completeazaDupaProgram() {
@@ -213,7 +253,11 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
     setBusy(true); setErr(null);
     try {
       const r = await laRand(() => finishScanSession(sessionId, Array.from(zero), force));
-      if (!r.ok) { setMiscate(r.parts); setBusy(false); return; }
+      if (!r.ok) {
+        if (r.reason === 'coduri') { setCoduri(r.codes as Cod[]); setErr('Mai sunt coduri fără piesă — rezolvă-le înainte de închidere.'); }
+        else setMiscate(r.parts ?? null);
+        setBusy(false); return;
+      }
       setDone(`Gata: ${r.diffs} ${r.diffs === 1 ? 'diferență' : 'diferențe'} pe ${r.pozitii} poziții, ${r.adrese} adrese fixate${r.zerouri ? `, ${r.zerouri} trecute la zero` : ''}. Document nr. ${r.doc_id}.`);
       resetEcran();
     } catch (e: any) { setErr(e.message); }
@@ -354,6 +398,41 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
           {!lines.length && <tr><td colSpan={aratStoc ? 6 : 4} className="muted">Încă n-ai scanat nimic.</td></tr>}
         </tbody>
       </table>
+
+      {/* Bannerul roșu, decis de Mariana: cât există coduri fără piesă, numărătoarea rămâne deschisă și
+          oricine se uită la ecran vede că documentul nu e gata. Închiderea e oprită și din bază
+          (`CODURI_NEREZOLVATE`, migr. 397), nu doar aici — altfel ar fi doar un avertisment. */}
+      {coduri.length > 0 && (
+        <div className="alert danger" style={{ marginTop: 16 }}>
+          <strong>Numărătoarea NU e închisă: {coduri.length} {coduri.length === 1 ? 'cod scanat n-are piesă' : 'coduri scanate n-au piesă'}.</strong>
+          <div style={{ marginTop: 4, fontSize: 13 }}>
+            Marfa e numărată, dar programul nu știe ce e. Dă-i fiecăruia o denumire în Catalog (piesă nouă
+            sau cod adăugat la una existentă), apoi apasă <strong>Reîncarcă foaia</strong> — codurile se
+            transformă singure în denumiri. Ce nu e codul niciunei piese de-ale noastre, scoate-l cu ×.
+          </div>
+          <table style={{ marginTop: 10 }}>
+            <thead><tr><th>Cod scanat</th><th>Adresa</th><th style={{ width: 96 }}>Cantitate</th><th style={{ width: 60 }}></th></tr></thead>
+            <tbody>
+              {coduri.map((c) => (
+                <tr key={c.code}>
+                  <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.code}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{c.location_label}</td>
+                  <td>
+                    <input type="number" min={0} step="any" defaultValue={c.counted_qty}
+                      key={`${c.code}:${c.counted_qty}`} aria-label={`Cantitate pentru codul ${c.code}`}
+                      onBlur={(e) => { if (Number(e.target.value) !== Number(c.counted_qty)) schimbaCantitateCod(c.code, e.target.value); }}
+                      style={{ width: 90 }} />
+                  </td>
+                  <td>
+                    <button type="button" className="btn" style={{ padding: '2px 8px' }}
+                      title="Scoate codul din numărătoare" onClick={() => scoateCod(c.code)}>×</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {aratStoc && missing.length > 0 && (
         <div style={{ marginTop: 16 }}>

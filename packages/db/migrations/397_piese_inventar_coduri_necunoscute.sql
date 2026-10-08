@@ -118,3 +118,76 @@ REVOKE ALL ON FUNCTION piese_inv_coduri(bigint) FROM PUBLIC, anon, authenticated
 GRANT EXECUTE ON FUNCTION piese_inv_coduri(bigint) TO service_role;
 REVOKE ALL ON FUNCTION piese_inv_sterge_cod(bigint,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION piese_inv_sterge_cod(bigint,text) TO service_role;
+
+-- Închiderea numărătorii: întâi absoarbe codurile care au primit între timp o piesă, apoi REFUZĂ dacă au
+-- mai rămas. Decizia Marianei: numărătoarea rămâne deschisă și pe ecran apare un banner roșu, în loc să
+-- se închidă lăsând codurile deoparte.
+--
+-- Motivul e de fond, nu de interfață: liniile numărătorii devin la închidere stocul ca ADEVĂR ABSOLUT pe
+-- depozit. Un cod nerezolvat e marfă numărată pe raft; o închidere care îl ignoră scrie un stoc mai mic
+-- decât realitatea — și nimeni n-ar afla, fiindcă diferența n-ar apărea nicăieri ca lipsă, ar fi doar
+-- absentă din numărătoare.
+--
+-- Restul funcției e neatins față de migr. 357.
+CREATE OR REPLACE FUNCTION public.piese_inv_commit(p_session bigint, p_extra bigint[] DEFAULT '{}'::bigint[], p_admin uuid DEFAULT NULL::uuid, p_actor text DEFAULT NULL::text, p_force boolean DEFAULT false)
+ RETURNS jsonb LANGUAGE plpgsql SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE s record; v_counts jsonb; v_zero jsonb; v_moved jsonb; v_adrese int; v_res jsonb; v_coduri jsonb;
+BEGIN
+  SELECT * INTO s FROM piese_inventory_sessions WHERE id = p_session FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'NO_SESSION'; END IF;
+  IF s.status <> 'OPEN' THEN RAISE EXCEPTION 'SESSION_CLOSED'; END IF;
+
+  PERFORM piese_inv_rezolva_coduri(p_session);
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('code', c.code, 'qty', c.counted_qty, 'location', c.location_label)
+                            ORDER BY c.code), '[]'::jsonb)
+    INTO v_coduri FROM piese_inventory_session_codes c WHERE c.session_id = p_session;
+  IF jsonb_array_length(v_coduri) > 0 THEN
+    RAISE EXCEPTION 'CODURI_NEREZOLVATE' USING DETAIL = v_coduri::text;
+  END IF;
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+           'part_id', l.part_id,
+           'name', COALESCE(NULLIF(btrim(p.name_ro), ''), p.name_long)) ORDER BY l.part_id), '[]'::jsonb)
+    INTO v_moved
+    FROM piese_inventory_session_lines l
+    JOIN piese_parts p ON p.id = l.part_id
+   WHERE l.session_id = p_session
+     AND EXISTS (SELECT 1 FROM piese_stock_movements m
+                  WHERE m.part_id = l.part_id AND m.warehouse_id = s.warehouse_id
+                    AND m.created_at > l.updated_at);
+  IF jsonb_array_length(v_moved) > 0 AND NOT COALESCE(p_force, false) THEN
+    RAISE EXCEPTION 'MOVED' USING DETAIL = v_moved::text;
+  END IF;
+
+  INSERT INTO piese_part_locations(part_id, warehouse_id, location_label)
+  SELECT l.part_id, s.warehouse_id, l.location_label
+    FROM piese_inventory_session_lines l
+   WHERE l.session_id = p_session AND l.counted_qty > 0
+  ON CONFLICT (part_id, warehouse_id) DO UPDATE SET location_label = EXCLUDED.location_label;
+  GET DIAGNOSTICS v_adrese = ROW_COUNT;
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('part_id', part_id, 'counted_qty', counted_qty)), '[]'::jsonb)
+    INTO v_counts FROM piese_inventory_session_lines WHERE session_id = p_session;
+
+  IF p_extra IS NULL OR cardinality(p_extra) = 0 THEN
+    v_zero := '[]'::jsonb;
+  ELSE
+    SELECT COALESCE(jsonb_agg(DISTINCT jsonb_build_object('part_id', m.part_id, 'counted_qty', 0)), '[]'::jsonb)
+      INTO v_zero FROM piese_inv_missing(p_session) m WHERE m.part_id = ANY(p_extra);
+  END IF;
+
+  v_counts := v_counts || v_zero;
+  IF jsonb_array_length(v_counts) = 0 THEN RAISE EXCEPTION 'NO_LINES'; END IF;
+
+  v_res := piese_inventory_count(s.warehouse_id, v_counts, NULL, p_admin, p_actor);
+
+  UPDATE piese_inventory_sessions
+     SET status = 'COMMITTED', committed_at = now(), document_id = (v_res->>'doc_id')::bigint
+   WHERE id = p_session;
+
+  RETURN jsonb_build_object('doc_id', (v_res->>'doc_id')::bigint, 'diffs', (v_res->>'diffs')::int,
+                            'adrese', v_adrese, 'pozitii', jsonb_array_length(v_counts),
+                            'zerouri', jsonb_array_length(v_zero),
+                            'miscate', jsonb_array_length(v_moved));
+END $function$;

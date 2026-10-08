@@ -5,6 +5,7 @@ import InventarClient from './InventarClient';
 import ScanClient from './ScanClient';
 import InventarInitialClient from './InventarInitialClient';
 import RecostClient from './RecostClient';
+import IstoricClient from './IstoricClient';
 
 interface Opt { id: number; label: string }
 
@@ -18,7 +19,7 @@ interface Opt { id: number; label: string }
 export default function InventarTabs({ warehouses, groups, canInitial, initialLayout }: {
   warehouses: Opt[]; groups: Opt[]; canInitial: boolean; initialLayout: any;
 }) {
-  const [tab, setTab] = useState<'count' | 'scan' | 'initial' | 'recost'>('count');
+  const [tab, setTab] = useState<'count' | 'scan' | 'initial' | 'recost' | 'istoric'>('count');
   if (!canInitial) return <InventarClient warehouses={warehouses} canSetLocation={false} />;
   return (
     <>
@@ -27,6 +28,7 @@ export default function InventarTabs({ warehouses, groups, canInitial, initialLa
         <button className={`btn${tab === 'scan' ? ' btn-primary' : ''}`} onClick={() => setTab('scan')} style={{ padding: '7px 14px' }}>Numărare cu scanerul</button>
         <button className={`btn${tab === 'initial' ? ' btn-primary' : ''}`} onClick={() => setTab('initial')} style={{ padding: '7px 14px' }}>Inventar inițial (de la zero)</button>
         <button className={`btn${tab === 'recost' ? ' btn-primary' : ''}`} onClick={() => setTab('recost')} style={{ padding: '7px 14px' }}>Revizuire cost</button>
+        <button className={`btn${tab === 'istoric' ? ' btn-primary' : ''}`} onClick={() => setTab('istoric')} style={{ padding: '7px 14px' }}>Numărători închise</button>
       </div>
       {tab === 'count'
         ? <InventarClient warehouses={warehouses} canSetLocation={canInitial} />
@@ -34,6 +36,8 @@ export default function InventarTabs({ warehouses, groups, canInitial, initialLa
         ? <ScanClient warehouses={warehouses} />
         : tab === 'initial'
         ? <InventarInitialClient warehouses={warehouses} groups={groups} initialLayout={initialLayout} />
+        : tab === 'istoric'
+        ? <IstoricClient />
         : <RecostClient warehouses={warehouses} />}
     </>
   );

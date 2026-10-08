@@ -18,6 +18,28 @@ function check<T>(r: { data: T; error: { message: string } | null }): T {
   return r.data;
 }
 
+// ── Numărătorile ÎNCHISE (migr. 401) ──
+// Cerut de Eduard: «Должна быть возможность просмотра этой инвентаризации и просмотра позиций». Odată
+// apăsat „Închide", numărătoarea dispărea din ecran — rămânea doar documentul de corecție, fără celule
+// și fără „ce s-a numărat unde".
+export type InvIstoric = {
+  session_id: number; warehouse_id: number; depozit: string; status: string; actor: string | null;
+  deschisa: string; inchisa: string | null; document_id: number | null;
+  pozitii: number; diferente: number; celule: number;
+};
+export type InvDetaliu = {
+  part_id: number; nume: string; articol: string; unit: string; adresa: string;
+  numarat: number; delta: number; in_program: number;
+};
+
+export async function istoricNumaratori(warehouseId: number | null, limit = 30): Promise<InvIstoric[]> {
+  return (check(await getSupabase().rpc('piese_inv_istoric', { p_wh: warehouseId, p_limit: limit })) as InvIstoric[]) || [];
+}
+
+export async function detaliiNumaratoare(sessionId: number): Promise<InvDetaliu[]> {
+  return (check(await getSupabase().rpc('piese_inv_detalii', { p_session: sessionId })) as InvDetaliu[]) || [];
+}
+
 export async function openSession(warehouseId: number, autor: Autor): Promise<number> {
   return check(await getSupabase().rpc('piese_inv_session_open', {
     p_wh: warehouseId, p_admin: autor.adminId, p_actor: autor.label,

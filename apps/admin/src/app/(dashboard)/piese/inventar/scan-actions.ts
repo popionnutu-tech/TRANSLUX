@@ -9,6 +9,7 @@ import {
   openSession, sessionOwner, scan, unscan, sessionLines, sessionMissing,
   commitSession, cancelSession, partsByCode, type PartMatch,
   scanUnknownCode, resolveCodes, sessionCodes, deleteCode, type ScanCode,
+  istoricNumaratori, detaliiNumaratoare,
 } from '@/lib/piese-inventar-scan';
 
 // Numărarea prin scanare SCRIE adrese de raft la fiecare bip, deci cere PART_WRITE_ROLES — nu lista mai
@@ -177,4 +178,23 @@ async function miscateDeLaNumarare(sessionId: number) {
 export async function dropScanSession(sessionId: number) {
   await guardSession(sessionId);
   await cancelSession(sessionId);
+}
+
+// ── Numărătorile închise ──
+// Aceleași roluri ca numărarea însăși: cine poate număra poate și revedea ce a numărat. Depozitul se
+// impune ca peste tot — un cont legat de un depozit nu vede numărătorile altuia.
+export async function listaNumaratori(warehouseId?: number | null) {
+  const session = requireRole(await verifySession(), ...PART_WRITE_ROLES, 'VINZATOR');
+  const alDepozitului = await userWarehouseId(session);
+  // Contul legat de un depozit NU poate cere alt depozit: filtrul lui bate parametrul primit.
+  const wh = alDepozitului ?? (warehouseId ? Number(warehouseId) : null);
+  return istoricNumaratori(wh, 30);
+}
+
+export async function detaliiNumaratoareAction(sessionId: number) {
+  const session = requireRole(await verifySession(), ...PART_WRITE_ROLES, 'VINZATOR');
+  // Garda pe depozitul SESIUNII, nu pe cel cerut: altfel un id ghicit ar dezvălui numărătoarea altui depozit.
+  const { warehouseId } = await sessionOwner(Number(sessionId));
+  await assertWarehouseAllowed(session, warehouseId);
+  return detaliiNumaratoare(Number(sessionId));
 }

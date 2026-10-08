@@ -17,7 +17,7 @@ const MAX = 4 * 1024 * 1024;
 const TIPURI: [Portofel['tip'] & string, string][] = [
   ['sofer', 'Șofer'], ['masina', 'Mașină'], ['grup', 'Grup (GPS)'], ['rezerva', 'Rezervă'], ['strain', 'În afara flotei'],
 ];
-const SURSA: Record<string, string> = { petrom: 'Petrom', intelect: 'Intelect' };
+const SURSA: Record<string, string> = { petrom: 'Petrom', intelect: 'Intelect', tlx: 'TLX (QR)' };
 const nr = (x: number | null | undefined, z = 0) => (x == null ? '—' : x.toLocaleString('ro-RO', { minimumFractionDigits: z, maximumFractionDigits: z }));
 const ddmm = (d: string | null) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}` : '…');
 
@@ -161,7 +161,7 @@ function Rezerve({ data }: { data: CombustibilData }) {
   const [val, setVal] = useState(''); const [nota, setNota] = useState('');
   const adauga = () => {
     const [s, c] = cod.split('|');
-    run(() => adaugaRezerva(s as 'petrom' | 'intelect', c, de, pana || null,
+    run(() => adaugaRezerva(s as 'petrom' | 'intelect' | 'tlx', c, de, pana || null,
       cine === 'masina' ? { vehicle_id: val } : cine === 'sofer' ? { driver_id: val } : { persoana_text: val }, nota),
     () => { setVal(''); setNota(''); });
   };

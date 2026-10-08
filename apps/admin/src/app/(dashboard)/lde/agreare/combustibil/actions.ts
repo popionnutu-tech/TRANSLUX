@@ -12,7 +12,7 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 const UUID = /^[0-9a-f-]{36}$/;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
-const SURSE = ['petrom', 'intelect'] as const;
+const SURSE = ['petrom', 'intelect', 'tlx'] as const;   // tlx = QR-urile parcului la stațiile TLX, aduse noaptea (migr. 539)
 type Sursa = (typeof SURSE)[number];
 type Tip = 'sofer' | 'masina' | 'grup' | 'rezerva' | 'strain';
 

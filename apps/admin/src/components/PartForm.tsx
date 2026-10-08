@@ -168,7 +168,19 @@ export default function PartForm({
   const hint = { fontSize: 11, color: 'var(--muted, #888)', marginTop: 2 } as const;
 
   return (
-    <form onSubmit={submit} style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
+    <form onSubmit={submit}
+      // Enter nu mai salvează fișa. Cerut de Eduard (08.10): «после ввода штрихкода он автоматом
+      // закрывает карту номенклатуры». Scanerul tastează cifrele și trimite Enter, iar Enter într-un
+      // câmp de text dintr-un formular HTML declanșează butonul de submit — adică salvarea și
+      // închiderea, în mijlocul completării. Omul scana codul și pierdea restul datelor neintroduse.
+      //
+      // Se oprește doar pe `input`, nu pe `textarea` (acolo Enter înseamnă rând nou) și nu pe butoane
+      // (altfel n-ar mai merge nici Salvează cu tastatura). Salvarea rămâne exclusiv pe buton — exact ce
+      // a cerut: «чтобы не закрывалась карта пока не нажмешь ее».
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && (e.target as HTMLElement)?.tagName === 'INPUT') e.preventDefault();
+      }}
+      style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
       {/* Copierea are sens doar la o piesă NOUĂ: la editare, câmpurile sunt deja ale piesei curente. */}
       {!initial?.id && (
         <div style={{ flexBasis: '100%', marginBottom: copyOpen ? 4 : 0 }}>

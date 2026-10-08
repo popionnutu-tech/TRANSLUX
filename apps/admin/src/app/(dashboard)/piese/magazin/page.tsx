@@ -54,6 +54,23 @@ export default async function MagazinPage() {
         </div>
       )}
 
+      {/* Vânzarea stă SUS, imediat după cifrele zilei. Cerut de Eduard (08.10): «думаю здесь вывести
+          это окошко вверху за сводкой по продаже, чтобы не листать ассортимент для продажи» — lista
+          prețurilor schimbate poate avea zeci de rânduri, iar el trebuia să treacă peste toată ca să
+          ajungă la formularul cu care lucrează de zeci de ori pe zi. Avertismentul rămâne pe pagină,
+          dar sub vânzare: e de citit o dată pe zi, nu la fiecare client. */}
+      {shop ? (
+        <MagazinClient canOverrideStock={poatePesteStoc} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({
+          id: p.id, label: partLabel(p), price: Number(p.price),
+          // Ce se CAUTĂ, pe lângă ce se vede: articul, OEM și TOATE codurile de bare. Lista magazinului
+          // n-avea nici măcar denumirea (vederea întorcea doar grupa, marca și prețul), deci eticheta ieșea
+          // „— Taclar (312)", iar scanarea unui cod nu găsea nimic — exact reclamația lui Eduard.
+          // Deja cu minuscule: filtrul din combobox compară direct, fără să aloce un string per opțiune
+          // la fiecare tastare. Vezi comentariul de la `SSOption`.
+          search: [partLabel(p), p.article_code, p.oem_code, p.barcodes_all].filter(Boolean).join(' ').toLowerCase(),
+        }))} />
+      ) : <div className="card"><div className="empty">Niciun depozit-magazin definit.</div></div>}
+
       {preturi.length > 0 && (
         <div className="alert warn" style={{ marginBottom: 16 }}>
           <strong>
@@ -81,17 +98,6 @@ export default async function MagazinPage() {
         </div>
       )}
 
-      {shop ? (
-        <MagazinClient canOverrideStock={poatePesteStoc} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({
-          id: p.id, label: partLabel(p), price: Number(p.price),
-          // Ce se CAUTĂ, pe lângă ce se vede: articul, OEM și TOATE codurile de bare. Lista magazinului
-          // n-avea nici măcar denumirea (vederea întorcea doar grupa, marca și prețul), deci eticheta ieșea
-          // „— Taclar (312)", iar scanarea unui cod nu găsea nimic — exact reclamația lui Eduard.
-          // Deja cu minuscule: filtrul din combobox compară direct, fără să aloce un string per opțiune
-          // la fiecare tastare. Vezi comentariul de la `SSOption`.
-          search: [partLabel(p), p.article_code, p.oem_code, p.barcodes_all].filter(Boolean).join(' ').toLowerCase(),
-        }))} />
-      ) : <div className="card"><div className="empty">Niciun depozit-magazin definit.</div></div>}
     </>
   );
 }

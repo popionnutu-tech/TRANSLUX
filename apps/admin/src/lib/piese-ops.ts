@@ -266,7 +266,12 @@ export async function preturiSchimbate(zile = 7): Promise<PretSchimbat[]> {
 }
 
 export async function saleParts() {
-  const { data } = await getSupabase().from('piese_sale_parts').select('*');
+  // Coloane EXPLICITE, nu `*`: vederea conține `markup_pct`, iar ecranul care o consumă e al
+  // VÂNZĂTORULUI. Azi pagina mapează oricum doar câmpurile sigure, dar un `...p` adăugat într-o viitoare
+  // editare ar fi deschis tăcut calea `cost = preț / (1 + adaos/100)`. Lista albă costă nimic și închide
+  // drumul definitiv.
+  const { data } = await getSupabase().from('piese_sale_parts')
+    .select('id, grp, manufacturer, model, price, name_ro, name_long, article_code, oem_code, barcodes_all, is_used');
   return data || [];
 }
 export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }, autor: Autor, allowShort = false, plata = 'NUMERAR', incasat: number | null = null) {

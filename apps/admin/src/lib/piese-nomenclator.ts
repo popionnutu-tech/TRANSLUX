@@ -64,12 +64,28 @@ const partRow = (d: any) => ({
   // Numele scurt de pe bonul fiscal (migr. 393). GOL = folosește propunerea automată, nu „bon fără nume":
   // de aceea `null`, nu șir gol — iar `piese_nume_bon` tratează ambele la fel, ca să nu depindem de
   // disciplina apelantului.
-  nume_bon: txtOrNull(d.nume_bon),
-  // Cota TVA a piesei. Implicit 20 în bază; aici se trimite doar dacă formularul a dat o valoare validă,
-  // altfel rămâne ce era — o cotă ștearsă din greșeală ar falsifica bonul.
-  tva_cota: d.tva_cota === '' || d.tva_cota == null || !Number.isFinite(Number(d.tva_cota))
-    ? 20 : Number(d.tva_cota),
+  // Tăiat la limită și pe ramura scrisă de om, nu doar pe propunere: `maxLength` din formular e o
+  // sugestie a browserului, iar un nume de 10 000 de caractere ar fi ajuns pe bon și, mâine, la aparatul
+  // fiscal — adică exact rostul câmpului ocolit.
+  nume_bon: txtOrNull(d.nume_bon) === null ? null : txt(d.nume_bon).slice(0, NUME_BON_MAX),
+  tva_cota: tvaCota(d.tva_cota),
 });
+
+// Lungimea maximă a numelui de pe bon. Aceeași valoare ca implicitul funcției `piese_nume_bon_propus`
+// (migr. 393); se schimbă în amândouă odată, când aflăm limita reală a aparatului fiscal.
+const NUME_BON_MAX = 30;
+
+// Cota TVA: 0–100, altfel REFUZ, nu „pun 20 în tăcere". Motivul e concret: `piese_cec` calculează
+// `suma × cota / (100 + cota)`, deci o cotă de -100 împarte la zero și face ca cecul să nu se mai poată
+// tipări pentru niciun document care conține piesa. Iar o cotă de 8 pusă din greșeală nu rupe nimic — doar
+// declară altă taxă decât cea datorată, pe o hârtie care ajunge la client. Garda e și în bază
+// (`piese_parts_tva_cota_ck`), aici e ca omul să vadă un mesaj, nu o eroare de Postgres.
+function tvaCota(v: unknown): number {
+  if (v === '' || v == null) return 20;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('Cota TVA trebuie să fie între 0 și 100');
+  return n;
+}
 function validatePart(d: any) {
   if (!Number(d.group_id)) throw new Error('Grupa (categoria) este obligatorie');
   if (!txt(d.name_long)) throw new Error('Denumirea piesei este obligatorie');
@@ -318,9 +334,14 @@ export async function updateVehicle(id: number, d: any) {
   const plate = plateNorm(d.plate);
   if (!plate) throw new Error('Numărul mașinii este obligatoriu');
   await plateFree(plate, id);
-  check(await getSupabase().from('piese_vehicles').update({
-    plate, model: txtOrNull(d.model), km_current: Number(d.km_current) > 0 ? Number(d.km_current) : 0,
-  }).eq('id', id));
+  // `km_current` se scrie DOAR dacă a venit în payload. Altfel un apelant care trimite numai numărul și
+  // modelul ar fi dus kilometrajul la 0 — iar din el se calculează depășirea de normă (`piese_overconsumption`),
+  // deci zeroul n-ar fi stricat o cifră, ar fi ascuns tocmai controlul. Aceeași lecție ca la „replace complet".
+  const patch: Record<string, unknown> = { plate, model: txtOrNull(d.model) };
+  if (d.km_current !== undefined && d.km_current !== '') {
+    patch.km_current = Number(d.km_current) > 0 ? Number(d.km_current) : 0;
+  }
+  check(await getSupabase().from('piese_vehicles').update(patch).eq('id', id));
 }
 
 // ── Motive defecțiune ──

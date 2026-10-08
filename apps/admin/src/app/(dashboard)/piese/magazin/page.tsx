@@ -15,7 +15,7 @@ const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFract
 export default async function MagazinPage() {
   const session = await requirePieseIssue();
   const showCost = canSeeCost(session.role); // vânzătorul vede vânzările, dar nu costul/profitul (marja)
-  const [warehouses, clients, parts, profit, preturi] = await Promise.all([listWarehouses(), listClients(), saleParts(), shopProfit(), preturiSchimbate(7)]);
+  const [warehouses, clients, parts, profit, preturi, poatePesteStoc] = await Promise.all([listWarehouses(), listClients(), saleParts(), shopProfit(), preturiSchimbate(7), canOverrideStock(session)]);
   const shop = (warehouses as any[]).find((w) => w.kind === 'SHOP');
   // Raportul de zi se citește DUPĂ ce se știe magazinul — altfel n-am ști pentru ce depozit.
   const azi = shop ? await raportZi(shop.id) : [];
@@ -82,12 +82,14 @@ export default async function MagazinPage() {
       )}
 
       {shop ? (
-        <MagazinClient canOverrideStock={await canOverrideStock(session)} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({
+        <MagazinClient canOverrideStock={poatePesteStoc} shopId={shop.id} clients={(clients as any[]).map((c) => ({ id: c.id, label: c.name }))} parts={(parts as any[]).map((p) => ({
           id: p.id, label: partLabel(p), price: Number(p.price),
           // Ce se CAUTĂ, pe lângă ce se vede: articul, OEM și TOATE codurile de bare. Lista magazinului
           // n-avea nici măcar denumirea (vederea întorcea doar grupa, marca și prețul), deci eticheta ieșea
           // „— Taclar (312)", iar scanarea unui cod nu găsea nimic — exact reclamația lui Eduard.
-          search: [partLabel(p), p.article_code, p.oem_code, p.barcodes_all].filter(Boolean).join(' '),
+          // Deja cu minuscule: filtrul din combobox compară direct, fără să aloce un string per opțiune
+          // la fiecare tastare. Vezi comentariul de la `SSOption`.
+          search: [partLabel(p), p.article_code, p.oem_code, p.barcodes_all].filter(Boolean).join(' ').toLowerCase(),
         }))} />
       ) : <div className="card"><div className="empty">Niciun depozit-magazin definit.</div></div>}
     </>

@@ -35,6 +35,13 @@ $fn$;
 -- Semnătura e identică cu cea din migr. 380-382, cuvânt cu cuvânt. `CREATE OR REPLACE` cu un singur
 -- parametru schimbat ar fi creat o SUPRAÎNCĂRCARE, nu o înlocuire, iar varianta veche — fără prag — ar fi
 -- rămas apelabilă. Capcana asta ne-a prins deja de trei ori (migr. 355, 377, 379).
+-- Semnătura VECHE, cu 10 parametri (fără `p_plata`/`p_incasat`), se șterge explicit. Migr. 381 scrie în
+-- proză că „se șterge", dar nu conține SQL care s-o facă — deci la un replay curat ar fi rămas amândouă,
+-- iar cea veche, fără pragul de 1 leu și fără garda `INCASAT_PREA_MIC`, ar fi rămas apelabilă cu
+-- `service_role`, adică exact cu rolul aplicației. În producție există o singură semnătură (verificat);
+-- rândul ăsta e pentru replay, nu pentru azi.
+DROP FUNCTION IF EXISTS public.piese_create_sale(bigint,bigint,text,text,jsonb,bigint,uuid,uuid,text,boolean);
+
 CREATE OR REPLACE FUNCTION public.piese_create_sale(p_wh bigint, p_client bigint, p_series text, p_number text, p_lines jsonb, p_user bigint, p_created_by uuid DEFAULT NULL::uuid, p_admin uuid DEFAULT NULL::uuid, p_actor text DEFAULT NULL::text, p_allow_short boolean DEFAULT false, p_plata text DEFAULT 'NUMERAR'::text, p_incasat numeric DEFAULT NULL::numeric)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -140,3 +147,8 @@ UPDATE piese_parts p
    AND p.is_for_sale AND p.active
    AND COALESCE(p.sale_price, 0) = 0
    AND c.cost_mediu > 0;
+
+-- Drepturile pe semnătura cu 12 parametri: revocate explicit, fiindcă `ALTER DEFAULT PRIVILEGES` al
+-- proiectului dă EXECUTE pe orice funcție nouă lui `anon` și `authenticated` (migr. 289).
+REVOKE ALL ON FUNCTION public.piese_create_sale(bigint,bigint,text,text,jsonb,bigint,uuid,uuid,text,boolean,text,numeric) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.piese_create_sale(bigint,bigint,text,text,jsonb,bigint,uuid,uuid,text,boolean,text,numeric) TO service_role;

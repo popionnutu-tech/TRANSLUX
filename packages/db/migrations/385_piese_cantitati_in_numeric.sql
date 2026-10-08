@@ -44,3 +44,11 @@ BEGIN
 END $$;
 
 DROP TABLE _vdef;
+
+-- `ALTER COLUMN ... TYPE` cu conversie non-binară rescrie heap-ul și reconstruiește indexurile — deci
+-- nimic nu rămâne invalid — dar ȘTERGE statisticile coloanelor. Azi n-are efect (tabelele sunt mici și
+-- niciun index nu atinge coloanele convertite), însă la un replay pe o bază de dimensiune reală ar lăsa
+-- trei tabele fără statistici până la următorul autovacuum.
+ANALYZE piese_stock_movements;
+ANALYZE piese_stock_document_lines;
+ANALYZE piese_fifo_alloc;

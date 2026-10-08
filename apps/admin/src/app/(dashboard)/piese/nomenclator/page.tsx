@@ -35,7 +35,14 @@ export default async function NomenclatorPage() {
       </div>
       <NomenclatorClient
         sections={sections}
-        data={{ warehouses, groups, suppliers, clients, mechanics, reasons, vehicles } as Record<string, any[]>}
+        // Doar secțiunile pe care rolul chiar le poate gestiona. `NomenclatorClient` filtra doar RANDAREA,
+        // deci tot obiectul ajungea serializat în payload-ul trimis browserului: un DEPOZITAR primea lista
+        // completă de clienți, cu IDNO, bancă și adresă, deși n-are secțiunea „Clienți". Filtrarea
+        // trebuie făcută AICI, unde se decide ce pleacă de pe server.
+        data={Object.fromEntries(
+          Object.entries({ warehouses, groups, suppliers, clients, mechanics, reasons, vehicles })
+            .filter(([k]) => sections.includes(k)),
+        ) as Record<string, any[]>}
       />
     </>
   );

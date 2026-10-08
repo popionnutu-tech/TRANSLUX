@@ -161,8 +161,17 @@ export async function usedPartsCount(): Promise<number> {
   return count || 0;
 }
 
+// Coloanele citite de căutare. Listă ALBĂ, nu `*`, și nu din motive de securitate: vederea conține
+// `nume_bon_propus`, o expresie cu șapte regexuri pe rând (migr. 393), din care două își recompilează
+// modelul fiindcă îl construiesc din articolul fiecărei piese. Cu `*`, PostgREST cere coloana, deci
+// funcția se evaluează pentru TOT ce trece de filtru — pe calea cea mai fierbinte din modul, căutarea
+// care rulează la fiecare tastare, în 14 ecrane. Nimeni de pe calea asta nu folosește numele de bon.
+// Cerută explicit, Postgres o elimină din plan.
+const CATALOG_SEARCH_COLS = 'id, group_id, name_long, name_ro, manufacturer, model, article_code, '
+  + 'oem_code, barcode, barcodes_all, unit, is_used, origin_part_id, group_name';
+
 export async function catalogRows(opts: { search?: string; groupId?: number; onlyNew?: boolean; onlyUsed?: boolean } = {}) {
-  let q = getSupabase().from('piese_catalog_rows').select('*').order('group_name').limit(500);
+  let q = getSupabase().from('piese_catalog_rows').select(CATALOG_SEARCH_COLS).order('group_name').limit(500);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
   // Filtrul merge în INTEROGARE, nu peste rezultat: plafonul e 500, iar o filtrare de după l-ar fi aplicat
   // pe rândurile deja tăiate — piesa căutată ar fi lipsit fără ca cineva să înțeleagă de ce.
@@ -170,7 +179,10 @@ export async function catalogRows(opts: { search?: string; groupId?: number; onl
   if (opts.onlyUsed) q = q.eq('is_used', true);
   if (opts.search?.trim()) q = q.or(catalogSearchOr(orVal(opts.search.trim())));
   const { data } = await q;
-  return data || [];
+  // Cast explicit: cu lista de coloane dată ca CONSTANTĂ (nu literal inline), tipurile generate ale
+  // clientului Supabase nu mai pot deduce forma rândului și cad pe un tip de eroare. Constanta rămâne —
+  // e singurul loc unde se vede de ce lista e albă.
+  return (data || []) as unknown as Record<string, unknown>[];
 }
 
 // Catalog paginat pentru ecranul „Catalog" (browse): întoarce rândurile paginii + totalul real.

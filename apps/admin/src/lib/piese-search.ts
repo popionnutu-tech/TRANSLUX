@@ -42,7 +42,11 @@ export async function searchAssistant(
   const showCost = opts.showCost === true;
 
   // 1) Piesele care se potrivesc (din catalog: denumire / grup / articol / OEM / cod de bare / model).
-  let q = sb.from('piese_catalog_rows').select('*').order('group_name').limit(limit);
+  // Coloane explicite din același motiv ca în `catalogRows`: `nume_bon_propus` din vedere e o expresie
+  // scumpă pe care ecranul vânzătorului n-o folosește niciodată.
+  let q = sb.from('piese_catalog_rows')
+    .select('id, group_id, name_long, name_ro, manufacturer, model, article_code, oem_code, barcode, barcodes_all, unit, group_name')
+    .order('group_name').limit(limit);
   if (opts.categoryId) q = q.eq('group_id', opts.categoryId);
   // Poziția aleasă din sugestii bate căutarea textuală: dacă avem id, nu mai filtrăm după cuvinte.
   if (opts.partId) q = q.eq('id', opts.partId);

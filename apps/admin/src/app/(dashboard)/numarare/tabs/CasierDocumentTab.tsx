@@ -87,6 +87,8 @@ type EditableRow = {
   DataFoaie: string;
   PusLa: string;             // timestamptz ISO, read-only — ora plății (sau, fallback, introducerea foii)
   PusLaReal: boolean;        // true = ora vine de la casă; false = fallback (se afișează «—», ora în tooltip)
+  PrimitLa: string;          // când a intrat plata la noi (migr. 534); '' = înainte de 08.10 sau rând manual
+  Incarcare: number | null;  // a câta descărcare a terminalului pe zi (1..4, migr. 534); null = rând manual
   // Sume — Tomberon, dar corectabile (cash-ul NU la rândurile de terminal)
   Incasare: number;          // suma_numerar (cash); read-only la terminal, editabil la rândurile manuale
   Ligotnici: number;         // ligotniki0_suma (lei)
@@ -129,6 +131,8 @@ function rowFromCasier(c: CasierRow): EditableRow {
     DataFoaie: c.data_foaie || '',  // /grafic ziua, NULL dacă foaia nu e în /grafic
     PusLa: c.pus_la || '',
     PusLaReal: !!c.pus_la_real,
+    PrimitLa: c.primit_la || '',
+    Incarcare: c.incarcare ?? null,
     Incasare: Number(c.incasare_numerar) || 0,
     Ligotnici: Number(c.ligotniki0_suma) || 0,
     LigotniciGara: Number(c.ligotniki_vokzal_suma) || 0,
@@ -195,6 +199,16 @@ function formatPusLa(iso: string): string {
   if (Number.isNaN(d.getTime())) return '';
   return pusLaFormatter.format(d).replace(',', '');
 }
+
+// Descărcările terminalului pe zi (Ion, 08.10: «fiecare încărcare pe zi să fie culoare
+// diferită»). Numărul vine din tomberon_incarcare() (migr. 534), după ora intrării la noi:
+// VPS-ul trage la 12:00, 17:00, 22:00; noaptea, la 03:00, trimite scriptul lui Vasea.
+const INCARCARI: Record<number, { culoare: string; nume: string }> = {
+  1: { culoare: '#1e88e5', nume: 'descărcarea de la 12:00' },
+  2: { culoare: '#f57c00', nume: 'descărcarea de la 17:00' },
+  3: { culoare: '#00897b', nume: 'descărcarea de la 22:00' },
+  4: { culoare: '#78909c', nume: 'descărcarea de noapte (03:00)' },
+};
 
 // Sumă read-only: gol dacă 0, altfel numărul cu max 2 zecimale.
 function fmtSum(n: number): string {
@@ -570,6 +584,8 @@ export default function CasierDocumentTab({
       DataFoaie: azi,
       PusLa: '',
       PusLaReal: false,
+      PrimitLa: '',
+      Incarcare: null,
       Incasare: 0,
       Ligotnici: 0,
       LigotniciGara: 0,
@@ -1047,6 +1063,10 @@ export default function CasierDocumentTab({
                   ? { ...base, background: '#fffbe6', fontWeight: 600, borderLeft: '2px solid #f5c518' }
                   : base;
               const pusLaText = formatPusLa(r.PusLa);
+              const incarcare = r.Incarcare != null ? INCARCARI[r.Incarcare] : undefined;
+              const incarcareText = incarcare
+                ? `\nA venit cu ${incarcare.nume}${r.PrimitLa ? ` (intrată la ${formatPusLa(r.PrimitLa)})` : ''}.`
+                : '';
               // Rută/șofer/mașină/nr/dată: pe rândul manual sunt valorile lui; pe plata de terminal,
               // din migr. 520, corecții (plata venită pe foaia altui șofer). Rândul tăiat nu se editează.
               const canEdit = editMode && !r.Sters;
@@ -1068,14 +1088,18 @@ export default function CasierDocumentTab({
                       : 'Nou de la ultima verificare — încă nu a fost confirmat'}>
                     {r.N}{verificat && <span style={{ color: '#2e7d32', fontWeight: 700 }}> ✓</span>}
                   </td>
-                  <td style={cs({ textAlign: 'center', color: (r.PusLaReal || r.IsManual) ? '#555' : '#bbb' })}
-                    title={r.PusLaReal && pusLaText
+                  <td style={cs({
+                      textAlign: 'center', color: (r.PusLaReal || r.IsManual) ? '#555' : '#bbb',
+                      // Banda din stânga = culoarea descărcării care a adus plata (legenda e sub tabel).
+                      ...(incarcare ? { borderLeft: `5px solid ${incarcare.culoare}` } : null),
+                    })}
+                    title={(r.PusLaReal && pusLaText
                       ? `Plătită la casă la ${pusLaText} (ora Chișinăului)`
                       : r.IsManual
                         ? (pusLaText ? `Introdus la casă la ${pusLaText} (ora Chișinăului)` : 'Rând nou, încă nesalvat')
                         : pusLaText
                           ? `Ora plății va apărea automat când casa trimite ora. Foaia a fost introdusă în /grafic la ${pusLaText} (ora Chișinăului).`
-                          : 'Foaia nu are corespondent în /grafic'}>
+                          : 'Foaia nu are corespondent în /grafic') + incarcareText}>
                     {r.PusLaReal ? pusLaText : (r.IsManual ? (pusLaText || '—') : '—')}
                   </td>
                   <td style={corr('route_name', cs())}>
@@ -1392,8 +1416,13 @@ export default function CasierDocumentTab({
             numărul foii și șoferul. Rândurile cu <span style={{ color: '#2e7d32', fontWeight: 700 }}>✓</span>
             și fundal <span style={{ background: '#f0f7ef', padding: '0 4px' }}>verde pal</span> erau deja în
             document la ultima apăsare de «OK» — ora exactă e în tooltip-ul numărului; cele fără bifă au intrat
-            după aceea și te așteaptă. Ziua se poate lucra în treceri: la 20:00 sunt intrate ~86% din încasări,
-            restul vine până la miezul nopții. Filtrele din capul coloanelor <b>Ruta</b> și <b>Șoferi</b> restrâng tabelul,
+            după aceea și te așteaptă. Terminalul se descarcă de patru ori pe zi, iar banda colorată din
+            coloana <b>Ora plății</b> arată cu care descărcare a venit plata:{' '}
+            {Object.values(INCARCARI).map(i => (
+              <span key={i.nume} style={{ borderLeft: `5px solid ${i.culoare}`, padding: '0 6px 0 4px', marginRight: 4, whiteSpace: 'nowrap' }}>{i.nume}</span>
+            ))}
+            (plățile de până la 08.10 au venit toate noaptea). Ziua se poate lucra în treceri: la 20:00
+            sunt intrate ~86% din încasări, restul vine până la miezul nopții. Filtrele din capul coloanelor <b>Ruta</b> și <b>Șoferi</b> restrâng tabelul,
             iar <b>doar nelămuririle</b> lasă numai rândurile care cer atenție.
           </>
         )}

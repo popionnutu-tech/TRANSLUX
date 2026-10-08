@@ -318,6 +318,8 @@ export interface CasierRow {
   data_foaie: string | null; // ziua /grafic pentru această foaie (poate fi alta sau null)
   pus_la: string | null;     // timestamptz: ora plății la casă; la foile vechi — când s-a introdus foaia
   pus_la_real: boolean;      // true = ora vine de la casă (introdus_la); false = fallback pe introducerea foii
+  primit_la?: string | null; // când a intrat plata la noi (migr. 534); null = înainte de 08.10 / manual
+  incarcare?: number | null; // a câta descărcare a terminalului pe zi, 1..4 (migr. 534); null = manual
   plati: number;
   driver_id: string | null;
   driver_name: string | null;

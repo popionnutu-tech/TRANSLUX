@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { cautaCurseProba, cumparaProba, stareProbe, type CursaProba, type RandProba } from './actions';
+import TesteProba from './TesteProba';
 
 // Pagina de probă (migr. 532): aceiași pași ca pe site — de unde/încotro și ziua → cursa → nume, prenume, telefon, e-mail →
 // plata de 10 lei la maib → întoarcerea pe pagina reală a biletului. Dedesubt, bifele fiecărei comenzi de probă de azi.
@@ -131,6 +132,8 @@ export default function ProbaClient({ cheie }: { cheie: string }) {
             </div>
           ))}
         </section>
+
+        <TesteProba cheie={cheie} />
       </div>
     </main>
   );

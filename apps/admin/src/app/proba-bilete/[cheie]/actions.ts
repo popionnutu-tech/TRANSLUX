@@ -7,6 +7,8 @@ import { getSupabase } from '@/lib/supabase';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { ComandaError, creeazaComanda } from '@/lib/bilete/comenzi';
 import { cheieProbaValida, dataProbaPermisa, pasiProba, telefonMascat, type PasProba, type StareProbaRand } from '@/lib/bilete/proba-reguli';
+import { curataVerdicte, mesajRezultat } from '@/lib/bilete/proba-teste';
+import { alertAdmins } from '@/lib/telegram-notify';
 
 // Acțiunile paginii de probă fizică (migr. 532, Ion 08.10.2026: «pagina fără login», «biletul 10 lei», «Iura unic șofer»).
 // FIECARE acțiune verifică singură cheia și termenul (revizia de securitate H1: id-ul unei server action e public în
@@ -91,4 +93,21 @@ export async function stareProbe(cheie: string): Promise<{ ok: true; randuri: Ra
       nume: c.passenger_name, telefon: telefonMascat(c.phone), pasi: pasiProba(c),
     }));
   return { ok: true, randuri };
+}
+
+/**
+ * Ion, 08.10.2026: «fă ca pagina să trimită mie rezultatele». Verdictele celor 20 de teste pleacă la Ion în Telegram
+ * (alertAdmins, ca alertele biletelor). Textul testelor îl pune serverul din lista fixă; de la pagină vin doar ok/bad și
+ * nota. Plafon: 10 trimiteri în 10 minute (în bază), ca o cheie scăpată să nu poată umple chatul lui Ion.
+ */
+export async function trimiteRezultatProba(cheie: string, verdicte: unknown, cine: string): Promise<{ ok: true } | { ok: false; eroare: string }> {
+  if (!cheieBuna(cheie)) return { ok: false, eroare: 'neautorizat' };
+  const v = curataVerdicte(verdicte);
+  if (v.size === 0) return { ok: false, eroare: 'bifează cel puțin un test' };
+  const { data: liber, error } = await getSupabase().rpc('bilete_plafon', { p_cheie: 'proba:rezultat', p_fereastra_s: 600, p_max: 10 });
+  if (!error && liber === false) return { ok: false, eroare: 'prea multe trimiteri; încearcă peste câteva minute' };
+  const nume = String(cine ?? '').trim().slice(0, 40) || 'Iura';
+  const cand = new Date().toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  const trimis = await alertAdmins(mesajRezultat(v, nume, cand));
+  return trimis ? { ok: true } : { ok: false, eroare: 'Telegram n-a primit mesajul; încearcă din nou' };
 }

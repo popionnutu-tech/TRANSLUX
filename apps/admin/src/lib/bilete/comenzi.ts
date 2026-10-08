@@ -301,7 +301,9 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
 
   const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);
   const pornireRutaAt = chisinauInstantIso(input.tripDate, cursa.pornireRuta ?? cursa.trip.time);
-  if (!vanzareDeschisa({ goingNorth: input.goingNorth, departureAt, pornireRutaAt, nowMs: Date.now(), inchidereTurMin: cfg.inchidereTurMin, inchidereReturMin: cfg.inchidereReturMin })) {
+  // Proba fizică (Ion, 08.10: «fă cursa de test»): aplicația șoferului scanează doar cursele de AZI, deci la probă se
+  // cumpără orice cursă de azi, și una a cărei vânzare s-a închis; biletul de probă îl scanează doar șoferul de probă.
+  if (opt.mod !== 'proba' && !vanzareDeschisa({ goingNorth: input.goingNorth, departureAt, pornireRutaAt, nowMs: Date.now(), inchidereTurMin: cfg.inchidereTurMin, inchidereReturMin: cfg.inchidereReturMin })) {
     throw new ComandaError('inchis', 'vânzarea pentru această cursă s-a închis');
   }
   if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input);

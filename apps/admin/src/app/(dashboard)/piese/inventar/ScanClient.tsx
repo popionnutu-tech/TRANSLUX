@@ -137,6 +137,25 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
     } catch (e: any) { setErr(e.message); }
   }
 
+  // Adresa unui rând DEJA scanat. Cerut de Eduard (08.10): dacă a bipat ceva stând la altă celulă, până
+  // acum trebuia să șteargă rândul și s-o ia de la capăt — adresa venea exclusiv din „Celula curentă", în
+  // momentul bipului. Trece prin aceeași acțiune ca schimbarea cantității, deci primește aceeași validare
+  // de format: o adresă „raft 5" ar intra la închidere în harta depozitului și ar deforma-o.
+  async function schimbaAdresa(partId: number, val: string) {
+    if (sessionId == null) return;
+    const l = lines.find((x) => x.part_id === partId);
+    if (!l) return;
+    const adresa = val.trim();
+    if (!adresa || adresa === l.location_label) return;
+    setErr(null);
+    try {
+      await laRand(async () => {
+        pune({ id: partId, name: l.name, article: l.article, unit: l.unit },
+             await scanPart(sessionId, partId, adresa, Number(l.counted)));
+      });
+    } catch (e: any) { setErr(e.message); }
+  }
+
   async function schimbaCantitate(partId: number, val: string) {
     if (sessionId == null) return;
     const q = Number(val);
@@ -309,7 +328,12 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
             return (
               <tr key={l.part_id}>
                 <td>{l.name}{l.article ? <span className="muted"> · {l.article}</span> : null}</td>
-                <td>{l.location_label}</td>
+                <td>
+                  <input defaultValue={l.location_label} key={`${l.part_id}:${l.location_label}`}
+                    aria-label={`Adresa pentru ${l.name}`}
+                    onBlur={(e) => schimbaAdresa(l.part_id, e.target.value)}
+                    style={{ width: 110, fontFamily: 'monospace' }} />
+                </td>
                 <td>
                   <input type="number" min={0} step="any" defaultValue={l.counted} key={`${l.part_id}:${l.counted}`}
                     aria-label={`Cantitate numărată pentru ${l.name}`}

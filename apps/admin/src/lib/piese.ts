@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import { variantePeLayout } from './tastatura';
 import type { Autor } from './audit';
 
 // Strat de date pentru modulul „Piese" — citește din view-urile piese_* și apelează funcțiile Postgres (FIFO etc.).
@@ -177,8 +178,24 @@ export async function catalogRows(opts: { search?: string; groupId?: number; onl
   // pe rândurile deja tăiate — piesa căutată ar fi lipsit fără ca cineva să înțeleagă de ce.
   if (opts.onlyNew) q = q.eq('is_used', false);
   if (opts.onlyUsed) q = q.eq('is_used', true);
-  if (opts.search?.trim()) q = q.or(catalogSearchOr(orVal(opts.search.trim())));
-  const { data } = await q;
+  const termen = opts.search?.trim() || '';
+  if (termen) q = q.or(catalogSearchOr(orVal(termen)));
+  let { data } = await q;
+
+  // Tastatura lăsată pe alt layout (cerut de Eduard): „ау06844" e de fapt „fe06844", aceleași taste cu
+  // alt layout. Se reîncearcă DOAR dacă prima căutare n-a găsit nimic — nu lărgim predicatul cu încă 14
+  // ramuri `ilike` pe calea care rulează la fiecare tastare, în 14 ecrane. Cazul obișnuit rămâne la un
+  // singur drum la bază; salvarea costă al doilea drum doar când oricum nu era nimic de arătat.
+  if (termen && !(data as unknown[] | null)?.length) {
+    for (const v of variantePeLayout(termen).slice(1)) {
+      let alt = getSupabase().from('piese_catalog_rows').select(CATALOG_SEARCH_COLS).order('group_name').limit(500);
+      if (opts.groupId) alt = alt.eq('group_id', opts.groupId);
+      if (opts.onlyNew) alt = alt.eq('is_used', false);
+      if (opts.onlyUsed) alt = alt.eq('is_used', true);
+      const r = await alt.or(catalogSearchOr(orVal(v)));
+      if ((r.data as unknown[] | null)?.length) { data = r.data as typeof data; break; }
+    }
+  }
   // Cast explicit: cu lista de coloane dată ca CONSTANTĂ (nu literal inline), tipurile generate ale
   // clientului Supabase nu mai pot deduce forma rândului și cad pe un tip de eroare. Constanta rămâne —
   // e singurul loc unde se vede de ce lista e albă.

@@ -134,8 +134,7 @@ const ShaderBackground = () => {
     gl.enableVertexAttribArray(aP);
     const uR = gl.getUniformLocation(prog, 'R'), uT = gl.getUniformLocation(prog, 'T'), uS = gl.getUniformLocation(prog, 'uS'), uD = gl.getUniformLocation(prog, 'uD');
 
-    // Până la 2 pixeli pe pixel CSS: autobuzul și marcajele sunt fine și ar ieși moi la 1; calculul e mic și
-    // pe loc se desenează doar 10 cadre pe secundă.
+    // Până la 2 pixeli pe pixel CSS: autobuzul și marcajele sunt fine și ar ieși moi la 1; calculul e mic.
     let scale = 1;
     const resize = () => {
       scale = Math.min(window.devicePixelRatio || 1, 2);
@@ -162,8 +161,10 @@ const ShaderBackground = () => {
     window.addEventListener('resize', onResize);
     if (still) { draw(); return () => window.removeEventListener('resize', onResize); }
 
-    // La derulare: un cadru la fiecare pas al derulării. Pe loc: 10 cadre pe secundă, mișcare foarte lentă.
-    // Nimic cât fila e ascunsă sau canvas-ul nu e în ecran (ION-204).
+    // La derulare: un cadru la fiecare pas al derulării. Pe loc (Ion, 09.10: «când merge mașinuța, parcă se blochează»):
+    // la 10 cadre/s drumul sărea ~5 px pe desktop la fiecare cadru — acum fiecare cadru al ecranului pe desktop, 30/s pe
+    // telefon (acolo pasul e sub 1 px). Nimic cât fila e ascunsă sau canvas-ul nu e în ecran (ION-204).
+    const pas = window.matchMedia?.('(pointer: coarse)').matches ? 29 : 0;
     const onScroll = () => { dirty = true; };
     window.addEventListener('scroll', onScroll, { passive: true });
     let hidden = document.hidden, offscreen = false, alive = true, raf = 0, lastTs = 0, lastDraw = 0, running = false;
@@ -171,7 +172,7 @@ const ShaderBackground = () => {
       if (!alive || hidden || offscreen) { running = false; return; }
       if (lastTs) elapsed += Math.min(ts - lastTs, 100) / 1000;
       lastTs = ts;
-      if (dirty || ts - lastDraw >= 98) { draw(); dirty = false; lastDraw = ts; }
+      if (dirty || ts - lastDraw >= pas) { draw(); dirty = false; lastDraw = ts; }
       raf = requestAnimationFrame(loop);
     };
     const start = () => {

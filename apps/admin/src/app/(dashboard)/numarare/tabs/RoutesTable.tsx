@@ -186,19 +186,22 @@ export default function RoutesTable({ routes }: Props) {
 
   return (
     <div>
-      {/* Linii între coloane, ca în documentul de casier: cu douăzeci de coloane de cifre,
-          delimitarea pe spațiu alb nu mai ajunge. `gap: 0` + chenar pe fiecare celulă, ca la
-          un tabel adevărat; ultima coloană rămâne fără, să nu dubleze marginea. */}
+      {/* Chenar pe TOATE laturile, ca în documentul de casier (Ion, 09.10: «același format»).
+          Acolo e un <table> cu `borderCollapse: collapse`, care face liniile de 1px singur.
+          Aici sunt grile independente (antet, fiecare rând, subsolul), deci trucul e altul:
+          fiecare celulă desenează doar dreapta și jos, iar cutia din jur închide sus și
+          stânga. Așa nicio linie nu se dublează la 2px, oricâte rânduri ar fi.
+          Culoarea e #ccc, ca la casier — bordoul translucid de până acum se pierdea pe dungi. */}
       <style>{`
         .rute-grid > * {
-          border-right: 1px solid rgba(155,27,48,0.12);
+          border-right: 1px solid #ccc;
+          border-bottom: 1px solid #ccc;
           padding-right: 5px;
           padding-left: 5px;
           min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .rute-grid > *:last-child { border-right: none; }
       `}</style>
       {/* Comutatorul rămâne sus, lângă tabel: totalurile au coborât în subsol, dar un
           comutator de coloane căutat cu scroll la fiecare apăsare ar fi fost mai rău. */}
@@ -212,18 +215,24 @@ export default function RoutesTable({ routes }: Props) {
         </label>
       </div>
 
-      {/* Header */}
+      {/* Cutia tabelului: închide sus și stânga, restul îl desenează celulele. */}
+      <div style={{ borderTop: '1px solid #ccc', borderLeft: '1px solid #ccc' }}>
+
+      {/* Capul de tabel, ca la casier: bandă gri, scris bordo îngroșat, denumirile centrate.
+          Cei 3px de bordură la stânga NU sunt decor: fiecare rând are o dungă de 3px în
+          culoarea statusului, iar fără ei antetul ar sta deplasat cu 3px față de rânduri și
+          liniile verticale n-ar mai cădea una sub alta. */}
       <div className="rute-grid" style={{
         display: 'grid',
         gridTemplateColumns: GRID,
         gap: 0,
         padding: '9px 10px',
-        borderBottom: '1px solid var(--border)',
+        borderLeft: '3px solid #e8e8e8',
+        background: '#e8e8e8',
         fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 0.4,
-        color: 'var(--text-muted)',
-        marginBottom: 4,
+        fontWeight: 700,
+        textAlign: 'center',
+        color: 'var(--primary)',
         alignItems: 'start',
       }}>
         <div onClick={() => toggleSort('Data')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Sortează după data foii">Data{arrow('Data')}</div>
@@ -252,16 +261,15 @@ export default function RoutesTable({ routes }: Props) {
           </select>
         </div>
         <div>Foaie</div>
-        <div style={{ textAlign: 'right' }}>Num</div>
-        <div style={{ textAlign: 'right' }}>+2T</div>
-        <div style={{ textAlign: 'right' }}>Inc</div>
-        {descifrare && <div style={{ textAlign: 'right' }} title="Numerar — banii încasați la casă">Nm</div>}
-        {descifrare && <div style={{ textAlign: 'right' }} title="Diagrame">Dg</div>}
-        {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici 0">Lg</div>}
-        {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici gară">Vk</div>}
-        {descifrare && <div style={{ textAlign: 'right' }} title="Cheltuieli suplimentare">Rs</div>}
-        <div style={{ textAlign: 'right' }}
-          title="Rezultatul: total încasat − numărare. Plus = s-a încasat mai mult decât s-a numărat; minus = lipsesc bani față de numărare.">Δ</div>
+        <div>Num</div>
+        <div>+2T</div>
+        <div>Inc</div>
+        {descifrare && <div title="Numerar — banii încasați la casă">Nm</div>}
+        {descifrare && <div title="Diagrame">Dg</div>}
+        {descifrare && <div title="Ligotnici 0">Lg</div>}
+        {descifrare && <div title="Ligotnici gară">Vk</div>}
+        {descifrare && <div title="Cheltuieli suplimentare">Rs</div>}
+        <div title="Rezultatul: total încasat − numărare. Plus = s-a încasat mai mult decât s-a numărat; minus = lipsesc bani față de numărare.">Δ</div>
         <div>Status</div>
         <div></div>
       </div>
@@ -406,11 +414,10 @@ export default function RoutesTable({ routes }: Props) {
         gap: 0,
         alignItems: 'center',
         padding: '11px 10px',
-        marginTop: 2,
         fontSize: 15,
         fontWeight: 700,
-        background: 'rgba(155,27,48,0.07)',
-        borderTop: '2px solid var(--primary)',
+        borderLeft: '3px solid #e8e8e8',
+        background: '#e8e8e8',
       }}>
         <div className="text-muted" style={{ fontSize: 12, textTransform: 'uppercase' }}>Total</div>
         <div />
@@ -438,6 +445,8 @@ export default function RoutesTable({ routes }: Props) {
         </div>
         <div />
         <div />
+      </div>
+
       </div>
     </div>
   );

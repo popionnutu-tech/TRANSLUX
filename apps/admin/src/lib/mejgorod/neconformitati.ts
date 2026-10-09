@@ -171,6 +171,9 @@ export function ziuaRu(dateIso: string): string {
  * Plinul se judecă după numărarea de pe camere (counting_entries), în analiza săptămânală pentru Ion (singerei-plin.ts). */
 export const NOTA_PLIN_RU = 'Рейсы, на которых микроавтобус был заполнен, будут исключены из анализа (проверка по подсчёту пассажиров).';
 
+/** Ion, 09.10: «șoferul care nu va respecta graficul nu va fi permis să meargă pe rută» — sub lista Lipcani. */
+export const AVERTISMENT_LIPCANI_RU = '⚠️ Водитель, который не соблюдает график, не будет допущен к рейсу.';
+
 /**
  * Mesajul HTML pentru grupa Mejgorod, în rusă (Ion, 07.10: «data sus, raportul în rusă»), cu data
  * pe primul rând. `ziua` = ziuaRu(...). Cursele fără GPS nu se mai listează (Ion, 07.10:
@@ -196,6 +199,7 @@ export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: C
   if (lip.length) {
     out.push('', `<b>📍 Не доехал до Липкан (рейсы из Кишинёва 06:55–13:30 обязательно до Липкан) — ${lip.length}</b>`);
     for (const x of lip) out.push(`Рейс ${x.ruta} из Кишинёва · ${cine(n, x.driver_id, x.vehicle_id)}`);
+    out.push(`<b>${AVERTISMENT_LIPCANI_RU}</b>`);
   }
   out.push('', `<i>${NOTA_PLIN_RU}</i>`);
   return out.join('\n');

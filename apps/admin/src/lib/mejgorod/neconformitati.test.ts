@@ -99,6 +99,8 @@ describe('gasesteNeconformitati', () => {
     ]);
     expect(r.lista.map((x) => [x.tip, x.ruta, x.retur])).toEqual([['lipcani', 16, true]]);
     expect(textMesaj('z', r, nume)).toContain('Не доехал до Липкан');
+    expect(textMesaj('z', r, nume)).toContain('не будет допущен к рейсу');
+    expect(textMesaj('z', { lista: [], faraGps: [] }, nume)).not.toContain('не будет допущен');
     expect(textMesaj('z', r, nume)).toContain('Рейс 16 из Кишинёва · Șofer a · ABx');
   });
   it('rutele din afara ferestrei (ruta 9) și returul fără GPS nu se judecă la Lipcani', () => {

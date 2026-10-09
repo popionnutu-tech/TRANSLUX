@@ -66,3 +66,14 @@ describe('vanzareaAPornit — data de pornire (Ion, 09.10: «începând de 12.10
     try { expect(vanzareaAPornit(true, '2026-10-12', chisinauTodayIso())).toBe(true); } finally { vi.useRealTimers(); }
   });
 });
+
+describe('cursaDupaDataDeStart (Ion, 09.10: «vânzarea de 12.10 apare de acum»)', async () => {
+  const { cursaDupaDataDeStart } = await import('./reguli');
+  it('doar cursele cu data ≥ data de start; fără dată = toate; stricată = niciuna', () => {
+    expect(cursaDupaDataDeStart('2026-10-12', '2026-10-12')).toBe(true);
+    expect(cursaDupaDataDeStart('2026-10-12', '2026-10-20')).toBe(true);
+    expect(cursaDupaDataDeStart('2026-10-12', '2026-10-11')).toBe(false);
+    expect(cursaDupaDataDeStart('', '2026-10-09')).toBe(true);
+    expect(cursaDupaDataDeStart('12.10', '2026-10-20')).toBe(false);
+  });
+});

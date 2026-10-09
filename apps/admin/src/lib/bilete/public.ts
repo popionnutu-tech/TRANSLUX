@@ -146,6 +146,8 @@ export interface ConfigPublica {
   localitati: string[] | null;
   /** Capătul celălalt al perechii (Ion, 09.10: ["Chișinău"]); null = fără restricție (urcare SAU coborâre). */
   destinatii: string[] | null;
+  /** Prima zi de cursă care se vinde online (09.10: «2026-10-12»); null = orice zi. */
+  curse_de_la: string | null;
 }
 
 export async function configPublica(): Promise<ConfigPublica> {
@@ -162,6 +164,7 @@ export async function configPublica(): Promise<ConfigPublica> {
     rute: (rute || []).map((r: { id: number; bilete_online_tur: boolean; bilete_online_retur: boolean }) => ({ id: r.id, tur: Boolean(r.bilete_online_tur), retur: Boolean(r.bilete_online_retur) })),
     localitati: localitatiPentruPublic(cfg.localitati),
     destinatii: localitatiPentruPublic(cfg.destinatii),
+    curse_de_la: cfg.curseDeLa,
   };
 }
 

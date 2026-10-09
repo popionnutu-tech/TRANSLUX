@@ -18,9 +18,11 @@ export interface ConfigBilete {
   localitati: LocalitatiVanzare;
   /** Capătul celălalt al perechii (Ion, 09.10: «doar perechile cu Chișinău»); toate = regula veche. */
   destinatii: LocalitatiVanzare;
+  /** Prima zi de cursă vândută online (09.10: «2026-10-12»); null = orice zi. */
+  curse_de_la: string | null;
 }
 
-export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE, destinatii: NICIO_LOCALITATE };
+export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE, destinatii: NICIO_LOCALITATE, curse_de_la: null };
 
 /**
  * Răspunsul panoului → configurație; orice formă neașteptată → vânzare închisă. `localitati` lipsă (panoul de dinainte
@@ -41,6 +43,7 @@ export function parseazaConfig(j: unknown): ConfigBilete {
     rute,
     localitati: localitatiDinValoare(o.localitati).regula,
     destinatii: localitatiDinValoare(o.destinatii).regula,
+    curse_de_la: typeof o.curse_de_la === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.curse_de_la) ? o.curse_de_la : null,
   };
 }
 
@@ -66,6 +69,7 @@ export function vanzareDeschisaPeSite(a: {
   nowMs: number;
 }): boolean {
   if (!a.cfg.activ || !a.soferPeZi) return false;
+  if (a.cfg.curse_de_la && a.tripDate < a.cfg.curse_de_la) return false;
   if (!cursaInLocalitatileVanzarii(a.cfg.localitati, a.urcare, a.coborare, a.cfg.destinatii)) return false;
   const r = a.cfg.rute.find((x) => x.id === a.routeId);
   if (!r || !(a.goingNorth ? r.retur : r.tur)) return false;

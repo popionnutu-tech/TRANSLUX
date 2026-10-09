@@ -16,3 +16,14 @@ export function vanzareaAPornit(steag: boolean, deLa: string | null | undefined,
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
   return aziChisinau >= d;
 }
+
+/**
+ * Ion, 09.10.2026 (a doua decizie): «vânzarea de 12.10 apare de acum, de atunci vânzare» — vânzarea e deschisă de acum,
+ * dar doar pentru cursele cu data ≥ `app_config.bilete_online_de_la`. Lipsă/gol = orice dată; formă stricată = nicio cursă.
+ */
+export function cursaDupaDataDeStart(deLa: string | null | undefined, tripDate: string): boolean {
+  const d = String(deLa ?? '').trim();
+  if (!d) return true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  return tripDate >= d;
+}

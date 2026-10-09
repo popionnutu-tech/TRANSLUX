@@ -9,7 +9,7 @@ import { getSupabase } from '@/lib/supabase';
 import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } from '@/lib/maib/client';
 import { persistaCheckout } from '@/lib/maib/persist';
 import { chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
-import { calculeazaDepartureAt, vanzareaAPornit, vanzareDeschisa } from './reguli';
+import { calculeazaDepartureAt, cursaDupaDataDeStart, vanzareDeschisa } from './reguli';
 import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
@@ -86,6 +86,8 @@ export interface ConfigBilete {
   plafoaneLocalitati: PlafoaneLocalitati | null;
   /** Capătul celălalt al perechii (09.10: ["Chișinău"]); toate = regula veche (urcare SAU coborâre). */
   destinatii: LocalitatiVanzare;
+  /** Prima zi de cursă care se vinde online (bilete_online_de_la, 09.10: «2026-10-12»); null = orice zi. */
+  curseDeLa: string | null;
 }
 
 export type Rezultat = { comanda: BileteComanda; checkoutUrl: string };
@@ -122,8 +124,9 @@ export async function citesteConfigBilete(): Promise<ConfigBilete> {
   const plafoane = parseazaPlafoaneLocalitati(m.get(CHEI_CONFIG.plafoaneLocalitati));
   if (plafoane.eroare) console.error(`[bilete] app_config.${CHEI_CONFIG.plafoaneLocalitati} stricat (${plafoane.eroare}) → vânzarea publică închisă`);
   return {
-    // Steagul ȘI data de pornire (ziua Chișinăului): până la data din bilete_online_de_la vânzarea rămâne închisă.
-    activ: vanzareaAPornit(m.get(CHEI_CONFIG.activ) === 'true', m.get(CHEI_CONFIG.deLa), chisinauTodayIso()),
+    // Ion, 09.10 (a doua decizie): vânzarea e deschisă de acum; bilete_online_de_la = prima zi de CURSĂ care se vinde.
+    activ: m.get(CHEI_CONFIG.activ) === 'true',
+    curseDeLa: m.get(CHEI_CONFIG.deLa)?.trim() || null,
     inchidereTurMin: Number(m.get(CHEI_CONFIG.inchidereTur) ?? 0) || 0,
     inchidereReturMin: Number(m.get(CHEI_CONFIG.inchidereRetur) ?? 120) || 0,
     localitati: localitati.regula,
@@ -218,9 +221,14 @@ export async function areSofer(tripDate: string, crmRouteId: number, goingNorth:
  * Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» — șoferul cursei e legat de Telegram (numai el vede
  * pasagerii online și le scanează biletele). `lipsa` = cursa n-are șofer în graficul zilei.
  */
-export async function stareSoferCursa(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<'lipsa' | 'nelegat' | 'legat'> {
+/** `fara_grafic` = ziua cursei n-are încă niciun rând în grafic (Ion, 09.10: «vânzarea e posibilă fără grafic»). */
+export async function stareSoferCursa(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<'fara_grafic' | 'lipsa' | 'nelegat' | 'legat'> {
   const id = await soferulCursei(tripDate, crmRouteId, goingNorth);
-  if (!id) return 'lipsa';
+  if (!id) {
+    const { count, error } = await getSupabase().from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', tripDate);
+    if (error) throw new Error(`daily_assignments: ${error.message}`);
+    return (count ?? 0) === 0 ? 'fara_grafic' : 'lipsa';
+  }
   const { data, error } = await getSupabase().from('drivers').select('telegram_id, active').eq('id', id).maybeSingle();
   if (error) throw new Error(`drivers: ${error.message}`);
   const d = data as { telegram_id: number | null; active: boolean } | null;
@@ -320,13 +328,18 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   ]);
   if (opt.mod === 'public') {
     if (!cfg.activ) throw new ComandaError('inchis', 'vânzarea online nu e deschisă');
+    if (!cursaDupaDataDeStart(cfg.curseDeLa, input.tripDate)) {
+      throw new ComandaError('inchis', `online se vând biletele pentru cursele din ${(cfg.curseDeLa ?? '').split('-').reverse().join('.')} încolo`);
+    }
     if (!directie) throw new ComandaError('inchis', 'vânzarea online nu e deschisă pe această cursă');
   }
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
   if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa, cfg.destinatii);
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
   if (opt.mod !== 'proba' && !pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
-  if (sofer === 'lipsa' && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
+  // Ion, 09.10: «vânzarea e posibilă fără grafic, graficul ulterior doar dă date adiționale» — fără grafic pe zi se vinde;
+  // cu grafic, ruta fără șofer nu merge, iar șoferul trebuie să fie legat (decizia de mai devreme a aceleiași zile).
+  if (sofer === 'lipsa' && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are șofer în graficul zilei');
   // Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» — doar el vede pasagerii și scanează biletele.
   if (sofer === 'nelegat' && opt.mod === 'public') throw new ComandaError('inchis', 'pe această cursă biletul se ia deocamdată de la șofer');
 

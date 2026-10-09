@@ -459,7 +459,14 @@ export async function searchTrips(
           originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
           isAwaitingDriver: true,
           ...bilet,
-          sale_open: false,
+          // Ion, 09.10: «vânzarea e posibilă fără grafic» — cursa fără șofer se vinde doar dacă ziua n-are încă grafic
+          // (cu grafic, ruta fără șofer de obicei nu merge).
+          sale_open: !graficPeZi && daysUntilDeparture <= 7 && pretVandabilOnline(displayPrice) && vanzareDeschisaPeSite({
+            cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
+            pornireRuta: pornireRuta(trip.routeId, trip.goingNorth),
+            urcare: numeOprireUrcare(trip.routeId), coborare: numeOprireCoborare(trip.routeId),
+            soferPeZi: true, nowMs,
+          }),
           puncte: [],
         });
       }
@@ -478,7 +485,8 @@ export async function searchTrips(
         cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
         pornireRuta: pornireRuta(trip.routeId, trip.goingNorth),
         urcare: numeOprireUrcare(trip.routeId), coborare: numeOprireCoborare(trip.routeId),
-        soferPeZi: graficPeZi && details!.legat, nowMs,
+        // Ion, 09.10: fără grafic pe ziua cursei se vinde; cu grafic — doar la șoferul legat.
+        soferPeZi: !graficPeZi || details!.legat, nowMs,
       }),
       puncte: [],
     });

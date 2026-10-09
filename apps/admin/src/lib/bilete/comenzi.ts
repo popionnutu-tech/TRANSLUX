@@ -195,8 +195,8 @@ async function gasesteCursa(input: ComandaInput): Promise<CursaGasita | null> {
   };
 }
 
-/** Șoferul atribuit cursei PE ziua cerută (fără căderea pe ziua anterioară de pe site). */
-export async function areSofer(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<boolean> {
+/** Șoferul atribuit cursei PE ziua cerută (fără căderea pe ziua anterioară de pe site), sau null. */
+export async function soferulCursei(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<string | null> {
   const db = getSupabase();
   const sel = 'crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id';
   const [a, b] = await Promise.all([
@@ -207,7 +207,24 @@ export async function areSofer(tripDate: string, crmRouteId: number, goingNorth:
   if (b.error) throw new Error(`daily_assignments: ${b.error.message}`);
   const all = [...(a.data || []), ...(b.data || [])];
   const map = goingNorth ? buildReturAssignmentMap(all) : buildTurAssignmentMap(all);
-  return Boolean(map.get(crmRouteId)?.driver_id);
+  return map.get(crmRouteId)?.driver_id ?? null;
+}
+
+export async function areSofer(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<boolean> {
+  return Boolean(await soferulCursei(tripDate, crmRouteId, goingNorth));
+}
+
+/**
+ * Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» — șoferul cursei e legat de Telegram (numai el vede
+ * pasagerii online și le scanează biletele). `lipsa` = cursa n-are șofer în graficul zilei.
+ */
+export async function stareSoferCursa(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<'lipsa' | 'nelegat' | 'legat'> {
+  const id = await soferulCursei(tripDate, crmRouteId, goingNorth);
+  if (!id) return 'lipsa';
+  const { data, error } = await getSupabase().from('drivers').select('telegram_id, active').eq('id', id).maybeSingle();
+  if (error) throw new Error(`drivers: ${error.message}`);
+  const d = data as { telegram_id: number | null; active: boolean } | null;
+  return d?.telegram_id != null && d.active ? 'legat' : 'nelegat';
 }
 
 /** ION-264: cursa se vinde online doar cu urcare sau coborâre într-o localitate din listă. Aruncă ComandaError('inchis'). */
@@ -299,7 +316,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     citesteConfigBilete(),
     opt.mod === 'public' ? directiaDeschisa(input.crmRouteId, input.goingNorth) : Promise.resolve(true),
     gasesteCursa(input),
-    areSofer(input.tripDate, input.crmRouteId, input.goingNorth),
+    stareSoferCursa(input.tripDate, input.crmRouteId, input.goingNorth),
   ]);
   if (opt.mod === 'public') {
     if (!cfg.activ) throw new ComandaError('inchis', 'vânzarea online nu e deschisă');
@@ -309,7 +326,9 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa, cfg.destinatii);
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
   if (opt.mod !== 'proba' && !pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
-  if (!sofer && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
+  if (sofer === 'lipsa' && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
+  // Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» — doar el vede pasagerii și scanează biletele.
+  if (sofer === 'nelegat' && opt.mod === 'public') throw new ComandaError('inchis', 'pe această cursă biletul se ia deocamdată de la șofer');
 
   const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);
   const pornireRutaAt = chisinauInstantIso(input.tripDate, cursa.pornireRuta ?? cursa.trip.time);

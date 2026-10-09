@@ -360,12 +360,13 @@ export async function searchTrips(
 
   // Fetch drivers and vehicles separately to avoid Supabase FK join issues
   const allAssignments = [...(assignments || []), ...(returOverrides || [])];
-  const driverIds = [...new Set(allAssignments.map((a: any) => a.driver_id).filter(Boolean))];
+  // și șoferul separat de retur (driver_id_retur), altfel cursa lui de retur n-ar avea nume și n-ar avea buton
+  const driverIds = [...new Set(allAssignments.flatMap((a: any) => [a.driver_id, a.driver_id_retur]).filter(Boolean))];
   const vehicleIds = [...new Set(allAssignments.flatMap((a: any) => [a.vehicle_id, a.vehicle_id_retur].filter(Boolean)))];
 
   const [{ data: driversData }, { data: vehiclesData }] = await Promise.all([
     driverIds.length > 0
-      ? supabase.from('public_drivers_view').select('id, full_name, phone').in('id', driverIds)
+      ? supabase.from('public_drivers_view').select('id, full_name, phone, bilete_online').in('id', driverIds)
       : Promise.resolve({ data: [] }),
     vehicleIds.length > 0
       ? supabase.from('public_vehicles_view').select('id, plate_number').in('id', vehicleIds)
@@ -395,6 +396,8 @@ export async function searchTrips(
       driver: driver?.display_name || null,
       phone: driver?.phone || null,
       plate: vehicle?.plate_number || null,
+      // Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» (migr. 543, public_drivers_view.bilete_online).
+      legat: driver?.bilete_online === true,
     };
   }
 
@@ -475,7 +478,7 @@ export async function searchTrips(
         cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
         pornireRuta: pornireRuta(trip.routeId, trip.goingNorth),
         urcare: numeOprireUrcare(trip.routeId), coborare: numeOprireCoborare(trip.routeId),
-        soferPeZi: graficPeZi, nowMs,
+        soferPeZi: graficPeZi && details!.legat, nowMs,
       }),
       puncte: [],
     });

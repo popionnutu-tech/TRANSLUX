@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { findCheckoutByOrderId, getPayment } from '@/lib/maib/client';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
-import { areSofer, leagaSesiuneExistenta } from './comenzi';
+import { leagaSesiuneExistenta, stareSoferCursa } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
 import { alertAdmins } from '@/lib/telegram-notify';
 import { ruleazaEchipajul, type RaportEchipaj } from './echipaj-job';
@@ -170,7 +170,13 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
     .limit(COTE.cursa_fara_sofer);
   await inLoturi((platite || []) as Pick<BileteComanda, 'id' | 'trip_date' | 'crm_route_id' | 'going_north' | 'departure_at'>[], async (c) => {
     if (!inFereastraFaraSofer(c.departure_at, acum)) return;
-    if (await areSofer(c.trip_date, c.crm_route_id, c.going_north)) return;
+    const st = await stareSoferCursa(c.trip_date, c.crm_route_id, c.going_north);
+    // Ion, 09.10: vânzarea doar la șoferii legați — dacă între timp cursa a primit un șofer nelegat, Ion află (o dată).
+    if (st === 'nelegat') {
+      if (await alertaOData(c.id, 'sofer_nelegat', `plecare ${c.departure_at}, ruta ${c.crm_route_id} ${c.going_north ? 'retur' : 'tur'}: șoferul din grafic nu e legat de Telegram — nu vede pasagerul online`, opt.dry)) raport.cursa_fara_sofer.aplicate += 1;
+      return;
+    }
+    if (st === 'legat') return;
     if (await alertaOData(c.id, 'cursa_fara_sofer', `plecare ${c.departure_at}, ruta ${c.crm_route_id} ${c.going_north ? 'retur' : 'tur'} fără șofer în grafic`, opt.dry)) raport.cursa_fara_sofer.aplicate += 1;
   }, raport.cursa_fara_sofer);
 

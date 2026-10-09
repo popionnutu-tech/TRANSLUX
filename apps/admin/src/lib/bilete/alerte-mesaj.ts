@@ -16,6 +16,7 @@ const TIPURI: Record<string, string> = {
   refund_necunoscut: '❓ Refund fără răspuns de la bancă',
   refund_respins: '⛔ Refund respins de bancă',
   cursa_fara_sofer: '🚌 Cursă vândută fără șofer în grafic',
+  sofer_nelegat: '📵 Cursă vândută cu șofer nelegat de Telegram',
   urcat_pe_anulat: '⚠️ Urcare pe bilet anulat',
   creare_esuata: '⚠️ Comanda nu a putut porni plata',
   plafon_atins: '🛑 Plafon de comenzi atins',

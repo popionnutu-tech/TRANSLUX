@@ -44,7 +44,7 @@ function formatData(iso: string | null): string {
  *
  * Diagrama e inclusă aici: Ion a enumerat cinci rubrici și a sărit-o, dar ea era deja în
  * vechiul `incasare_lei` și e o coloană de bani ca celelalte — scoasă, totalul ar fi SCĂZUT
- * față de ce se vedea până acum. De confirmat; e o singură linie de schimbat.
+ * față de ce se vedea până acum. Confirmat de Ion pe 09.10: «cu diagrama, totul e ok».
  */
 function incTotal(r: GraficRouteRow): number {
   return Number(r.incasare_numerar || 0)

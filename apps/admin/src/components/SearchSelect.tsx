@@ -97,6 +97,40 @@ export default function SearchSelect({ value, onSelect, placeholder = '— caut�
 
   function pick(o: SSOption) { onSelect(o); setQuery(''); setOpen(false); setAsyncResults(EMPTY); }
 
+  // Enter — și de la om, și de la SCANER. Cele două sunt cazuri diferite, iar vechea variantă îl servea
+  // doar pe primul: `results[hi]`, adică lista calculată din STARE.
+  //
+  // Scanerul tastează tot codul într-o rafală și trimite Enter imediat. React n-a apucat să re-randeze cu
+  // valoarea finală, deci `results` e încă veche — goală, sau potrivirea unui prefix. În modul async e și
+  // mai rău: căutarea pe server are 250 ms de așteptare, iar Enter sosește cu mult înainte. De aceea
+  // „штрихкод с клавиатуры работает — сканером не работает": omul tastează destul de încet ca lista să-l
+  // ajungă din urmă.
+  //
+  // Reparația: când se apasă Enter, se citește valoarea REALĂ din câmp, nu starea. Dacă starea e deja la
+  // zi (omul a văzut lista și a ales), se păstrează comportamentul vechi — altfel săgețile n-ar mai avea
+  // efect. Dacă nu, se rezolvă după text, și se alege DOAR la o singură potrivire: la mai multe, lista
+  // rămâne deschisă pentru om. Un scaner care nimerește „cea mai apropiată" piesă ar vinde altceva decât
+  // marfa din mână, iar diferența s-ar vedea abia la inventar.
+  async function enter(valCamp: string) {
+    const val = (valCamp ?? '').trim();
+    if (val === query && results[hi]) { pick(results[hi]); return; }
+    if (!val) return;
+    if (isAsync) {
+      setLoading(true);
+      try {
+        const r = await searchFn!(val);
+        if (r.length === 1) { pick(r[0]); return; }
+        setQuery(val); setAsyncResults(r.slice(0, maxShown)); setOpen(true); setHi(0);
+      } catch { /* mesajul îl dă apelantul; aici doar nu alegem nimic */ }
+      finally { setLoading(false); }
+      return;
+    }
+    const q2 = val.toLowerCase();
+    const m = (options || []).filter((o) => (o.search ?? o.label.toLowerCase()).includes(q2));
+    if (m.length === 1) { pick(m[0]); return; }
+    setQuery(val); setOpen(true); setHi(0);
+  }
+
   return (
     <div ref={boxRef} style={{ position: 'relative' }}>
       <input
@@ -112,7 +146,7 @@ export default function SearchSelect({ value, onSelect, placeholder = '— caut�
           // lista cu primul rând marcat, nu să lase câmpul într-o stare din care doar a doua săgeată iese.
           if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi((h) => Math.max(0, Math.min(h + 1, results.length - 1))); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-          else if (e.key === 'Enter') { e.preventDefault(); if (results[hi]) pick(results[hi]); }
+          else if (e.key === 'Enter') { e.preventDefault(); enter(e.currentTarget.value); }
           else if (e.key === 'Escape') { setOpen(false); }
         }}
       />

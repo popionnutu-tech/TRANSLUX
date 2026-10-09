@@ -312,12 +312,33 @@ export async function updateMechanic(id: number, d: any) {
 // duplicat real, fiindcă verificarea „există deja?" compara forma normalizată cu valoarea stocată.
 const plateNorm = (v: unknown) => txt(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+// Forma INVERSĂ a numărului: „QDQ357" ↔ „357QDQ". În 1C numerele sunt scrise cu cifrele în față, la noi
+// unele sunt invers, iar oamenii le tastează cum le văd pe mașină sau pe hârtie.
+const plateInvers = (p: string) => {
+  let m = /^([A-Z]+)(\d+)$/.exec(p);
+  if (m) return m[2] + m[1];
+  m = /^(\d+)([A-Z]+)$/.exec(p);
+  return m ? m[2] + m[1] : p;
+};
+
+// Verifică și forma inversă, nu doar scrierea exactă.
+//
+// FĂRĂ asta s-a întâmplat deja: în prima zi de la apariția tabului, s-au creat cinci mașini dublă —
+// „553GHT" peste „GHT553", „135HMK" peste „HMK135" și altele — iar pe fiecare s-au eliberat deja piese.
+// Documentele au ajuns pe un al doilea rând al ACELEIAȘI mașini, care n-are legătură cu 1C: nu se pot
+// descarca în contabilitate, iar costul pe autobuz se împarte în două fără ca cineva să observe.
 async function plateFree(plate: string, exceptId?: number) {
-  let q = getSupabase().from('piese_vehicles').select('id, plate').eq('plate', plate);
+  const forme = Array.from(new Set([plate, plateInvers(plate)]));
+  let q = getSupabase().from('piese_vehicles').select('id, plate').in('plate', forme);
   if (exceptId) q = q.neq('id', exceptId);
   const { data, error } = await q.limit(1);
   if (error) throw new Error('Nu am putut verifica numărul mașinii');
-  if ((data as any[])?.length) throw new Error(`Mașina ${plate} există deja în listă`);
+  const gasit = (data as { plate: string }[] | null)?.[0];
+  if (gasit) {
+    throw new Error(gasit.plate === plate
+      ? `Mașina ${plate} există deja în listă`
+      : `Mașina există deja, scrisă „${gasit.plate}" — e același număr, doar cu cifrele în cealaltă ordine. Folosește-o pe aceea.`);
+  }
 }
 
 export async function createVehicle(d: any) {

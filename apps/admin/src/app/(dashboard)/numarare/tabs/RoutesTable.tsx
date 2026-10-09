@@ -170,11 +170,14 @@ export default function RoutesTable({ routes }: Props) {
   // gară, «descifrarea» nu descifra nimic (Ion, 07.10).
   // Ruta nu mai ia tot spațiul liber (era `1fr`): are un maxim, iar surplusul trece la Șofer,
   // unde numele sunt la fel de lungi. Ion, 07.10: «lățimea la rută să fie mai mică».
+  // Lățimile cresc odată cu fontul (12 → 13): o cifră de 13px e cu ~8% mai lată, iar pe o
+  // coloană de 44px un total de patru cifre n-ar mai fi încăput. Ion, 09.10: «rândurile să fie
+  // mai late și scriptul mai mare».
   const GRID = descifrare
-    ? '76px 92px minmax(130px, 210px) minmax(118px, 1fr) 62px 58px 50px 58px 54px 54px 46px 46px 44px 62px 92px 18px'
-    : '76px 92px minmax(130px, 210px) minmax(118px, 1fr) 62px 58px 50px 58px 62px 92px 18px';
+    ? '82px 98px minmax(140px, 220px) minmax(126px, 1fr) 68px 64px 54px 64px 58px 58px 50px 50px 50px 68px 98px 20px'
+    : '82px 98px minmax(140px, 220px) minmax(126px, 1fr) 68px 64px 54px 64px 68px 98px 20px';
   const selStyle: React.CSSProperties = {
-    width: '100%', fontSize: 10, marginTop: 2, border: '1px solid var(--border)',
+    width: '100%', fontSize: 11, marginTop: 3, border: '1px solid var(--border)',
     borderRadius: 3, padding: '0 1px', background: '#fff',
   };
 
@@ -211,9 +214,9 @@ export default function RoutesTable({ routes }: Props) {
         display: 'grid',
         gridTemplateColumns: GRID,
         gap: 0,
-        padding: '4px 10px',
+        padding: '7px 10px',
         borderBottom: '1px solid var(--border)',
-        fontSize: 10,
+        fontSize: 11,
         textTransform: 'uppercase',
         letterSpacing: 0.4,
         color: 'var(--text-muted)',
@@ -254,7 +257,8 @@ export default function RoutesTable({ routes }: Props) {
         {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici 0">Lg</div>}
         {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici gară">Vk</div>}
         {descifrare && <div style={{ textAlign: 'right' }} title="Cheltuieli suplimentare">Rs</div>}
-        <div style={{ textAlign: 'right' }} title="Rezultatul: numărare − total încasat">Δ</div>
+        <div style={{ textAlign: 'right' }}
+          title="Rezultatul: total încasat − numărare. Plus = s-a încasat mai mult decât s-a numărat; minus = lipsesc bani față de numărare.">Δ</div>
         <div>Status</div>
         <div></div>
       </div>
@@ -280,17 +284,17 @@ export default function RoutesTable({ routes }: Props) {
                 gridTemplateColumns: GRID,
                 gap: 0,
                 alignItems: 'center',
-                padding: '2px 10px',
-                fontSize: 12,
+                padding: '7px 10px',
+                fontSize: 13,
                 cursor: hasDetails ? 'pointer' : 'default',
                 opacity: r.cancelled ? 0.5 : 1,
               }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, whiteSpace: 'nowrap' }}>{formatData(r.ziua)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, whiteSpace: 'nowrap' }}>{r.time_nord || '—'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{formatData(r.ziua)}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{r.time_nord || '—'}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.route_name || '—'}
                 {r.vehicle_plate && (
-                  <span className="text-muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, marginLeft: 6 }}>
+                  <span className="text-muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, marginLeft: 6 }}>
                     {r.vehicle_plate}
                   </span>
                 )}
@@ -298,7 +302,7 @@ export default function RoutesTable({ routes }: Props) {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.driver_name || <span className="text-muted">—</span>}
               </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                 {r.foaie_nr ? (
                   <span style={{ color: r.foaie_source === 'implied' ? '#f57c00'
                                       : r.foaie_source === 'manual' ? '#2a5db0' : 'inherit' }}
@@ -306,10 +310,10 @@ export default function RoutesTable({ routes }: Props) {
                              : r.foaie_source === 'manual' ? 'Introdusă manual la casă (Document casier Numerar)' : ''}>
                     {r.foaie_nr}
                     {r.foaie_source === 'implied' && (
-                      <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>auto</span>
+                      <span style={{ fontSize: 10, marginLeft: 3, opacity: 0.7 }}>auto</span>
                     )}
                     {r.foaie_source === 'manual' && (
-                      <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>casă</span>
+                      <span style={{ fontSize: 10, marginLeft: 3, opacity: 0.7 }}>casă</span>
                     )}
                   </span>
                 ) : <span className="text-muted">—</span>}
@@ -318,7 +322,7 @@ export default function RoutesTable({ routes }: Props) {
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 textAlign: 'right',
-                fontSize: 11,
+                fontSize: 12,
                 color: r.extra_2tarife_lei != null && r.extra_2tarife_lei > 0 ? 'var(--success)' : 'var(--text-muted)',
               }}>
                 {r.extra_2tarife_lei == null
@@ -326,16 +330,20 @@ export default function RoutesTable({ routes }: Props) {
                   : r.extra_2tarife_lei > 0 ? <strong>+{Math.round(r.extra_2tarife_lei)}</strong> : <span className="text-muted">0</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(incTotal(r))}</span>
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_numerar)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_diagrama)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki0_suma)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki_vokzal_suma)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.dop_rashodi)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.incasare_numerar)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.incasare_diagrama)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.ligotniki0_suma)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.ligotniki_vokzal_suma)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.dop_rashodi)}</span>}
               {/* Rezultatul se recalculează aici, nu se ia `r.diff` de la server: acela e
                   numărare − vechiul incasare_lei (numerar + diagramă). De când INC e totalul
                   foii, cele două ar fi arătat lucruri diferite pe același rând. */}
               {(() => {
-                const rez = Math.round(r.numarare_lei - incTotal(r));
+                // Ion, 09.10: «ai putea invers, ca să văd cu + ce a încasat mai mult decât
+                // s-a numărat». Deci ÎNCASAT − NUMĂRAT, nu invers: plusul e surplus, minusul
+                // e lipsă. Culorile rămân aceleași și acum chiar se potrivesc cu sensul —
+                // roșu pe minus înseamnă bani lipsă, nu surplus.
+                const rez = Math.round(incTotal(r) - r.numarare_lei);
                 const fara = r.status === 'no_numarare' || r.status === 'no_incasare'
                   || r.status === 'cancelled' || r.status === 'empty' || r.status === 'no_data';
                 return (
@@ -349,7 +357,7 @@ export default function RoutesTable({ routes }: Props) {
                   </span>
                 );
               })()}
-              <span style={{ color: meta.color, fontSize: 11, fontWeight: 600 }}>
+              <span style={{ color: meta.color, fontSize: 12, fontWeight: 600 }}>
                 {meta.icon} {meta.label}
               </span>
               <span className="text-muted" style={{ fontSize: 10, textAlign: 'center' }}>
@@ -394,16 +402,16 @@ export default function RoutesTable({ routes }: Props) {
         gridTemplateColumns: GRID,
         gap: 0,
         alignItems: 'center',
-        padding: '6px 10px',
+        padding: '9px 10px',
         marginTop: 2,
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: 700,
         background: 'rgba(155,27,48,0.07)',
         borderTop: '2px solid var(--primary)',
       }}>
-        <div className="text-muted" style={{ fontSize: 10, textTransform: 'uppercase' }}>Total</div>
+        <div className="text-muted" style={{ fontSize: 11, textTransform: 'uppercase' }}>Total</div>
         <div />
-        <div className="text-muted" style={{ fontSize: 10 }}>
+        <div className="text-muted" style={{ fontSize: 11 }}>
           {processed.length} curse{isFiltered ? ' (filtrat)' : ''}
         </div>
         <div />
@@ -420,10 +428,10 @@ export default function RoutesTable({ routes }: Props) {
         {descifrare && <div style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{Math.round(totals.rs)}</div>}
         <div style={{
           fontFamily: 'var(--font-mono)', textAlign: 'right',
-          color: Math.round(totals.num - totals.inc) < 0 ? 'var(--danger)'
-            : Math.round(totals.num - totals.inc) > 0 ? 'var(--warning)' : 'inherit',
-        }}>
-          {Math.round(totals.num - totals.inc) >= 0 ? '+' : ''}{Math.round(totals.num - totals.inc)}
+          color: Math.round(totals.inc - totals.num) < 0 ? 'var(--danger)'
+            : Math.round(totals.inc - totals.num) > 0 ? 'var(--warning)' : 'inherit',
+        }} title="Total încasat − numărare, pe tot ce e afișat">
+          {Math.round(totals.inc - totals.num) >= 0 ? '+' : ''}{Math.round(totals.inc - totals.num)}
         </div>
         <div />
         <div />

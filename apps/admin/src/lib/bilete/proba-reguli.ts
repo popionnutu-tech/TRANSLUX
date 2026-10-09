@@ -20,9 +20,9 @@ export function cheieProbaValida(primita: unknown, cfg: { cheie?: string | null;
   return timingSafeEqual(a, b);
 }
 
-/** Pe pagina de probă se cumpără doar pentru azi sau mâine (Chișinău). */
-export function dataProbaPermisa(tripDate: unknown, aziIso: string, maineIso: string): tripDate is string {
-  return tripDate === aziIso || tripDate === maineIso;
+/** Pe pagina de probă se cumpără pentru azi, mâine sau poimâine (Chișinău); poimâine = > 24 h, returnare integrală după grilă (09.10). */
+export function dataProbaPermisa(tripDate: unknown, aziIso: string, maineIso: string, poimaineIso?: string): tripDate is string {
+  return tripDate === aziIso || tripDate === maineIso || (poimaineIso != null && tripDate === poimaineIso);
 }
 
 /** «37369123456» → «+373 69 ••• 456»: lista probelor nu arată telefonul întreg (revizia de securitate M2). */

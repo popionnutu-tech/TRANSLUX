@@ -1,7 +1,7 @@
 import 'server-only';
 import {
   buildReturAssignmentMap, buildTurAssignmentMap, calculeazaCurse, cursaAreLocalitateCuPlafon, cursaInLocalitatileVanzarii,
-  incarcaCurse, normalizeDriverPhone, parseazaLocalitatiVanzare, parseazaPlafoaneLocalitati, parseTimeLabel, PhoneError,
+  incarcaCurse, normalizeDriverPhone, parseazaDestinatii, parseazaLocalitatiVanzare, parseazaPlafoaneLocalitati, parseTimeLabel, PhoneError,
   pretVandabilOnline, SUMA_MINIMA_PLATA_MDL, verificaPlafonLocalitati, type BileteComanda, type ComandaPentruPlafon,
   type CursaCuPret, type LocalitatiVanzare, type PlafoaneLocalitati,
 } from '@translux/db';
@@ -9,7 +9,7 @@ import { getSupabase } from '@/lib/supabase';
 import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } from '@/lib/maib/client';
 import { persistaCheckout } from '@/lib/maib/persist';
 import { chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
-import { calculeazaDepartureAt, vanzareDeschisa } from './reguli';
+import { calculeazaDepartureAt, vanzareaAPornit, vanzareDeschisa } from './reguli';
 import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
@@ -84,6 +84,8 @@ export interface ConfigBilete {
   localitati: LocalitatiVanzare;
   /** ION-264: locuri pe cursă pe localitate; null = valoarea din app_config e stricată → vânzarea publică se închide. */
   plafoaneLocalitati: PlafoaneLocalitati | null;
+  /** Capătul celălalt al perechii (09.10: ["Chișinău"]); toate = regula veche (urcare SAU coborâre). */
+  destinatii: LocalitatiVanzare;
 }
 
 export type Rezultat = { comanda: BileteComanda; checkoutUrl: string };
@@ -104,6 +106,9 @@ const CHEI_CONFIG = {
   inchidereRetur: 'bilete_inchidere_retur_min',
   localitati: 'bilete_localitati_vanzare',
   plafoaneLocalitati: 'bilete_locuri_localitate',
+  // Ion, 09.10.2026: «deschide vânzarea … începând de 12.10», «doar perechile cu Chișinău».
+  deLa: 'bilete_online_de_la',
+  destinatii: 'bilete_destinatii_vanzare',
 } as const;
 
 export async function citesteConfigBilete(): Promise<ConfigBilete> {
@@ -112,14 +117,18 @@ export async function citesteConfigBilete(): Promise<ConfigBilete> {
   const m = new Map((data || []).map((r: { key: string; value: string }) => [r.key, r.value]));
   const localitati = parseazaLocalitatiVanzare(m.get(CHEI_CONFIG.localitati));
   if (localitati.eroare) console.error(`[bilete] app_config.${CHEI_CONFIG.localitati} stricat (${localitati.eroare}) → nicio localitate nu se vinde`);
+  const destinatii = parseazaDestinatii(m.get(CHEI_CONFIG.destinatii));
+  if (destinatii.eroare) console.error(`[bilete] app_config.${CHEI_CONFIG.destinatii} stricat (${destinatii.eroare}) → nicio pereche nu se vinde`);
   const plafoane = parseazaPlafoaneLocalitati(m.get(CHEI_CONFIG.plafoaneLocalitati));
   if (plafoane.eroare) console.error(`[bilete] app_config.${CHEI_CONFIG.plafoaneLocalitati} stricat (${plafoane.eroare}) → vânzarea publică închisă`);
   return {
-    activ: m.get(CHEI_CONFIG.activ) === 'true',
+    // Steagul ȘI data de pornire (ziua Chișinăului): până la data din bilete_online_de_la vânzarea rămâne închisă.
+    activ: vanzareaAPornit(m.get(CHEI_CONFIG.activ) === 'true', m.get(CHEI_CONFIG.deLa), chisinauTodayIso()),
     inchidereTurMin: Number(m.get(CHEI_CONFIG.inchidereTur) ?? 0) || 0,
     inchidereReturMin: Number(m.get(CHEI_CONFIG.inchidereRetur) ?? 120) || 0,
     localitati: localitati.regula,
     plafoaneLocalitati: plafoane.eroare ? null : plafoane.plafoane,
+    destinatii: destinatii.regula,
   };
 }
 
@@ -202,8 +211,11 @@ export async function areSofer(tripDate: string, crmRouteId: number, goingNorth:
 }
 
 /** ION-264: cursa se vinde online doar cu urcare sau coborâre într-o localitate din listă. Aruncă ComandaError('inchis'). */
-function verificaLocalitateaVanzarii(localitati: LocalitatiVanzare, cursa: CursaGasita): void {
-  if (cursaInLocalitatileVanzarii(localitati, cursa.fromNameRo, cursa.toNameRo)) return;
+function verificaLocalitateaVanzarii(localitati: LocalitatiVanzare, cursa: CursaGasita, destinatii: LocalitatiVanzare): void {
+  if (cursaInLocalitatileVanzarii(localitati, cursa.fromNameRo, cursa.toNameRo, destinatii)) return;
+  if (!destinatii.toate) {
+    throw new ComandaError('inchis', `online se vând deocamdată doar biletele ${localitatiDeAfisat(localitati)} ↔ ${localitatiDeAfisat(destinatii)}; pe această cursă biletul se ia de la șofer`);
+  }
   throw new ComandaError('inchis', `online se vând deocamdată doar biletele cu urcare sau coborâre la ${localitatiDeAfisat(localitati)}; pe această cursă biletul se ia de la șofer`);
 }
 
@@ -294,7 +306,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (!directie) throw new ComandaError('inchis', 'vânzarea online nu e deschisă pe această cursă');
   }
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
-  if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa);
+  if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa, cfg.destinatii);
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
   if (opt.mod !== 'proba' && !pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
   if (!sofer && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');

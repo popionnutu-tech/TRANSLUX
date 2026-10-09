@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { calculeazaDepartureAt, vanzareDeschisa, ziuaUrmatoare } from './reguli';
 
 describe('calculeazaDepartureAt', () => {
@@ -46,5 +46,23 @@ describe('vanzareDeschisa', () => {
 
   it('ora nevalidă → închis', () => {
     expect(vanzareDeschisa({ goingNorth: false, departureAt: 'x', pornireRutaAt: 'x', nowMs: 0, inchidereTurMin: 0, inchidereReturMin: 120 })).toBe(false);
+  });
+});
+
+describe('vanzareaAPornit — data de pornire (Ion, 09.10: «începând de 12.10»)', async () => {
+  const { vanzareaAPornit } = await import('./reguli');
+  const { chisinauTodayIso } = await import('@/lib/chisinau-time');
+  it('steag + ziua ≥ data → deschisă; înainte → închisă; fără dată → doar steagul; stricată → închisă', () => {
+    expect(vanzareaAPornit(true, '2026-10-12', '2026-10-12')).toBe(true);
+    expect(vanzareaAPornit(true, '2026-10-12', '2026-10-13')).toBe(true);
+    expect(vanzareaAPornit(true, '2026-10-12', '2026-10-11')).toBe(false);
+    expect(vanzareaAPornit(false, '2026-10-12', '2026-10-13')).toBe(false);
+    expect(vanzareaAPornit(true, '', '2026-10-09')).toBe(true);
+    expect(vanzareaAPornit(true, null, '2026-10-09')).toBe(true);
+    expect(vanzareaAPornit(true, '12.10.2026', '2026-10-13')).toBe(false);
+  });
+  it('ziua e a Chișinăului: 11.10 la 23:30 UTC e deja 12.10 (02:30 la Chișinău)', () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-11T23:30:00Z'));
+    try { expect(vanzareaAPornit(true, '2026-10-12', chisinauTodayIso())).toBe(true); } finally { vi.useRealTimers(); }
   });
 });

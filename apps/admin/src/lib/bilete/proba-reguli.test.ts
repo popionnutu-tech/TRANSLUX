@@ -28,6 +28,8 @@ describe('dataProbaPermisa', () => {
     expect(dataProbaPermisa('2026-10-08', '2026-10-08', '2026-10-09')).toBe(true);
     expect(dataProbaPermisa('2026-10-09', '2026-10-08', '2026-10-09')).toBe(true);
     expect(dataProbaPermisa('2026-10-10', '2026-10-08', '2026-10-09')).toBe(false);
+    expect(dataProbaPermisa('2026-10-10', '2026-10-08', '2026-10-09', '2026-10-10')).toBe(true);
+    expect(dataProbaPermisa('2026-10-11', '2026-10-08', '2026-10-09', '2026-10-10')).toBe(false);
     expect(dataProbaPermisa('2026-10-07', '2026-10-08', '2026-10-09')).toBe(false);
     expect(dataProbaPermisa(null, '2026-10-08', '2026-10-09')).toBe(false);
   });

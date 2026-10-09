@@ -7,8 +7,6 @@ import { OPERATOR, type LegalDoc } from './legal-content';
  * dispoziții generale; protecția datelor; înregistrarea și achitarea comenzii; livrarea; dreptul la retur;
  * politica de confidențialitate; datele de contact.
  *
- * Garanția de lansare (Ion, 07.10.2026: «100% garantat banii dacă călătoria nu a fost»): până la 31.12.2026 biletul
- * nefolosit se restituie integral; aceeași dată ca app_config.bilete_garantie_100_pana (refund-reguli.ts, garantieActiva).
  * Restituirea (din 05.10.2026, decizia lui Ion): grila online 24/12/6/4 h, în noimi din preț (135/120/105/90/0 lei),
  * aceeași ca `GRILA_RESTITUIRE` din apps/admin/src/lib/bilete/refund-reguli.ts. Ion: pct. 10 din HG 854/2006 e scris
  * pentru returnarea «în casa de bilete» a autogării, nu pentru biletul online. De verificat de un jurist.
@@ -18,7 +16,7 @@ import { OPERATOR, type LegalDoc } from './legal-content';
  * De verificat de un jurist înainte de lansare: statutul actual al HG 854/2006 și forma biletului cerută de ANTA.
  */
 
-export const TERMS_UPDATED = { ro: "7 octombrie 2026", ru: "7 октября 2026" } as const;
+export const TERMS_UPDATED = { ro: "9 octombrie 2026", ru: "9 октября 2026" } as const;
 
 const BOT = 'https://t.me/TransluxMoldova_bot';
 
@@ -67,7 +65,6 @@ export function termsDoc(locale: Locale): LegalDoc {
         {
           title: '5. Возврат билета',
           body: [
-            'Гарантия запуска: до 31 декабря 2026 года включительно неиспользованный онлайн-билет (код не сканирован при посадке) возвращается полностью — и менее чем за 4 часа, и если вы опоздали на автобус. До отправления — в нашем боте в Telegram, после отправления — по телефону диспетчера, не позднее 24 часов после отправления. Таблица ниже действует после окончания гарантии.',
             'Онлайн-билет возвращается по таблице ниже; время считается до отправления автобуса с вашей остановки (пример — билет за 135 лей):',
             '- более 24 часов — полная стоимость (135 лей);',
             '- от 24 до 12 часов — 8/9 стоимости (120 лей);',
@@ -140,7 +137,6 @@ export function termsDoc(locale: Locale): LegalDoc {
       {
         title: '5. Dreptul la retur',
         body: [
-          'Garanția de lansare: până la 31 decembrie 2026 inclusiv, biletul online nefolosit (codul nu a fost scanat la urcare) se restituie integral — și cu mai puțin de 4 ore înainte, și dacă ați întârziat la autobuz. Până la plecare — prin botul nostru din Telegram, după plecare — la telefonul dispeceratului, cel târziu în 24 de ore de la plecare. Grila de mai jos se aplică după încheierea garanției.',
           'Biletul online se restituie după grila de mai jos; timpul se socotește până la plecarea autobuzului de la oprirea dumneavoastră (exemplu — biletul de 135 de lei):',
           '- cu peste 24 de ore înainte — costul integral (135 lei);',
           '- între 24 și 12 ore — 8/9 din cost (120 lei);',

@@ -18,14 +18,14 @@ const PASI: Array<[keyof RandProba['pasi'], string]> = [
   ['creata', 'creată'], ['platita', 'plătită'], ['email', 'e-mail livrat'], ['telegram', 'legat în Telegram'], ['scanat', 'scanat'], ['returnat', 'returnat'],
 ];
 
-function zile(): { azi: string; maine: string } {
+function zile(): { azi: string; maine: string; poimaine: string } {
   const azi = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   const [y, m, d] = azi.split('-').map(Number);
-  return { azi, maine: new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10) };
+  return { azi, maine: new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10), poimaine: new Date(Date.UTC(y, m - 1, d + 2)).toISOString().slice(0, 10) };
 }
 
 export default function ProbaClient({ cheie }: { cheie: string }) {
-  const { azi, maine } = zile();
+  const { azi, maine, poimaine } = zile();
   const [de, setDe] = useState('Briceni');
   const [spre, setSpre] = useState('Chișinău');
   const [zi, setZi] = useState(azi);
@@ -74,7 +74,7 @@ export default function ProbaClient({ cheie }: { cheie: string }) {
           <label style={label}>De unde<input style={input} value={de} onChange={(e) => setDe(e.target.value)} /></label>
           <label style={label}>Încotro<input style={input} value={spre} onChange={(e) => setSpre(e.target.value)} /></label>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            {[[azi, 'Azi'], [maine, 'Mâine']].map(([v, t]) => (
+            {[[azi, 'Azi'], [maine, 'Mâine'], [poimaine, 'Poimâine']].map(([v, t]) => (
               <button key={v} type="button" onClick={() => setZi(v)} style={{ flex: 1, padding: 12, fontSize: 15, borderRadius: 10, border: `2px solid ${zi === v ? RED : '#ddd'}`, background: zi === v ? '#fbecee' : '#fff', fontWeight: 700 }}>
                 {t} · {v.slice(8, 10)}.{v.slice(5, 7)}
               </button>

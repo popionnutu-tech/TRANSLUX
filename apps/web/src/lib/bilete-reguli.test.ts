@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NICIO_LOCALITATE, TOATE_LOCALITATILE } from '@translux/db';
 import { CONFIG_INCHIS, emailOptional, linkHarta, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, parseazaPuncte, puncteCursei, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
 
-const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }], localitati: TOATE_LOCALITATILE };
+const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }], localitati: TOATE_LOCALITATILE, destinatii: TOATE_LOCALITATILE };
 // Marți 14.10.2026, 05:00 la Chișinău (ora de vară, +03:00).
 const now = Date.parse('2026-10-14T05:00:00+03:00');
 
@@ -43,12 +43,20 @@ describe('vanzareDeschisaPeSite', () => {
     expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Briceni' })).toBe(true);
     expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Chișinău', coborare: 'Edinet' })).toBe(true);
   });
+  it('09.10: doar perechile cu Chișinău — Edineț → Bălți fără buton, Briceni → Chișinău cu buton', () => {
+    const p = parseazaConfig({ activ: true, localitati: ['Briceni', 'Edineț'], destinatii: ['Chișinău'] });
+    const c = { ...cfg, localitati: p.localitati, destinatii: p.destinatii };
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, urcare: 'Briceni', coborare: 'Chișinău' })).toBe(true);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, urcare: 'Chișinău', coborare: 'Edineț' })).toBe(true);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, urcare: 'Edineț', coborare: 'Bălți' })).toBe(false);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, urcare: 'Ocnița', coborare: 'Briceni' })).toBe(false);
+  });
 });
 
 describe('parseazaConfig', () => {
   it('răspuns valid → config; rute fără id valid cad', () => {
     const c = parseazaConfig({ ok: true, activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: 'da' }, { id: 'x', tur: true, retur: true }] });
-    expect(c).toEqual({ activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: false }], localitati: TOATE_LOCALITATILE });
+    expect(c).toEqual({ activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: false }], localitati: TOATE_LOCALITATILE, destinatii: TOATE_LOCALITATILE });
   });
   it('ION-264: localitati — lipsă/null = toate, listă = doar ele, formă stricată = nimic', () => {
     expect(parseazaConfig({ activ: true }).localitati).toEqual(TOATE_LOCALITATILE);

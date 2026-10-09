@@ -73,11 +73,30 @@ export function localitatiPentruPublic(regula: LocalitatiVanzare): string[] | nu
   return regula.toate ? null : [...regula.localitati];
 }
 
-/** Cursa (oprirea de urcare → oprirea de coborâre) se vinde online după regula listei. */
-export function cursaInLocalitatileVanzarii(regula: LocalitatiVanzare, urcare: string, coborare: string): boolean {
-  if (regula.toate) return true;
-  const permise = new Set(regula.localitati.map(normalizeazaLocalitate));
-  return permise.has(normalizeazaLocalitate(urcare)) || permise.has(normalizeazaLocalitate(coborare));
+/**
+ * Destinațiile perechii (Ion, 09.10.2026: «Briceni și Edineț spre Chișinău și din Chișinău spre Edineț și Briceni»;
+ * «doar perechile cu Chișinău»): `app_config.bilete_destinatii_vanzare` = ["Chișinău"]. Cu destinații, cursa se vinde
+ * doar dacă un capăt e în lista localităților și celălalt în destinații. Lipsă / gol / [] / null = fără restricție
+ * (regula veche: urcare SAU coborâre); formă stricată = nicio pereche. Aceeași formă ca lista localităților.
+ */
+export function destinatiiDinValoare(valoare: unknown): RezultatLocalitati {
+  return localitatiDinValoare(valoare);
+}
+
+export function parseazaDestinatii(raw: string | null | undefined): RezultatLocalitati {
+  return parseazaLocalitatiVanzare(raw);
+}
+
+/**
+ * Cursa (oprirea de urcare → oprirea de coborâre) se vinde online după regula listei; cu `destinatii` restrânse, doar
+ * perechea «localitate din listă ↔ destinație», în oricare sens.
+ */
+export function cursaInLocalitatileVanzarii(regula: LocalitatiVanzare, urcare: string, coborare: string, destinatii: LocalitatiVanzare = TOATE_LOCALITATILE): boolean {
+  const u = normalizeazaLocalitate(urcare);
+  const c = normalizeazaLocalitate(coborare);
+  const inLista = (r: LocalitatiVanzare, x: string) => r.toate || r.localitati.some((l) => normalizeazaLocalitate(l) === x);
+  if (destinatii.toate) return regula.toate || inLista(regula, u) || inLista(regula, c);
+  return (inLista(regula, u) && inLista(destinatii, c)) || (inLista(regula, c) && inLista(destinatii, u));
 }
 
 // ── Plafonul pe localitate ────────────────────────────────────────────────────────────────────────

@@ -16,9 +16,11 @@ export interface ConfigBilete {
   rute: Array<{ id: number; tur: boolean; retur: boolean }>;
   /** ION-264: localitățile vânzării (urcare SAU coborâre); aceeași regulă ca în panou. */
   localitati: LocalitatiVanzare;
+  /** Capătul celălalt al perechii (Ion, 09.10: «doar perechile cu Chișinău»); toate = regula veche. */
+  destinatii: LocalitatiVanzare;
 }
 
-export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE };
+export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE, destinatii: NICIO_LOCALITATE };
 
 /**
  * Răspunsul panoului → configurație; orice formă neașteptată → vânzare închisă. `localitati` lipsă (panoul de dinainte
@@ -38,6 +40,7 @@ export function parseazaConfig(j: unknown): ConfigBilete {
     inchidere_retur_min: Math.max(0, Number(o.inchidere_retur_min ?? 120) || 0),
     rute,
     localitati: localitatiDinValoare(o.localitati).regula,
+    destinatii: localitatiDinValoare(o.destinatii).regula,
   };
 }
 
@@ -63,7 +66,7 @@ export function vanzareDeschisaPeSite(a: {
   nowMs: number;
 }): boolean {
   if (!a.cfg.activ || !a.soferPeZi) return false;
-  if (!cursaInLocalitatileVanzarii(a.cfg.localitati, a.urcare, a.coborare)) return false;
+  if (!cursaInLocalitatileVanzarii(a.cfg.localitati, a.urcare, a.coborare, a.cfg.destinatii)) return false;
   const r = a.cfg.rute.find((x) => x.id === a.routeId);
   if (!r || !(a.goingNorth ? r.retur : r.tur)) return false;
   if (!/^\d{2}:\d{2}$/.test(a.time)) return false;

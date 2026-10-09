@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cursaAreLocalitateCuPlafon, cursaInLocalitatileVanzarii, localitatiDinValoare, localitatiPentruPublic,
+  cursaAreLocalitateCuPlafon, cursaInLocalitatileVanzarii, destinatiiDinValoare, localitatiDinValoare, localitatiPentruPublic, parseazaDestinatii,
   locuriLuatePeLocalitate, NICIO_LOCALITATE, normalizeazaLocalitate, parseazaLocalitatiVanzare,
   parseazaPlafoaneLocalitati, TOATE_LOCALITATILE, verificaPlafonLocalitati, type ComandaPentruPlafon,
 } from './bilete-localitati';
@@ -162,5 +162,26 @@ describe('plafonul Bălți', () => {
   it('plafon 0 → nicio vânzare la Bălți', () => {
     const zero = parseazaPlafoaneLocalitati('{"Bălți": 0}').plafoane;
     expect(verificaPlafonLocalitati({ plafoane: zero, urcare: 'Bălți', coborare: 'Chișinău', seats: 1, comenziCursa: [], nowMs: acum }).ok).toBe(false);
+  });
+});
+
+describe('perechile cu destinații (Ion, 09.10: «doar perechile cu Chișinău»)', () => {
+  const L = localitatiDinValoare(['Briceni', 'Edineț']).regula;
+  const D = destinatiiDinValoare(['Chișinău']).regula;
+  it('Briceni/Edineț ↔ Chișinău da, în ambele sensuri, fără diacritice', () => {
+    expect(cursaInLocalitatileVanzarii(L, 'Briceni', 'Chișinău', D)).toBe(true);
+    expect(cursaInLocalitatileVanzarii(L, 'Chisinau', 'Edinet', D)).toBe(true);
+    expect(cursaInLocalitatileVanzarii(L, 'Edineț', 'Chișinău', D)).toBe(true);
+  });
+  it('alte perechi nu', () => {
+    expect(cursaInLocalitatileVanzarii(L, 'Edineț', 'Bălți', D)).toBe(false);
+    expect(cursaInLocalitatileVanzarii(L, 'Ocnița', 'Briceni', D)).toBe(false);
+    expect(cursaInLocalitatileVanzarii(L, 'Briceni', 'Edineț', D)).toBe(false);
+    expect(cursaInLocalitatileVanzarii(L, 'Bălți', 'Chișinău', D)).toBe(false);
+  });
+  it('fără destinații = regula veche; destinații stricate = nimic', () => {
+    expect(cursaInLocalitatileVanzarii(L, 'Edineț', 'Bălți')).toBe(true);
+    expect(cursaInLocalitatileVanzarii(L, 'Edineț', 'Bălți', destinatiiDinValoare([]).regula)).toBe(true);
+    expect(cursaInLocalitatileVanzarii(L, 'Briceni', 'Chișinău', parseazaDestinatii('nu-e-json').regula)).toBe(false);
   });
 });

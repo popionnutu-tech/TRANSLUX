@@ -15,11 +15,12 @@ import { alertAdmins } from '@/lib/telegram-notify';
 // bundle). Serverul impune: azi/mâine, un singur loc, cheia de idempotență, adresa de întoarcere; plafonul de 10/zi stă
 // în bilete_creeaza_comanda, sub lacăt (critica C2).
 
-function ziua(): { azi: string; maine: string } {
+function ziua(): { azi: string; maine: string; poimaine: string } {
   const azi = chisinauTodayIso();
   const [y, m, d] = azi.split('-').map(Number);
   const maine = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-  return { azi, maine };
+  const poimaine = new Date(Date.UTC(y, m - 1, d + 2)).toISOString().slice(0, 10);
+  return { azi, maine, poimaine };
 }
 
 function cheieBuna(cheie: unknown): boolean {
@@ -30,8 +31,8 @@ export interface CursaProba { routeId: number; goingNorth: boolean; plecare: str
 
 export async function cautaCurseProba(cheie: string, fromRo: string, toRo: string, tripDate: string): Promise<{ ok: true; curse: CursaProba[] } | { ok: false; eroare: string }> {
   if (!cheieBuna(cheie)) return { ok: false, eroare: 'neautorizat' };
-  const { azi, maine } = ziua();
-  if (!dataProbaPermisa(tripDate, azi, maine)) return { ok: false, eroare: 'doar azi sau mâine' };
+  const { azi, maine, poimaine } = ziua();
+  if (!dataProbaPermisa(tripDate, azi, maine, poimaine)) return { ok: false, eroare: 'doar azi, mâine sau poimâine' };
   const de = String(fromRo ?? '').trim().slice(0, 60);
   const spre = String(toRo ?? '').trim().slice(0, 60);
   if (!de || !spre) return { ok: false, eroare: 'scrie de unde și încotro' };
@@ -50,8 +51,8 @@ export interface CumparaProba {
 
 export async function cumparaProba(cheie: string, f: CumparaProba): Promise<{ ok: true; url: string } | { ok: false; eroare: string }> {
   if (!cheieBuna(cheie)) return { ok: false, eroare: 'neautorizat' };
-  const { azi, maine } = ziua();
-  if (!dataProbaPermisa(f?.tripDate, azi, maine)) return { ok: false, eroare: 'doar azi sau mâine' };
+  const { azi, maine, poimaine } = ziua();
+  if (!dataProbaPermisa(f?.tripDate, azi, maine, poimaine)) return { ok: false, eroare: 'doar azi, mâine sau poimâine' };
   if (!Number.isInteger(f.routeId) || typeof f.goingNorth !== 'boolean') return { ok: false, eroare: 'cursa nu e validă' };
   const nume = `${String(f.nume ?? '').trim()} ${String(f.prenume ?? '').trim()}`.trim();
   const h = await headers();

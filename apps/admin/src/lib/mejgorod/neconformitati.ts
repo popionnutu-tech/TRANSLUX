@@ -20,6 +20,12 @@
 // de mai jos trebuie să treacă prin Lipcani. stop-times.mjs scrie rândul Lipcani doar când urma trece la
 // ≤ ~370 m de oprire, deci o cursă cu GPS fără rândul Lipcani s-a întors mai devreme (de regulă din Briceni).
 //
+// Plin vineri și duminică (Ion, 09.10): «fiecare vineri toate mașinile care au ieșit pline din Chișinău să nu fie
+// obligatoriu să intre în Sîngerei», «fix așa duminica mașinile de la nord care de obicei ies fără locuri libere din
+// Bălți». Numărarea pe camere a zilei vine abia a doua zi după-amiază (18.09–08.10: niciodată până la 08:00), deci
+// mesajul de dimineață judecă după obicei: ruta e scutită în acea zi și sens dacă în ultimele 8 vineri / duminici
+// numărate a plecat plină (≥ PLIN_DE_OBICEI_PAS pe 20 de locuri) din Chișinău / Bălți în cel puțin jumătate din zile.
+//
 // Sursa: route_stop_passes (migr. 393), scrisă noaptea de lde-geo-worker/stop-times.mjs. La gări
 // passed_at e plecarea (ultimul punct la ≤150 m de peron), offset_min = minute față de grafic.
 // Logica e pură; citirea și trimiterea stau în /api/cron/mejgorod-neconformitati.
@@ -39,6 +45,17 @@ export const RETUR_PE_CENTURA: ReadonlySet<number> = new Set([14]);
  *  14 10:10, 16 10:40 (real ~10:30), 1 11:20, 20 12:30, 18 13:00, 22 13:30. Otaci, Ocnița, Corjeuți nu trec pe acolo. */
 export const RETUR_PANA_LA_LIPCANI: ReadonlySet<number> = new Set([12, 11, 13, 10, 15, 14, 16, 1, 20, 18, 22]);
 export const LIPCANI = 'Lipcani';
+/** Zilele cu scutire de Sîngerei pentru rutele pline de obicei (Ion, 09.10): ziua săptămânii (0 = duminică) → sensul
+ *  și gara de la care se judecă plinul. Vineri retur (din Chișinău), duminică tur (din nord, plin la Bălți). */
+export const SCUTIRE_PLIN: Readonly<Record<number, { retur: boolean; gara: string }>> = {
+  5: { retur: true, gara: 'Chișinău' },
+  0: { retur: false, gara: 'Bălți' },
+};
+/** Pasagerii la plecare de la care salonul de 20 de locuri e «fără locuri libere»: operatorii numără des 19 pe un salon plin. */
+export const PLIN_DE_OBICEI_PAS = 19;
+/** Câte vineri / duminici în urmă intră în «de obicei», și minimul de zile numărate ca să se judece. */
+export const PLIN_DE_OBICEI_SAPT = 8;
+export const PLIN_DE_OBICEI_MIN_ZILE = 3;
 /** Ion, 07.10: «plecat înainte de grafic doar cu 5 min» — 1–4 minute mai devreme nu se raportează. */
 export const PLECARE_DEVREME_MIN = 5;
 /** Plecarea din gară se judecă doar când urma a trecut pe lângă peron (stop-times.mjs: plecarea = ultimul punct
@@ -104,12 +121,29 @@ export function curseleZilei(asg: Atribuire[]): Cursa[] {
 
 const cheie = (ruta: number, retur: boolean) => `${ruta}:${retur ? 'R' : 'T'}`;
 
+/** Rutele pline de obicei: ruta → pasagerii la plecare în zilele numărate. Plină de obicei = ≥ PLIN_DE_OBICEI_PAS
+ *  în cel puțin jumătate din zile, cu cel puțin PLIN_DE_OBICEI_MIN_ZILE zile numărate. */
+export function ruteDeObiceiPline(serii: Map<number, number[]>): number[] {
+  const out: number[] = [];
+  for (const [ruta, p] of serii) {
+    if (p.length < PLIN_DE_OBICEI_MIN_ZILE) continue;
+    if (p.filter((x) => x >= PLIN_DE_OBICEI_PAS).length * 2 >= p.length) out.push(ruta);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/** Scutirea de Sîngerei a zilei: sensul (din SCUTIRE_PLIN) + rutele pline de obicei. */
+export interface ScutirePlin {
+  retur: boolean;
+  rute: ReadonlySet<number>;
+}
+
 /**
  * Neconformitățile + cursele din grafic fără nicio trecere GPS (nu se judecă — nu știm ce a făcut
  * mașina, dar nu le ascundem). O cursă cu GPS fără rândul Sîngerei (sau trecută la peste
  * SINGEREI_MAX_M) n-a trecut prin Sîngerei.
  */
-export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lista: Neconformitate[]; faraGps: Cursa[] } {
+export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[], scutire?: ScutirePlin | null): { lista: Neconformitate[]; faraGps: Cursa[] } {
   const pe = new Map<string, Trecere[]>();
   for (const t of treceri) {
     const k = cheie(t.crm_route_id, t.going_north);
@@ -132,6 +166,7 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
       lista.push({ tip: 'lipcani', ruta: c.ruta, retur: true, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
     }
     if (c.retur && RETUR_PE_CENTURA.has(c.ruta)) continue;
+    if (scutire && scutire.retur === c.retur && scutire.rute.has(c.ruta)) continue;
     const s = rows.find((x) => x.stop_name === SINGEREI);
     // Pe oprirea reală din centru (centru_m), nu pe cea mutată pe linia rutei: linia trece pe centură, deci
     // distance_m ieșea 10–30 m pentru orice autobuz de pe centură (~950 m de centru). Rândurile vechi, fără
@@ -179,7 +214,7 @@ export const AVERTISMENT_LIPCANI_RU = '⚠️ Водитель, который �
  * pe primul rând. `ziua` = ziuaRu(...). Cursele fără GPS nu se mai listează (Ion, 07.10:
  * «neverificat fără GPS nu trebuie»); ele rămân doar în răspunsul JSON (faraGps).
  */
-export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: Cursa[] }, n: Nume): string {
+export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: Cursa[] }, n: Nume, scutire?: ScutirePlin | null): string {
   const devreme = r.lista.filter((x) => x.tip === 'devreme');
   const sing = r.lista.filter((x) => x.tip === 'singerei');
   const lip = r.lista.filter((x) => x.tip === 'lipcani');
@@ -200,6 +235,12 @@ export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: C
     out.push('', `<b>📍 Не доехал до Липкан (рейсы из Кишинёва 06:55–13:30 обязательно до Липкан) — ${lip.length}</b>`);
     for (const x of lip) out.push(`Рейс ${x.ruta} из Кишинёва · ${cine(n, x.driver_id, x.vehicle_id)}`);
     out.push(`<b>${AVERTISMENT_LIPCANI_RU}</b>`);
+  }
+  if (scutire?.rute.size) {
+    const rute = [...scutire.rute].sort((a, b) => a - b).join(', ');
+    out.push('', scutire.retur
+      ? `<i>В пятницу рейсы из Кишинёва, которые обычно выезжают полными (${rute}), могут не заезжать в Сынджерей.</i>`
+      : `<i>В воскресенье рейсы с севера, которые обычно выезжают из Бельц без свободных мест (${rute}), могут не заезжать в Сынджерей.</i>`);
   }
   out.push('', `<i>${NOTA_PLIN_RU}</i>`);
   return out.join('\n');

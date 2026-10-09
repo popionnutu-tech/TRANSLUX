@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curseleZilei, gasesteNeconformitati, textMesaj, ziuaRu, type Atribuire, type Trecere } from './neconformitati';
+import { curseleZilei, gasesteNeconformitati, ruteDeObiceiPline, textMesaj, ziuaRu, type Atribuire, type Trecere } from './neconformitati';
 
 const asg = (o: Partial<Atribuire>): Atribuire => ({
   crm_route_id: null, retur_route_id: null, driver_id: null, driver_id_retur: null, vehicle_id: null, vehicle_id_retur: null, ...o,
@@ -113,9 +113,36 @@ describe('gasesteNeconformitati', () => {
     expect(r.lista).toEqual([]);
     expect(r.faraGps).toEqual([tur]);
   });
+  it('vineri: returul plin de obicei e scutit de Sîngerei, turul și Lipcani rămân (Ion, 09.10)', () => {
+    const r = gasesteNeconformitati([tr(9, true, 'Bălți', 0), tr(9, false, 'Bălți', 0)], [tur, retur], { retur: true, rute: new Set([9]) });
+    expect(r.lista.map((x) => `${x.tip}:${x.retur}`)).toEqual(['singerei:false']);
+    const l = gasesteNeconformitati([tr(16, true, 'Bălți', 0)], [{ ruta: 16, retur: true, driver_id: 'a', vehicle_id: 'x' }], { retur: true, rute: new Set([16]) });
+    expect(l.lista.map((x) => x.tip)).toEqual(['lipcani']);
+  });
+  it('duminică: turul plin de obicei e scutit, ruta nescutită rămâne abatere', () => {
+    const r = gasesteNeconformitati([tr(9, false, 'Bălți', 0), tr(7, false, 'Bălți', 0)], [tur, { ruta: 7, retur: false, driver_id: 'c', vehicle_id: 'z' }], { retur: false, rute: new Set([9]) });
+    expect(r.lista.map((x) => x.ruta)).toEqual([7]);
+  });
+});
+
+describe('ruteDeObiceiPline', () => {
+  it('plină (≥19) în cel puțin jumătate din zile, minimum 3 zile numărate', () => {
+    expect(ruteDeObiceiPline(new Map([
+      [5, [20, 21, 20, 20, 20]],
+      [14, [12, 20, 16, 18, 20, 20]],
+      [2, [20, 18, 15, 7, 12, 21, 14, 20]],
+      [13, [19]],
+      [3, [19, 19, 10, 10]],
+    ]))).toEqual([3, 5, 14]);
+  });
 });
 
 describe('textMesaj', () => {
+  it('vineri / duminică: rândul cu rutele scutite; în alte zile nimic', () => {
+    expect(textMesaj('z', { lista: [], faraGps: [] }, nume, { retur: true, rute: new Set([8, 3]) })).toContain('обычно выезжают полными (3, 8)');
+    expect(textMesaj('z', { lista: [], faraGps: [] }, nume, { retur: false, rute: new Set([7]) })).toContain('из Бельц без свободных мест (7)');
+    expect(textMesaj('z', { lista: [], faraGps: [] }, nume, null)).not.toContain('Сынджерей.');
+  });
   it('zi curată', () => {
     expect(textMesaj('04.10.2026, воскресенье', { lista: [], faraGps: [] }, nume)).toContain('✅ Нарушений нет');
   });

@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const { data: last } = await sb.from('app_config').select('value').eq('key', LAST_KEY).maybeSingle();
     if (!dry && !force && last?.value === date) return NextResponse.json({ date, trimis: false, motiv: 'deja trimis pentru ziua asta' });
 
-    const [{ treceri, curse, rezultat }, nume] = await Promise.all([citesteZiua(date), citesteNume()]);
+    const [{ treceri, curse, rezultat, scutire }, nume] = await Promise.all([citesteZiua(date), citesteNume()]);
     if (!treceri.length) {
       if (!dry) await alertAdmins(`⚠️ Neconformități Mejgorod ${date}: route_stop_passes e gol — stop-times.mjs n-a rulat pe VPS? Mesajul nu s-a trimis.`);
       return NextResponse.json({ date, trimis: false, motiv: 'fără treceri GPS pentru ziua asta' });
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
       sofer: (id) => (id ? sofer.get(id) ?? null : null),
       masina: (id) => (id ? masina.get(id) ?? null : null),
       ora: chisinauTimeOf,
-    });
-    const rezumat = { date, curse: curse.length, neconformitati: rezultat.lista.length, faraGps: rezultat.faraGps.length };
+    }, scutire);
+    const rezumat = { date, curse: curse.length, neconformitati: rezultat.lista.length, faraGps: rezultat.faraGps.length, scutitePlin: scutire ? [...scutire.rute] : [] };
     if (dry) return NextResponse.json({ ...rezumat, trimis: false, motiv: 'dry', text });
 
     const chat = await graficGroupChatId();

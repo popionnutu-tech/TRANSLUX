@@ -8,7 +8,7 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { ComandaError, creeazaComanda } from '@/lib/bilete/comenzi';
 import { cheieProbaValida, dataProbaPermisa, pasiProba, telefonMascat, type PasProba, type StareProbaRand } from '@/lib/bilete/proba-reguli';
 import { curataVerdicte, mesajRezultat } from '@/lib/bilete/proba-teste';
-import { alertAdmins } from '@/lib/telegram-notify';
+import { alertaBilete } from '@/lib/bilete/alerte-tab';
 
 // Acțiunile paginii de probă fizică (migr. 532, Ion 08.10.2026: «pagina fără login», «biletul 10 lei», «Iura unic șofer»).
 // FIECARE acțiune verifică singură cheia și termenul (revizia de securitate H1: id-ul unei server action e public în
@@ -109,6 +109,6 @@ export async function trimiteRezultatProba(cheie: string, verdicte: unknown, cin
   if (!error && liber === false) return { ok: false, eroare: 'prea multe trimiteri; încearcă peste câteva minute' };
   const nume = String(cine ?? '').trim().slice(0, 40) || 'Iura';
   const cand = new Date().toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-  const trimis = await alertAdmins(mesajRezultat(v, nume, cand));
+  const trimis = await alertaBilete(mesajRezultat(v, nume, cand));
   return trimis ? { ok: true } : { ok: false, eroare: 'Telegram n-a primit mesajul; încearcă din nou' };
 }

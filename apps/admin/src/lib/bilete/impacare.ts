@@ -6,7 +6,7 @@ import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
 import { leagaSesiuneExistenta, stareSoferCursa } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
-import { alertAdmins } from '@/lib/telegram-notify';
+import { alertaBilete } from './alerte-tab';
 import { ruleazaEchipajul, type RaportEchipaj } from './echipaj-job';
 import { mesajAlerte, type AlertaPentruMesaj } from './alerte-mesaj';
 import { INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
@@ -208,7 +208,7 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
       const harta = new Map((comenzi || []).map((c) => [c.id, c]));
       const pentruMesaj: AlertaPentruMesaj[] = lista.map((a) => ({ tip: a.tip, detalii: a.detalii, moment: a.moment, comanda: a.comanda_id ? harta.get(a.comanda_id) ?? null : null }));
       const baza = (process.env.ADMIN_URL || "https://central-hub-md.vercel.app").replace(/\/+$/, "");
-      if (await alertAdmins(mesajAlerte(pentruMesaj, `${baza}/bilete`))) {
+      if (await alertaBilete(mesajAlerte(pentruMesaj, `${baza}/bilete`))) {
         await db.from("bilete_alerte").update({ notificat_la: new Date().toISOString() }).in("id", lista.map((a) => a.id)).is("notificat_la", null);
         raport.alerte.aplicate = lista.length;
       } else {

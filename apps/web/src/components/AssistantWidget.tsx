@@ -50,7 +50,7 @@ const TEXT = {
     typing: 'Asistentul scrie',
     error: 'Nu am putut trimite mesajul. Verifică internetul sau sună la +373 60 401 010.',
     restart: 'Conversație nouă',
-    back: 'Înapoi la început',
+    back: 'Înapoi la început', backShort: 'Înapoi',
     resume: 'Continuă conversația',
     note: 'Asistent AI · Pentru urgențe:',
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Punctul pe Google Maps',
@@ -100,7 +100,7 @@ const TEXT = {
     typing: 'Ассистент пишет',
     error: 'Не удалось отправить сообщение. Проверьте интернет или позвоните +373 60 401 010.',
     restart: 'Новый разговор',
-    back: 'Назад к началу',
+    back: 'Назад к началу', backShort: 'Назад',
     resume: 'Продолжить разговор',
     note: 'AI-ассистент · Срочно:',
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Точка на Google Maps',
@@ -496,8 +496,9 @@ export default function AssistantWidget({ locale, open, onOpenChange }: { locale
       {open && (
         <section className="asst-panel" role="dialog" aria-label={i.title}>
           <header className="asst-head">
+            {/* Ion, 09.10.2026: «să fie buton vizibil înapoi aici» — buton cu text, nu doar săgeata. */}
             {messages.length > 0 && !home && (
-              <button type="button" className="asst-icon asst-back" onClick={() => setHome(true)} aria-label={i.back} title={i.back}><ChevronLeft size={22} /></button>
+              <button type="button" className="asst-back" onClick={() => setHome(true)} aria-label={i.back} title={i.back}><ChevronLeft size={20} /><span>{i.backShort}</span></button>
             )}
             <span className="asst-avatar" aria-hidden>T<span className="asst-avatar-dot" /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -608,7 +609,8 @@ const CSS = `
 .asst-icon:hover{background:#F4E8EA;color:${RED}}
 .asst-list{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
 .asst-home{display:flex;flex-direction:column;gap:14px}
-.asst-back{margin-right:-6px}
+.asst-back{display:inline-flex;align-items:center;gap:2px;flex-shrink:0;height:40px;padding:0 12px 0 6px;border:none;border-radius:999px;background:#F4E8EA;color:${RED};font:700 14px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;margin-right:-2px}
+.asst-back:hover{background:#EBD5D9}
 .asst-resume{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:none;background:#F4E8EA;color:${RED};border-radius:999px;padding:8px 12px;font:600 13px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
 .asst-hello{font-size:20px;font-weight:700;line-height:1.3}
 .asst-hello-sub{font-size:14px;color:#5E5255;margin-top:4px}

@@ -49,6 +49,12 @@ describe('gasesteNeconformitati', () => {
     ]);
     expect(r.lista.map((x) => [x.tip, x.ruta, x.retur])).toEqual([['singerei', 14, false]]);
   });
+  it('trecerea la peste 150 m de peron nu e plecare din gară (08.10: cursa 1 la 685 m, cursa 19 la 998 m)', () => {
+    const r = gasesteNeconformitati([
+      tr(9, false, 'Briceni', -20, 685), tr(9, false, 'Edineț', -11, 998), tr(9, false, 'Bălți', -10, 150), tr(9, false, 'Sîngerei', 0),
+    ], [tur]);
+    expect(r.lista.map((x) => x.tip === 'devreme' && x.gara)).toEqual(['Bălți']);
+  });
   it('pe retur plecarea devreme din gări nu contează', () => {
     const r = gasesteNeconformitati([tr(9, true, 'Bălți', -20), tr(9, true, 'Sîngerei', 0)], [retur]);
     expect(r.lista).toEqual([]);

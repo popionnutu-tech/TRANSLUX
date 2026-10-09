@@ -3,7 +3,7 @@ import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import { getSupabase } from '@/lib/supabase';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { alertAdmins, sendTelegramText } from '@/lib/telegram-notify';
+import { alertAdmins, deleteTelegramMessage, sendTelegramText } from '@/lib/telegram-notify';
 import { textMesaj, ziuaRu } from '@/lib/mejgorod/neconformitati';
 import { citesteNume, citesteZiua } from '@/lib/mejgorod/ziua-db';
 
@@ -11,11 +11,13 @@ import { citesteNume, citesteZiua } from '@/lib/mejgorod/ziua-db';
 // Bălți înainte de grafic pe tur, nu a trecut prin Sîngerei pe tur sau retur. N-are cron Vercel (Hobby
 // are doar 2): îl cheamă crontab-ul VPS la 08:00, după run-nightly.sh (03:00) care scrie route_stop_passes.
 //   0 8 * * * . /root/lde-worker/cron-secret.env && curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://central-hub-md.vercel.app/api/cron/mejgorod-neconformitati
-// Verificare fără trimitere: ?dry=1 · altă zi: ?date=YYYY-MM-DD · retrimitere: ?force=1
+// Verificare fără trimitere: ?dry=1 · altă zi: ?date=YYYY-MM-DD · retrimitere: ?force=1 (șterge mesajul vechi al zilei)
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const LAST_KEY = 'mejgorod_neconformitati_last';
+/** {zi, chat, id} al ultimului mesaj: la retrimiterea aceleiași zile (?force=1) mesajul vechi se șterge din grupă. */
+const MSG_KEY = 'mejgorod_neconformitati_msg';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function ieri(): string {
@@ -53,10 +55,19 @@ export async function GET(req: NextRequest) {
 
     const chat = await graficGroupChatId();
     if (!chat) return NextResponse.json({ ...rezumat, trimis: false, motiv: 'grupa Mejgorod nu e legată (/lega_grafic)' }, { status: 409 });
+    const { data: vechi } = await sb.from('app_config').select('value').eq('key', MSG_KEY).maybeSingle();
     const msgId = await sendTelegramText(chat, text);
     if (!msgId) throw new Error('Telegram a refuzat mesajul');
-    await sb.from('app_config').upsert({ key: LAST_KEY, value: date }, { onConflict: 'key' });
-    return NextResponse.json({ ...rezumat, trimis: true, message_id: msgId });
+    let sters: number | null = null;
+    try {
+      const v = JSON.parse(vechi?.value ?? '{}') as { zi?: string; chat?: string; id?: number };
+      if (v.zi === date && v.id && String(v.chat ?? chat) === String(chat) && (await deleteTelegramMessage(chat, v.id))) sters = v.id;
+    } catch { /* fără mesaj vechi */ }
+    await sb.from('app_config').upsert([
+      { key: LAST_KEY, value: date },
+      { key: MSG_KEY, value: JSON.stringify({ zi: date, chat, id: msgId }) },
+    ], { onConflict: 'key' });
+    return NextResponse.json({ ...rezumat, trimis: true, message_id: msgId, sters });
   } catch (e) {
     console.error('[mejgorod-neconformitati]', e);
     return NextResponse.json({ error: 'Neconformitățile Mejgorod au eșuat' }, { status: 500 });

@@ -31,6 +31,10 @@ export const VRANESTI_MIN_S = 10;
 export const RETUR_PE_CENTURA: ReadonlySet<number> = new Set([14]);
 /** Ion, 07.10: «plecat înainte de grafic doar cu 5 min» — 1–4 minute mai devreme nu se raportează. */
 export const PLECARE_DEVREME_MIN = 5;
+/** Plecarea din gară se judecă doar când urma a trecut pe lângă peron (stop-times.mjs: plecarea = ultimul punct
+ *  la ≤150 m). Mai departe, passed_at e doar punctul cel mai apropiat prin oraș, nu plecarea: 08.10 cursa 1 «03:00»
+ *  la 685 m de gara Briceni și cursa 19 «08:19» la 998 m de gara Edineț — 11 din 21 de «devreme» în 10 zile. */
+export const GARA_MAX_M = 150;
 
 export interface Trecere {
   crm_route_id: number;
@@ -108,7 +112,7 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
     if (!c.retur) {
       for (const g of GARI_PLECARE) {
         const r = rows.find((x) => x.stop_name === g);
-        if (r && r.offset_min <= -PLECARE_DEVREME_MIN) {
+        if (r && r.distance_m <= GARA_MAX_M && r.offset_min <= -PLECARE_DEVREME_MIN) {
           lista.push({ tip: 'devreme', ruta: c.ruta, retur: false, gara: g, grafic: r.scheduled, plecat: r.passed_at, minute: r.offset_min, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
         }
       }

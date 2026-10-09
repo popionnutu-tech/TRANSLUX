@@ -170,42 +170,36 @@ export default function RoutesTable({ routes }: Props) {
   // gară, «descifrarea» nu descifra nimic (Ion, 07.10).
   // Ruta nu mai ia tot spațiul liber (era `1fr`): are un maxim, iar surplusul trece la Șofer,
   // unde numele sunt la fel de lungi. Ion, 07.10: «lățimea la rută să fie mai mică».
-  // Lățimile cresc odată cu fontul (12 → 13 → 15): o cifră de 15px e cu ~25% mai lată decât
-  // una de 12px, iar pe coloanele strânse un total de patru-cinci cifre n-ar mai fi încăput —
-  // cu `overflow: hidden` pe celule nu s-ar fi văzut că lipsește, s-ar fi tăiat în liniște.
-  // Ion, 09.10: «rândurile să fie mai late și scriptul mai mare», apoi «mărește încă șriftul».
-  // Tabelul ajunge la ~1460px cu descifrarea deschisă; tab-ul «Încasare» rulează pe toată
-  // lățimea paginii (`maxWidth: none`), deci încape pe un ecran de laptop fără scroll lateral.
+  // Lățimile cresc odată cu fontul (12 → 13): o cifră de 13px e cu ~8% mai lată, iar pe o
+  // coloană de 44px un total de patru cifre n-ar mai fi încăput. Ion, 09.10: «rândurile să fie
+  // mai late și scriptul mai mare».
   const GRID = descifrare
-    ? '94px 110px minmax(150px, 230px) minmax(140px, 1fr) 78px 74px 62px 74px 66px 66px 58px 58px 58px 78px 112px 24px'
-    : '94px 110px minmax(150px, 230px) minmax(140px, 1fr) 78px 74px 62px 74px 78px 112px 24px';
+    ? '82px 98px minmax(140px, 220px) minmax(126px, 1fr) 68px 64px 54px 64px 58px 58px 50px 50px 50px 68px 98px 20px'
+    : '82px 98px minmax(140px, 220px) minmax(126px, 1fr) 68px 64px 54px 64px 68px 98px 20px';
   const selStyle: React.CSSProperties = {
-    width: '100%', fontSize: 12, marginTop: 3, border: '1px solid var(--border)',
+    width: '100%', fontSize: 11, marginTop: 3, border: '1px solid var(--border)',
     borderRadius: 3, padding: '0 1px', background: '#fff',
   };
 
   return (
     <div>
-      {/* Chenar pe TOATE laturile, ca în documentul de casier (Ion, 09.10: «același format»).
-          Acolo e un <table> cu `borderCollapse: collapse`, care face liniile de 1px singur.
-          Aici sunt grile independente (antet, fiecare rând, subsolul), deci trucul e altul:
-          fiecare celulă desenează doar dreapta și jos, iar cutia din jur închide sus și
-          stânga. Așa nicio linie nu se dublează la 2px, oricâte rânduri ar fi.
-          Culoarea e #ccc, ca la casier — bordoul translucid de până acum se pierdea pe dungi. */}
+      {/* Linii între coloane, ca în documentul de casier: cu douăzeci de coloane de cifre,
+          delimitarea pe spațiu alb nu mai ajunge. `gap: 0` + chenar pe fiecare celulă, ca la
+          un tabel adevărat; ultima coloană rămâne fără, să nu dubleze marginea. */}
       <style>{`
         .rute-grid > * {
-          border-right: 1px solid #ccc;
-          border-bottom: 1px solid #ccc;
+          border-right: 1px solid rgba(155,27,48,0.12);
           padding-right: 5px;
           padding-left: 5px;
           min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
         }
+        .rute-grid > *:last-child { border-right: none; }
       `}</style>
       {/* Comutatorul rămâne sus, lângă tabel: totalurile au coborât în subsol, dar un
           comutator de coloane căutat cu scroll la fiecare apăsare ar fi fost mai rău. */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6, fontSize: 13 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6, fontSize: 12 }}>
         <label style={{
           display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
           fontWeight: descifrare ? 600 : 400,
@@ -215,24 +209,18 @@ export default function RoutesTable({ routes }: Props) {
         </label>
       </div>
 
-      {/* Cutia tabelului: închide sus și stânga, restul îl desenează celulele. */}
-      <div style={{ borderTop: '1px solid #ccc', borderLeft: '1px solid #ccc' }}>
-
-      {/* Capul de tabel, ca la casier: bandă gri, scris bordo îngroșat, denumirile centrate.
-          Cei 3px de bordură la stânga NU sunt decor: fiecare rând are o dungă de 3px în
-          culoarea statusului, iar fără ei antetul ar sta deplasat cu 3px față de rânduri și
-          liniile verticale n-ar mai cădea una sub alta. */}
+      {/* Header */}
       <div className="rute-grid" style={{
         display: 'grid',
         gridTemplateColumns: GRID,
         gap: 0,
-        padding: '9px 10px',
-        borderLeft: '3px solid #e8e8e8',
-        background: '#e8e8e8',
-        fontSize: 12,
-        fontWeight: 700,
-        textAlign: 'center',
-        color: 'var(--primary)',
+        padding: '7px 10px',
+        borderBottom: '1px solid var(--border)',
+        fontSize: 11,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        color: 'var(--text-muted)',
+        marginBottom: 4,
         alignItems: 'start',
       }}>
         <div onClick={() => toggleSort('Data')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Sortează după data foii">Data{arrow('Data')}</div>
@@ -261,15 +249,16 @@ export default function RoutesTable({ routes }: Props) {
           </select>
         </div>
         <div>Foaie</div>
-        <div>Num</div>
-        <div>+2T</div>
-        <div>Inc</div>
-        {descifrare && <div title="Numerar — banii încasați la casă">Nm</div>}
-        {descifrare && <div title="Diagrame">Dg</div>}
-        {descifrare && <div title="Ligotnici 0">Lg</div>}
-        {descifrare && <div title="Ligotnici gară">Vk</div>}
-        {descifrare && <div title="Cheltuieli suplimentare">Rs</div>}
-        <div title="Rezultatul: total încasat − numărare. Plus = s-a încasat mai mult decât s-a numărat; minus = lipsesc bani față de numărare.">Δ</div>
+        <div style={{ textAlign: 'right' }}>Num</div>
+        <div style={{ textAlign: 'right' }}>+2T</div>
+        <div style={{ textAlign: 'right' }}>Inc</div>
+        {descifrare && <div style={{ textAlign: 'right' }} title="Numerar — banii încasați la casă">Nm</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Diagrame">Dg</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici 0">Lg</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Ligotnici gară">Vk</div>}
+        {descifrare && <div style={{ textAlign: 'right' }} title="Cheltuieli suplimentare">Rs</div>}
+        <div style={{ textAlign: 'right' }}
+          title="Rezultatul: total încasat − numărare. Plus = s-a încasat mai mult decât s-a numărat; minus = lipsesc bani față de numărare.">Δ</div>
         <div>Status</div>
         <div></div>
       </div>
@@ -295,17 +284,23 @@ export default function RoutesTable({ routes }: Props) {
                 gridTemplateColumns: GRID,
                 gap: 0,
                 alignItems: 'center',
-                padding: '9px 10px',
-                fontSize: 15,
+                // Aceeași înălțime de rând ca în documentul de casier: acolo celula are
+                // 5px sus-jos, font 13 și lineHeight 1.35 → 27,5px. `lineHeight` e pus
+                // explicit fiindcă altfel rândul atârna de `normal`-ul browserului (~1.2),
+                // deci ieșea altă înălțime pe alt font de sistem. Ion, 09.10: «aceeași
+                // lățime la rânduri și aceeași mărime a caracterelor, în rest lași cum a fost».
+                padding: '5px 10px',
+                fontSize: 13,
+                lineHeight: 1.35,
                 cursor: hasDetails ? 'pointer' : 'default',
                 opacity: r.cancelled ? 0.5 : 1,
               }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, whiteSpace: 'nowrap' }}>{formatData(r.ziua)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, whiteSpace: 'nowrap' }}>{r.time_nord || '—'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{formatData(r.ziua)}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{r.time_nord || '—'}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.route_name || '—'}
                 {r.vehicle_plate && (
-                  <span className="text-muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, marginLeft: 6 }}>
+                  <span className="text-muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, marginLeft: 6 }}>
                     {r.vehicle_plate}
                   </span>
                 )}
@@ -313,7 +308,7 @@ export default function RoutesTable({ routes }: Props) {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.driver_name || <span className="text-muted">—</span>}
               </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                 {r.foaie_nr ? (
                   <span style={{ color: r.foaie_source === 'implied' ? '#f57c00'
                                       : r.foaie_source === 'manual' ? '#2a5db0' : 'inherit' }}
@@ -321,10 +316,10 @@ export default function RoutesTable({ routes }: Props) {
                              : r.foaie_source === 'manual' ? 'Introdusă manual la casă (Document casier Numerar)' : ''}>
                     {r.foaie_nr}
                     {r.foaie_source === 'implied' && (
-                      <span style={{ fontSize: 11, marginLeft: 3, opacity: 0.7 }}>auto</span>
+                      <span style={{ fontSize: 10, marginLeft: 3, opacity: 0.7 }}>auto</span>
                     )}
                     {r.foaie_source === 'manual' && (
-                      <span style={{ fontSize: 11, marginLeft: 3, opacity: 0.7 }}>casă</span>
+                      <span style={{ fontSize: 10, marginLeft: 3, opacity: 0.7 }}>casă</span>
                     )}
                   </span>
                 ) : <span className="text-muted">—</span>}
@@ -333,7 +328,7 @@ export default function RoutesTable({ routes }: Props) {
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 textAlign: 'right',
-                fontSize: 14,
+                fontSize: 12,
                 color: r.extra_2tarife_lei != null && r.extra_2tarife_lei > 0 ? 'var(--success)' : 'var(--text-muted)',
               }}>
                 {r.extra_2tarife_lei == null
@@ -341,11 +336,11 @@ export default function RoutesTable({ routes }: Props) {
                   : r.extra_2tarife_lei > 0 ? <strong>+{Math.round(r.extra_2tarife_lei)}</strong> : <span className="text-muted">0</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(incTotal(r))}</span>
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 14 }}>{num(r.incasare_numerar)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 14 }}>{num(r.incasare_diagrama)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 14 }}>{num(r.ligotniki0_suma)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 14 }}>{num(r.ligotniki_vokzal_suma)}</span>}
-              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 14 }}>{num(r.dop_rashodi)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.incasare_numerar)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.incasare_diagrama)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.ligotniki0_suma)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.ligotniki_vokzal_suma)}</span>}
+              {descifrare && <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 12 }}>{num(r.dop_rashodi)}</span>}
               {/* Rezultatul se recalculează aici, nu se ia `r.diff` de la server: acela e
                   numărare − vechiul incasare_lei (numerar + diagramă). De când INC e totalul
                   foii, cele două ar fi arătat lucruri diferite pe același rând. */}
@@ -368,10 +363,10 @@ export default function RoutesTable({ routes }: Props) {
                   </span>
                 );
               })()}
-              <span style={{ color: meta.color, fontSize: 14, fontWeight: 600 }}>
+              <span style={{ color: meta.color, fontSize: 12, fontWeight: 600 }}>
                 {meta.icon} {meta.label}
               </span>
-              <span className="text-muted" style={{ fontSize: 14, textAlign: 'center' }}>
+              <span className="text-muted" style={{ fontSize: 10, textAlign: 'center' }}>
                 {hasDetails ? (isOpen ? '▾' : '▸') : ''}
               </span>
             </div>
@@ -380,7 +375,7 @@ export default function RoutesTable({ routes }: Props) {
             {isOpen && hasDetails && (
               <div style={{
                 padding: '4px 10px 6px 28px',
-                fontSize: 12,
+                fontSize: 11,
                 color: 'var(--text-muted)',
                 display: 'flex',
                 gap: 14,
@@ -399,7 +394,7 @@ export default function RoutesTable({ routes }: Props) {
       })}
 
       {processed.length === 0 && (
-        <p className="text-muted" style={{ textAlign: 'center', padding: 20, fontSize: 14 }}>
+        <p className="text-muted" style={{ textAlign: 'center', padding: 20, fontSize: 13 }}>
           {isFiltered ? 'Niciun rezultat pentru filtrul ales.' : 'Nu există rute pentru perioada selectată.'}
         </p>
       )}
@@ -413,15 +408,16 @@ export default function RoutesTable({ routes }: Props) {
         gridTemplateColumns: GRID,
         gap: 0,
         alignItems: 'center',
-        padding: '11px 10px',
-        fontSize: 15,
+        padding: '9px 10px',
+        marginTop: 2,
+        fontSize: 13,
         fontWeight: 700,
-        borderLeft: '3px solid #e8e8e8',
-        background: '#e8e8e8',
+        background: 'rgba(155,27,48,0.07)',
+        borderTop: '2px solid var(--primary)',
       }}>
-        <div className="text-muted" style={{ fontSize: 12, textTransform: 'uppercase' }}>Total</div>
+        <div className="text-muted" style={{ fontSize: 11, textTransform: 'uppercase' }}>Total</div>
         <div />
-        <div className="text-muted" style={{ fontSize: 12 }}>
+        <div className="text-muted" style={{ fontSize: 11 }}>
           {processed.length} curse{isFiltered ? ' (filtrat)' : ''}
         </div>
         <div />
@@ -445,8 +441,6 @@ export default function RoutesTable({ routes }: Props) {
         </div>
         <div />
         <div />
-      </div>
-
       </div>
     </div>
   );

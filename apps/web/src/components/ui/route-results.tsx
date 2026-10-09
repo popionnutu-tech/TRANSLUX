@@ -61,12 +61,34 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
     return t.toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
   }, [trips, locale]);
 
+  // Semnul «mai sunt curse dedesubt» (Ion, 09.10.2026: «să fie un semn de scroll în jos pentru mai multe, și rutele de
+  // mai jos lângă scroll să fie mai transparente, și desktop și mobile»): val care decolorează jos + butonul «↓».
+  const [maiJos, setMaiJos] = React.useState(false);
+  const verificaJos = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setMaiJos(el.scrollHeight - el.scrollTop - el.clientHeight > 24);
+  }, []);
+  React.useEffect(() => {
+    verificaJos();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", verificaJos, { passive: true });
+    window.addEventListener("resize", verificaJos);
+    const t = window.setTimeout(verificaJos, 300);
+    return () => { el.removeEventListener("scroll", verificaJos); window.removeEventListener("resize", verificaJos); window.clearTimeout(t); };
+  }, [verificaJos, trips.length, cumpara]);
+  const coboara = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollBy({ top: Math.round(el.clientHeight * 0.75), behavior: "smooth" });
+  };
+
   // Prețul comun al zilei în antet, dacă toate cursele au același preț (de obicei da).
   const preturi = [...new Set(trips.filter((t) => t.price > 0).map((t) => t.price))];
   const ales = cumpara !== null ? trips[cumpara] : null;
   const tx = locale === "ru"
-    ? { curse: (n: number) => `${n} рейсов`, niciuna: "Рейсы не найдены", fara: "Нет прямых рейсов между этими пунктами", bilet: "Онлайн-билет", inapoi: "Назад к рейсам" }
-    : { curse: (n: number) => `${n} curse`, niciuna: "Nu s-au găsit curse", fara: "Nu există curse directe între aceste puncte", bilet: "Bilet online", inapoi: "Înapoi la curse" };
+    ? { curse: (n: number) => `${n} рейсов`, niciuna: "Рейсы не найдены", fara: "Нет прямых рейсов между этими пунктами", bilet: "Онлайн-билет", inapoi: "Назад к рейсам", maiMulte: "Ещё рейсы ниже" }
+    : { curse: (n: number) => `${n} curse`, niciuna: "Nu s-au găsit curse", fara: "Nu există curse directe între aceste puncte", bilet: "Bilet online", inapoi: "Înapoi la curse", maiMulte: "Mai multe curse mai jos" };
 
   return (
     <div
@@ -86,7 +108,9 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
         .route-modal-content { animation: modalIn 0.25s ease-out; }
         .bilete-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
         @media (max-width: 420px) { .bilete-grid { grid-template-columns: 1fr; gap: 12px; } }
-        @media (prefers-reduced-motion: reduce) { .route-modal-backdrop, .route-modal-content { animation: none; } }
+        @keyframes saltaJos { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 4px); } }
+        .mai-jos { animation: saltaJos 1.6s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .route-modal-backdrop, .route-modal-content, .mai-jos { animation: none; } }
       `}</style>
       <div
         className="route-modal-backdrop"
@@ -124,6 +148,7 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
             style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "#F4EEEF", color: "#6B5B5F", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>&times;</button>
         </div>
 
+        <div style={{ position: "relative" }}>
         <div ref={scrollRef} className="route-results-scroll" style={{ overflowY: "auto", background: "#FAF6F5", padding: ales ? 0 : "16px 14px 20px" }}>
           {ales && fromRo && toRo ? (
             <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} />
@@ -145,6 +170,18 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
               </div>
             </>
           )}
+        </div>
+        {!ales && maiJos && (
+          <>
+            {/* Valul: cursele de lângă marginea de jos se văd mai transparente, deci se înțelege că lista continuă. */}
+            <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 8, bottom: 0, height: 120, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(250,246,245,0) 0%, rgba(250,246,245,0.75) 55%, rgba(250,246,245,0.97) 100%)" }} />
+            <button type="button" onClick={coboara} className="mai-jos"
+              style={{ position: "absolute", left: "50%", bottom: 14, transform: "translateX(-50%)", display: "inline-flex", alignItems: "center", gap: 8, minHeight: 44, padding: "0 18px", borderRadius: 999, border: "none", background: "#231A1C", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 20px rgba(35,26,28,0.25)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+              {tx.maiMulte}
+            </button>
+          </>
+        )}
         </div>
       </div>
     </div>

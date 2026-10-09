@@ -1,6 +1,8 @@
 import type { Locale } from '@/lib/i18n';
 import type { BiletPublic, ComandaPublica } from '@/lib/bilete-api';
 import { OPERATOR } from '@/components/legal/legal-content';
+import { PlacaMD } from '@/components/ui/bilet-cursa';
+import { placaAfisata } from '@/lib/bilet-afisare';
 
 // Cardul unui loc plătit (ION-236, Ion 05.10: «biletul trebuie să fie frumos, ca aici fix în fix»): pastila «BILET
 // ONLINE», ora plecării și a sosirii mari, orașele, locul și prețul, linia de rupere, QR-ul, pastila «Achitat online».
@@ -10,8 +12,8 @@ import { OPERATOR } from '@/components/legal/legal-content';
 const RED = '#9B1B30';
 
 const TXT = {
-  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: '✓ Achitat online', urcat: '✓ Urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
-  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: '✓ Оплачено онлайн', urcat: '✓ Посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
+  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: 'achitat', urcat: 'urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
+  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: 'оплачено', urcat: 'посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
 } as const;
 
 const nfPret = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
@@ -53,67 +55,63 @@ export const BILET_CARD_CSS = `
   .bilet-card { break-inside: avoid; page-break-inside: avoid; }
 `;
 
+/**
+ * Biletul plătit, varianta B de pe pânza de design (Ion, 09.10.2026: «B este super»): tichet bordo cu ora și ruta mari,
+ * apoi «fereastra» albă cu locul, mașina și șoferul, QR-ul și codul; marginea de jos zimțată, ca un bilet rupt.
+ */
 export function BiletCard({ comanda: c, bilet: b, locale }: { comanda: ComandaPublica; bilet: BiletPublic; locale: Locale }) {
   const tx = TXT[locale];
   const urcat = b.status === 'urcat';
   const nume = numeRuta(c, locale);
+  const e = c.echipaj;
+  const placa = e?.stare === 'gata' ? placaAfisata(e.placa) : null;
+  const cod = b.cod_qr.replace(/(.{4})(?=.)/g, '$1 ');
   return (
-    <div className="bilet-card" style={{ background: '#fff', borderRadius: 22, boxShadow: '0 6px 24px rgba(0,0,0,0.10)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#1a1a1a' }}>
+    <div className="bilet-card" style={{ background: RED, borderRadius: 26, boxShadow: '0 20px 50px rgba(60,20,30,0.22)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#fff' }}>
       {/* Proba fizică (migr. 532): biletul de probă se vede de departe — nu e valabil pe o cursă reală. */}
-      {c.proba && <div style={{ background: '#b91c1c', color: '#fff', textAlign: 'center', padding: '10px 14px', fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{tx.proba}</div>}
-      {/* Partea de sus: cursa */}
-      <div style={{ padding: '18px 22px 14px' }}>
-        {/* Ion, 05.10: «sus la șoferi și la clienți pune logo-ul nostru» — logo-ul bordo în capul cardului. */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <span aria-label="TRANSLUX" style={LOGO_STIL} />
-          <span style={{ fontSize: 15, color: '#555', fontWeight: 600 }}>{dataScurta(c.trip_date, locale)}</span>
+      {c.proba && <div style={{ background: '#fff', color: '#b91c1c', textAlign: 'center', padding: '10px 14px', fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{tx.proba}</div>}
+      <div style={{ padding: '20px 22px 6px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span aria-label="TRANSLUX" style={{ ...LOGO_STIL, backgroundColor: '#fff' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.16)', whiteSpace: 'nowrap' }}>{dataScurta(c.trip_date, locale)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ background: '#fbe9e3', color: '#d9532b', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 800, letterSpacing: 1.2 }}>{tx.biletOnline}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5 }}>{oraHHMM(c.departure_at)}</span>
+          {c.sosire && <span style={{ fontSize: 18, opacity: 0.85 }}>&rarr; {c.sosire}</span>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginTop: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5 }}>{oraHHMM(c.departure_at)}</span>
-            <span style={{ fontSize: 20, fontWeight: 800, marginTop: 6 }}>{c.from_name}</span>
-          </div>
-          <div aria-hidden="true" style={{ flex: 1, borderTop: '3px dotted #c9c9c9', marginTop: 20, minWidth: 24 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', textAlign: 'right', minWidth: 0 }}>
-            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5, color: c.sosire ? '#1a1a1a' : '#bbb' }}>{c.sosire ?? '—:—'}</span>
-            <span style={{ fontSize: 20, fontWeight: 800, marginTop: 6 }}>{c.to_name}</span>
-          </div>
-        </div>
-        {nume && <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>{nume}</div>}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 4, marginTop: 14, fontSize: 16 }}>
-          {/* ION-239: numărul locului din autobuz (loc_nr); până la migrație / fără loc dat rămâne «1 din 2» (nr). */}
-          <span style={{ color: '#666' }}>{tx.locul}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{b.loc_nr ?? b.nr}</span>
-          <span style={{ color: '#666' }}>{tx.pret}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{nfPret.format(Number(c.price_per_seat))} MDL</span>
-        </div>
-        <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{c.passenger_name}</div>
-        {/* Echipajul cursei (migr. 538, Ion 08.10: «număr mașină și șofer final»): după bifa dispecerului. */}
-        {c.echipaj?.stare === 'gata' && (
-          <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 12, background: '#f4f1f1', fontSize: 15 }}>
-            <b>🚌 {c.echipaj.placa}</b>{c.echipaj.sofer ? ` · ${tx.sofer} ${c.echipaj.sofer}` : ''}
-            {c.echipaj.telefon && <div style={{ marginTop: 4 }}><a href={`tel:${c.echipaj.telefon.replace(/[^+\d]/g, '')}`} style={{ color: '#1b7f3b', fontWeight: 700, textDecoration: 'none' }}>📞 {c.echipaj.telefon}</a></div>}
-          </div>
-        )}
-        {c.echipaj && c.echipaj.stare !== 'gata' && <div style={{ marginTop: 8, fontSize: 13, color: c.echipaj.stare === 'anulat' ? '#b42318' : '#888' }}>{c.echipaj.stare === 'anulat' ? tx.anulat : tx.astept}</div>}
-        {/* Biletul arată operatorul și codul fiscal (nota ecc.md, 07.2025: «denumirea operatorului, codul fiscal, ruta, data, ora, locul»). */}
-        <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{OPERATOR.brand} · {OPERATOR.name} · IDNO {OPERATOR.idno}</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{c.from_name} &rarr; {c.to_name}</div>
+        {nume && <div style={{ fontSize: 12, opacity: 0.75, marginTop: -8 }}>{nume}</div>}
       </div>
-      {/* Linia de rupere */}
-      <div style={{ position: 'relative', height: 0, borderTop: '2px dashed #d9d9d9', margin: '0 14px' }}>
-        <span style={{ position: 'absolute', left: -26, top: -12, width: 24, height: 24, borderRadius: '50%', background: 'var(--bg, #f1efef)' }} />
-        <span style={{ position: 'absolute', right: -26, top: -12, width: 24, height: 24, borderRadius: '50%', background: 'var(--bg, #f1efef)' }} />
-      </div>
-      {/* Partea de jos: QR + pastila */}
-      <div style={{ padding: '18px 22px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ margin: '14px 16px 0', padding: 18, borderRadius: '20px 20px 0 0', background: '#fff', color: '#231A1C', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#8A7A7D', letterSpacing: 0.5 }}>{tx.locul.toUpperCase()}</span>
+            <span style={{ fontSize: 34, fontWeight: 800, color: RED, lineHeight: 1 }}>{b.loc_nr ?? b.nr}</span>
+          </div>
+          {/* Echipajul cursei (migr. 538): după bifa dispecerului; până atunci textul de așteptare. */}
+          {e?.stare === 'gata' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 0 }}>
+              {placa && <PlacaMD numar={placa} mic />}
+              <span style={{ fontSize: 12, color: '#6B5B5F', textAlign: 'right' }}>
+                {e.sofer ? `${tx.sofer} ${e.sofer}` : ''}
+                {e.telefon && <> · <a href={`tel:${e.telefon.replace(/[^+\d]/g, '')}`} style={{ color: '#1B7F3B', fontWeight: 700, textDecoration: 'none' }}>{e.telefon}</a></>}
+              </span>
+            </div>
+          ) : e ? (
+            <span style={{ fontSize: 12, color: e.stare === 'anulat' ? '#b42318' : '#8A7A7D', textAlign: 'right', maxWidth: 190 }}>{e.stare === 'anulat' ? tx.anulat : tx.astept}</span>
+          ) : null}
+        </div>
         {/* SVG-ul vine de la panou, generat de biblioteca qrcode din codul biletului (nu din text de la utilizator). */}
         <div className="bilet-qr" style={{ width: '100%', maxWidth: 230, opacity: urcat ? 0.3 : 1 }} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />
-        <code style={{ fontSize: 13, letterSpacing: 2, color: '#444' }}>{b.cod_qr}</code>
-        <span style={{ width: '100%', textAlign: 'center', borderRadius: 14, padding: '12px 16px', fontSize: 17, fontWeight: 800, background: urcat ? '#ececec' : '#e3f3e8', color: urcat ? '#666' : '#1b7f3b' }}>
-          {urcat ? tx.urcat : tx.achitat}
+        <code style={{ fontSize: 13, letterSpacing: 2, fontWeight: 700, color: '#4A3E41', fontFamily: 'inherit' }}>{cod}</code>
+        <span style={{ fontSize: 13, color: '#6B5B5F', textAlign: 'center' }}>
+          {c.passenger_name} · {nfPret.format(Number(c.price_per_seat))} MDL · <b style={{ color: urcat ? '#6B5B5F' : '#1B7F3B' }}>{urcat ? tx.urcat : tx.achitat}</b>
         </span>
+        {/* Biletul arată operatorul și codul fiscal (nota ecc.md, 07.2025). */}
+        <span style={{ fontSize: 10, color: '#A0939A', textAlign: 'center' }}>{OPERATOR.brand} · {OPERATOR.name} · IDNO {OPERATOR.idno}</span>
       </div>
+      <div aria-hidden="true" style={{ height: 16, margin: '0 16px', backgroundImage: 'radial-gradient(circle at 8px 16px, var(--bg, #f1efef) 7px, #fff 7.5px)', backgroundSize: '16px 16px' }} />
+      <div style={{ height: 18 }} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curseleZilei, gasesteNeconformitati, ruteDeObiceiPline, textMesaj, ziuaRu, type Atribuire, type Trecere } from './neconformitati';
+import { curseleZilei, gasesteNeconformitati, ruteDeObiceiPline, ruteScutite, textMesaj, ziuaRu, type Atribuire, type Trecere } from './neconformitati';
 
 const asg = (o: Partial<Atribuire>): Atribuire => ({
   crm_route_id: null, retur_route_id: null, driver_id: null, driver_id_retur: null, vehicle_id: null, vehicle_id_retur: null, ...o,
@@ -125,6 +125,13 @@ describe('gasesteNeconformitati', () => {
   });
 });
 
+describe('ruteScutite', () => {
+  it('vinerea cifra peronului bate obiceiul; fără raport de peron rămâne obiceiul (Ion, 09.10)', () => {
+    // 30 plină de obicei, dar azi 16 la peron → nescutită; 2 nu e plină de obicei, dar azi 20 → scutită; 5 fără raport → obiceiul
+    expect(ruteScutite([5, 30, 31], new Map([[30, 16], [2, 20], [31, 19], [12, 2]]))).toEqual([2, 5, 31]);
+  });
+});
+
 describe('ruteDeObiceiPline', () => {
   it('plină (≥19) în cel puțin jumătate din zile, minimum 3 zile numărate', () => {
     expect(ruteDeObiceiPline(new Map([
@@ -139,7 +146,7 @@ describe('ruteDeObiceiPline', () => {
 
 describe('textMesaj', () => {
   it('vineri / duminică: rândul cu rutele scutite; în alte zile nimic', () => {
-    expect(textMesaj('z', { lista: [], faraGps: [] }, nume, { retur: true, rute: new Set([8, 3]) })).toContain('обычно выезжают полными (3, 8)');
+    expect(textMesaj('z', { lista: [], faraGps: [] }, nume, { retur: true, rute: new Set([8, 3]) })).toContain('выехали из Кишинёва полными (3, 8)');
     expect(textMesaj('z', { lista: [], faraGps: [] }, nume, { retur: false, rute: new Set([7]) })).toContain('из Бельц без свободных мест (7)');
     expect(textMesaj('z', { lista: [], faraGps: [] }, nume, null)).not.toContain('Сынджерей.');
   });

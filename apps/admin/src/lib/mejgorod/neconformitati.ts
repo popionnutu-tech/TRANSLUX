@@ -25,6 +25,10 @@
 // Bălți». Numărarea pe camere a zilei vine abia a doua zi după-amiază (18.09–08.10: niciodată până la 08:00), deci
 // mesajul de dimineață judecă după obicei: ruta e scutită în acea zi și sens dacă în ultimele 8 vineri / duminici
 // numărate a plecat plină (≥ PLIN_DE_OBICEI_PAS pe 20 de locuri) din Chișinău / Bălți în cel puțin jumătate din zile.
+// Vinerea (Ion, 09.10: «vinerea poți să te verifici cu cifra de la persoana peron») contează cifra operatorului de
+// peron din Chișinău (reports.passengers_count, trimisă în aceeași zi): plină = ≥ PLIN_DE_OBICEI_PAS; obiceiul rămâne
+// doar pentru cursele fără raport de peron. 05.09–09.10: din 243 de curse pline după peron, camerele confirmă 227.
+// La Bălți cifra peronului e cu ~5 oameni sub camere, deci duminica rămâne obiceiul.
 //
 // Sursa: route_stop_passes (migr. 393), scrisă noaptea de lde-geo-worker/stop-times.mjs. La gări
 // passed_at e plecarea (ultimul punct la ≤150 m de peron), offset_min = minute față de grafic.
@@ -47,8 +51,8 @@ export const RETUR_PANA_LA_LIPCANI: ReadonlySet<number> = new Set([12, 11, 13, 1
 export const LIPCANI = 'Lipcani';
 /** Zilele cu scutire de Sîngerei pentru rutele pline de obicei (Ion, 09.10): ziua săptămânii (0 = duminică) → sensul
  *  și gara de la care se judecă plinul. Vineri retur (din Chișinău), duminică tur (din nord, plin la Bălți). */
-export const SCUTIRE_PLIN: Readonly<Record<number, { retur: boolean; gara: string }>> = {
-  5: { retur: true, gara: 'Chișinău' },
+export const SCUTIRE_PLIN: Readonly<Record<number, { retur: boolean; gara: string; peron?: 'CHISINAU' }>> = {
+  5: { retur: true, gara: 'Chișinău', peron: 'CHISINAU' },
   0: { retur: false, gara: 'Bălți' },
 };
 /** Pasagerii la plecare de la care salonul de 20 de locuri e «fără locuri libere»: operatorii numără des 19 pe un salon plin. */
@@ -130,6 +134,13 @@ export function ruteDeObiceiPline(serii: Map<number, number[]>): number[] {
     if (p.filter((x) => x >= PLIN_DE_OBICEI_PAS).length * 2 >= p.length) out.push(ruta);
   }
   return out.sort((a, b) => a - b);
+}
+
+/** Rutele scutite: plină după peron (≥ PLIN_DE_OBICEI_PAS) unde operatorul a raportat cursa, altfel plină de obicei. */
+export function ruteScutite(deObicei: number[], peron: Map<number, number>): number[] {
+  const out = new Set(deObicei.filter((r) => !peron.has(r)));
+  for (const [r, p] of peron) if (p >= PLIN_DE_OBICEI_PAS) out.add(r);
+  return [...out].sort((a, b) => a - b);
 }
 
 /** Scutirea de Sîngerei a zilei: sensul (din SCUTIRE_PLIN) + rutele pline de obicei. */
@@ -239,7 +250,7 @@ export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: C
   if (scutire?.rute.size) {
     const rute = [...scutire.rute].sort((a, b) => a - b).join(', ');
     out.push('', scutire.retur
-      ? `<i>В пятницу рейсы из Кишинёва, которые обычно выезжают полными (${rute}), могут не заезжать в Сынджерей.</i>`
+      ? `<i>В пятницу рейсы, которые выехали из Кишинёва полными (${rute}), могут не заезжать в Сынджерей.</i>`
       : `<i>В воскресенье рейсы с севера, которые обычно выезжают из Бельц без свободных мест (${rute}), могут не заезжать в Сынджерей.</i>`);
   }
   out.push('', `<i>${NOTA_PLIN_RU}</i>`);

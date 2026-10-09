@@ -4,7 +4,7 @@
 
 import { getSupabase } from '../supabase';
 import {
-  curseleZilei, gasesteNeconformitati, ruteDeObiceiPline, PLIN_DE_OBICEI_SAPT, SCUTIRE_PLIN,
+  curseleZilei, gasesteNeconformitati, ruteDeObiceiPline, ruteScutite, PLIN_DE_OBICEI_SAPT, SCUTIRE_PLIN,
   type Atribuire, type Cursa, type Neconformitate, type ScutirePlin, type Trecere,
 } from './neconformitati';
 
@@ -41,18 +41,23 @@ export interface ZiuaMejgorod {
 }
 
 /** Scutirea de Sîngerei a zilei, din numărarea pe camere a ultimelor PLIN_DE_OBICEI_SAPT zile de același fel
- *  (fără ziua judecată: numărarea ei încă nu e gata dimineața). Pasagerii la plecarea din gara SCUTIRE_PLIN. */
+ *  (fără ziua judecată: numărarea ei încă nu e gata dimineața). Pasagerii la plecarea din gara SCUTIRE_PLIN.
+ *  Vinerea, cifra peronului din Chișinău a zilei bate obiceiul (ruteScutite). */
 export async function scutireaZilei(date: string): Promise<ScutirePlin | null> {
   const [y, m, d] = date.split('-').map(Number);
   const z = SCUTIRE_PLIN[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   if (!z) return null;
   const zile = Array.from({ length: PLIN_DE_OBICEI_SAPT }, (_, i) => new Date(Date.UTC(y, m - 1, d - 7 * (i + 1))).toISOString().slice(0, 10));
   const sb = getSupabase();
-  const [sesRes, ruteRes] = await Promise.all([
+  const [sesRes, ruteRes, peronRes] = await Promise.all([
     sb.from('counting_sessions').select('id, crm_route_id').in('assignment_date', zile),
     sb.from('crm_routes').select('id').eq('route_type', 'interurban'),
+    z.peron
+      ? sb.from('reports').select('passengers_count, trips!inner(crm_route_id)').eq('report_date', date).eq('point', z.peron)
+        .is('cancelled_at', null).not('passengers_count', 'is', null)
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  const err = sesRes.error || ruteRes.error;
+  const err = sesRes.error || ruteRes.error || peronRes.error;
   if (err) throw new Error(err.message);
   const interurban = new Set((ruteRes.data ?? []).map((r) => r.id as number));
   const ruta = new Map((sesRes.data ?? []).filter((s) => interurban.has(s.crm_route_id as number)).map((s) => [s.id as string, s.crm_route_id as number]));
@@ -76,7 +81,12 @@ export async function scutireaZilei(date: string): Promise<ScutirePlin | null> {
     const r = ruta.get(s)!;
     serii.set(r, [...(serii.get(r) ?? []), p]);
   }
-  return { retur: z.retur, rute: new Set(ruteDeObiceiPline(serii)) };
+  const peron = new Map<number, number>();
+  for (const r of (peronRes.data ?? []) as unknown as { passengers_count: number; trips: { crm_route_id: number | null } | null }[]) {
+    const ruta = r.trips?.crm_route_id;
+    if (ruta != null) peron.set(ruta, Math.max(peron.get(ruta) ?? 0, r.passengers_count));
+  }
+  return { retur: z.retur, rute: new Set(ruteScutite(ruteDeObiceiPline(serii), peron)) };
 }
 
 /** Cursele zilei + trecerile + neconformitățile, exact ca mesajul zilnic. */

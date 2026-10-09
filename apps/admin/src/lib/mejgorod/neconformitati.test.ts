@@ -43,7 +43,7 @@ describe('gasesteNeconformitati', () => {
     expect(r.lista[0]).toMatchObject({ tip: 'devreme', gara: 'Briceni', minute: -5 });
   });
   it('ruta 14: returul din Chișinău merge pe centură fără abatere, turul ei trece prin Sîngerei (Ion, 08.10)', () => {
-    const r = gasesteNeconformitati([tr(14, true, 'Bălți', 0), tr(14, false, 'Bălți', 0)], [
+    const r = gasesteNeconformitati([tr(14, true, 'Bălți', 0), tr(14, true, 'Lipcani', 0), tr(14, false, 'Bălți', 0)], [
       { ruta: 14, retur: true, driver_id: 'a', vehicle_id: 'x' },
       { ruta: 14, retur: false, driver_id: 'a', vehicle_id: 'x' },
     ]);
@@ -86,6 +86,25 @@ describe('gasesteNeconformitati', () => {
       { ...tr(9, true, 'Sîngerei', 0, 17), centru_m: 951, vranesti_s: null },
     ], [tur, retur]);
     expect(r.lista.map((x) => [x.tip, x.retur])).toEqual([['singerei', false], ['singerei', true]]);
+  });
+  it('returul rutelor 06:55–13:30 din Chișinău fără trecere prin Lipcani = abatere (Ion, 09.10)', () => {
+    const r = gasesteNeconformitati([
+      tr(16, true, 'Briceni', 0), tr(16, true, 'Sîngerei', 0),
+      tr(12, true, 'Lipcani', 0), tr(12, true, 'Sîngerei', 0),
+      tr(16, false, 'Sîngerei', 0),
+    ], [
+      { ruta: 16, retur: true, driver_id: 'a', vehicle_id: 'x' },
+      { ruta: 12, retur: true, driver_id: 'b', vehicle_id: 'y' },
+      { ruta: 16, retur: false, driver_id: 'a', vehicle_id: 'x' },
+    ]);
+    expect(r.lista.map((x) => [x.tip, x.ruta, x.retur])).toEqual([['lipcani', 16, true]]);
+    expect(textMesaj('z', r, nume)).toContain('Не доехал до Липкан');
+    expect(textMesaj('z', r, nume)).toContain('Рейс 16 из Кишинёва · Șofer a · ABx');
+  });
+  it('rutele din afara ferestrei (ruta 9) și returul fără GPS nu se judecă la Lipcani', () => {
+    const r = gasesteNeconformitati([tr(9, true, 'Sîngerei', 0)], [retur, { ruta: 22, retur: true, driver_id: 'c', vehicle_id: 'z' }]);
+    expect(r.lista).toEqual([]);
+    expect(r.faraGps.map((x) => x.ruta)).toEqual([22]);
   });
   it('cursa fără GPS nu se judecă, merge în lista separată', () => {
     const r = gasesteNeconformitati([], [tur]);

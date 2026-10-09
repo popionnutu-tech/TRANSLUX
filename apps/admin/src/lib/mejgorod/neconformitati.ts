@@ -15,6 +15,11 @@
 // Sîngerei», «fără abateri, dar doar de la Chișinău spre Bălți» — returul rutei 14 (Chișinău 10:10 → Criva)
 // nu se judecă la Sîngerei; turul ei (Criva → Chișinău) trece prin Sîngerei ca toate.
 //
+// Lipcani obligatoriu (Ion, 09.10): «rutele 6:55 până la 13:30 obligatoriu pleacă până la Lipcani zilnic»,
+// «personal am văzut cum șoferii refuză clienții la Lipcani la aceste ore» — returul (din Chișinău) al rutelor
+// de mai jos trebuie să treacă prin Lipcani. stop-times.mjs scrie rândul Lipcani doar când urma trece la
+// ≤ ~370 m de oprire, deci o cursă cu GPS fără rândul Lipcani s-a întors mai devreme (de regulă din Briceni).
+//
 // Sursa: route_stop_passes (migr. 393), scrisă noaptea de lde-geo-worker/stop-times.mjs. La gări
 // passed_at e plecarea (ultimul punct la ≤150 m de peron), offset_min = minute față de grafic.
 // Logica e pură; citirea și trimiterea stau în /api/cron/mejgorod-neconformitati.
@@ -29,6 +34,11 @@ export const SINGEREI_MAX_M = 300;
 export const VRANESTI_MIN_S = 10;
 /** Rutele al căror RETUR (din Chișinău spre nord) merge pe centura Bălți, nu prin Sîngerei (Ion, 08.10). */
 export const RETUR_PE_CENTURA: ReadonlySet<number> = new Set([14]);
+/** Returul acestor rute (plecare din Chișinău 06:55–13:30 după grafic, cu Lipcani pe traseu) merge obligatoriu
+ *  până la Lipcani (Ion, 09.10). Ordinea = ora plecării: 12 06:55, 11 07:30, 13 08:00, 10 08:40, 15 09:40,
+ *  14 10:10, 16 10:40 (real ~10:30), 1 11:20, 20 12:30, 18 13:00, 22 13:30. Otaci, Ocnița, Corjeuți nu trec pe acolo. */
+export const RETUR_PANA_LA_LIPCANI: ReadonlySet<number> = new Set([12, 11, 13, 10, 15, 14, 16, 1, 20, 18, 22]);
+export const LIPCANI = 'Lipcani';
 /** Ion, 07.10: «plecat înainte de grafic doar cu 5 min» — 1–4 minute mai devreme nu se raportează. */
 export const PLECARE_DEVREME_MIN = 5;
 /** Plecarea din gară se judecă doar când urma a trecut pe lângă peron (stop-times.mjs: plecarea = ultimul punct
@@ -70,7 +80,8 @@ export interface Cursa {
 
 export type Neconformitate =
   | { tip: 'devreme'; ruta: number; retur: false; gara: string; grafic: string; plecat: string; minute: number; driver_id: string | null; vehicle_id: string | null }
-  | { tip: 'singerei'; ruta: number; retur: boolean; driver_id: string | null; vehicle_id: string | null };
+  | { tip: 'singerei'; ruta: number; retur: boolean; driver_id: string | null; vehicle_id: string | null }
+  | { tip: 'lipcani'; ruta: number; retur: true; driver_id: string | null; vehicle_id: string | null };
 
 /**
  * Cursele zilei cu șoferul și mașina pe fiecare sens — aceeași regulă ca assignmentMaps din
@@ -116,6 +127,9 @@ export function gasesteNeconformitati(treceri: Trecere[], curse: Cursa[]): { lis
           lista.push({ tip: 'devreme', ruta: c.ruta, retur: false, gara: g, grafic: r.scheduled, plecat: r.passed_at, minute: r.offset_min, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
         }
       }
+    }
+    if (c.retur && RETUR_PANA_LA_LIPCANI.has(c.ruta) && !rows.some((x) => x.stop_name === LIPCANI)) {
+      lista.push({ tip: 'lipcani', ruta: c.ruta, retur: true, driver_id: c.driver_id, vehicle_id: c.vehicle_id });
     }
     if (c.retur && RETUR_PE_CENTURA.has(c.ruta)) continue;
     const s = rows.find((x) => x.stop_name === SINGEREI);
@@ -165,6 +179,7 @@ export const NOTA_PLIN_RU = 'Рейсы, на которых микроавто�
 export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: Cursa[] }, n: Nume): string {
   const devreme = r.lista.filter((x) => x.tip === 'devreme');
   const sing = r.lista.filter((x) => x.tip === 'singerei');
+  const lip = r.lista.filter((x) => x.tip === 'lipcani');
   const out: string[] = [`📅 <b>${escapeHtml(ziua)}</b>`, '<b>Нарушения за день</b>'];
   if (!r.lista.length) out.push('', '✅ Нарушений нет.');
   if (devreme.length) {
@@ -177,6 +192,10 @@ export function textMesaj(ziua: string, r: { lista: Neconformitate[]; faraGps: C
   if (sing.length) {
     out.push('', `<b>🚫 Не заехал в центр Сынджерей и не остановился на перекрёстке Врэнешть — ${sing.length}</b>`);
     for (const x of sing) out.push(`Рейс ${x.ruta} ${x.retur ? 'из Кишинёва' : 'в Кишинёв'} · ${cine(n, x.driver_id, x.vehicle_id)}`);
+  }
+  if (lip.length) {
+    out.push('', `<b>📍 Не доехал до Липкан (рейсы из Кишинёва 06:55–13:30 обязательно до Липкан) — ${lip.length}</b>`);
+    for (const x of lip) out.push(`Рейс ${x.ruta} из Кишинёва · ${cine(n, x.driver_id, x.vehicle_id)}`);
   }
   out.push('', `<i>${NOTA_PLIN_RU}</i>`);
   return out.join('\n');

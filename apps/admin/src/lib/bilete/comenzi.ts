@@ -221,15 +221,28 @@ export async function areSofer(tripDate: string, crmRouteId: number, goingNorth:
  * Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» — șoferul cursei e legat de Telegram (numai el vede
  * pasagerii online și le scanează biletele). `lipsa` = cursa n-are șofer în graficul zilei.
  */
-/** `fara_grafic` = ziua cursei n-are încă niciun rând în grafic (Ion, 09.10: «vânzarea e posibilă fără grafic»). */
+/**
+ * Starea șoferului cursei pentru vânzarea online. Ion, 09.10.2026: «vânzarea e posibilă fără grafic» și «la șoferii care
+ * încă nu sunt logați în Telegram scanare bilete să nu fie posibilă vânzarea». Ziua are grafic → șoferul din el; ziua n-are
+ * încă grafic → șoferul aceleiași curse din cel mai nou grafic din ultimele 7 zile (același pe care îl arată site-ul).
+ * `fara_grafic` = nu se știe deloc cine merge; `lipsa` = graficul zilei e făcut, dar ruta n-are șofer.
+ */
 export async function stareSoferCursa(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<'fara_grafic' | 'lipsa' | 'nelegat' | 'legat'> {
-  const id = await soferulCursei(tripDate, crmRouteId, goingNorth);
+  const db = getSupabase();
+  let id = await soferulCursei(tripDate, crmRouteId, goingNorth);
   if (!id) {
-    const { count, error } = await getSupabase().from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', tripDate);
+    const { count, error } = await db.from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', tripDate);
     if (error) throw new Error(`daily_assignments: ${error.message}`);
-    return (count ?? 0) === 0 ? 'fara_grafic' : 'lipsa';
+    if ((count ?? 0) > 0) return 'lipsa';
+    const deLa = new Date(Date.parse(`${tripDate}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+    const { data: z, error: eZ } = await db.from('daily_assignments').select('assignment_date')
+      .lt('assignment_date', tripDate).gte('assignment_date', deLa).order('assignment_date', { ascending: false }).limit(1);
+    if (eZ) throw new Error(`daily_assignments: ${eZ.message}`);
+    const ziRezerva = (z?.[0] as { assignment_date: string } | undefined)?.assignment_date;
+    if (ziRezerva) id = await soferulCursei(ziRezerva, crmRouteId, goingNorth);
+    if (!id) return 'fara_grafic';
   }
-  const { data, error } = await getSupabase().from('drivers').select('telegram_id, active').eq('id', id).maybeSingle();
+  const { data, error } = await db.from('drivers').select('telegram_id, active').eq('id', id).maybeSingle();
   if (error) throw new Error(`drivers: ${error.message}`);
   const d = data as { telegram_id: number | null; active: boolean } | null;
   return d?.telegram_id != null && d.active ? 'legat' : 'nelegat';
@@ -341,7 +354,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   // cu grafic, ruta fără șofer nu merge, iar șoferul trebuie să fie legat (decizia de mai devreme a aceleiași zile).
   if (sofer === 'lipsa' && opt.mod !== 'proba') throw new ComandaError('inchis', 'cursa nu are șofer în graficul zilei');
   // Ion, 09.10.2026: «vânzarea online să fie doar la șoferii legați» — doar el vede pasagerii și scanează biletele.
-  if (sofer === 'nelegat' && opt.mod === 'public') throw new ComandaError('inchis', 'pe această cursă biletul se ia deocamdată de la șofer');
+  if ((sofer === 'nelegat' || sofer === 'fara_grafic') && opt.mod === 'public') throw new ComandaError('inchis', 'pe această cursă biletul se ia deocamdată de la șofer');
 
   const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);
   const pornireRutaAt = chisinauInstantIso(input.tripDate, cursa.pornireRuta ?? cursa.trip.time);

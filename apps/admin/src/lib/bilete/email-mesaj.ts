@@ -14,7 +14,7 @@ export interface DateEmail {
   passenger_name: string;
   ruta: string | null;
   /** Câte un loc: numărul și codul QR (textul codului apare și sub imagine). */
-  bilete: Array<{ nr: number; cod_qr: string }>;
+  bilete: Array<{ nr: number; cod_qr: string; loc_nr?: number | null }>;
   /** ION-235: numărul comenzii (primele 8 caractere ale id-ului) și momentul plății. */
   numar?: string;
   platit_la?: string | null;
@@ -40,7 +40,7 @@ const T = {
     salut: (n: string) => `Bună, ${n}!`,
     intro: 'Plata a trecut. Mai jos e biletul tău: arată codul QR șoferului la urcare. Fiecare cod e un loc.',
     proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', probaScurt: 'PROBĂ',
-    comanda: 'Comanda nr.', platita: 'Plătită', cursa: 'Cursa', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc',
+    achitatScurt: 'achitat', comanda: 'Comanda nr.', platita: 'Plătită', cursa: 'Cursa', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc',
     deschide: 'Deschide biletul pe site', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     retur: 'Returnarea se cere prin botul nostru din Telegram sau la telefon +373 60 401 010: integral cu peste 24 de ore înainte de plecare, apoi tot mai puțin; cu mai puțin de 4 ore nu se restituie. Detalii: translux.md/ro/conditii-vanzare.',
     semnatura: 'TRANSLUX · +373 60 401 010',
@@ -51,7 +51,7 @@ const T = {
     salut: (n: string) => `Здравствуйте, ${n}!`,
     intro: 'Оплата прошла. Ниже ваш билет: покажите QR-код водителю при посадке. Каждый код — одно место.',
     proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', probaScurt: 'ТЕСТ',
-    comanda: 'Заказ №', platita: 'Оплачен', cursa: 'Рейс', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место',
+    achitatScurt: 'оплачено', comanda: 'Заказ №', platita: 'Оплачен', cursa: 'Рейс', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место',
     deschide: 'Открыть билет на сайте', telegram: '📍 Билет и ваш автобус в Telegram',
     retur: 'Возврат — через наш бот в Telegram или по телефону +373 60 401 010: полностью более чем за 24 часа до отправления, затем меньше; менее чем за 4 часа не возвращается. Подробно: translux.md/ru/conditii-vanzare.',
     semnatura: 'TRANSLUX · +373 60 401 010',
@@ -78,6 +78,8 @@ export function construiesteMesaj(d: DateEmail, opt: { bazaSite: string; bot: st
   const prenume = d.passenger_name.trim().split(/\s+/).slice(1).join(' ') || d.passenger_name.trim();
   const qrIds = d.bilete.map((b) => `qr-${b.nr}`);
   const RED = '#9B1B30';
+  const oraBilet = new Date(d.departure_at).toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
+  const dataBilet = new Date(d.departure_at).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'Europe/Chisinau', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const randuri = [
     ...(d.numar ? [[t.comanda, d.numar]] : []),
@@ -100,14 +102,33 @@ ${d.proba ? `<tr><td style="background:#b91c1c;color:#fff;font-weight:bold;text-
 <tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;">
 ${randuri.map(([k, v]) => `<tr><td style="color:#888;padding:3px 10px 3px 0;white-space:nowrap;">${esc(k)}</td><td style="padding:3px 0;${k === '' ? `font-size:18px;font-weight:bold;color:${RED};` : ''}">${esc(v)}</td></tr>`).join('\n')}
 </table></td></tr>
-${d.bilete.map((b, i) => `<tr><td align="center" style="padding:18px 0 6px;border-top:1px solid #eee;">
-${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
-<div style="font-size:16px;font-weight:bold;color:#222;">${esc(d.from_name)} → ${esc(d.to_name)}</div>
-<div style="font-size:13px;font-weight:bold;color:${RED};">${esc(cand)}</div>
-<div style="font-size:12px;color:#888;">${esc(t.loc)} ${b.nr}/${d.seats}</div>
-<div style="font-size:11px;color:#999;">${esc(COMERCIANT_SCURT)}</div>
-<img src="cid:${qrIds[i]}" width="220" height="220" alt="QR ${esc(b.cod_qr)}" style="display:block;margin:8px auto;width:220px;height:220px;">
-<div style="font-family:'Courier New',monospace;font-size:14px;letter-spacing:1px;">${esc(b.cod_qr)}</div>
+${d.bilete.map((b, i) => `<tr><td style="padding:18px 0 4px;">
+<!-- Biletul în varianta B (Ion, 09.10.2026: «B este super»): tichet bordo, fereastra albă cu locul și QR-ul. -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${RED};border-radius:20px;">
+<tr><td style="padding:18px 20px 4px;color:#ffffff;">
+<div style="font-size:12px;font-weight:bold;letter-spacing:1px;color:#f3d6db;">TRANSLUX · ${esc(dataBilet)}</div>
+<div style="font-size:40px;font-weight:bold;line-height:1.1;color:#ffffff;">${esc(oraBilet)}</div>
+<div style="font-size:17px;font-weight:bold;color:#ffffff;">${esc(d.from_name)} &rarr; ${esc(d.to_name)}</div>
+${d.ruta ? `<div style="font-size:12px;color:#f3d6db;">${esc(d.ruta)}</div>` : ''}
+</td></tr>
+<tr><td style="padding:14px 14px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px 16px 0 0;">
+<tr><td style="padding:16px 16px 6px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td align="left" style="font-size:11px;font-weight:bold;color:#8A7A7D;">${esc(t.loc.toUpperCase())}<br><span style="font-size:30px;color:${RED};">${b.loc_nr ?? b.nr}</span></td>
+<td align="right" style="font-size:12px;color:#6B5B5F;">${d.seats > 1 ? `${b.nr} / ${d.seats}` : ''}</td>
+</tr></table>
+</td></tr>
+<tr><td align="center" style="padding:4px 16px 0;">
+<img src="cid:${qrIds[i]}" width="220" height="220" alt="QR ${esc(b.cod_qr)}" style="display:block;margin:0 auto;width:220px;height:220px;">
+<div style="font-size:14px;font-weight:bold;letter-spacing:2px;color:#4A3E41;padding-top:6px;">${esc(b.cod_qr.replace(/(.{4})(?=.)/g, '$1 '))}</div>
+<div style="font-size:13px;color:#6B5B5F;padding:6px 0 4px;">${esc(d.passenger_name)} · <b style="color:#1B7F3B;">${esc(t.achitatScurt)}</b></div>
+<div style="font-size:10px;color:#A0939A;padding-bottom:14px;">${esc(COMERCIANT_SCURT)}</div>
+</td></tr>
+</table>
+</td></tr>
+<tr><td style="height:18px;font-size:0;line-height:0;">&nbsp;</td></tr>
+</table>
 </td></tr>`).join('\n')}
 <tr><td align="center" style="padding:18px 0 6px;">
 <a href="${esc(urlBilet)}" style="display:inline-block;background:${RED};color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:10px;">${esc(t.deschide)}</a>

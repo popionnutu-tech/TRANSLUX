@@ -28,7 +28,7 @@ export async function trimiteEmailBilet(comandaId: string): Promise<RezultatEmai
 
   try {
     const [{ data: bilete, error: bErr }, { data: ruta }] = await Promise.all([
-      db.from('bilete').select('nr, cod_qr, status').eq('comanda_id', c.id).in('status', ['valid', 'urcat']).order('nr'),
+      db.from('bilete').select('nr, loc_nr, cod_qr, status').eq('comanda_id', c.id).in('status', ['valid', 'urcat']).order('nr'),
       db.from('crm_routes').select('dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', c.crm_route_id).maybeSingle(),
     ]);
     if (bErr) throw new Error(`bilete: ${bErr.message}`);
@@ -42,7 +42,7 @@ export async function trimiteEmailBilet(comandaId: string): Promise<RezultatEmai
       cod: c.cod, lang, from_name: c.from_name, to_name: c.to_name, departure_at: c.departure_at, seats: c.seats,
       total: Number(c.total), passenger_name: c.passenger_name, ruta: numeRuta,
       numar: c.id.slice(0, 8).toUpperCase(), platit_la: c.paid_at, proba: c.test === true,
-      bilete: bilete.map((b: { nr: number; cod_qr: string }) => ({ nr: b.nr, cod_qr: b.cod_qr })),
+      bilete: bilete.map((b: { nr: number; loc_nr: number | null; cod_qr: string }) => ({ nr: b.nr, loc_nr: b.loc_nr, cod_qr: b.cod_qr })),
     }, {
       bazaSite: process.env.SITE_URL || 'https://translux.md',
       bot: process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot',

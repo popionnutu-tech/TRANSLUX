@@ -37,73 +37,113 @@ function latime(f: ReturnType<typeof fonts>['b'], t: string, size: number): numb
   const b = f.getPath(t, 0, 0, size).getBoundingBox(); return b.x2 - b.x1;
 }
 
-/** PNG-ul unui loc (`nr`) din comandă; null dacă locul nu există sau nu e valabil. */
+/** «651 AKD» / «651AKD» → «AKD 651» (ca pe plăcuța moldovenească: literele întâi). */
+function placaLitereIntai(raw: string | null | undefined): string | null {
+  const p = String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!p) return null;
+  const m = p.match(/^(\d{3})([A-Z]{3})$/);
+  if (m) return `${m[2]} ${m[1]}`;
+  const n = p.match(/^([A-Z]{2,3})(\d{3,4})$/);
+  return n ? `${n[1]} ${n[2]}` : p;
+}
+
+/**
+ * PNG-ul unui loc (`nr`) din comandă; null dacă locul nu există sau nu e valabil. Varianta B de pe pânza de design (Ion,
+ * 09.10.2026: «B este super»): tichet bordo cu logoul alb, data, ora și ruta mari; fereastra albă cu LOCUL, mașina și
+ * șoferul (după bifa dispecerului), QR-ul, codul în grupe de câte 4, pasagerul · prețul · achitat, firma și IDNO;
+ * marginea ferestrei zimțată, ca un bilet rupt.
+ */
 export async function imagineBilet(c: ComandaPublica, nr: number): Promise<Buffer | null> {
   const b = c.bilete.find((x) => x.nr === nr && (x.status === 'valid' || x.status === 'urcat'));
   if (!b || c.status !== 'platita') return null;
-  const t = TXT[c.lang === 'ru' ? 'ru' : 'ro'];
+  const lang = c.lang === 'ru' ? 'ru' : 'ro';
+  const t = TXT[lang];
   const { r, b: bold } = fonts();
-  const L = 36, R = W - 36;              // marginile textului în card
   const out: string[] = [];
+  const CX = 16, CW = W - 32;            // cardul bordo
+  const L = 40, R = W - 40;              // marginile textului
+  let y = 14;
 
-  // antet: logo + data
-  out.push(`<image x="${L}" y="30" width="${(22 * 1318) / 192}" height="22" href="data:image/png;base64,${logoBase64()}"/>`);
-  out.push(textPath(bold, dataScurta(c.trip_date, c.lang === 'ru' ? 'ru' : 'ro'), R, 47, 13, '#555', 'end'));
-  // pastila; biletul de probă (migr. 532): bandă roșie pe toată lățimea în locul ei
   if (c.proba) {
-    out.push(`<rect x="${L}" y="64" width="${R - L}" height="26" rx="13" fill="#b91c1c"/>`);
-    out.push(textPath(bold, truncText(bold, t.proba, 10.5, R - L - 20), W / 2, 81, 10.5, '#fff', 'middle'));
-  } else {
-    const wPast = latime(bold, t.online, 10.5) + 28;
-    out.push(`<rect x="${L}" y="64" width="${wPast}" height="26" rx="13" fill="#fbe9e3"/>`);
-    out.push(textPath(bold, t.online, L + 14, 81, 10.5, '#d9532b'));
+    out.push(`<rect x="${CX}" y="${y}" width="${CW}" height="34" fill="#fff"/>`);
+    out.push(textPath(bold, truncText(bold, t.proba, 11, CW - 24), W / 2, y + 22, 11, '#b91c1c', 'middle'));
+    y += 34;
   }
-  // orele
+  // antet: logoul alb (filtru pe logoul bordo) + data în pastilă
+  out.push(`<image x="${L}" y="${y + 22}" width="${(22 * 1318) / 192}" height="22" filter="url(#alb)" href="data:image/png;base64,${logoBase64()}"/>`);
+  const data = dataScurta(c.trip_date, lang);
+  const wData = latime(bold, data, 12.5) + 22;
+  out.push(`<rect x="${R - wData}" y="${y + 20}" width="${wData}" height="26" rx="13" fill="#fff" fill-opacity="0.16"/>`);
+  out.push(textPath(bold, data, R - wData / 2, y + 38, 12.5, '#fff', 'middle'));
+  // ora plecării mare → sosirea, ruta
   const plecare = oraHHMM(c.departure_at);
-  const sosire = c.sosire ?? '—:—';
-  out.push(textPath(bold, plecare, L, 146, 38, '#1a1a1a'));
-  out.push(textPath(bold, sosire, R, 146, 38, c.sosire ? '#1a1a1a' : '#bbb', 'end'));
-  const x1 = L + latime(bold, plecare, 38) + 12, x2 = R - latime(bold, sosire, 38) - 12;
-  if (x2 > x1) out.push(`<line x1="${x1}" y1="132" x2="${x2}" y2="132" stroke="#c9c9c9" stroke-width="3" stroke-dasharray="1 6" stroke-linecap="round"/>`);
-  // orașele
-  out.push(textPath(bold, truncText(bold, c.from_name, 18, 165), L, 176, 18, '#1a1a1a'));
-  out.push(textPath(bold, truncText(bold, c.to_name, 18, 165), R, 176, 18, '#1a1a1a', 'end'));
-  const nume = c.ruta ? (c.lang === 'ru' ? c.ruta.nume_ru : c.ruta.nume_ro) : null;
-  if (nume) out.push(textPath(r, truncText(r, nume, 11, R - L), L, 198, 11, '#888'));
-  // locul și prețul
-  const valide = c.bilete.filter((x) => x.status === 'valid' || x.status === 'urcat');
-  const loc = String(b.loc_nr ?? b.nr) + (valide.length > 1 ? `  (${t.din(b.nr, valide.length)})` : '');
-  out.push(textPath(r, t.locul, L, 230, 15, '#666'));
-  out.push(textPath(bold, loc, R, 230, 15, '#1a1a1a', 'end'));
-  out.push(textPath(r, t.pret, L, 255, 15, '#666'));
-  out.push(textPath(bold, `${Math.round(Number(c.price_per_seat))} MDL`, R, 255, 15, '#1a1a1a', 'end'));
-  out.push(textPath(r, truncText(r, c.passenger_name, 12.5, R - L), L, 281, 12.5, '#666'));
-  // operatorul și codul fiscal întregi (nota ecc.md: «denumirea operatorului, codul fiscal…»)
-  out.push(textPath(r, truncText(r, OPERATOR, 8.6, R - L), L, 296, 8.6, '#999'));
-  out.push(textPath(r, IDNO, L, 308, 8.6, '#999'));
-  // linia de rupere
-  out.push(`<line x1="30" y1="318" x2="${W - 30}" y2="318" stroke="#d9d9d9" stroke-width="2" stroke-dasharray="6 5"/>`);
-  out.push(`<circle cx="16" cy="318" r="12" fill="${BG}"/><circle cx="${W - 16}" cy="318" r="12" fill="${BG}"/>`);
-  // QR-ul (estompat dacă locul e urcat, ca pe site)
-  const urcat = b.status === 'urcat';
-  const qr = await QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 1, width: 600 });
-  out.push(`<image x="${W / 2 - 105}" y="336" width="210" height="210" opacity="${urcat ? 0.3 : 1}" href="data:image/png;base64,${qr.toString('base64')}"/>`);
-  out.push(textPath(r, b.cod_qr, W / 2, 568, 12.5, '#444', 'middle'));
-  // pastila «Achitat online» cu bifă desenată (fontul nu are «✓»)
-  out.push(`<rect x="${L}" y="582" width="${R - L}" height="46" rx="14" fill="${urcat ? '#ececec' : '#e3f3e8'}"/>`);
-  const txtAch = urcat ? (c.lang === 'ru' ? 'Посадка выполнена' : 'Urcat') : t.achitat;
-  const culAch = urcat ? '#666' : '#1b7f3b';
-  const wAch = latime(bold, txtAch, 16.5);
-  const xb = W / 2 - (wAch + 24) / 2;
-  out.push(`<path d="M${xb} ${605} l6 6 l11 -13" fill="none" stroke="${culAch}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`);
-  out.push(textPath(bold, txtAch, xb + 24, 611, 16.5, culAch));
+  out.push(textPath(bold, plecare, L, y + 104, 44, '#fff'));
+  // săgeata se desenează (fontul n-are «→»)
+  const sageata = (x: number, yy: number, w: number, cul: string) => `<path d="M${x} ${yy} h${w} m-6 -5 l6 5 l-6 5" fill="none" stroke="${cul}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const xs = L + latime(bold, plecare, 44) + 12;
+  if (c.sosire) { out.push(sageata(xs, y + 97, 18, '#fff')); out.push(textPath(r, c.sosire, xs + 26, y + 104, 18, '#fff')); }
+  const deLa = truncText(bold, c.from_name, 18, (R - L - 40) / 2);
+  const xd = L + latime(bold, deLa, 18) + 10;
+  out.push(textPath(bold, deLa, L, y + 136, 18, '#fff'));
+  out.push(sageata(xd, y + 130, 18, '#fff'));
+  out.push(textPath(bold, truncText(bold, c.to_name, 18, R - xd - 30), xd + 28, y + 136, 18, '#fff'));
+  const nume = c.ruta ? (lang === 'ru' ? c.ruta.nume_ru : c.ruta.nume_ro) : null;
+  if (nume) out.push(textPath(r, truncText(r, nume, 11, R - L), L, y + 154, 11, '#f3d6db'));
 
-  const H = 660;
+  // fereastra albă
+  const WX = CX + 16, WW = CW - 32, wy = y + 170;
+  const urcat = b.status === 'urcat';
+  const valide = c.bilete.filter((x) => x.status === 'valid' || x.status === 'urcat');
+  const qrMarime = 220;
+  const winH = 84 + qrMarime + 112;
+  out.push(`<path d="M${WX} ${wy + 20} a20 20 0 0 1 20 -20 h${WW - 40} a20 20 0 0 1 20 20 v${winH - 20} h${-WW} z" fill="#fff"/>`);
+  // LOCUL mare
+  out.push(textPath(bold, lang === 'ru' ? 'МЕСТО' : 'LOCUL', WX + 18, wy + 28, 11, '#8A7A7D'));
+  out.push(textPath(bold, String(b.loc_nr ?? b.nr), WX + 18, wy + 66, 34, RED));
+  if (valide.length > 1) out.push(textPath(r, t.din(b.nr, valide.length), WX + 18, wy + 82, 10.5, '#8A7A7D'));
+  // echipajul (migr. 538): plăcuța MD + șoferul și telefonul; până la bifă — textul de așteptare
+  const e = c.echipaj;
+  const RX = WX + WW - 18;
+  if (e?.stare === 'gata') {
+    const placa = placaLitereIntai(e.placa);
+    if (placa) {
+      const wTxt = latime(bold, placa, 15);
+      const wP = 18 + wTxt + 14, px = RX - wP, py = wy + 18;
+      out.push(`<rect x="${px}" y="${py}" width="${wP}" height="26" rx="5" fill="#fff" stroke="#111" stroke-width="2"/>`);
+      out.push(`<path d="M${px + 1} ${py + 1} h17 v24 h-17 z" fill="#1747A6"/>`);
+      out.push(`<rect x="${px + 4}" y="${py + 4}" width="3.4" height="7" fill="#0046AE"/><rect x="${px + 7.4}" y="${py + 4}" width="3.4" height="7" fill="#FFD200"/><rect x="${px + 10.8}" y="${py + 4}" width="3.4" height="7" fill="#CC092F"/>`);
+      out.push(textPath(bold, 'MD', px + 9.5, py + 21, 6.5, '#fff', 'middle'));
+      out.push(textPath(bold, placa, px + 18 + 7, py + 19, 15, '#111'));
+    }
+    const linie = [e.sofer ? `${lang === 'ru' ? 'водитель' : 'șofer'} ${e.sofer}` : null, e.telefon].filter(Boolean).join(' · ');
+    if (linie) out.push(textPath(bold, truncText(bold, linie, 11.5, WW - 110), RX, wy + 62, 11.5, '#1B7F3B', 'end'));
+  } else if (e) {
+    const txt = e.stare === 'anulat'
+      ? (lang === 'ru' ? 'Рейс отменён — звоните +373 60 401 010' : 'Cursa anulată — sună +373 60 401 010')
+      : (lang === 'ru' ? 'Автобус и водитель — после графика' : 'Mașina și șoferul — după grafic');
+    out.push(textPath(r, truncText(r, txt, 11.5, WW - 110), RX, wy + 40, 11.5, e.stare === 'anulat' ? '#b42318' : '#8A7A7D', 'end'));
+  }
+  // QR-ul (estompat dacă locul e urcat, ca pe site) și codul în grupe de câte 4
+  const qr = await QRCode.toBuffer(b.cod_qr, { type: 'png', errorCorrectionLevel: 'M', margin: 1, width: 600 });
+  const qy = wy + 92;
+  out.push(`<image x="${W / 2 - qrMarime / 2}" y="${qy}" width="${qrMarime}" height="${qrMarime}" opacity="${urcat ? 0.3 : 1}" href="data:image/png;base64,${qr.toString('base64')}"/>`);
+  const cod = b.cod_qr.replace(/(.{4})(?=.)/g, '$1 ');
+  out.push(textPath(bold, cod, W / 2, qy + qrMarime + 24, 13, '#4A3E41', 'middle'));
+  const stare = urcat ? (lang === 'ru' ? 'посадка выполнена' : 'urcat') : (lang === 'ru' ? 'оплачено' : 'achitat');
+  const rand = truncText(r, `${c.passenger_name} · ${Math.round(Number(c.price_per_seat))} MDL · ${stare}`, 12.5, WW - 30);
+  out.push(textPath(r, rand, W / 2, qy + qrMarime + 48, 12.5, urcat ? '#6B5B5F' : '#1B7F3B', 'middle'));
+  out.push(textPath(r, truncText(r, OPERATOR, 8.4, WW - 24), W / 2, qy + qrMarime + 70, 8.4, '#A0939A', 'middle'));
+  out.push(textPath(r, IDNO, W / 2, qy + qrMarime + 82, 8.4, '#A0939A', 'middle'));
+  // marginea zimțată: «mușcături» bordo pe muchia de jos a ferestrei
+  const zy = wy + winH;
+  for (let x = WX + 8; x < WX + WW; x += 16) out.push(`<circle cx="${x}" cy="${zy}" r="7" fill="${RED}"/>`);
+
+  const H = zy + 26;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * S}" height="${H * S}" viewBox="0 0 ${W} ${H}">
+<defs><filter id="alb"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/></filter></defs>
 <rect width="${W}" height="${H}" fill="${BG}"/>
-<rect x="16" y="14" width="${W - 32}" height="${H - 30}" rx="22" fill="#fff"/>
+<rect x="${CX}" y="14" width="${CW}" height="${H - 14 - 10}" rx="26" fill="${RED}"/>
 ${out.join('\n')}
 </svg>`;
-  void RED;
   return sharp(Buffer.from(svg)).png().toBuffer();
 }

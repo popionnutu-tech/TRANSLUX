@@ -50,7 +50,8 @@ describe('construiesteMesaj — fără căsuță de răspuns', () => {
 describe('construiesteMesaj — ruta pe fiecare loc', () => {
   it('fiecare QR are deasupra ruta, de unde încotro și ora; textul simplu la fel', () => {
     const m = construiesteMesaj(baza, opt);
-    expect(m.html.split('Briceni → Chișinău</div>').length - 1).toBe(2);
+    expect(m.html.split('Briceni &rarr; Chișinău</div>').length - 1).toBe(2);
+    expect(m.html.split('>05:45</div>').length - 1).toBe(2);
     expect(m.html.split('Briceni – Chișinău</div>').length - 1).toBe(2);
     expect(m.text).toContain('Loc 1/2 · Briceni → Chișinău, 14.10.2026, 05:45: AAAA1111BBBB2222CCCC');
   });

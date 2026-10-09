@@ -167,7 +167,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
                   <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => { setNewPartFor(i); if (groups[0]) askSuggestion(Number(groups[0].id)); }} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
                 </div>
               </td>
-              <td><input type="number" min={1} value={l.qty} onChange={(e) => { const qty = Number(e.target.value); setLine(i, { qty, sum: r2(qty * l.unit_cost) }); }} /></td>
+              <td><input type="number" min={0.001} step="any" value={l.qty} onChange={(e) => { const qty = Number(e.target.value); setLine(i, { qty, sum: r2(qty * l.unit_cost) }); }} /></td>
               <td><input type="number" min={0} step="0.0001" value={l.unit_cost || ''} onChange={(e) => { const uc = Number(e.target.value); setLine(i, { unit_cost: uc, sum: r2(l.qty * uc) }); }} placeholder="preț" /></td>
               <td><input type="number" min={0} step="0.01" value={l.sum || ''} onChange={(e) => { const sum = Number(e.target.value); setLine(i, { sum, unit_cost: l.qty > 0 ? r4(sum / l.qty) : 0 }); }} placeholder="sumă" style={{ textAlign: 'right' }} /></td>
               <td>

@@ -182,7 +182,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
                 {lines.map((l, i) => (
                   <tr key={i}>
                     <td>{readOnlyLines ? <span>{l.label || `#${l.part_id}`}</span> : <SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', label: o?.label })} placeholder="— caută piesa —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} />}</td>
-                    <td>{readOnlyLines ? l.qty : <input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} />}</td>
+                    <td>{readOnlyLines ? l.qty : <input type="number" min={0.001} step="any" value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} />}</td>
                     <td>{readOnlyLines ? r2(Number(l.unit_cost)).toFixed(2) : <input type="number" min={0} step="0.0001" value={l.unit_cost || ''} onChange={(e) => setLine(i, { unit_cost: Number(e.target.value) })} placeholder="preț" />}</td>
                     <td className="num">{r2(Number(l.qty) * Number(l.unit_cost)).toFixed(2)}</td>
                     {!readOnlyLines && (

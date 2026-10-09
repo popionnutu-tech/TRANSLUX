@@ -72,7 +72,7 @@ export default function MagazinClient({ shopId, clients, parts, canOverrideStock
           {lines.map((l, i) => (
             <tr key={i}>
               <td><SearchSelect options={parts} value={l.part_id} onSelect={(o) => { if (o) onPart(i, o.id); else setLine(i, { part_id: '', unit_price: 0 }); }} placeholder="— caută piesa —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} /></td>
-              <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
+              <td><input type="number" min={0.001} step="any" value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               {/* Prețul de vânzare e număr ÎNTREG (regula Marianei, 06.10). Pasul de 1 și rotunjirea la
                   scriere țin ecranul în acord cu baza, care rotunjește oricum — altfel omul ar vedea
                   1763,49 pe ecran și 1763 pe bon. */}

@@ -116,7 +116,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
                     </div>
                     {dup && <span className="badge warn" style={{ marginTop: 4, display: 'inline-block' }}>piesă repetată</span>}
                   </td>
-                  <td><input type="number" min={1} value={l.qty} onChange={(e) => setRow(i, { qty: Number(e.target.value) })} /></td>
+                  <td><input type="number" min={0.001} step="any" value={l.qty} onChange={(e) => setRow(i, { qty: Number(e.target.value) })} /></td>
                   <td><input type="number" min={0} step="0.01" value={l.cost || ''} onChange={(e) => setRow(i, { cost: Number(e.target.value) })} placeholder="opțional" /></td>
                   {/* Validăm la tastare, cu aceeași funcție ca serverul: altfel greșeala apare abia la salvare,
                       după ce depozitarul a introdus zeci de rânduri, iar mesajul nu spune care rând e vinovat. */}

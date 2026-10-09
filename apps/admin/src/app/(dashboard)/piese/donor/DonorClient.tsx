@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SearchSelect from '@/components/SearchSelect';
 import { searchUsedParts } from '../search-parts';
 import { submitDonor, loadUsedHint } from './actions';
+import { optiuniMasini } from '@/lib/masini-optiuni';
 
 type Opt = { id: number; label: string };
 type Line = { uid: string; part_id: number | ''; label?: string; qty: number; unit_cost: string; hint: number | null };
@@ -83,10 +84,8 @@ export default function DonorClient({ warehouses, vehicles, nrUzate }: { warehou
           </select>
         </div>
         <div className="form-row"><label>De pe mașina</label>
-          <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value ? Number(e.target.value) : '')}>
-            <option value="">— nu se știe —</option>
-            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-          </select>
+          <SearchSelect value={vehicleId} options={optiuniMasini(vehicles)}
+            onSelect={(o) => setVehicleId(o ? o.id : '')} placeholder="— scrie numărul —" />
         </div>
         <div className="form-row" style={{ flex: 1, minWidth: 220 }}><label>Notă</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex. autobuz casat, dezmembrat 12.09" />

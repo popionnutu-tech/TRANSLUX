@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { submitTransfer, receiveTransfer, loadTransferLines, loadSentTransfers, cancelTransfer } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
+import { optiuniMasini } from '@/lib/masini-optiuni';
 
 interface Opt { id: number; label: string }
 // `kind` e nevoie ca să filtrăm destinația la mutările pe mașină (doar depozite interne).
@@ -334,10 +335,8 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
         {forVehicle && (
           <div className="row" style={{ marginTop: 8 }}>
             <div className="form-row"><label>Mașina *</label>
-              <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value ? Number(e.target.value) : '')}>
-                <option value="">— alege mașina —</option>
-                {vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-              </select>
+              <SearchSelect value={vehicleId} options={optiuniMasini(vehicles)}
+            onSelect={(o) => setVehicleId(o ? o.id : '')} placeholder="— scrie numărul —" />
             </div>
             <div className="form-row"><label>Mecanic / lăcătuș</label>
               <select value={mechanicId} onChange={(e) => setMechanicId(e.target.value ? Number(e.target.value) : '')}>
@@ -353,7 +352,7 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
             {lines.map((l, i) => (
               <tr key={i}>
                 <td><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} /></td>
-                <td><input type="number" min={1} value={l.qty} aria-label="Cantitate" title="Cantitate"
+                <td><input type="number" min={0.001} step="any" value={l.qty} aria-label="Cantitate" title="Cantitate"
                   onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
                 <td>{lines.length > 1 && <button className="btn" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 10px' }}>×</button>}</td>
               </tr>

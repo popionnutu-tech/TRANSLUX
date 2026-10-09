@@ -5,6 +5,7 @@ import { checkIssue, checkIssueMany, submitIssue, loadTodayIssue, loadVehicleIss
   loadPendingTransfers, confirmTransferToVehicle } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
+import { optiuniMasini } from '@/lib/masini-optiuni';
 
 interface Opt { id: number; label: string }
 // `uid` stabil per rând: avertismentele se leagă de RÂND, nu de poziția lui în listă. Cu indici,
@@ -391,10 +392,8 @@ export default function RashodClient({ initialWarehouseId, canOverrideStock, war
           </select>
         </div>
         <div className="form-row"><label>Mașina</label>
-          <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value ? Number(e.target.value) : '')}>
-            <option value="">— alege mașina —</option>
-            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-          </select>
+          <SearchSelect value={vehicleId} options={optiuniMasini(vehicles)}
+            onSelect={(o) => setVehicleId(o ? o.id : '')} placeholder="— scrie numărul —" />
         </div>
         <div className="form-row"><label>Km mașină — din GPS</label>
           <input type="text" readOnly disabled value={km ? km.toLocaleString('ro-RO') + ' km' : '— alege mașina —'}
@@ -499,7 +498,7 @@ export default function RashodClient({ initialWarehouseId, canOverrideStock, war
                   </div>
                 )}
               </td>
-              <td><input type="number" min={1} value={l.qty} aria-label="Cantitate" title="Cantitate"
+              <td><input type="number" min={0.001} step="any" value={l.qty} aria-label="Cantitate" title="Cantitate"
                 onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td>
                 {lines.length > 1 && (

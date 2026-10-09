@@ -802,8 +802,11 @@ export default function CasierDocumentTab({
   const fontFamily = '"Segoe UI", Tahoma, Arial, sans-serif';
   const cellStyle: React.CSSProperties = {
     border: '1px solid #ccc',
-    padding: '0 4px',      // rânduri puțin mai joase (mai multe încap pe ecran)
-    fontSize: 11,
+    // Rânduri mai înalte: până pe 09.10 era '0 4px', adică zero spațiu sus-jos, ca să încapă
+    // mai multe pe ecran. Ion: «mărește scrisul și lățimea rândurilor» — într-un document pe
+    // care îl citești cifră cu cifră, un rând de 18px e mai greu de urmărit decât unul de 27.
+    padding: '5px 5px',
+    fontSize: 13,
     lineHeight: 1.35,
     fontFamily,
     background: '#fff',
@@ -815,7 +818,7 @@ export default function CasierDocumentTab({
   // `ellipsis`, așa că pe coloanele înguste («NumărFoaie», «Cheltuieli») se tăiau la jumătate.
   //
   // Trei lucruri, în ordinea importanței:
-  //   - scris mai mic decât rândurile (9.5 față de 11): la lățimea asta cifrele din tabel
+  //   - scris mai mic decât rândurile (10 față de 13): la lățimea asta cifrele din tabel
   //     contează mai mult decât eticheta, iar cuvântul încape întreg;
   //   - `wordBreak: normal`, nu `break-word`: cuvântul nu se rupe pe la mijloc («Combusti-bil»
   //     e mai greu de citit decât un rând al doilea). Denumirile din două cuvinte se taie la
@@ -829,10 +832,13 @@ export default function CasierDocumentTab({
     color: 'var(--primary)',
     fontWeight: 700,
     textAlign: 'center',
-    // 8.5px: socotisem 9.5 pe ~5.2px/caracter, dar îngroșat un caracter e mai lat de atât și
-    // «Cheltuieli» tot ieșea din coloana lui. Aici denumirea e etichetă, nu dată — cifrele din
-    // rânduri rămân la 11px, ele trebuie citite.
-    fontSize: 8.5,
+    // 10px: socotisem 9.5 pe ~5.2px/caracter, dar îngroșat un caracter e mai lat de atât și
+    // «Cheltuieli» ieșea din coloana lui — de aceea am coborât la 8.5. Acum că rândurile au
+    // urcat la 13px (Ion, 09.10), eticheta urcă și ea la 10, altfel capul de tabel arăta ca o
+    // notă de subsol sub niște cifre mari. Verificat: la 10px îngroșat «Combustibil» cere ~68px,
+    // iar coloana lui (7%) are 77px chiar și pe un tabel strâns de 1100px. Sub atât, `overflowWrap:
+    // anywhere` de mai jos rupe cuvântul — nu-l lasă să iasă din celulă.
+    fontSize: 10,
     letterSpacing: -0.1,
     whiteSpace: 'normal',
     overflow: 'visible',
@@ -846,7 +852,7 @@ export default function CasierDocumentTab({
     lineHeight: 1.25,
     // Marginile laterale la minim: pe o coloană de 6% fiecare pixel mâncat de padding e
     // un caracter care nu mai încape în denumire.
-    padding: '3px 1px',
+    padding: '4px 2px',
     verticalAlign: 'bottom',
   };
   // Header pe care se poate da click: coloana activă e evidențiată, săgeata arată direcția.
@@ -860,7 +866,7 @@ export default function CasierDocumentTab({
   const sortArrow = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
   // Selectoarele din capul coloanelor, ca în «Pe rute (sumar)»: galben când filtrul e activ.
   const filtruStyle = (activ: boolean): React.CSSProperties => ({
-    width: '100%', fontSize: 9, fontFamily, marginTop: 2,
+    width: '100%', fontSize: 11, fontFamily, marginTop: 2,
     border: '1px solid #bbb', borderRadius: 2, padding: '0 1px',
     background: activ ? '#fff3cd' : '#fff', fontWeight: activ ? 600 : 400,
   });
@@ -869,7 +875,7 @@ export default function CasierDocumentTab({
   };
   const editInputStyle: React.CSSProperties = {
     width: '100%', border: 'none', outline: 'none', background: 'transparent',
-    fontSize: 11, fontFamily, padding: 0,
+    fontSize: 13, fontFamily, padding: 0,
   };
   const editNumStyle: React.CSSProperties = {
     ...editInputStyle, textAlign: 'right', fontFamily: 'var(--font-mono)',
@@ -922,7 +928,7 @@ export default function CasierDocumentTab({
         <span style={{ fontSize: 12 }}>
           Operator: <strong>{operatorName}</strong>
         </span>
-        <span style={{ fontSize: 11, color: hasUnsaved ? '#f57c00' : '#888' }}>
+        <span style={{ fontSize: 12, color: hasUnsaved ? '#f57c00' : '#888' }}>
           {hasUnsaved ? '● modificat' : (isNumerar ? '○ salvat' : '○ sincronizat cu Tomberon')}
         </span>
       </div>
@@ -946,17 +952,21 @@ export default function CasierDocumentTab({
       }}>
         <table style={{
           borderCollapse: 'collapse',
-          fontSize: 11,
+          fontSize: 13,
           fontFamily,
           width: '100%',
           tableLayout: 'fixed',
         }}>
           <thead>
-            {/* Lățimile sunt calculate, nu alese din ochi: la 9.5px îngroșat un caracter are
-                ~5.2px, deci «Cheltuieli» cere ~52px și «Combustibil» ~57px. La 5% dintr-un
+            {/* Lățimile sunt calculate, nu alese din ochi: la 10px îngroșat un caracter are
+                ~6.2px, deci «Cheltuieli» cere ~62px și «Combustibil» ~68px. La 5% dintr-un
                 tabel de 1100px o coloană are 51px — de aceea denumirile ieșeau afară. Coloanele
                 cu text lung au primit lățime de la Ruta/Șoferi/Comentariu, care oricum
-                trunchiază conținutul cu «…» și au numele scurt. Suma rămâne 100%. */}
+                trunchiază conținutul cu «…» și au numele scurt. Suma rămâne 100%.
+                Procentele NU se schimbă odată cu fontul (09.10): tabelul e pe toată lățimea
+                paginii, deci cresc singure cu ecranul. Ce se schimbă e cât text încape în
+                Ruta/Șoferi — la 13px intră ~25 de caractere pe rută și ~19 pe șofer, restul
+                se taie cu «…», iar numele întreg rămâne în tooltip-ul celulei. */}
             <tr>
               <th style={sortableTh('2%', 'N')} onClick={() => toggleSort('N')}
                 title="Click: revino la ordinea inițială (cronologic, după Ora plății)">
@@ -999,7 +1009,7 @@ export default function CasierDocumentTab({
                   onChange={e => { e.stopPropagation(); setDateFilter(e.target.value); }}
                   title="Arată doar o anumită zi"
                   style={{
-                    width: '100%', fontSize: 10, fontFamily, marginTop: 2,
+                    width: '100%', fontSize: 11, fontFamily, marginTop: 2,
                     border: '1px solid #bbb', borderRadius: 2, padding: '0 1px',
                     background: dateFilter ? '#fff3cd' : '#fff',
                     fontWeight: dateFilter ? 600 : 400,
@@ -1126,7 +1136,10 @@ export default function CasierDocumentTab({
                       <span title={r.Ruta || undefined}>{rutaDisplay(r) || '—'}</span>
                     )}
                   </td>
-                  <td style={corr('driver_name', cs())}>
+                  {/* Numele întreg în tooltip: celula are `nowrap` + `ellipsis`, iar la 13px
+                      (09.10) intră ~19 caractere — «PASTUSENCO VASILE GHEORGHE» se taie.
+                      Ruta avea deja tooltip-ul ei; șoferul nu, și el e cel care se confundă. */}
+                  <td style={corr('driver_name', cs())} title={r.Sofer || undefined}>
                     {canEditRowFields ? (
                       <select
                         value={r.Sofer}
@@ -1250,7 +1263,7 @@ export default function CasierDocumentTab({
               const numTd = (v: number | string) => (
                 <td style={{
                   ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)',
-                  whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text)',
+                  whiteSpace: 'nowrap', fontSize: 13, color: 'var(--text)',
                 }}>{v}</td>
               );
               const label = isNumerar
@@ -1259,7 +1272,7 @@ export default function CasierDocumentTab({
               return (
                 <tr>
                   <td colSpan={7} style={{
-                    ...headerCellStyle, textAlign: 'right', fontSize: 11, color: 'var(--text)',
+                    ...headerCellStyle, textAlign: 'right', fontSize: 13, color: 'var(--text)',
                     background: isNumerar ? '#e6f0ff' : '#e8e8e8',
                   }}>
                     {label}
@@ -1312,14 +1325,14 @@ export default function CasierDocumentTab({
             </>
           )}
           <label style={{
-            fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+            fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
             color: doarProbleme ? '#b35309' : '#777', fontWeight: doarProbleme ? 600 : 400,
           }}
             title="Arată doar rândurile care cer atenție: foi cu mai multe plăți, fără /grafic, foaie pe un șofer care n-are cursa, sume zero.">
             <input type="checkbox" checked={doarProbleme} onChange={e => setDoarProbleme(e.target.checked)} />
             doar nelămuririle
           </label>
-          <span style={{ fontSize: 11, color: '#888' }}>
+          <span style={{ fontSize: 12, color: '#888' }}>
             {isNumerar
               ? <>{modeRows.filter(r => !r.Sters).length} rânduri introduse manual</>
               : <>{modeRows.length} plăți din Tomberon</>}
@@ -1386,7 +1399,7 @@ export default function CasierDocumentTab({
         />
       )}
 
-      <p className="text-muted" style={{ fontSize: 11, marginTop: 8, fontFamily }}>
+      <p className="text-muted" style={{ fontSize: 12, marginTop: 8, fontFamily }}>
         {isNumerar ? (
           <>
             ⓘ Aici intră DOAR foile introduse manual la casă — banii primiți fără terminalul Tomberon.

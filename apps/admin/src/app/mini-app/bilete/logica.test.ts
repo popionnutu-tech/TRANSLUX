@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 // Logica mini app-ului e un modul ES static (servit din public/), fără DOM — se testează în node.
 import {
-  adaugaInCoada, alegeCursa, alegeCursaDinOra, alegeVizualizare, aplicaRezultate, clasificaLocal, confirmaLocal,
+  adaugaInCoada, alegeCursa, alegeCursaDinOra, alegeVizualizare, aplicaRezultate, clasificaLocal, confirmaGrupLocal, confirmaLocal, coduriGrup,
   contoare, etichetaZi, formatTelefon, grupeazaPeOpriri, hartaLocuri, limbaInitiala, listaVeche, locuriText, minuteDinOra,
   momentChisinau, normalizeazaCod, numeFamilie, ordineOpriri, randuriLocuri, scoateDinCoada, sensRuta, telHref, textBanda,
   titluRuta, urmatoareaCursa, verdictDinServer,
@@ -195,6 +195,31 @@ describe('matricea verdictelor (C3)', () => {
 });
 
 describe('sincronizarea', () => {
+  // Un cod QR = toată comanda (Ion, 10.10.2026: «1 QR cod pentru mai mulți»).
+  it('o scanare confirmă local toată comanda; locurile urcate sau anulate nu se ating', () => {
+    const cursa = JSON.parse(JSON.stringify(RETUR)) as Cursa;
+    const nat = cursa.pasageri[0];
+    expect(coduriGrup(nat, { urcate: {} }, 'C2')).toEqual(['C2', 'C1', 'C3']);
+    const st = confirmaGrupLocal({ urcate: {} }, nat, 'C2', la('14:01'));
+    expect(Object.keys(st.urcate).sort()).toEqual(['C1', 'C2', 'C3']);
+    expect(clasificaLocal(cursa, st, 'C3', true).verdict).toBe('deja_urcat');
+    nat.bilete[2].status = 'anulat';
+    expect(coduriGrup(nat, { urcate: {} }, 'C1')).toEqual(['C1', 'C2']);
+  });
+  it('ok de la server pe un cod → toată comanda urcată și sincronizată', () => {
+    const cursa = JSON.parse(JSON.stringify(RETUR)) as Cursa;
+    const local = confirmaGrupLocal({ urcate: {} }, cursa.pasageri[0], 'C1', la('14:01'));
+    const r = aplicaRezultate(local, cursa, [{ cod: 'C1', rezultat: 'ok', urcat_at: la('14:01') }], []);
+    expect(cursa.pasageri[0].bilete.map((b) => b.status)).toEqual(['urcat', 'urcat', 'urcat']);
+    expect(['C1', 'C2', 'C3'].every((c) => r.local.urcate[c]?.sincronizat === true)).toBe(true);
+  });
+  it('codul respins de server → cad și locurile grupului confirmate odată cu el', () => {
+    const cursa = JSON.parse(JSON.stringify(RETUR)) as Cursa;
+    const local = confirmaGrupLocal({ urcate: {} }, cursa.pasageri[0], 'C1', la('14:01'));
+    const r = aplicaRezultate(local, cursa, [{ cod: 'C1', rezultat: 'deja_urcat', urcat_de_altul: true, urcat_at: la('13:59') }], []);
+    expect(r.local.urcate).toEqual({});
+    expect(r.alerte).toHaveLength(1);
+  });
   it('confirmaLocal nu mută starea', () => {
     const s0 = { urcate: {} };
     const s1 = confirmaLocal(s0, 'R1', la('14:01'));

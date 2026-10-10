@@ -80,7 +80,8 @@ describe('scanarea — biletul nepermis e absent (532)', () => {
     stare.bilet = bilet({ ...COMANDA, test: true, proba_fizica: true });
     const r = (await scaneaza()).rezultate?.[0];
     expect(r).toMatchObject({ rezultat: 'ok', nume: 'Ion Pop', loc_nr: 4 });
-    expect(stare.updates).toBe(1);
+    // Două UPDATE-uri: codul scanat, apoi restul locurilor «valid» ale comenzii (un QR = toată comanda, 10.10.2026).
+    expect(stare.updates).toBe(2);
   });
 
   it('șofer real + bilet real → ok (neschimbat)', async () => {

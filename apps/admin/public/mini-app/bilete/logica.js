@@ -336,6 +336,19 @@ export function felulBenzii(verdict) {
   return 'bad';
 }
 
+/** Toate locurile încă de urcat ale comenzii (un cod QR = toată comanda, Ion 10.10.2026), cu codul scanat primul. */
+export function coduriGrup(pasager, local, cod) {
+  const alte = (Array.isArray(pasager?.bilete) ? pasager.bilete : []).filter((b) => b.cod_qr !== cod && esteDeUrcat(b, local)).map((b) => b.cod_qr);
+  return [cod, ...alte];
+}
+
+/** Confirmă local toată comanda la o scanare: starea nouă, fără să o mute. */
+export function confirmaGrupLocal(local, pasager, cod, la, sincronizat = false) {
+  let st = local;
+  for (const c of coduriGrup(pasager, local, cod)) st = confirmaLocal(st, c, la, sincronizat);
+  return st;
+}
+
 /** Confirmă un loc local (după verde): starea nouă, fără să o mute. */
 export function confirmaLocal(local, cod, la, sincronizat = false) {
   const urcate = { ...(local?.urcate ?? {}) };
@@ -361,11 +374,23 @@ export function aplicaRezultate(local, cursa, rezultate, coada) {
       st.urcate[cod] = { la: st.urcate[cod]?.la ?? r.urcat_at ?? new Date().toISOString(), sincronizat: true };
       const g = cautaCod(cursa, cod);
       if (g && g.bilet.status === 'valid') { g.bilet.status = 'urcat'; g.bilet.urcat_at = r.urcat_at ?? st.urcate[cod].la; }
+      // «ok» de la server = a urcat toată comanda: și celelalte locuri `valid` ale ei devin urcate, sincronizate.
+      if (g && v === 'ok') {
+        for (const b of g.pasager.bilete ?? []) {
+          if (b.cod_qr === cod || b.status !== 'valid') continue;
+          b.status = 'urcat'; b.urcat_at = r.urcat_at ?? st.urcate[cod].la;
+          st.urcate[b.cod_qr] = { la: st.urcate[b.cod_qr]?.la ?? b.urcat_at, sincronizat: true };
+        }
+      }
       continue;
     }
     if (eraLocal || eraOffline) {
       // Confirmat pe telefon, respins de server: nu-l mai numărăm urcat, îl arătăm roșu sub contor.
       delete st.urcate[cod];
+      // Locurile grupului confirmate odată cu codul respins (nesincronizate) cad și ele.
+      for (const b of cautaCod(cursa, cod)?.pasager?.bilete ?? []) {
+        if (b.cod_qr !== cod && st.urcate[b.cod_qr] && !st.urcate[b.cod_qr].sincronizat && b.status === 'valid') delete st.urcate[b.cod_qr];
+      }
       alerte.push({ cod, verdict: v, nume: r.nume ?? cautaCod(cursa, cod)?.pasager?.nume ?? '', cursa_bilet: r.cursa_bilet ?? '', urcat_at: r.urcat_at ?? null, urcat_de_altul: Boolean(r.urcat_de_altul) });
     }
   }

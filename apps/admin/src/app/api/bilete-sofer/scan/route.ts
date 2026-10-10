@@ -12,6 +12,8 @@ import { COD_QR_RE, biletPermis, cheieCursa, clasificaScanare, parseazaCheie, pa
 //  * deja_urcat / anulat / alta_cursa (cu cursa biletului) / necunoscut — doar jurnal.
 //  * fiecare scanare se scrie în bilete_scanari; retrimiterea aceleiași scanări (același cod, șofer, moment_client, «ok»
 //    deja scris) răspunde «ok» fără rând nou.
+//  * un cod QR = toată comanda (Ion, 10.10.2026: «dacă sunt mai mulți oameni — 1 QR cod pentru mai mulți»): scanarea
+//    «ok» urcă și celelalte locuri `valid` ale aceleiași comenzi (aceeași cursă); `urcate_acum` = câte locuri au urcat.
 //  * cheia trebuie să fie o cursă a ȘOFERULUI (din atribuirile zilei din cheie) — SEC-14; altfel 403 cursa_straina.
 // Se apără prin X-Telegram-Init-Data; plafon 60/min pe telegram_id; fără cache.
 
@@ -33,6 +35,8 @@ interface RezultatApi {
   cursa_bilet: string | null; urcat_at: string | null; urcat_de_altul: boolean;
   /** 546: bilet cu reducere de student → șoferul verifică carnetul (nu blochează urcarea). */
   student: boolean;
+  /** Câte locuri ale comenzii a urcat scanarea aceasta (codul + restul grupului); 0 dacă n-a urcat nimic. */
+  urcate_acum: number;
 }
 
 const SEL = 'id, comanda_id, cod_qr, nr, loc_nr, status, urcat_at, urcat_de, trip_date, crm_route_id, going_north, comanda:bilete_comenzi(passenger_name, from_name, to_name, departure_at, test, proba_fizica, reducere_tip)';
@@ -83,6 +87,7 @@ export async function POST(req: NextRequest) {
       }
       let cls = clasificaScanare(b && cheieBilet ? { status: b.status, cheie: cheieBilet, urcat_de: b.urcat_de } : null, cheieSofer, auth.sofer.id, okDejaScrisa);
       let urcatAt = b?.urcat_at ?? null;
+      let urcateAcum = 0;
 
       if (b && cls.rezultat === 'ok' && !cls.repetata) {
         const { data: upd, error } = await db.from('bilete')
@@ -91,6 +96,12 @@ export async function POST(req: NextRequest) {
         if (error) throw new Error(`bilete update: ${error.message}`);
         if (upd?.length) {
           urcatAt = s.moment_client;
+          // Restul grupului urcă odată cu codul scanat (comanda e pe o singură cursă).
+          const { data: grup, error: gErr } = await db.from('bilete')
+            .update({ status: 'urcat', urcat_at: s.moment_client, urcat_de: auth.sofer.id, urcat_sursa: 'scan' })
+            .eq('comanda_id', b.comanda_id).eq('status', 'valid').select('id');
+          if (gErr) console.error('[bilete-sofer/scan] grup:', gErr.message);
+          urcateAcum = 1 + (grup?.length ?? 0);
         } else {
           // Între citire și scriere l-a urcat altcineva (a doua mașină, SEC-7): prima scanare a câștigat.
           const re = await citesteBilet(db, s.cod);
@@ -116,6 +127,7 @@ export async function POST(req: NextRequest) {
         cod: s.cod_citit, rezultat: cls.rezultat, loc_nr: b?.loc_nr ?? null, nume: b?.comanda?.passenger_name ?? null,
         locuri_ramase_comanda: ramase, cursa_bilet: b && cls.rezultat === 'alta_cursa' ? textCursaBilet(b) : null,
         urcat_at: urcatAt, urcat_de_altul: cls.urcat_de_altul ?? false, student: b?.comanda?.reducere_tip === 'student',
+        urcate_acum: urcateAcum,
       });
     }
     return NextResponse.json({ rezultate }, { headers: ANTETE });

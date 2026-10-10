@@ -5,7 +5,7 @@ import { linkHarta } from '@/lib/bilete-reguli';
 import { AsteaptaPlata, EcranCompletTelegram, SalveazaPoza, type PozaLoc } from './BiletActiuni';
 import { OPERATOR } from '@/components/legal/legal-content';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
-import { BILET_CARD_CSS, BiletCard, TXT_CARD, bileteDeAratat, dataScurta, nfPret, numeRuta, oraHHMM } from './BiletCard';
+import { BILET_CARD_CSS, BiletCard, TXT_CARD, bileteDeAratat, biletulQr, dataScurta, nfPret, numeRuta, oraHHMM, textLocuri } from './BiletCard';
 import LogoTranslux from '../logo-translux';
 import { ReiaPlata } from './ReiaPlata';
 
@@ -25,7 +25,7 @@ const TXT = {
     expirat: 'Plata nu a fost finalizată', eroare: 'Plata nu a putut fi pornită', fara_bilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
     plataNu: 'Plata nu a trecut. Alegerea ta e păstrată — reia plata dintr-o apăsare.',
     comanda: 'Comanda nr.', platitaPe: 'plătită pe', cursa: 'Cursa', urcare: 'Urcare', harta: 'pe hartă', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
-    arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
+    arata: 'Arată codul QR șoferului la urcare. Un cod pentru toți din comandă — șoferul îl scanează o dată.',
     salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     telegramSub: 'Biletul e mereu la îndemână, iar în ziua cursei vezi pe hartă unde e autobuzul tău și când ajunge la tine.',
     tgTitlu: 'Pasul următor: ia biletul în Telegram',
@@ -40,7 +40,7 @@ const TXT = {
     expirat: 'Оплата не завершена', eroare: 'Не удалось начать оплату', fara_bilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
     plataNu: 'Оплата не прошла. Ваш выбор сохранён — повторите оплату одним нажатием.',
     comanda: 'Заказ №', platitaPe: 'оплачен', cursa: 'Рейс', urcare: 'Посадка', harta: 'на карте', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
-    arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
+    arata: 'Покажите QR-код водителю при посадке. Один код на весь заказ — водитель сканирует его один раз.',
     salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
     telegramSub: 'Билет всегда под рукой, а в день поездки на карте видно, где ваш автобус и когда он подъедет.',
     tgTitlu: 'Следующий шаг: билет в Telegram',
@@ -75,14 +75,23 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
   const tx = TXT[locale];
   const c = await biletPublic(cod);
   if (c === null) notFound();
-  const poze = (k: ComandaPublica): PozaLoc[] => bileteDeAratat(k).map((v) => ({
-    loc: v.loc_nr != null ? String(v.loc_nr) : '', eticheta: v.loc_nr != null ? TXT_CARD[locale].locul.toUpperCase() : '', cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
-    ora: oraHHMM(k.departure_at), sosire: k.sosire ?? null, ruta: `${k.from_name} → ${k.to_name}`, numeRuta: numeRuta(k, locale), data: dataScurta(k.trip_date, locale),
-    jos: `${k.passenger_name} · ${nfPret.format(Number(k.price_per_seat))} MDL · ${v.status === 'urcat' ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
-    operator: `${OPERATOR.brand} · ${OPERATOR.name} · IDNO ${OPERATOR.idno}`,
-    banda: k.proba ? TXT_CARD[locale].proba : k.reducere ? (k.reducere.tip === 'student' ? TXT_CARD[locale].student20 : TXT_CARD[locale].retur20) : null,
-    bandaProba: Boolean(k.proba), urcat: v.status === 'urcat',
-  }));
+  // O poză pe comandă: un QR pentru toate locurile ei (Ion, 10.10.2026).
+  const poze = (k: ComandaPublica): PozaLoc[] => {
+    const valide = bileteDeAratat(k);
+    const v = biletulQr(valide);
+    if (!v) return [];
+    const urcat = valide.every((x) => x.status === 'urcat');
+    return [{
+      loc: textLocuri(valide),
+      eticheta: textLocuri(valide) ? (valide.length > 1 ? TXT_CARD[locale].locurile : TXT_CARD[locale].locul).toUpperCase() : valide.length > 1 ? TXT_CARD[locale].pasageri(valide.length).toUpperCase() : '',
+      cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
+      ora: oraHHMM(k.departure_at), sosire: k.sosire ?? null, ruta: `${k.from_name} → ${k.to_name}`, numeRuta: numeRuta(k, locale), data: dataScurta(k.trip_date, locale),
+      jos: `${k.passenger_name} · ${valide.length > 1 ? `${valide.length} × ` : ''}${nfPret.format(Number(k.price_per_seat))} MDL · ${urcat ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
+      operator: `${OPERATOR.brand} · ${OPERATOR.name} · IDNO ${OPERATOR.idno}`,
+      banda: k.proba ? TXT_CARD[locale].proba : k.reducere ? (k.reducere.tip === 'student' ? TXT_CARD[locale].student20 : TXT_CARD[locale].retur20) : null,
+      bandaProba: Boolean(k.proba), urcat,
+    }];
+  };
   // Biletul plătit pe un singur ecran (Ion, 10.10.2026: «biletul final să fie o pagină fără scroll»): fără antetul cu
   // logo și fără titlu — logoul e pe bilet; dedesubt doar ce cere maib (comanda, firma, plățile).
   const ecranBilet = c !== 'indisponibil' && c.status === 'platita' && bileteDeAratat(c).length > 0;
@@ -140,17 +149,12 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                 const sens = (k: ComandaPublica) => (k === c ? (c.pachet?.sens === 'tur' ? 'retur' : 'tur') : (c.pachet?.sens ?? 'retur'));
                 const toate = grupuri.flatMap(poze);
                 return (
-                  <div style={{ display: 'grid', gap: 18 }}>
+                  <div style={{ display: 'grid', gap: pereche ? 12 : 18 }}>
                     {/* Biletul și trecerea în Telegram într-un singur bloc (Ion, 10.10.2026: «biletul și Telegram trecere unește»);
                         «Salvează/tipărește» a devenit poza biletului în galerie (Ion, 10.10.2026). */}
                     {grupuri.map((k, gi) => (
-                      <div key={k.cod} style={{ display: 'grid', gap: 10 }}>
-                        {pereche && (
-                          <div style={{ fontSize: 15, fontWeight: 800, color: '#231A1C' }}>
-                            {sens(k) === 'tur' ? (locale === 'ru' ? 'Туда' : 'Tur') : (locale === 'ru' ? 'Обратно' : 'Retur')} · {k.from_name} → {k.to_name}
-                          </div>
-                        )}
-                        {bileteDeAratat(k).map((b, i) => <BiletCard key={b.nr} comanda={k} bilet={b} locale={locale} jos={!doar && gi === 0 && i === 0 ? (
+                      <div key={k.cod} style={{ display: 'grid', gap: 8 }}>
+                        {[biletulQr(bileteDeAratat(k))!].map((b) => <BiletCard key={b.nr} comanda={k} bilet={b} grup={bileteDeAratat(k)} compact={Boolean(pereche)} sens={pereche ? (sens(k) === 'tur' ? (locale === 'ru' ? 'ТУДА' : 'TUR') : (locale === 'ru' ? 'ОБРАТНО' : 'RETUR')) : undefined} locale={locale} jos={!doar && gi === 0 ? (
                           <div className="bilet-no-print" style={{ padding: '6px 16px 14px', display: 'grid', gap: 6 }}>
                             <div style={{ display: 'flex', gap: 8 }}>
                               <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
@@ -159,7 +163,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                               }}>{tx.tgButon}</a>
                               <SalveazaPoza locale={locale} stil={{ flex: 1 }} locuri={toate} />
                             </div>
-                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.35 }}>{tx.tgScurt}</span>
+                            {!pereche && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.35 }}>{tx.tgScurt}</span>}
                           </div>
                         ) : undefined} />)}
                         {!doar && k.punct_urcare && (

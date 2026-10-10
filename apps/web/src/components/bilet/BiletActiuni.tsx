@@ -292,7 +292,7 @@ export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; loca
       gata.current = (async () => {
         await document.fonts?.ready;
         const font = getComputedStyle(document.body).fontFamily || "sans-serif";
-        return Promise.all(locuri.map(async (p) => new File([await deseneazaLoc(p, font)], `bilet-translux-${p.loc ? `loc-${p.loc}` : p.cod.replace(/\s+/g, '').slice(0, 8)}.png`, { type: "image/png" })));
+        return Promise.all(locuri.map(async (p) => new File([await deseneazaLoc(p, font)], `bilet-translux-${p.loc ? `loc-${p.loc.replace(/\D+/g, "-")}` : p.cod.replace(/\s+/g, '').slice(0, 8)}.png`, { type: "image/png" })));
       })();
       gata.current.catch(() => { gata.current = null; });
     }

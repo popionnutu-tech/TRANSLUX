@@ -285,7 +285,8 @@ async function onCod(brut) {
   const r = L.clasificaLocal(S.cursa, S.local, cod, online());
 
   if (r.verdict === 'ok') {
-    S.local = L.confirmaLocal(S.local, cod, moment, false);
+    // Un cod QR = toată comanda (Ion, 10.10.2026): urcă tot grupul; serverul face la fel la sincronizare.
+    S.local = L.confirmaGrupLocal(S.local, r.pasager, cod, moment, false);
     const n = L.numaraPasager(r.pasager, S.local);
     salveazaStarea();
     S.coada = L.adaugaInCoada(S.coada, { cheie: S.cursa.cheie, cod, moment_client: moment, offline: !online() });
@@ -311,7 +312,8 @@ async function onCod(brut) {
     if (v === 'ok') {
       const { local } = L.aplicaRezultate(S.local, S.cursa, [rez], []);
       S.local = local; salveazaStarea();
-      arataBanda('ok', { nume: rez.nume ?? '', ramase: Number(rez.locuri_ramase_comanda ?? 0), total: Number(rez.locuri_ramase_comanda ?? 0) + 1, student: rez.student === true });
+      const urcateAcum = Number(rez.urcate_acum ?? 1) || 1;
+      arataBanda('ok', { nume: rez.nume ?? '', ramase: Number(rez.locuri_ramase_comanda ?? 0), total: Number(rez.locuri_ramase_comanda ?? 0) + urcateAcum, student: rez.student === true });
       incarca(); // biletul nu era în lista noastră: o reîmprospătăm
     } else {
       arataBanda(v, { nume: rez?.nume ?? '', urcat_at: rez?.urcat_at ?? null, urcat_de_altul: Boolean(rez?.urcat_de_altul), cursa_bilet: rez?.cursa_bilet ?? '' });

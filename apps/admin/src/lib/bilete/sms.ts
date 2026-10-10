@@ -1,8 +1,8 @@
 import 'server-only';
-import { normalizeazaTelefonPasager } from '@translux/db';
+import { cheieNume, normalizeazaTelefonPasager } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { smsConfigurat, trimiteSms } from '@/lib/sms/trimite';
-import { textConfirmare, textGaseste, type BiletSms } from './sms-reguli';
+import { numePotrivit, textConfirmare, textGaseste, type BiletSms } from './sms-reguli';
 
 // SMS-urile biletelor (552; Ion, 10.10.2026: «să vină mesaj la client cu bronarea și cum poate el pe site să-și găsească
 // biletul; un buton «Găsește biletul meu»»). Confirmarea: o dată pe comandă (indexul unic din bilete_sms), după callback-ul
@@ -65,13 +65,36 @@ export async function smsRestante(limita = 20): Promise<string[]> {
   return ids.filter((id) => !cu.has(id)).slice(0, limita);
 }
 
-export type RezultatGaseste = { ok: true } | { ok: false; motiv: 'neconfigurat' | 'telefon' | 'plafon' };
+export type RezultatGaseste =
+  | { ok: true; bilete?: BiletSms[] }
+  | { ok: false; motiv: 'neconfigurat' | 'telefon' | 'plafon' | 'nume' };
+
+/** Fără SMS: biletele viitoare ale numărului, pe ecran, doar dacă numele se potrivește (altfel listă goală, ca «nimic»). */
+async function gasestePeEcran(telefon: string, ipHash: string, nume: string): Promise<RezultatGaseste> {
+  if (!cheieNume(nume).split(' ').some((w) => w.length >= 2)) return { ok: false, motiv: 'nume' };
+  const db = getSupabase();
+  const { data: start, error: e0 } = await db.rpc('bilete_sms_gaseste_incepe', { p_telefon: telefon, p_ip: ipHash });
+  if (e0) throw new Error(`bilete_sms_gaseste_incepe: ${e0.message}`);
+  const s = start as { ok: boolean; id?: string };
+  if (!s.ok || !s.id) return { ok: false, motiv: 'plafon' };
+  const { data, error } = await db.from('bilete_comenzi').select(`${COLOANE}, passenger_name`).eq('phone', telefon).eq('status', 'platita').eq('test', false)
+    .gt('departure_at', new Date(Date.now() - 3 * 3_600_000).toISOString()).order('departure_at').limit(6);
+  if (error) throw new Error(`bilete_comenzi (găsește): ${error.message}`);
+  const rows = ((data || []) as (RandComanda & { passenger_name: string })[]).filter((c) => numePotrivit(nume, c.passenger_name));
+  // Jurnalul: «fara_bilete» când nimic nu se potrivește; altfel «trimis» cu furnizorul «ecran» (n-a plecat niciun SMS).
+  await db.from('bilete_sms').update(rows.length
+    ? { stare: 'trimis', trimis_la: new Date().toISOString(), furnizor_id: 'ecran', text: `${rows.length} bilete pe ecran (fără SMS)` }
+    : { stare: 'fara_bilete' }).eq('id', s.id);
+  return { ok: true, bilete: await Promise.all(rows.map(biletSms)) };
+}
 
 /** «Găsește biletul meu»: linkurile biletelor viitoare, prin SMS, doar pe acel număr. */
-export async function gasesteBilete(telefonBrut: string, ipHash: string, lang: 'ro' | 'ru'): Promise<RezultatGaseste> {
-  if (!smsConfigurat()) return { ok: false, motiv: 'neconfigurat' };
+export async function gasesteBilete(telefonBrut: string, ipHash: string, lang: 'ro' | 'ru', nume = ''): Promise<RezultatGaseste> {
   const telefon = normalizeazaTelefonPasager(telefonBrut);
   if (!telefon) return { ok: false, motiv: 'telefon' };
+  // Ion, 10.10.2026: «găsește bilet să lucreze pe număr de telefon până nu e gata SMS-ul» — cu telefon + nume (ales de
+  // Ion), ca un număr ghicit să nu dea biletul (QR-ul) altcuiva. Plafoanele SMS-ului (3/oră pe număr, 10 pe IP) rămân.
+  if (!smsConfigurat()) return gasestePeEcran(telefon, ipHash, nume);
   const db = getSupabase();
   const { data: start, error: e0 } = await db.rpc('bilete_sms_gaseste_incepe', { p_telefon: telefon, p_ip: ipHash });
   if (e0) throw new Error(`bilete_sms_gaseste_incepe: ${e0.message}`);

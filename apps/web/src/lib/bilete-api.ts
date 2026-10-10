@@ -315,10 +315,22 @@ export async function verificaCarnetLaPanou(corp: { passengerName: string; phone
   } catch { return { verdict: 'eroare', motiv: 'timeout' }; }
 }
 
-export type RaspunsGaseste = { ok: true } | { ok: false; motiv: string };
+/** Biletul găsit, arătat pe ecran cât SMS-ul nu e gata (Ion, 10.10.2026: telefon + nume). */
+export interface BiletGasit { cod: string; lang: 'ro' | 'ru'; from: string; to: string; departure_at: string; locuri: number[] }
+export type RaspunsGaseste = { ok: true; bilete?: BiletGasit[] } | { ok: false; motiv: string };
 
-/** «Găsește biletul meu» (552): panoul trimite linkurile prin SMS pe acel număr. */
-export async function gasesteBileteLaPanou(corp: { phone: string; ipHash: string; lang: 'ro' | 'ru' }): Promise<RaspunsGaseste> {
+const COD_BILET_RE = /^[0-9a-f]{32}$/i;
+/** Doar câmpurile așteptate, cu codul biletului valid (un răspuns ciudat al panoului nu face linkuri spre altundeva). */
+function bileteGasite(x: unknown): BiletGasit[] | undefined {
+  if (!Array.isArray(x)) return undefined;
+  return x.flatMap((b: Record<string, unknown>) => (b && typeof b.cod === 'string' && COD_BILET_RE.test(b.cod) ? [{
+    cod: b.cod, lang: b.lang === 'ru' ? 'ru' as const : 'ro' as const, from: String(b.from ?? ''), to: String(b.to ?? ''),
+    departure_at: String(b.departure_at ?? ''), locuri: Array.isArray(b.locuri) ? b.locuri.filter((n): n is number => typeof n === 'number') : [],
+  }] : []));
+}
+
+/** «Găsește biletul meu» (552): panoul trimite linkurile prin SMS pe acel număr; fără SMS — biletele pe ecran (telefon + nume). */
+export async function gasesteBileteLaPanou(corp: { phone: string; ipHash: string; lang: 'ro' | 'ru'; nume: string }): Promise<RaspunsGaseste> {
   const cheie = process.env.BILETE_API_KEY;
   if (!cheie) return { ok: false, motiv: 'config' };
   try {
@@ -327,7 +339,7 @@ export async function gasesteBileteLaPanou(corp: { phone: string; ipHash: string
       body: JSON.stringify(corp), signal: AbortSignal.timeout(15_000), cache: 'no-store',
     });
     const j = await r.json().catch(() => null);
-    if (j?.ok === true) return { ok: true };
+    if (j?.ok === true) return { ok: true, bilete: bileteGasite(j.bilete) };
     return { ok: false, motiv: String(j?.motiv ?? j?.eroare ?? `HTTP ${r.status}`) };
   } catch { return { ok: false, motiv: 'timeout' }; }
 }

@@ -1,3 +1,4 @@
+import { cheieNume } from '@translux/db';
 // Textele SMS ale biletelor (552), fără diacritice: un SMS cu diacritice trece în UCS-2 (70 de caractere în loc de 160)
 // și costă de două ori. Rusa e oricum UCS-2. Linkul fără «https://» — telefoanele îl fac link și așa.
 
@@ -39,4 +40,15 @@ export function textConfirmare(tur: BiletSms, retur: BiletSms | null, bazaSite: 
 export function textGaseste(lang: 'ro' | 'ru', bilete: BiletSms[], bazaSite: string): string {
   const linii = bilete.slice(0, 3).map((b) => `${rand(b)}: ${link(b, bazaSite)}`);
   return [lang === 'ru' ? 'TRANSLUX: ваши билеты' : 'TRANSLUX: biletele tale', ...linii].join('\n');
+}
+
+/**
+ * Numele scris de om (de regulă cel de familie) se potrivește cu numele de pe bilet: fiecare cuvânt al lui apare în
+ * numele biletului (fără diacritice, fără ordine; cheieNume). Gol sau cuvinte de o literă → nu.
+ */
+export function numePotrivit(scris: string, peBilet: string): boolean {
+  const s = cheieNume(scris).split(' ').filter(Boolean);
+  if (!s.length || s.some((w) => w.length < 2)) return false;
+  const b = new Set(cheieNume(peBilet).split(' ').filter(Boolean));
+  return s.every((w) => b.has(w));
 }

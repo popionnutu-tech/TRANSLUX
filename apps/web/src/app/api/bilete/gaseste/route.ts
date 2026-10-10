@@ -4,7 +4,8 @@ import { gasesteBileteLaPanou } from '@/lib/bilete-api';
 import { normalizeazaTelefon } from '@/lib/bilete-reguli';
 
 // POST /api/bilete/gaseste — «Găsește biletul meu» (552): telefonul + amprenta IP merg la panou, care trimite linkurile
-// prin SMS pe acel număr. Răspunsul nu spune dacă pe număr există bilete.
+// prin SMS pe acel număr. Răspunsul nu spune dacă pe număr există bilete. Cât SMS-ul nu e gata: biletele pe ecran,
+// doar cu telefon + numele de pe bilet (Ion, 10.10.2026).
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,5 +20,6 @@ export async function POST(req: NextRequest) {
   if (!sare) return NextResponse.json({ ok: false, motiv: 'config' }, { status: 500 });
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || 'necunoscut';
   const ipHash = createHash('sha256').update(`${sare}|${ip}`).digest('hex');
-  return NextResponse.json(await gasesteBileteLaPanou({ phone: tel, ipHash, lang: b?.lang === 'ru' ? 'ru' : 'ro' }));
+  const nume = String(b?.nume ?? '').trim().slice(0, 80);
+  return NextResponse.json(await gasesteBileteLaPanou({ phone: tel, ipHash, lang: b?.lang === 'ru' ? 'ru' : 'ro', nume }));
 }

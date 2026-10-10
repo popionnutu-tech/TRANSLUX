@@ -20,7 +20,7 @@ export interface OprireApi { stop_order: number; nume: string; ora: string | nul
 export interface BiletApi { cod_qr: string; nr: number; loc_nr: number | null; status: 'valid' | 'urcat'; urcat_at: string | null }
 export interface PasagerApi {
   comanda: string; nume: string; telefon: string; de_la_order: number; de_la: string; pana_la: string; locuri: number; bilete: BiletApi[];
-  /** 544: reducere de student → șoferul cere carnetul la urcare. */
+  /** 546: reducere de student → șoferul cere carnetul la urcare. */
   student?: boolean;
 }
 export interface CursaApi {

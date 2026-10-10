@@ -31,7 +31,7 @@ interface BiletRand {
 interface RezultatApi {
   cod: string; rezultat: RezultatScanare; loc_nr: number | null; nume: string | null; locuri_ramase_comanda: number | null;
   cursa_bilet: string | null; urcat_at: string | null; urcat_de_altul: boolean;
-  /** 544: bilet cu reducere de student → șoferul verifică carnetul (nu blochează urcarea). */
+  /** 546: bilet cu reducere de student → șoferul verifică carnetul (nu blochează urcarea). */
   student: boolean;
 }
 

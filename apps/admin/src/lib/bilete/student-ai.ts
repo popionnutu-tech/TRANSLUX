@@ -7,7 +7,7 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Verificarea carnetului de student (Ion, 10.10.2026: «AI trebuie să verifice carnetul de student la client»; «studentul la
 // colegiu sau universitate cu acte în regulă, fără photoshop, fotografie reală, de dorit poza la carnet studențesc cu poza
-// la pașaport»; planul docs/plans/2026-10-10-promotii-balti.md, pas 4–5; migr. 544).
+// la pașaport»; planul docs/plans/2026-10-10-promotii-balti.md, pas 4–5; migr. 546).
 // Două poze (carnet + pașaport/buletin) → AI-ul DOAR EXTRAGE câmpuri și semnale (ecran, editare, fața) → decizia o ia
 // `decizieCarnet` din cod (security M2: un text scris pe poză nu poate «decide»). `accept` → jeton aleator, salvat ca hash,
 // valabil 30 de minute, legat de telefon + nume; comanda îl consumă sub lacăt (bilete_creeaza_comanda).

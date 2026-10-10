@@ -1,6 +1,6 @@
 name: bilete-carnete
 
-# Curățarea zilnică a verificărilor de student (migr. 544): pozele carnetelor și numele se șterg la 90 de zile, poza
+# Curățarea zilnică a verificărilor de student (migr. 546): pozele carnetelor și numele se șterg la 90 de zile, poza
 # actului neacceptat la 30. Pe GitHub infra: Vercel Hobby are sloturile de cron ocupate. 03:30 UTC = noaptea în Chișinău,
 # după importurile tiki (21:05 / 00:30 / 01:30 UTC).
 

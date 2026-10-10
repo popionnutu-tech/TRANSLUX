@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ComandaError, cotaPret, statusPentru } from '@/lib/bilete/comenzi';
 import { cheieSiteValida } from '@/lib/bilete/site-auth';
 
-// POST /api/bilete/pret — cota de preț a site-ului pe Bălți ⇄ Chișinău (migr. 544): prețul cu reducerea cerută (cod de
+// POST /api/bilete/pret — cota de preț a site-ului pe Bălți ⇄ Chișinău (migr. 546): prețul cu reducerea cerută (cod de
 // retur / jeton de student). Public în middleware (cale EXACTĂ), apărat prin BILETE_API_KEY; nu creează nimic.
 
 export const runtime = 'nodejs';

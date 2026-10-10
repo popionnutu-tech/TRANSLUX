@@ -521,7 +521,7 @@ export function textBanda(verdict, info, lang) {
     case 'ok': {
       const ramase = Number(info?.ramase ?? 0); const total = Number(info?.total ?? 1);
       const sub = ramase > 0 ? t.rOkUnLoc(ramase) : (total > 1 ? t.rOkToate(total) : `1 ${t.loc1}`);
-      // 544: bilet de student — banda galbenă «verifică carnetul»; urcarea nu se blochează.
+      // 546: bilet de student — banda galbenă «verifică carnetul»; urcarea nu se blochează.
       if (info?.student) return { fel: 'warn', titlu: t.rStudentT, sub: nume + sub };
       return { fel: 'ok', titlu: t.rOkT, sub: nume + sub };
     }

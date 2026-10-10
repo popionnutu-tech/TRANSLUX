@@ -118,7 +118,7 @@ export async function contorNouaVechi(): Promise<number> {
 export async function returneazaComanda(id: string, motiv: string, opt: { vinaNoastra?: boolean; siReturul?: boolean } = {}): Promise<Rezultat> {
   requireRole(await verifySession(), 'ADMIN');
   try {
-    // 544: fără «vina noastră», turul cu un retur −20% plătit pierde reducerea dată returului (Ion, 10.10).
+    // 546: fără «vina noastră», turul cu un retur −20% plătit pierde reducerea dată returului (Ion, 10.10).
     const r = await anuleazaSiReturneaza(id, { sursa: 'admin', motiv, vinaNoastra: opt.vinaNoastra === true, siReturul: opt.siReturul === true });
     revalidatePath('/bilete');
     return { ok: true, mesaj: `comanda ${r.comanda.status}; refund: ${r.refund}${r.refundId ? ` (${r.refundId})` : ''}` };

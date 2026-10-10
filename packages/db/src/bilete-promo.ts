@@ -1,5 +1,5 @@
 /**
- * Promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026; planul aprobat docs/plans/2026-10-10-promotii-balti.md, migr. 544):
+ * Promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026; planul aprobat docs/plans/2026-10-10-promotii-balti.md, migr. 546):
  * −20% la retur (turul dovedit cu codul de retur) și −20% pentru studentul verificat de AI; nu se cumulează. Reguli PURE,
  * folosite de panou (creeazaComanda, cota de preț) și testate în bilete-promo.test.ts. Aceleași condiții se reverifică în
  * bază, sub lacăt (bilete_creeaza_comanda / bilete_revalideaza_plata).
@@ -18,7 +18,7 @@ export function perechePromo(urcare: string, coborare: string): boolean {
   return (a === l && b === d) || (a === d && b === l);
 }
 
-/** Prețul redus, pe întregi (identic cu round(numeric) din CHECK-ul 544); null dacă ar coborî sub minimul plății. */
+/** Prețul redus, pe întregi (identic cu round(numeric) din CHECK-ul 546); null dacă ar coborî sub minimul plății. */
 export function aplicaReducere(pret: number, pct: number): number | null {
   if (!(pct >= 1 && pct <= 50) || !(pret > 0)) return null;
   const redus = Math.round((pret * (100 - pct)) / 100);
@@ -180,7 +180,9 @@ export function decizieCarnet(x: ExtrasCarnet, pasager: string, aziIso: string, 
   if (!c || !a) return { verdict: 'poza_neclara', motiv: 'nume_ilizibil' };
   if (c !== a) return { verdict: 'respins', motiv: 'nume_carnet_act' };
   if (c !== p) return { verdict: 'respins', motiv: 'nume_pasager' };
+  // Fața trebuie confirmată pe ambele acte (security L4): «nu se vede» nu trece.
   if (x.fata_compatibila === false) return { verdict: 'respins', motiv: 'fata' };
+  if (x.fata_compatibila !== true) return { verdict: 'poza_neclara', motiv: 'fata_neclara' };
   const pana = /^\d{4}-\d{2}-\d{2}$/.test(x.valabil_pana ?? '') ? x.valabil_pana : sfarsitAnStudii(x.an_studii);
   if (!pana) return { verdict: 'poza_neclara', motiv: 'valabilitate_ilizibila' };
   if (pana < aziIso) return { verdict: 'respins', motiv: 'expirat' };

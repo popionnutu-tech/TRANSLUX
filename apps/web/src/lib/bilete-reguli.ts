@@ -20,9 +20,9 @@ export interface ConfigBilete {
   destinatii: LocalitatiVanzare;
   /** Prima zi de cursă vândută online (09.10: «2026-10-12»); null = orice zi. */
   curse_de_la: string | null;
-  /** 544: prima zi de cursă pe localitate (cheie normalizată), ex. {"balti":"2026-10-13"}. */
+  /** 546: prima zi de cursă pe localitate (cheie normalizată), ex. {"balti":"2026-10-13"}. */
   localitati_de_la?: Record<string, string>;
-  /** 544: promoțiile Bălți ⇄ Chișinău. */
+  /** 546: promoțiile Bălți ⇄ Chișinău. */
   promo?: { activ: boolean; pct: number; retur_zile: number };
 }
 

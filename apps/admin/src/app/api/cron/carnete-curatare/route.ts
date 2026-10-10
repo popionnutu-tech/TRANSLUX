@@ -5,7 +5,7 @@ import { getSupabase } from '@/lib/supabase';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Curățarea verificărilor de student (migr. 544, plan pas 5/8): pozele din bucketul privat «carnete-studenti» și numele
+// Curățarea verificărilor de student (migr. 546, plan pas 5/8): pozele din bucketul privat «carnete-studenti» și numele
 // se golesc la 90 de zile; poza actului de identitate a verificărilor neacceptate, la 30 de zile. Rândul rămâne (verdictul,
 // hash-ul carnetului) pentru limita de 4 locuri/7 zile și pentru «un carnet = un telefon». Pornit de GitHub Actions
 // (bilete-carnete.yml) la 03:30 UTC: Vercel Hobby n-are sloturi de cron libere.

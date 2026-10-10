@@ -132,7 +132,7 @@ export function suna(telefon373: string): boolean {
 }
 
 /**
- * «Cumpără returul cu −20%» (migr. 544): pe turul plătit al perechii Bălți ⇄ Chișinău. Codul de retur merge în
+ * «Cumpără returul cu −20%» (migr. 546): pe turul plătit al perechii Bălți ⇄ Chișinău. Codul de retur merge în
  * sessionStorage (nu în URL, ca să nu ajungă în referrer/jurnale) și omul ajunge la căutarea în sens invers.
  */
 export function CumparaReturul({ codRetur, de, spre, locale }: { codRetur: string; de: string; spre: string; locale: "ro" | "ru" }) {

@@ -6,7 +6,7 @@ import {
 import { getSupabase } from '@/lib/supabase';
 import { verificareDupaJeton } from './student-ai';
 
-// Promoțiile online Bălți ⇄ Chișinău pe server (migr. 544, planul docs/plans/2026-10-10-promotii-balti.md, pas 3).
+// Promoțiile online Bălți ⇄ Chișinău pe server (migr. 546, planul docs/plans/2026-10-10-promotii-balti.md, pas 3).
 // Un singur calcul pentru comandă și pentru cota de preț afișată pe site. Condițiile se reverifică în bază, sub lacăt.
 
 export interface PromoConfig {
@@ -108,11 +108,6 @@ export async function calculeazaPromo(x: IntrarePromo, cfg: PromoConfig): Promis
   if (!cerut) return fara();
   const db = getSupabase();
 
-  // Telefonul unui șofer nu primește promoții (Ion, 10.10: «ca să nu facă fraudă șoferul»).
-  const { data: sof, error: eS } = await db.from('drivers').select('id').eq('phone', x.phone).limit(1);
-  if (eS) throw new Error(`drivers: ${eS.message}`);
-  if (sof && sof.length > 0) return fara('sofer');
-
   let student: CalculPromo['reducere'] = null;
   let motiv: MotivFaraReducere | undefined;
   if (x.studentJeton) {
@@ -143,6 +138,11 @@ export async function calculeazaPromo(x: IntrarePromo, cfg: PromoConfig): Promis
   const tip = alegeReducerea({ student: Boolean(student), retur: Boolean(retur) });
   const red = tip === 'student' ? student : tip === 'retur' ? retur : null;
   if (!red) return fara(motiv);
+  // Telefonul unui șofer nu primește promoții (Ion, 10.10: «ca să nu facă fraudă șoferul»). Verificat DUPĂ cod/jeton și
+  // cu același motiv ca un cod nevalid: răspunsul nu spune cuiva că un număr e al unui șofer (security M2).
+  const { data: sof, error: eS } = await db.from('drivers').select('id').eq('phone', x.phone).limit(1);
+  if (eS) throw new Error(`drivers: ${eS.message}`);
+  if (sof && sof.length > 0) return fara(red.tip === 'student' ? 'student' : 'cod_retur');
   const pret = aplicaReducere(x.pret, red.pct);
   if (pret == null) return fara('pret_mic');
   return { pretIntreg: x.pret, pret, reducere: red, promoPereche, motiv: undefined };

@@ -101,7 +101,7 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     // ION-249: din mini app-ul Telegram vine initData-ul contului (câmp ascuns); panoul îl verifică — aici doar se trimite.
     telegramInitData: String(fd.get('tgInitData') ?? '').slice(0, 4096) || null,
     locuriAlese: locuri.locuri,
-    // 544: promoțiile Bălți ⇄ Chișinău — panoul le verifică și recalculează prețul; aici doar formatul.
+    // 546: promoțiile Bălți ⇄ Chișinău — panoul le verifică și recalculează prețul; aici doar formatul.
     codRetur: /^[0-9a-f]{64}$/.test(String(fd.get('codRetur') ?? '')) ? String(fd.get('codRetur')) : null,
     studentJeton: /^[A-Za-z0-9_-]{20,64}$/.test(String(fd.get('studentJeton') ?? '')) ? String(fd.get('studentJeton')) : null,
   });
@@ -123,7 +123,7 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
 }
 
 /**
- * Prețul cu reducerea cerută (migr. 544), pentru formular: codul de retur sau jetonul de student. Export din
+ * Prețul cu reducerea cerută (migr. 546), pentru formular: codul de retur sau jetonul de student. Export din
  * 'use server' = acțiune apelabilă de oricine; nu are secret, panoul răspunde același text la cod greșit și la altă
  * persoană, iar comanda recalculează totul.
  */

@@ -48,9 +48,9 @@ export interface ComandaPublica {
   /** Echipajul cursei (migr. 538): după bifa dispecerului placa + prenumele (+ telefonul în fereastra plecare ± 3 h). */
   echipaj: EchipajBilet | null;
   bilete: BiletPublic[];
-  /** 544: reducerea aplicată (eticheta «RETUR −20%» / «STUDENT −20% · arată carnetul» + prețul întreg tăiat). */
+  /** 546: reducerea aplicată (eticheta «RETUR −20%» / «STUDENT −20% · arată carnetul» + prețul întreg tăiat). */
   reducere?: { tip: 'retur' | 'student'; pret_intreg: number } | null;
-  /** 544: codul care dă −20% la retur — doar pe turul plătit al perechii Bălți ⇄ Chișinău. */
+  /** 546: codul care dă −20% la retur — doar pe turul plătit al perechii Bălți ⇄ Chișinău. */
   cod_retur?: string | null;
 }
 
@@ -153,9 +153,9 @@ export interface ConfigPublica {
   destinatii: string[] | null;
   /** Prima zi de cursă care se vinde online (09.10: «2026-10-12»); null = orice zi. */
   curse_de_la: string | null;
-  /** 544: prima zi de cursă pe localitate, normalizată (Ion 10.10: Bălți de pe 13.10): {"balti":"2026-10-13"}. */
+  /** 546: prima zi de cursă pe localitate, normalizată (Ion 10.10: Bălți de pe 13.10): {"balti":"2026-10-13"}. */
   localitati_de_la: Record<string, string>;
-  /** 544: promoțiile Bălți ⇄ Chișinău (retur și student). */
+  /** 546: promoțiile Bălți ⇄ Chișinău (retur și student). */
   promo: { activ: boolean; pct: number; retur_zile: number };
 }
 

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { pretBilet } from "@/app/(public)/bilete-actions";
 
-// Promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026; migr. 544): −20% la retur (cu codul de retur de pe biletul tur)
+// Promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026; migr. 546): −20% la retur (cu codul de retur de pe biletul tur)
 // sau −20% pentru student (carnet + pașaport/buletin verificate de AI). Nu se cumulează. Prețul arătat vine din panou
 // (pretBilet); comanda îl recalculează oricum.
 

@@ -39,6 +39,8 @@ export interface RezultatAnulare {
   /** `creat` = banca a acceptat cererea (se finalizează la «Verifică refund-ul» / împăcare); `necunoscut` = de împăcat. */
   refund: 'creat' | 'necunoscut' | 'fara_plata';
   refundId?: string;
+  /** 546: suma fixată la anulare (poate fi grila − reducerea returului). */
+  suma?: number;
 }
 
 export async function anuleazaSiReturneaza(
@@ -49,11 +51,11 @@ export async function anuleazaSiReturneaza(
     suma?: number;
     /** ION-244: momentul validării ofertei în bază — «acum» pentru plasa de timp (fără a doua comparație pe alt ceas). */
     acumMs?: number;
-    /** 544: anularea e din vina noastră (cursă anulată, greșeala firmei) → turul nu pierde reducerea dată returului. */
+    /** 546: anularea e din vina noastră (cursă anulată, greșeala firmei) → turul nu pierde reducerea dată returului. */
     vinaNoastra?: boolean;
-    /** 544: anulează și returul cu reducere legat de acest tur (fiecare cu grila lui, fără scădere). */
+    /** 546: anulează și returul cu reducere legat de acest tur (fiecare cu grila lui, fără scădere). */
     siReturul?: boolean;
-    /** 544: suma după grilă pentru returul legat, când `siReturul` (absentă = integral). */
+    /** 546: suma după grilă pentru returul legat, când `siReturul` (absentă = integral). */
     sumaRetur?: number;
   },
 ): Promise<RezultatAnulare> {
@@ -88,7 +90,7 @@ export async function anuleazaSiReturneaza(
     }
   }
 
-  // 1. Anularea, atomic, în bază (refuză dacă vreun bilet e urcat). 544: suma refund-ului se fixează în aceeași
+  // 1. Anularea, atomic, în bază (refuză dacă vreun bilet e urcat). 546: suma refund-ului se fixează în aceeași
   // tranzacție — turul cu un retur redus plătit pierde reducerea dată returului («doar turul»), afară de «vina noastră»
   // (sursa «sistem» = cursă anulată de firmă); «siReturul» anulează și returul, fiecare cu grila lui.
   const grila = opt.suma ?? Number(inainte.total);
@@ -102,7 +104,13 @@ export async function anuleazaSiReturneaza(
     if (/GRILA/.test(e1.message)) throw new ComandaError('validare', 'suma returnării nu e validă');
     throw new Error(`bilete_anuleaza: ${e1.message}`);
   }
-  const randuri = (Array.isArray(rez) ? rez : []) as Array<{ id: string; suma: number | null; scazut?: number }>;
+  const randuri = (Array.isArray(rez) ? rez : []) as Array<{ id: string; suma: number | null; scazut?: number; deja?: boolean }>;
+  // Altă cerere a anulat-o între citire și apel (dublu-clic, /plati + /bilete): ea trimite banii cu suma fixată de ea;
+  // aici nu se trimite nimic, ca să nu plece grila întreagă peste suma cu reducerea scăzută (audit M1).
+  if (randuri[0]?.deja) {
+    const { data: cd } = await db.from('bilete_comenzi').select('*').eq('id', comandaId).single();
+    return { comanda: (cd ?? inainte) as BileteComanda, refund: 'necunoscut' };
+  }
   const { data: c1, error: eC } = await db.from('bilete_comenzi').select('*').eq('id', comandaId).single();
   if (eC) throw new Error(`bilete_comenzi: ${eC.message}`);
   const comanda = c1 as BileteComanda;
@@ -118,17 +126,16 @@ export async function anuleazaSiReturneaza(
     await db.from('bilete_alerte').insert({ comanda_id: comandaId, tip: 'refund_pe_zi_confirmata', detalii: `refund de admin după plecarea cursei (${inainte.departure_at}): ${motiv}` });
   }
 
-  return returneazaBanii(comanda, motiv, sumaTur, opt.sursa === 'admin' || opt.sursa === 'sistem' ? undefined : opt.suma);
+  return { ...(await returneazaBanii(comanda, motiv, sumaTur)), suma: sumaTur };
 }
 
 /**
  * Pașii 2–3 pentru o comandă deja anulată: revendicarea refund-ului, banca, iar la refuz reactivarea. `suma` = suma
- * fixată de bilete_anuleaza; `sumaCeruta` = suma ofertei botului (pentru reluare). 0 lei → nimic de trimis la bancă.
+ * fixată de bilete_anuleaza. 0 lei → nimic de trimis la bancă.
  */
-async function returneazaBanii(comanda: BileteComanda, motiv: string, suma: number, sumaCeruta?: number): Promise<RezultatAnulare> {
+async function returneazaBanii(comanda: BileteComanda, motiv: string, suma: number): Promise<RezultatAnulare> {
   const db = getSupabase();
   const comandaId = comanda.id;
-  void sumaCeruta;
   if (!(suma > 0)) {
     await db.from('bilete_comenzi').update({ refund_finalizat_la: new Date().toISOString() }).eq('id', comandaId).is('refund_finalizat_la', null);
     return { comanda, refund: 'fara_plata' };

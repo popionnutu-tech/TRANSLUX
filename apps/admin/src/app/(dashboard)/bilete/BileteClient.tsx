@@ -105,7 +105,7 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre, porto
   const [deschis, setDeschis] = useState<string | null>(null);
   const [detaliu, setDetaliu] = useState<Record<string, Detaliu>>({});
   const [motiv, setMotiv] = useState<Record<string, string>>({});
-  // 544: la turul cu retur redus — «vina noastră» (fără scădere) și «anulează și returul» (fiecare cu suma lui).
+  // 546: la turul cu retur redus — «vina noastră» (fără scădere) și «anulează și returul» (fiecare cu suma lui).
   const [vina, setVina] = useState<Record<string, boolean>>({});
   const [siRetur, setSiRetur] = useState<Record<string, boolean>>({});
   const [f, setF] = useState({ zi: filtre.zi ?? '', ruta: filtre.ruta ? String(filtre.ruta) : '', stare: filtre.stare ?? '', test: filtre.test ?? 'toate' });
@@ -222,7 +222,7 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre, porto
                             {(c.status === 'platita' || c.status === 'platita_fara_bilet') && (
                               <>
                                 <input placeholder="motivul returnării" value={motiv[c.id] ?? ''} onChange={(e) => setMotiv((m) => ({ ...m, [c.id]: e.target.value }))} style={{ ...inp, width: 260 }} />
-                                <button type="button" disabled={pending || !(motiv[c.id] ?? '').trim()} style={btn(true)} onClick={() => { if (confirm(`Anulezi comanda și ceri băncii returnarea a ${Number(c.total).toFixed(2)} MDL?`)) ruleaza(() => returneazaComanda(c.id, motiv[c.id] ?? '', { vinaNoastra: vina[c.id] === true, siReturul: siRetur[c.id] === true }), c.id); }}>Returnează</button>
+                                <button type="button" disabled={pending || !(motiv[c.id] ?? '').trim()} style={btn(true)} onClick={() => { if (confirm(`Anulezi comanda și ceri băncii returnarea (până la ${Number(c.total).toFixed(2)} MDL; dacă turul are un retur −20% plătit și nu bifezi «vina noastră» / «anulează și returul», se scade reducerea)?`)) ruleaza(() => returneazaComanda(c.id, motiv[c.id] ?? '', { vinaNoastra: vina[c.id] === true, siReturul: siRetur[c.id] === true }), c.id); }}>Returnează</button>
                                 <label style={{ fontSize: 12, display: 'flex', gap: 4, alignItems: 'center' }} title="Cursă anulată sau greșeala firmei: turul nu pierde reducerea dată returului"><input type="checkbox" checked={vina[c.id] === true} onChange={(e) => setVina((v) => ({ ...v, [c.id]: e.target.checked }))} />vina noastră</label>
                                 <label style={{ fontSize: 12, display: 'flex', gap: 4, alignItems: 'center' }} title="Dacă turul are un retur −20% plătit: îl anulează și pe el, fiecare cu suma lui"><input type="checkbox" checked={siRetur[c.id] === true} onChange={(e) => setSiRetur((v) => ({ ...v, [c.id]: e.target.checked }))} />anulează și returul</label>
                               </>

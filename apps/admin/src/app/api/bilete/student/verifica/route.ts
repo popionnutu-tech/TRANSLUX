@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cheieSiteValida } from '@/lib/bilete/site-auth';
 import { eJpegValid, verificaCarnet } from '@/lib/bilete/student-ai';
 
-// POST /api/bilete/student/verifica — verificarea AI a carnetului de student (migr. 544, plan pas 4). Site-ul trimite,
+// POST /api/bilete/student/verifica — verificarea AI a carnetului de student (migr. 546, plan pas 4). Site-ul trimite,
 // prin route handler-ul lui (nu acțiune de server: limita de 1 MB), două JPEG-uri ≤ 1 MB în base64 + telefon + nume.
 // Public în middleware (cale EXACTĂ), apărat prin BILETE_API_KEY; plafoanele pe zi sunt în bază (bilete_student_incepe).
 

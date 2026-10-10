@@ -59,9 +59,9 @@ export interface ComandaInput {
    * trimite: locul se dă automat la emitere. Lipsă sau gol → atribuire automată și pe retur.
    */
   locuriAlese?: number[] | null;
-  /** Promoția retur −20% (migr. 544): codul de retur al turului (64 hex), din pagina biletului tur. */
+  /** Promoția retur −20% (migr. 546): codul de retur al turului (64 hex), din pagina biletului tur. */
   codRetur?: string | null;
-  /** Promoția student −20% (migr. 544): jetonul primit după verificarea AI a carnetului. */
+  /** Promoția student −20% (migr. 546): jetonul primit după verificarea AI a carnetului. */
   studentJeton?: string | null;
 }
 
@@ -362,7 +362,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (cheileComenzii(comanda) !== cheileComenzii({ trip_date: input.tripDate, crm_route_id: input.crmRouteId, going_north: input.goingNorth, seats: input.seats, phone: v.phone })) {
       throw new ComandaError('idempotenta', 'aceeași cheie, alt conținut');
     }
-    // 544 (BLA-3/N11): reluarea compară INTRAREA promoției (turul din cod, verificarea din jeton), nu reducerea calculată;
+    // 546 (BLA-3/N11): reluarea compară INTRAREA promoției (turul din cod, verificarea din jeton), nu reducerea calculată;
     // jetonul deja legat de această comandă nu e motiv de refuz.
     const promoIntrare = await idPromoDinIntrare(input);
     if ((comanda.comanda_tur_id ?? null) !== promoIntrare.turId || (comanda.student_verificare_id ?? null) !== promoIntrare.verificareId) {
@@ -411,7 +411,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input);
 
   // Proba fizică (Ion, 08.10: «pui să fie biletul 10 lei»): prețul forțat; totalul se socotește după, deci amount = total.
-  // Promoțiile Bălți ⇄ Chișinău (544): reducerea doar la public / test_admin; cerută dar neaplicabilă → refuz cu motivul
+  // Promoțiile Bălți ⇄ Chișinău (546): reducerea doar la public / test_admin; cerută dar neaplicabilă → refuz cu motivul
   // (clientul a văzut cota și nu trebuie să plătească alt preț decât a crezut).
   const promo = await calculeazaPromo({
     mod: opt.mod, test: opt.mod !== 'public', phone: v.phone, passengerName: v.name, urcare: cursa.fromNameRo, coborare: cursa.toNameRo,
@@ -465,7 +465,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       punct_urcare_lon: punct?.lon ?? null,
       // ION-239: locurile alese (retur) — verificate în funcție, sub lacătul cursei, împreună cu INSERT-ul
       locuri_alese: locuriAlese,
-      // 544: promoția (reverificată în funcție, sub lacăt) și cota online a cursei
+      // 546: promoția (reverificată în funcție, sub lacăt) și cota online a cursei
       pret_intreg: promo.reducere ? promo.pretIntreg : null,
       reducere_tip: promo.reducere?.tip ?? null,
       reducere_pct: promo.reducere?.pct ?? null,
@@ -494,7 +494,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (/RETUR_(TUR_NEVALID|TERMEN|FOLOSIT)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('cod_retur'));
     if (/STUDENT_UN_LOC/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student_locuri'));
     if (/STUDENT_(VERIFICARE|JETON_FOLOSIT|PLAFON)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student'));
-    if (/PROMO_SOFER/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('sofer'));
+    if (/PROMO_SOFER/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere(input.studentJeton ? 'student' : 'cod_retur'));
     if (/PLAFON_PROBA/.test(error.message)) throw new ComandaError('plafon', 's-au făcut deja 10 comenzi de probă azi');
     if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
@@ -664,7 +664,7 @@ export interface CotaPret {
 }
 
 /**
- * Cota de preț pentru site (POST /api/bilete/pret, migr. 544): prețul întreg, prețul cu reducerea cerută și de ce nu se
+ * Cota de preț pentru site (POST /api/bilete/pret, migr. 546): prețul întreg, prețul cu reducerea cerută și de ce nu se
  * aplică. Nu creează nimic; comanda recalculează totul pe server și în bază, sub lacăt.
  */
 export async function cotaPret(input: Pick<ComandaInput, 'tripDate' | 'crmRouteId' | 'goingNorth' | 'fromRo' | 'toRo' | 'seats' | 'phone' | 'passengerName' | 'codRetur' | 'studentJeton'>): Promise<CotaPret> {

@@ -148,7 +148,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   };
   const atingeLoc = (nr: number) => setAlese((a) => comutaLoc(a, nr, seats, harta.ocupate));
   const hartaActiva = alegeLocuri && harta.stare === "ok";
-  // Promoțiile Bălți ⇄ Chișinău (544): panoul «Reduceri» doar pe pereche; prețul arătat vine din panou.
+  // Promoțiile Bălți ⇄ Chișinău (546): panoul «Reduceri» doar pe pereche; prețul arătat vine din panou.
   const arePromo = perechePromo(fromRo, toRo);
   const [reducere, setReducere] = React.useState<ReducereAleasa>({ pret: null, codRetur: null, studentJeton: null, blocheazaPlata: false });
   const pretLoc = reducere.pret ?? trip.price;

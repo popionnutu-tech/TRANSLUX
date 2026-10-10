@@ -189,6 +189,10 @@ export async function returneaza(checkoutId: string, motiv: string): Promise<Rez
     .limit(1).maybeSingle();
   if (cErr) return { ok: false, eroare: `nu pot verifica dacă plata e a unei comenzi de bilete (${cErr.message}); nu returnez` };
   if (comanda) {
+    // 546 (audit M3): turul cu un retur −20% plătit se returnează din /bilete, unde dispecerul alege «vina noastră» /
+    // «anulează și returul»; aici s-ar scădea reducerea fără întrebare.
+    const { count: retururi } = await getSupabase().from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', comanda.id).eq('status', 'platita');
+    if ((retururi ?? 0) > 0) return { ok: false, eroare: 'comanda are un retur −20% plătit: returnează din /bilete (alegi «vina noastră» sau «anulează și returul»)' };
     try {
       const r = await anuleazaSiReturneaza(comanda.id, { sursa: 'admin', motiv });
       revalidatePath('/plati');

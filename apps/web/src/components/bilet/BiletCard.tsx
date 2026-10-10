@@ -70,7 +70,7 @@ export function BiletCard({ comanda: c, bilet: b, locale }: { comanda: ComandaPu
     <div className="bilet-card" style={{ background: RED, borderRadius: 26, boxShadow: '0 20px 50px rgba(60,20,30,0.22)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#fff' }}>
       {/* Proba fizică (migr. 532): biletul de probă se vede de departe — nu e valabil pe o cursă reală. */}
       {c.proba && <div style={{ background: '#fff', color: '#b91c1c', textAlign: 'center', padding: '10px 14px', fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{tx.proba}</div>}
-      {/* 544: promoția se vede de departe; studentul arată carnetul șoferului la urcare. */}
+      {/* 546: promoția se vede de departe; studentul arată carnetul șoferului la urcare. */}
       {c.reducere && <div style={{ background: '#FFD45C', color: '#231A1C', textAlign: 'center', padding: '8px 14px', fontSize: 13, fontWeight: 800, letterSpacing: 0.4 }}>{c.reducere.tip === 'student' ? tx.student20 : tx.retur20}</div>}
       <div style={{ padding: '20px 22px 6px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>

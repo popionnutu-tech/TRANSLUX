@@ -1,4 +1,4 @@
--- 544_bilete_promotii_balti.sql — promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026: «hai să lansăm aceste 2 promoții la
+-- 546_bilete_promotii_balti.sql — promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026: «hai să lansăm aceste 2 promoții la
 -- cumpărare bilete online din Bălți spre Chișinău și din Chișinău spre Bălți»; «20% doar la a 2-a cursă»; «AI trebuie să
 -- verifice carnetul de student la client»; «tur-retur niciodată să nu fie posibil pe aceeași cursă, ca să nu facă fraudă
 -- șoferul»; «vineri până la orele 12 putem vinde câte dorim, după ora 12 lăsăm minim 2 locuri»; «lansăm de pe 13.10»).
@@ -34,14 +34,14 @@ ALTER TABLE bilete_comenzi
   ADD COLUMN IF NOT EXISTS cota_online smallint,
   ADD COLUMN IF NOT EXISTS scazut_la_refund numeric(10,2) NOT NULL DEFAULT 0;
 
-COMMENT ON COLUMN bilete_comenzi.pret_intreg IS 'Prețul întreg pe loc înainte de reducere (544); null = fără reducere.';
-COMMENT ON COLUMN bilete_comenzi.reducere_lei_loc IS 'Reducerea PE LOC (544): pret_intreg − price_per_seat; pe comandă = × seats.';
-COMMENT ON COLUMN bilete_comenzi.comanda_tur_id IS 'Returul cu reducere (544): turul plătit pe care s-a sprijinit; un tur = un singur retur plătit.';
+COMMENT ON COLUMN bilete_comenzi.pret_intreg IS 'Prețul întreg pe loc înainte de reducere (546); null = fără reducere.';
+COMMENT ON COLUMN bilete_comenzi.reducere_lei_loc IS 'Reducerea PE LOC (546): pret_intreg − price_per_seat; pe comandă = × seats.';
+COMMENT ON COLUMN bilete_comenzi.comanda_tur_id IS 'Returul cu reducere (546): turul plătit pe care s-a sprijinit; un tur = un singur retur plătit.';
 COMMENT ON COLUMN bilete_comenzi.promo_pereche IS 'Comanda e pe perechea promoțiilor (Bălți ⇄ Chișinău, 544): la plata unui tur primește cod_retur.';
-COMMENT ON COLUMN bilete_comenzi.cod_retur IS 'Secretul care dă −20% la retur (544); separat de `cod` (pagina biletului), nu dă acces la bilet.';
-COMMENT ON COLUMN bilete_comenzi.loc_cheie IS 'Cheile normalizate (fără diacritice) ale localităților cu cotă online ale comenzii (544), scrise de TS.';
-COMMENT ON COLUMN bilete_comenzi.cota_online IS 'Cota online a cursei pentru loc_cheie la creare (544): 4, sau 2 vineri spre Bălți / duminică spre Chișinău după 12:00.';
-COMMENT ON COLUMN bilete_comenzi.scazut_la_refund IS 'Cât s-a reținut la refund-ul turului pentru reducerea dată returului (544); 0 după reactivare.';
+COMMENT ON COLUMN bilete_comenzi.cod_retur IS 'Secretul care dă −20% la retur (546); separat de `cod` (pagina biletului), nu dă acces la bilet.';
+COMMENT ON COLUMN bilete_comenzi.loc_cheie IS 'Cheile normalizate (fără diacritice) ale localităților cu cotă online ale comenzii (546), scrise de TS.';
+COMMENT ON COLUMN bilete_comenzi.cota_online IS 'Cota online a cursei pentru loc_cheie la creare (546): 4, sau 2 vineri spre Bălți / duminică spre Chișinău după 12:00.';
+COMMENT ON COLUMN bilete_comenzi.scazut_la_refund IS 'Cât s-a reținut la refund-ul turului pentru reducerea dată returului (546); 0 după reactivare.';
 
 ALTER TABLE bilete_comenzi DROP CONSTRAINT IF EXISTS bilete_comenzi_reducere_tip_check;
 ALTER TABLE bilete_comenzi ADD CONSTRAINT bilete_comenzi_reducere_tip_check CHECK (reducere_tip IN ('retur', 'student'));
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS bilete_studenti_verificari (
   created_at timestamptz NOT NULL DEFAULT now(),
   verificat_la timestamptz
 );
-COMMENT ON TABLE bilete_studenti_verificari IS 'Verificările AI ale carnetelor de student (544): AI-ul extrage, codul decide; pozele în bucketul privat carnete-studenti, golite la 90 de zile.';
+COMMENT ON TABLE bilete_studenti_verificari IS 'Verificările AI ale carnetelor de student (546): AI-ul extrage, codul decide; pozele în bucketul privat carnete-studenti, golite la 90 de zile.';
 ALTER TABLE bilete_studenti_verificari ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS bilete_studenti_tel_idx ON bilete_studenti_verificari (telefon, created_at);
 CREATE INDEX IF NOT EXISTS bilete_studenti_ip_idx ON bilete_studenti_verificari (ip_hash, created_at);
@@ -119,7 +119,7 @@ ON CONFLICT (key) DO NOTHING;
 -- ── 5. Funcții ajutătoare ───────────────────────────────────────────────────────────────────────────────────────────
 -- Ziua de lucru a comenzii «activă» pentru cote și limite: plătită, sau deschisă cât rezervarea ține (30 min).
 CREATE OR REPLACE FUNCTION public.bilete_comanda_activa(s text, creat timestamptz, refund_fin timestamptz, cu_refund_in_curs boolean)
-RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+RETURNS boolean LANGUAGE sql STABLE AS $$
   SELECT s IN ('platita', 'platita_fara_bilet')
       OR (s IN ('noua', 'eroare_creare') AND creat > now() - interval '30 minutes')
       OR (cu_refund_in_curs AND s = 'anulata' AND refund_fin IS NULL)
@@ -211,7 +211,8 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'motiv', 'plafon_global');
   END IF;
   IF n_tel >= 5 THEN RETURN jsonb_build_object('ok', false, 'motiv', 'plafon_telefon'); END IF;
-  IF n_ip >= 20 THEN RETURN jsonb_build_object('ok', false, 'motiv', 'plafon_ip'); END IF;
+  -- 5 pe IP (security M1: telefonul nu e dovedit, deci plafonul pe IP e frâna reală a epuizării plafonului global).
+  IF n_ip >= 5 THEN RETURN jsonb_build_object('ok', false, 'motiv', 'plafon_ip'); END IF;
   INSERT INTO bilete_studenti_verificari (telefon, ip_hash, nume_pasager, nume_pasager_cheie)
   VALUES (p_telefon, coalesce(p_ip, ''), p_nume, p_nume_cheie) RETURNING id INTO v_id;
   RETURN jsonb_build_object('ok', true, 'id', v_id);
@@ -267,7 +268,7 @@ BEGIN
     IF n >= 10 THEN RAISE EXCEPTION 'PLAFON_PROBA' USING ERRCODE = 'P0001'; END IF;
   END IF;
 
-  -- Cota online pe localitate (544): locuri, nu comenzi; doar comenzile reale (test=false) intră în ea.
+  -- Cota online pe localitate (546): locuri, nu comenzi; doar comenzile reale (test=false) intră în ea.
   IF v_chei IS NOT NULL AND v_cota IS NOT NULL AND NOT v_test THEN
     FOREACH k IN ARRAY v_chei LOOP
       n := bilete_cota_ocupata(v_date, v_route, v_north, k, NULL);
@@ -275,7 +276,7 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- Promoțiile (544): telefonul unui șofer nu primește reducere (Ion, 10.10: «ca să nu facă fraudă șoferul»).
+  -- Promoțiile (546): telefonul unui șofer nu primește reducere (Ion, 10.10: «ca să nu facă fraudă șoferul»).
   IF v_red IS NOT NULL AND EXISTS (SELECT 1 FROM drivers WHERE phone = v_phone) THEN
     RAISE EXCEPTION 'PROMO_SOFER' USING ERRCODE = 'P0001';
   END IF;
@@ -348,7 +349,7 @@ BEGIN
   SELECT * INTO m FROM maib_checkouts WHERE checkout_id = p_checkout_id;
   IF NOT FOUND THEN RETURN 0; END IF;
 
-  -- Protocolul de blocare (544): perechea comenzii (citită fără lacăt), apoi lacătul global, apoi rândul.
+  -- Protocolul de blocare (546): perechea comenzii (citită fără lacăt), apoi lacătul global, apoi rândul.
   SELECT id INTO v_id FROM bilete_comenzi WHERE checkout_id = p_checkout_id;
   IF v_id IS NULL AND m.order_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN v_id := m.order_id::uuid; END IF;
   IF v_id IS NOT NULL THEN PERFORM bilete_lacat_pereche(v_id); END IF;
@@ -381,7 +382,7 @@ BEGIN
   END IF;
 
   IF c.status IN ('noua', 'eroare_creare') THEN
-    -- Revalidarea (544): retur pe un tur anulat sau deja folosit, cota depășită după pierderea rezervării, limita
+    -- Revalidarea (546): retur pe un tur anulat sau deja folosit, cota depășită după pierderea rezervării, limita
     -- studentului → «platita_fara_bilet» + alertă (fără excepție: banca nu primește 500).
     v_alerta := bilete_revalideaza_plata(c);
     IF v_alerta IS NOT NULL THEN
@@ -505,7 +506,9 @@ BEGIN
     SELECT EXISTS (SELECT 1 FROM bilete WHERE comanda_id = rt.id AND status = 'urcat') INTO v_rt_urcat;
     IF coalesce(p_si_returul, false) THEN
       IF v_rt_urcat THEN RAISE EXCEPTION 'RETUR_URCAT' USING ERRCODE = 'P0001'; END IF;
-      IF p_grila_retur IS NULL OR p_grila_retur < 0 OR p_grila_retur > rt.total THEN RAISE EXCEPTION 'GRILA_RETUR_NEVALIDA' USING ERRCODE = 'P0001'; END IF;
+      -- Fără grila returului (dispecerul din /bilete) = integral: returul n-a plecat, banii lui se întorc toți.
+      p_grila_retur := coalesce(p_grila_retur, rt.total);
+      IF p_grila_retur < 0 OR p_grila_retur > rt.total THEN RAISE EXCEPTION 'GRILA_RETUR_NEVALIDA' USING ERRCODE = 'P0001'; END IF;
       UPDATE bilete SET status = 'anulat' WHERE comanda_id = rt.id AND status = 'valid';
       UPDATE bilete_comenzi SET status = 'anulata', cancelled_at = now(), cancel_source = p_sursa,
              refund_reason = left('împreună cu turul: ' || coalesce(p_motiv, ''), 500), updated_at = now()

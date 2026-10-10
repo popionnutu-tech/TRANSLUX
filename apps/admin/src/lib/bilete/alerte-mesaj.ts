@@ -23,6 +23,12 @@ const TIPURI: Record<string, string> = {
   refund_pe_zi_confirmata: '↩️ Returnare după plecarea cursei',
   email_esuat: '✉️ Biletul nu a plecat pe e-mail',
   retur_cerere: '↩️ Cerere de returnare din Telegram',
+  // 546: promoțiile Bălți ⇄ Chișinău
+  retur_tur_anulat: '🎟 Retur −20% plătit pe un tur anulat/folosit',
+  cota_depasita: '🚌 Cota online a cursei depășită la plată',
+  plafon_student: '🎓 Limita studentului depășită la plată',
+  ai_eroare: '🤖 Verificarea carnetelor nu merge (AI)',
+  plafon_ai: '🛑 Plafonul zilnic al verificărilor AI atins',
 };
 
 function esc(s: string): string {

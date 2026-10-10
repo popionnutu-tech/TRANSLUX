@@ -85,9 +85,9 @@ export interface ComandaBiletInput {
   locuriAlese: number[] | null;
   /** ION-249: cumpărat din mini app-ul Telegram — initData-ul contului; panoul îl verifică și leagă comanda de cont. */
   telegramInitData?: string | null;
-  /** 544: promoția retur −20% — codul de retur al turului (din pagina biletului tur). */
+  /** 546: promoția retur −20% — codul de retur al turului (din pagina biletului tur). */
   codRetur?: string | null;
-  /** 544: promoția student −20% — jetonul primit după verificarea carnetului. */
+  /** 546: promoția student −20% — jetonul primit după verificarea carnetului. */
   studentJeton?: string | null;
 }
 
@@ -158,7 +158,7 @@ export interface ComandaPublica {
   proba?: boolean;
   /** Echipajul cursei (migr. 538): după bifa dispecerului placa + prenumele șoferului (+ telefonul cu 3 h înainte de plecare). */
   echipaj?: { stare: 'astept' | 'anulat' | 'gata'; placa: string | null; sofer: string | null; telefon: string | null } | null;
-  /** 544: reducerea aplicată și codul de retur (doar pe turul plătit al perechii Bălți ⇄ Chișinău). */
+  /** 546: reducerea aplicată și codul de retur (doar pe turul plătit al perechii Bălți ⇄ Chișinău). */
   reducere?: { tip: 'retur' | 'student'; pret_intreg: number } | null;
   cod_retur?: string | null;
   bilete: BiletPublic[];
@@ -217,7 +217,7 @@ export async function bileteleClientuluiTelegram(initData: string): Promise<Rasp
   }
 }
 
-// ── Promoțiile Bălți ⇄ Chișinău (migr. 544) ───────────────────────────────────────────────────────────────────────
+// ── Promoțiile Bălți ⇄ Chișinău (migr. 546) ───────────────────────────────────────────────────────────────────────
 
 export interface IntrarePret {
   tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; seats: number;

@@ -64,7 +64,7 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', c.id).eq('status', 'urcat');
   if ((urcate ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
 
-  // 544: turul are un retur −20% plătit → suma depinde de alegere («doar turul» pierde reducerea, «ambele», «vina
+  // 546: turul are un retur −20% plătit → suma depinde de alegere («doar turul» pierde reducerea, «ambele», «vina
   // noastră»). Până la varianta din bot (deploy-bot), decide dispecerul în /bilete, cu bifele «vina noastră» /
   // «anulează și returul»; botul nu promite o sumă pe care banca n-ar primi-o.
   const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', c.id).eq('status', 'platita');
@@ -161,13 +161,20 @@ export async function confirmaOferta(telegramIdRaw: unknown, ofertaIdRaw: unknow
   }
   const of = o as { id: string; comanda_id: string; suma: number; validata_la: string };
   let rezultat = 'eroare';
+  // 546 (audit M2): returul −20% plătit între ofertă și confirmare → suma s-ar schimba; decide dispecerul.
+  const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', of.comanda_id).eq('status', 'platita');
+  if ((retururi ?? 0) > 0) {
+    await alerta(of.comanda_id, telegramId, 'confirmare de returnare pe un tur cu retur −20% plătit după ofertă: dispecerul alege «doar turul» sau «anulează și returul»');
+    await db.from('bilete_retur_oferte').update({ rezultat: 'refuz:dispecer' }).eq('id', of.id);
+    return stareOferta(telegramId, of.id);
+  }
   try {
     const r = await anuleazaSiReturneaza(of.comanda_id, {
       sursa: 'ai', motiv: `returnare cerută în botul Telegram (oferta ${of.id}, ${Number(of.suma)} lei după grilă)`,
       suma: Number(of.suma), acumMs: Date.parse(of.validata_la),
     });
     rezultat = r.refund === 'creat' ? 'creat' : r.refund === 'necunoscut' ? 'necunoscut' : 'fara_plata';
-    if (r.refund !== 'fara_plata') await trimiteEmailAnulare(of.comanda_id, Number(of.suma)).catch(() => 'esuat');
+    if (r.refund !== 'fara_plata') await trimiteEmailAnulare(of.comanda_id, r.suma ?? Number(of.suma)).catch(() => 'esuat');
   } catch (e) {
     rezultat = e instanceof ComandaError ? (e.cod === 'inchis' && /scanat/.test(e.message) ? 'refuz:urcat'
       : e.cod === 'maib' && /rămas anulată/.test(e.message) ? 'refuz:maib_anulata' : `refuz:${e.cod}`) : 'eroare';

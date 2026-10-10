@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verificaCarnetLaPanou } from '@/lib/bilete-api';
 import { normalizeazaTelefon } from '@/lib/bilete-reguli';
 
-// POST /api/bilete/student — verificarea carnetului de student (migr. 544, plan pas 4). Route handler, nu acțiune de
+// POST /api/bilete/student — verificarea carnetului de student (migr. 546, plan pas 4). Route handler, nu acțiune de
 // server: acțiunile au limita de 1 MB, iar două poze trec de ea. Pozele vin convertite în browser (JPEG ≤ 1600 px,
 // ≤ 700 KB fiecare); aici doar se verifică forma, se face amprenta IP și se trimite la panou cu BILETE_API_KEY.
 

@@ -8,6 +8,7 @@ import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
 import { handleSoferContact } from './handlers/sofer.js';
+import { handleConfirmaInstruire, handleDecizieLegare, RE_CONFIRMA, RE_DECIZIE } from './handlers/instruire.js';
 import { handleBileteAzi } from './handlers/bilete-azi.js';
 import { creeazaHandlerCallbackRetur, creeazaHandlerMesajClient } from './handlers/retur.js';
 import { creeazaHandlerCallbackDupaCursa } from './handlers/dupa-cursa.js';
@@ -333,6 +334,9 @@ export function createBot(): Bot<BotContext> {
   bot.callbackQuery(/^retur:/, creeazaHandlerCallbackRetur());
   // ION-252: 👍 / 👎 de sub mesajul de după cursă. Comanda din callback_data trebuie să fie legată de callbackQuery.from.
   bot.callbackQuery(/^final:/, creeazaHandlerCallbackDupaCursa());
+  // Instruirea biletelor (10.10): confirmarea șoferului (doar Telegram-ul lui) și legarea aprobată de Iurie / admin.
+  bot.callbackQuery(RE_CONFIRMA, handleConfirmaInstruire);
+  bot.callbackQuery(RE_DECIZIE, handleDecizieLegare);
 
   // Menu callback handlers
   bot.callbackQuery('menu:report', async (ctx) => {

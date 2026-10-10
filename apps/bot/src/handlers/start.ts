@@ -6,6 +6,7 @@ import { codDinPayload, handleBiletStart } from './bilet.js';
 import { esteStartSofer, handleSoferStart } from './sofer.js';
 import { esteStartBileteAzi, handleBileteAzi } from './bilete-azi.js';
 import { handleStartClient } from './retur.js';
+import { handleInstruitStart, soferDinStartInstruit } from './instruire.js';
 
 export async function handleStart(ctx: BotContext) {
   const telegramId = ctx.from?.id;
@@ -25,6 +26,13 @@ export async function handleStart(ctx: BotContext) {
   // Ordinea: bilet_<cod> → bilete_azi → sofer → invitație.
   if (esteStartBileteAzi(payload)) {
     await handleBileteAzi(ctx);
+    return;
+  }
+
+  // Instruirea biletelor (10.10): codul QR al șoferului din artifactul lui Iurie — confirmare sau cerere de legare.
+  const soferInstruit = soferDinStartInstruit(payload);
+  if (soferInstruit) {
+    await handleInstruitStart(ctx, soferInstruit);
     return;
   }
 

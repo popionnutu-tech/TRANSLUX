@@ -140,10 +140,18 @@ export async function handleSoferContact(ctx: Context): Promise<void> {
     await ctx.reply(T_MINI_APP.dupaLegare, { parse_mode: 'HTML', reply_markup: tastaturaMiniApp() });
     return;
   }
-  const { error } = await sb
+  // Condiționat de Telegram-ul citit mai sus (aici mereu null — deja_legat e refuzat): o legare făcută între timp de
+  // Iurie din bot (instruire.ts) nu se suprascrie; 0 rânduri = s-a schimbat ceva → «încearcă din nou», fără «Gata» fals.
+  const { data: legat, error } = await sb
     .from('drivers')
     .update({ telegram_id: fromId, telegram_legat_la: new Date().toISOString(), telegram_legat_prin: 'telefon' })
-    .eq('id', d.sofer.id);
+    .eq('id', d.sofer.id)
+    .is('telegram_id', null)
+    .select('id');
+  if (!error && !legat?.length) {
+    await ctx.reply(T.refuz.deja_legat, { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+    return;
+  }
   if (error) {
     // indexul unic drivers_telegram_id_uniq: același Telegram e deja pe alt șofer
     const altSofer = /drivers_telegram_id_uniq|duplicate key/i.test(error.message);

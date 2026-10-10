@@ -6,6 +6,7 @@ import { BiletCursa } from "./bilet-cursa";
 import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { track } from "@/lib/track";
 import { BuyTicketForm } from "./buy-ticket-form";
+import type { CumparareSalvata } from "@/lib/cumparare-salvata";
 
 interface RouteResultsProps {
   from: string;
@@ -19,10 +20,12 @@ interface RouteResultsProps {
   onClose: () => void;
   /** ION-249: în mini app-ul Telegram, numele și telefonul din ultima comandă a contului precompletează formularul. */
   contact?: ContactPrecompletat | null;
+  /** Plată eșuată reluată: formularul cursei se deschide direct, la plată. */
+  reluare?: CumparareSalvata | null;
 }
 
-export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null }: RouteResultsProps) {
-  const [cumpara, setCumpara] = React.useState<number | null>(null);
+export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null, reluare = null }: RouteResultsProps) {
+  const [cumpara, setCumpara] = React.useState<number | null>(reluare ? 0 : null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
 
@@ -151,7 +154,8 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
         <div style={{ position: "relative" }}>
         <div ref={scrollRef} className="route-results-scroll" style={{ overflowY: "auto", background: "#FAF6F5", padding: ales ? 0 : "16px 14px 20px" }}>
           {ales && fromRo && toRo ? (
-            <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} />
+            <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact}
+              reluare={reluare && cumpara === 0 ? reluare : null} from={from} to={to} />
           ) : (
             <>
               {trips.length === 0 && (

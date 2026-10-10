@@ -13,6 +13,7 @@ import { curseReturPotrivite, pasageriText, politicaChei, rezumatTurRetur } from
 import { BiletCursa } from "./bilet-cursa";
 import { MiniCalendar } from "./mini-calendar";
 import { SeatMap } from "./seat-map";
+import { salveazaCumpararea, type CumparareSalvata } from "@/lib/cumparare-salvata";
 
 // Tur-retur Bălți ⇄ Chișinău în 3 pași (Ion, 10.10.2026: «întâi alege ruta de pe tur și vede clar data sus, apoi alege
 // cursa pe retur și vede data clar sus, apoi locul din Chișinău»; «gândește-te tot acest proces să fie ușor pentru client
@@ -103,24 +104,26 @@ function Trimite({ text, blocat }: { text: string; blocat: boolean }) {
   return <button type="submit" className="trf-plata" disabled={pending || blocat}>{pending ? "…" : text}</button>;
 }
 
-export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziReturInitiala, pasageri: pasageriInitial, locale, onClose, contact = null }: {
+export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziReturInitiala, pasageri: pasageriInitial, locale, onClose, contact = null, reluare = null }: {
   from: string; to: string; fromRo: string; toRo: string; tripsTur: TripResult[]; dataRetur: string; pasageri: number;
   locale: "ro" | "ru"; onClose: () => void; contact?: ContactPrecompletat | null;
+  /** Plată eșuată reluată (Ion, 10.10: «am pierdut toți pașii»): turul, returul, locurile și datele de dinainte, la plată. */
+  reluare?: CumparareSalvata | null;
 }) {
   const tx = TXT[locale];
-  const [tur, setTur] = React.useState<TripResult | null>(null);
-  const [retur, setRetur] = React.useState<TripResult | null>(null);
+  const [tur, setTur] = React.useState<TripResult | null>(reluare?.trip ?? null);
+  const [retur, setRetur] = React.useState<TripResult | null>(reluare?.retur ?? null);
   const [ziRetur, setZiRetur] = React.useState(ziReturInitiala);
   const [calendar, setCalendar] = React.useState(false);
-  const [pasageri, setPasageri] = React.useState(Math.max(1, Math.min(4, pasageriInitial)));
+  const [pasageri, setPasageri] = React.useState(Math.max(1, Math.min(4, reluare?.seats ?? pasageriInitial)));
   const [pct, setPct] = React.useState<number | null>(null);
   const [cache, setCache] = React.useState<Record<string, RezultatCautare>>({});
   const [incarca, setIncarca] = React.useState(false);
-  const [camp, setCamp] = React.useState(() => ({ lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" }));
+  const [camp, setCamp] = React.useState(() => reluare?.camp ?? ({ lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" }));
   const [consent, setConsent] = React.useState(false);
-  const [punct, setPunct] = React.useState<number | null>(null);
-  const [aleseTur, setAleseTur] = React.useState<number[]>([]);
-  const [aleseRetur, setAleseRetur] = React.useState<number[]>([]);
+  const [punct, setPunct] = React.useState<number | null>(reluare?.punct ?? null);
+  const [aleseTur, setAleseTur] = React.useState<number[]>(reluare?.alese ?? []);
+  const [aleseRetur, setAleseRetur] = React.useState<number[]>(reluare?.aleseRetur ?? []);
   const [tgInitData, setTgInitData] = React.useState("");
   React.useEffect(() => { setTgInitData(citesteInitData()); }, []);
   React.useEffect(() => { void procentRetur().then(setPct).catch(() => setPct(0)); }, []);
@@ -128,8 +131,8 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   // Escape: întâi calendarul, apoi un pas înapoi, abia la pasul 1 închide (plan R3).
   // Ion, 10.10.2026: «alegerea locului îndată ce am ales ruta, apoi ruta retur (dacă de la nord — locul automat), apoi
   // datele personale și achitarea». Cursa din Chișinău (going_north) are harta; cea din nord trece direct mai departe.
-  const [locTurGata, setLocTurGata] = React.useState(false);
-  const [locReturGata, setLocReturGata] = React.useState(false);
+  const [locTurGata, setLocTurGata] = React.useState(reluare != null);
+  const [locReturGata, setLocReturGata] = React.useState(reluare != null);
   const pasLoc: "tur" | "retur" | null = tur && tur.going_north && !locTurGata ? "tur" : tur && retur && retur.going_north && !locReturGata ? "retur" : null;
   const pas: 1 | 2 | 3 = !tur || pasLoc === "tur" ? 1 : !retur || pasLoc === "retur" ? 2 : 3;
   const alegeTur = (t: TripResult | null) => { setTur(t); setLocTurGata(false); };
@@ -176,7 +179,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   const [cheieTur, setCheieTur] = React.useState(uuid);
   const [cheieRetur, setCheieRetur] = React.useState(uuid);
   // Toate cheile de tur trimise înainte (cel mult 4): serverul le încearcă pe toate (audit #1).
-  const [cheiVechi, setCheiVechi] = React.useState<string[]>([]);
+  const [cheiVechi, setCheiVechi] = React.useState<string[]>(reluare?.chei ?? []);
   const [trimisCu, setTrimisCu] = React.useState<string | null>(null);
   // Alegerea completă, cu locurile și punctul de urcare (audit #3): orice schimbare după o trimitere → chei noi.
   const alegere = tur && retur ? [tur.crm_route_id, tur.trip_date, tur.time, retur.crm_route_id, retur.trip_date, retur.time, pasageri,
@@ -336,7 +339,12 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
           )}
 
           {pas === 3 && !pasLoc && tur && retur && (
-            <form action={(fd) => { setTrimisCu(alegere); return action(fd); }} className="trf-plata-grid">
+            <form action={(fd) => {
+              setTrimisCu(alegere);
+              salveazaCumpararea({ tip: "tur-retur", from, to, fromRo, toRo, trip: tur, retur, seats: pasageri, alese: aleseTur, aleseRetur, punct, camp,
+                chei: [...cheiVechi.filter((k) => k !== cheieTur), cheieTur] });
+              return action(fd);
+            }} className="trf-plata-grid">
               <input type="hidden" name="lang" value={locale} />
               <input type="hidden" name="idempotencyKey" value={cheieTur} />
               <input type="hidden" name="crmRouteId" value={tur.crm_route_id} />

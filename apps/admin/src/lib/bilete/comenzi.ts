@@ -426,6 +426,20 @@ async function inlocuiesteIncercarea(cheie: string, input: ComandaInput): Promis
   const c = data as { id: string; status: string; checkout_id: string | null; creare_incercari: number; creare_in_curs_la: string | null; phone: string } | null;
   // Cheia (122 de biți aleatori din browser) e dovada; telefonul se ia de pe rândul vechi — omul poate să-l fi corectat (audit #4).
   if (!c || !DESCHISE.has(c.status as BileteComanda['status'])) return;
+  // Plata eșuată la bancă (MIA/aplicația băncii, card refuzat — Ion, 10.10: «am pierdut toți pașii»): sesiunea maib e
+  // închisă fără bani, deci încercarea veche (și returul ei din pachet) se expiră și omul plătește pe o comandă nouă.
+  if (c.checkout_id) {
+    const { data: ck, error: eCk } = await db.from('maib_checkouts').select('status, payment_status').eq('checkout_id', c.checkout_id).maybeSingle();
+    if (eCk) throw new Error(`maib_checkouts (înlocuire): ${eCk.message}`);
+    const st = String(ck?.status ?? '').toLowerCase(), pl = String(ck?.payment_status ?? '').toLowerCase();
+    if (['failed', 'expired', 'cancelled', 'declined'].includes(st) && !['executed', 'completed'].includes(pl)) {
+      const acum = new Date().toISOString();
+      const { error: eE } = await db.from('bilete_comenzi').update({ status: 'expirata', creare_in_curs_la: null, updated_at: acum })
+        .or(`id.eq.${c.id},and(comanda_tur_id.eq.${c.id},in_pachet.eq.true)`).in('status', ['noua', 'eroare_creare']);
+      if (eE) throw new Error(`bilete_comenzi (plată eșuată): ${eE.message}`);
+      return;
+    }
+  }
   const phone = c.phone;
   let incercari: number | null = c.creare_incercari;
   if (c.creare_incercari > 0 && !c.checkout_id && !c.creare_in_curs_la) {

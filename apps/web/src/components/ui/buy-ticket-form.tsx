@@ -10,6 +10,7 @@ import { linkHarta } from "@/lib/bilete-reguli";
 import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
 import { phoneText } from "@/lib/phone";
 import { citesteStudent } from "@/lib/student-sesiune";
+import { salveazaCumpararea, type CumparareSalvata } from "@/lib/cumparare-salvata";
 import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 import { BiletCursa, FOND_LISTA } from "./bilet-cursa";
@@ -97,19 +98,23 @@ function campuriInitiale(contact: ContactPrecompletat | null) {
   return { lastName: st?.nume ?? "", firstName: st?.prenume ?? "", phone: st?.telefon ?? "", email: "" };
 }
 
-export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null, returFix = null }: {
+export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null, returFix = null, reluare = null, from = "", to = "" }: {
   trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null;
+  /** Cumpărarea reluată după o plată eșuată: alegerea de dinainte, direct la pasul plății. */
+  reluare?: CumparareSalvata | null; from?: string; to?: string;
   /** Tur-retur ales pe pași (bara de căutare → tur → retur): cursa de retur, plătită în aceeași sesiune. */
   returFix?: TripResult | null;
 }) {
   const tx = TXT[locale];
   const [key, setKey] = React.useState(uuid);
-  const [seats, setSeats] = React.useState(1);
-  const [punct, setPunct] = React.useState<number | null>(null);
+  const [seats, setSeats] = React.useState(reluare?.seats ?? 1);
+  const [punct, setPunct] = React.useState<number | null>(reluare?.punct ?? null);
+  // Cheile încercărilor de dinainte (plată eșuată): serverul le expiră dacă banca n-a încasat nimic.
+  const [cheiVechi, setCheiVechi] = React.useState<string[]>(reluare?.chei ?? []);
   const ales = trip.puncte?.find((p) => p.id === punct) ?? null;
   // Câmpurile de text sunt controlate: React resetează formularul după fiecare răspuns al acțiunii, iar la o eroare
   // («loc_ocupat», banca nu răspunde) omul nu trebuie să scrie din nou numele și telefonul.
-  const [camp, setCamp] = React.useState(() => campuriInitiale(contact));
+  const [camp, setCamp] = React.useState(() => reluare?.camp ?? campuriInitiale(contact));
   const [consent, setConsent] = React.useState(false);
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
   const [stare, action] = useActionState<StareComanda, FormData>(cumparaBilet, {});
@@ -121,7 +126,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   // e pe ecran și după «loc_ocupat».
   const alegeLocuri = trip.going_north === true;
   const [harta, setHarta] = React.useState<Harta>({ stare: "incarca", ocupate: [] });
-  const [alese, setAlese] = React.useState<number[]>([]);
+  const [alese, setAlese] = React.useState<number[]>(reluare?.alese ?? []);
   const [reincarca, setReincarca] = React.useState(0);
   const { crm_route_id: rutaId, trip_date: ziua } = trip;
 
@@ -198,7 +203,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   // Doi pași, ca la tur-retur (Ion, 10.10.2026: «fă fix cum la tur-retur aici, împarte în 2 pași»): întâi locul pe harta
   // mică, apoi datele și plata. Doar când cursa are hartă (din Chișinău) și nu e tur-retur din formular.
   const doiPasi = alegeLocuri && !retur;
-  const [locGata, setLocGata] = React.useState(false);
+  const [locGata, setLocGata] = React.useState(reluare != null);
   const pasLoc = doiPasi && !locGata;
   const poateContinua = harta.stare === "indisponibila" || (harta.stare === "ok" && alese.length === seats);
   React.useEffect(() => { if (stare.ocupate?.length) setLocGata(false); }, [stare.nr]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -214,7 +219,15 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   });
 
   return (
-    <form action={action} className="cump-grid">
+    <form action={(fd) => {
+      // Alegerea rămâne în filă cât omul e la bancă; o plată eșuată o redeschide cu «Reia plata».
+      if (!retur) {
+        salveazaCumpararea({ tip: "simplu", from, to, fromRo, toRo, trip, retur: null, seats, alese, aleseRetur: [], punct, camp, chei: [...cheiVechi.filter((k) => k !== key), key] });
+        setCheiVechi((v) => [...v.filter((k) => k !== key), key].slice(-4));
+      }
+      return action(fd);
+    }} className="cump-grid">
+      {cheiVechi.filter((k) => k !== key).map((k) => <input key={k} type="hidden" name="inlocuieste" value={k} />)}
       {/* Pagina de cumpărare (Ion, 09.10.2026, varianta 1B): stânga — biletul ales și microbuzul; dreapta — datele și
           plata. Pe telefon totul unul sub altul, cu butonul de plată lipit jos. */}
       <style>{`

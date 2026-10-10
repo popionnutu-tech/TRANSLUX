@@ -48,6 +48,7 @@ import type { HomeOptions, HomePopular } from '@/lib/home-props';
 import { searchTrips, type TripResult } from '@/app/(public)/actions';
 import { perechePromo } from '@translux/db';
 import { citesteStudent } from '@/lib/student-sesiune';
+import { citesteCumpararea, stergeCumpararea, type CumparareSalvata } from '@/lib/cumparare-salvata';
 import type { ContactPrecompletat } from '@/lib/telegram-client';
 import LogoTranslux from './logo-translux';
 
@@ -102,6 +103,17 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   // căutare cursă verificare acte în regim live». La «Student» Acum / Mai târziu cer întâi verificarea (o dată pe filă).
   const [cuStudent, setCuStudent] = useState(false);
   const [verificaStudent, setVerificaStudent] = useState<null | (() => void)>(null);
+  // Plata eșuată (MIA / aplicația băncii): alegerea ținută în filă se redeschide la plată (Ion, 10.10: «am pierdut toți pașii»).
+  const [salvata, setSalvata] = useState<CumparareSalvata | null>(null);
+  const [reluare, setReluare] = useState<CumparareSalvata | null>(null);
+  useEffect(() => {
+    const c = citesteCumpararea();
+    setSalvata(c);
+    if (c && new URLSearchParams(window.location.search).get('reia') === '1') {
+      setReluare(c);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
   const [dataRetur, setDataRetur] = useState<string | null>(null);
   // Ion, 10.10: «la data tur-retur pune același calendar ca la Mai târziu» — fereastra «Când pleci?» pentru ambele câmpuri.
   const [calPentru, setCalPentru] = useState<null | 'plecare' | 'intoarcere'>(null);
@@ -320,6 +332,27 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           padding: '0 20px', paddingBottom: '8vh',
         }}>
 
+          {salvata && !reluare && (() => {
+            const z = new Date(`${salvata.trip.trip_date}T12:00:00`).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { day: 'numeric', month: 'short' });
+            return (
+              <div className="reia-banda" role="status">
+                <div className="reia-text">
+                  <b>{locale === 'ru' ? 'Оплата не завершена' : 'Plata nu s-a încheiat'}</b>
+                  <span>{salvata.from} → {salvata.to} · {z} · {salvata.trip.time}{salvata.retur ? (locale === 'ru' ? ' · туда-обратно' : ' · tur-retur') : ''}</span>
+                </div>
+                <button type="button" className="reia-buton" onClick={() => setReluare(salvata)}>{locale === 'ru' ? 'Повторить' : 'Reia plata'}</button>
+                <button type="button" className="reia-x" aria-label="×" onClick={() => { stergeCumpararea(); setSalvata(null); }}>&times;</button>
+                <style>{`
+.reia-banda{width:100%;max-width:720px;box-sizing:border-box;margin:0 0 12px;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-radius:18px;background:#fff;border:1.5px solid rgba(155,27,48,.25);box-shadow:0 8px 24px rgba(155,27,48,.12);font-family:var(--font-opensans),Open Sans,sans-serif}
+.reia-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.reia-text b{font-size:14.5px;color:#9B1B30}
+.reia-text span{font-size:13.5px;color:#4A3E41;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reia-buton{flex:none;min-height:42px;padding:0 14px;border:none;border-radius:12px;background:#9B1B30;color:#fff;font:800 14.5px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.reia-x{flex:none;width:34px;height:34px;border:none;border-radius:50%;background:#F4EEEF;color:#6B5B5F;font-size:19px;cursor:pointer}
+`}</style>
+              </div>
+            );
+          })()}
           <div className="hero-card" style={{
             width: '100%', maxWidth: 720,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -705,6 +738,15 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
         <StudentVerificare locale={locale} onGata={() => verificaStudent()} onClose={() => setVerificaStudent(null)} />
       )}
 
+      {reluare && reluare.tip === 'tur-retur' && reluare.retur && (
+        <TurReturFlux from={reluare.from} to={reluare.to} fromRo={reluare.fromRo} toRo={reluare.toRo} tripsTur={[reluare.trip]}
+          dataRetur={reluare.retur.trip_date} pasageri={reluare.seats} locale={locale} onClose={() => setReluare(null)}
+          contact={telegram?.contact ?? null} reluare={reluare} />
+      )}
+      {reluare && reluare.tip === 'simplu' && (
+        <RouteResults from={reluare.from} to={reluare.to} fromRo={reluare.fromRo} toRo={reluare.toRo} trips={[reluare.trip]} selectedTime={null}
+          locale={locale} onClose={() => setReluare(null)} contact={telegram?.contact ?? null} reluare={reluare} />
+      )}
       {showResults && dataRetur && cuRetur && esteBalti && (
         <TurReturFlux
           from={fromRef.current?.selectedOptions[0]?.text || ''}

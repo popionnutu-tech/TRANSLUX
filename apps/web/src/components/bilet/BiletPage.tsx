@@ -6,6 +6,7 @@ import { AsteaptaPlata, EcranCompletTelegram, ReturDupaTur, SalveazaBilet } from
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat, numeRuta } from './BiletCard';
 import LogoTranslux from '../logo-translux';
+import { ReiaPlata } from './ReiaPlata';
 
 // Pagina biletului (ION-197): /ro/bilet/<cod>, /ru/bilet/<cod>. Codul din link e secretul comenzii (128 de biți);
 // pagina nu se indexează, nu se cache-uiește, nu trimite referrer (next.config) și nu intră în page_views.
@@ -21,7 +22,7 @@ const TXT = {
   ro: {
     titlu: 'Biletul tău', astepta: 'În așteptarea plății', platit: 'Plătit', anulat: 'Anulat', returnat: 'Returnat',
     expirat: 'Plata nu a fost finalizată', eroare: 'Plata nu a putut fi pornită', fara_bilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
-    plataNu: 'Plata nu a trecut. Poți încerca din nou de pe site.',
+    plataNu: 'Plata nu a trecut. Alegerea ta e păstrată — reia plata dintr-o apăsare.',
     comanda: 'Comanda nr.', platitaPe: 'plătită pe', cursa: 'Cursa', urcare: 'Urcare', harta: 'pe hartă', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
     salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
@@ -35,7 +36,7 @@ const TXT = {
   ru: {
     titlu: 'Ваш билет', astepta: 'Ожидает оплаты', platit: 'Оплачен', anulat: 'Отменён', returnat: 'Возвращён',
     expirat: 'Оплата не завершена', eroare: 'Не удалось начать оплату', fara_bilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
-    plataNu: 'Оплата не прошла. Можно попробовать ещё раз на сайте.',
+    plataNu: 'Оплата не прошла. Ваш выбор сохранён — повторите оплату одним нажатием.',
     comanda: 'Заказ №', platitaPe: 'оплачен', cursa: 'Рейс', urcare: 'Посадка', harta: 'на карте', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
     arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
     salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
@@ -98,6 +99,8 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
             <>
               {!platit && <p style={{ fontWeight: 700, color: et.culoare, fontSize: 16 }}>{et.text}</p>}
               {plataNu && c.status === 'noua' && <p style={{ color: RED }}>{tx.plataNu}</p>}
+              {plataNu && (c.status === 'noua' || c.status === 'expirata') && <ReiaPlata locale={locale} platit={false} />}
+              {platit && <ReiaPlata locale={locale} platit />}
 
               {!platit && (
                 <div style={{ display: 'grid', gap: 6, padding: 14, borderRadius: 14, background: '#fff', border: '1px solid #eee', fontSize: 14 }}>

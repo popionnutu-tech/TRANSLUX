@@ -172,7 +172,7 @@ async function publicaUna(p: Postare): Promise<void> {
     trimitereInceputa = true;
     await scoateButoanele(p, topic);
     const requestId = await publica(process.env.UPLOAD_POST_API_KEY!, {
-      user: p.upload_post_user, platforme, tip: p.tip, text: p.text_final,
+      user: p.upload_post_user, platforme, tip: p.tip, durataS: p.durata_s, text: p.text_final,
       facebookPageId: p.facebook_page_id, primulComentariu: topic.primul_comentariu, idPostare: p.id,
     }, video, `${p.id}.mp4`);
     await seteazaSigur(p.id, { stare: 'trimis', upload_request_id: requestId, eroare: null });

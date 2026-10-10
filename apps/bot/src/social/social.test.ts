@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decalajFus, formatLoc, momentLocal, urmatorulLoc, ziLocala } from './calendar.js';
-import { campuriPublicare, interpreteazaStarea } from './uploadPost.js';
+import { campuriPublicare, interpreteazaStarea, tipFacebook, platformePosibile } from './uploadPost.js';
 import { compuneText, parseazaText, textRezerva, mesajText, textCurat } from './texte.js';
 import { citesteCaption, comanda, parseazaPlatforme } from './primire.js';
 import { idCanal, motivSchimbat } from './descarcare.js';
@@ -54,7 +54,7 @@ describe('calendar', () => {
 });
 
 describe('Upload-Post', () => {
-  const baza = { user: 'tlx1', text: 'Salut', idPostare: 'id-1', primulComentariu: '📍 tlx.md' };
+  const baza = { user: 'tlx1', text: 'Salut', idPostare: 'id-1', primulComentariu: '📍 tlx.md', durataS: 30 };
 
   it('clip pe trei platforme: reels, TikTok public, primul comentariu', () => {
     const f = campuriPublicare({ ...baza, platforme: ['tiktok', 'facebook', 'instagram'], tip: 'video', facebookPageId: '123' });
@@ -75,6 +75,28 @@ describe('Upload-Post', () => {
     expect(m('facebook_media_type')).toEqual(['STORIES']);
     expect(m('first_comment')).toEqual([]);
     expect(m('privacy_level')).toEqual([]);
+  });
+
+  it('Facebook: Reel doar 3–90 s, altfel video obișnuit pe pagină (Ion: clipuri de 3 minute)', () => {
+    expect(tipFacebook('video', 30)).toBe('REELS');
+    expect(tipFacebook('video', 90)).toBe('REELS');
+    expect(tipFacebook('video', 180)).toBe('VIDEO');
+    expect(tipFacebook('video', 2)).toBe('VIDEO');
+    expect(tipFacebook('video', null)).toBe('VIDEO');
+    expect(tipFacebook('story', 40)).toBe('STORIES');
+    const f = campuriPublicare({ ...baza, durataS: 180, platforme: ['facebook'], tip: 'video' });
+    expect(f.filter(([k]) => k === 'facebook_media_type').map(([, v]) => v)).toEqual(['VIDEO']);
+  });
+
+  it('clipul de 800 MB: TikTok și Facebook da, Instagram se sare cu motiv', () => {
+    const MB = 1024 * 1024;
+    const r = platformePosibile(['tiktok', 'facebook', 'instagram'], 'video', 800 * MB);
+    expect(r.platforme).toEqual(['tiktok', 'facebook']);
+    expect(r.sarite[0]).toMatchObject({ platforma: 'instagram' });
+    expect(r.sarite[0].motiv).toContain('300 MB');
+    expect(platformePosibile(['instagram'], 'video', 250 * MB).platforme).toEqual(['instagram']);
+    expect(platformePosibile(['facebook', 'instagram'], 'story', 150 * MB).platforme).toEqual(['facebook']);
+    expect(platformePosibile(['tiktok'], 'video', 3.5 * 1024 * MB).platforme).toEqual([]);
   });
 
   it('starea: completed, ciorne TikTok, parțial, negăsit', () => {

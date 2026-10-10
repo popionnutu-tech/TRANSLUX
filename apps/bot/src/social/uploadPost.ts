@@ -9,11 +9,52 @@ export const PLATFORME: readonly Platforma[] = ['tiktok', 'facebook', 'instagram
 /** TikTok nu primește stories prin API (plan, «Stories»); restul da. */
 export const PLATFORME_STORY: readonly Platforma[] = ['facebook', 'instagram'];
 
+// Limitele platformelor (docs.upload-post.com/api/video-requirements, citit 10.10.2026, la întrebarea lui Ion «ce va
+// fi cu fișierele de 800 MB?»): Instagram Reels 300 MB, Instagram Story 100 MB, Facebook Reels 3–90 s, Facebook
+// video obișnuit al paginii 10 GB / 4 ore, TikTok 3 GB la Upload-Post / 10 min.
+export const IG_REELS_MAX_OCTETI = 300 * 1024 * 1024;
+export const IG_STORY_MAX_OCTETI = 100 * 1024 * 1024;
+export const FB_REELS_MAX_S = 90;
+export const FB_REELS_MIN_S = 3;
+export const TIKTOK_MAX_OCTETI = 3 * 1024 * 1024 * 1024;
+
+/**
+ * Facebook: Reel doar între 3 și 90 s; altfel (sau durată necunoscută) video obișnuit pe pagină, care primește până la
+ * 4 ore. Story → STORIES. Pur, testat.
+ */
+export function tipFacebook(tip: 'video' | 'story', durataS: number | null): 'REELS' | 'STORIES' | 'VIDEO' {
+  if (tip === 'story') return 'STORIES';
+  if (durataS !== null && durataS >= FB_REELS_MIN_S && durataS <= FB_REELS_MAX_S) return 'REELS';
+  return 'VIDEO';
+}
+
+export interface PlatformaSarita { platforma: Platforma; motiv: string }
+
+/**
+ * Platformele pe care clipul chiar poate pleca, după mărime. Instagram peste limită se sare (până la conversia cu
+ * ffmpeg); motivul ajunge în topic. Pur, testat.
+ */
+export function platformePosibile(cerute: Platforma[], tip: 'video' | 'story', marime: number): { platforme: Platforma[]; sarite: PlatformaSarita[] } {
+  const sarite: PlatformaSarita[] = [];
+  const mb = (x: number) => `${Math.round(x / 1024 / 1024)} MB`;
+  const platforme = cerute.filter((p) => {
+    if (p === 'instagram') {
+      const max = tip === 'story' ? IG_STORY_MAX_OCTETI : IG_REELS_MAX_OCTETI;
+      if (marime > max) { sarite.push({ platforma: p, motiv: `clipul are ${mb(marime)}, Instagram ${tip === 'story' ? 'Story' : 'Reels'} primește cel mult ${mb(max)}` }); return false; }
+    }
+    if (p === 'tiktok' && marime > TIKTOK_MAX_OCTETI) { sarite.push({ platforma: p, motiv: `clipul are ${mb(marime)}, TikTok prin Upload-Post primește cel mult 3 GB` }); return false; }
+    return true;
+  });
+  return { platforme, sarite };
+}
+
 export interface CererePublicare {
   /** Profilul Upload-Post al topicului. */
   user: string;
   platforme: Platforma[];
   tip: 'video' | 'story';
+  /** Durata clipului (s), din Telegram; null = necunoscută (fișier fără durată). */
+  durataS: number | null;
   text: string;
   facebookPageId?: string | null;
   primulComentariu?: string | null;
@@ -37,7 +78,7 @@ export function campuriPublicare(c: CererePublicare): Array<[string, string]> {
   }
   if (c.platforme.includes('instagram')) f.push(['media_type', c.tip === 'story' ? 'STORIES' : 'REELS']);
   if (c.platforme.includes('facebook')) {
-    f.push(['facebook_media_type', c.tip === 'story' ? 'STORIES' : 'REELS']);
+    f.push(['facebook_media_type', tipFacebook(c.tip, c.durataS)]);
     if (c.facebookPageId) f.push(['facebook_page_id', c.facebookPageId]);
   }
   // Story-ul n-are comentarii; primul comentariu doar sub clipurile din feed.

@@ -104,7 +104,13 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
     >
       <style>{`
         .route-results-scroll { max-height: 72vh; }
-        @media (max-width: 768px) { .route-results-scroll { max-height: 80vh; } }
+        @media (max-width: 768px) {
+          .route-results-scroll { max-height: 80vh; max-height: calc(100dvh - 92px); }
+          .route-antet.cumpara { padding: 8px 12px !important; gap: 10px !important; }
+          .route-antet.cumpara button { width: 38px !important; height: 38px !important; }
+          .route-antet.cumpara .titlu { font-size: 17px !important; }
+          .route-antet.cumpara .sub { font-size: 13px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
         .route-modal-backdrop { animation: backdropIn 0.2s ease-out; }
@@ -128,16 +134,16 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
         fontFamily: "var(--font-opensans), Open Sans, sans-serif", color: "#231A1C",
       }}>
         {/* Antetul: ruta, ziua, câte curse și prețul; la cumpărare — «Bilet online» cu întoarcerea la listă. */}
-        <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #EFE4E6" }}>
+        <div className={`route-antet${ales ? " cumpara" : ""}`} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #EFE4E6" }}>
           {ales && (
             <button type="button" onClick={() => setCumpara(null)} aria-label={tx.inapoi}
               style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "#F4EEEF", color: "#6B5B5F", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>&larr;</button>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: ales ? 19 : 21, fontWeight: 800, lineHeight: 1.2 }}>
+            <div className="titlu" style={{ fontSize: ales ? 19 : 21, fontWeight: 800, lineHeight: 1.2 }}>
               {ales ? tx.bilet : <>{from} <span style={{ color: "#9B1B30" }}>&rarr;</span> {to}</>}
             </div>
-            <div style={{ fontSize: 14, color: "#6B5B5F", marginTop: 2 }}>
+            <div className="sub" style={{ fontSize: 14, color: "#6B5B5F", marginTop: 2 }}>
               {ales ? <>{from} &rarr; {to}{dataCursei ? ` · ${dataCursei}` : ""}</> : (
                 <>
                   {dataCursei && <span>{dataCursei}</span>}

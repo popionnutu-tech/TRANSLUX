@@ -38,7 +38,7 @@ const TXT = {
     alegeLoc: "Alege locul în autobuz", contor: (a: number, n: number) => `ai ales ${a} din ${n}`,
     pas1: "Locul", pas2: "Datele și plata", continua: "Continuă", schimba: "schimbă", alegeIar: "Locul ales s-a ocupat — alege altul",
     hartaIncarca: "Se încarcă locurile…", hartaIndisponibila: "Locurile se aleg la urcare.", locurile: "Locurile", locul: "Locul",
-    cateBilete: "Câte bilete", maiPutine: "Mai puține bilete", maiMulte: "Mai multe bilete", telNota: "Șoferul te sună pe acest număr dacă e nevoie.",
+    cateBilete: "Câte bilete", maiPutine: "Mai puține bilete", maiMulte: "Mai multe bilete", telNota: "Șoferul te sună pe acest număr dacă e nevoie.", returScurt: "Returnare doar prin Telegram: peste 24 h primești tot, sub 4 h nimic.",
   },
   ru: {
     title: "Онлайн-билет", lastName: "Фамилия", firstName: "Имя", phone: "Телефон", email: "E-mail (необязательно)", seats: "Мест", total: "Итого",
@@ -50,7 +50,7 @@ const TXT = {
     alegeLoc: "Выберите место в автобусе", contor: (a: number, n: number) => `выбрано ${a} из ${n}`,
     pas1: "Место", pas2: "Данные и оплата", continua: "Продолжить", schimba: "изменить", alegeIar: "Выбранное место заняли — выберите другое",
     hartaIncarca: "Загружаем места…", hartaIndisponibila: "Места выбираются при посадке.", locurile: "Места", locul: "Место",
-    cateBilete: "Сколько билетов", maiPutine: "Меньше билетов", maiMulte: "Больше билетов", telNota: "Водитель позвонит на этот номер, если нужно.",
+    cateBilete: "Сколько билетов", maiPutine: "Меньше билетов", maiMulte: "Больше билетов", telNota: "Водитель позвонит на этот номер, если нужно.", returScurt: "Возврат только через Telegram: за 24 ч — полностью, менее 4 ч — нет.",
   },
 } as const;
 
@@ -82,9 +82,10 @@ function HartaInFormular(p: { ocupate: readonly number[]; alese: readonly number
   return <SeatMap {...p} blocat={pending} />;
 }
 
-function ziuaSiOra(tripDate: string, time: string, locale: "ro" | "ru"): string {
+function ziuaSiOra(tripDate: string, time: string, locale: "ro" | "ru", scurt = false): string {
   const t = new Date(`${tripDate}T12:00:00Z`);
-  const zi = t.toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  const fel = scurt ? "short" : "long";
+  const zi = t.toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: fel, day: "numeric", month: fel, timeZone: "UTC" });
   return `${zi}, ${time}`;
 }
 
@@ -209,7 +210,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   React.useEffect(() => { if (stare.ocupate?.length) setLocGata(false); }, [stare.nr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const inp: React.CSSProperties = {
-    width: "100%", height: 48, padding: "0 12px", borderRadius: 12, border: "1.5px solid #E2D6D9", fontSize: 16, boxSizing: "border-box",
+    width: "100%", height: doiPasi ? 44 : 48, padding: "0 12px", borderRadius: 12, border: "1.5px solid #E2D6D9", fontSize: 16, boxSizing: "border-box",
     marginTop: 4, fontFamily: "inherit", background: "#fff",
   };
   const lbl: React.CSSProperties = { fontSize: 13, color: "#6B5B5F", fontWeight: 700, minWidth: 0 };
@@ -226,7 +227,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         setCheiVechi((v) => [...v.filter((k) => k !== key), key].slice(-4));
       }
       return action(fd);
-    }} className="cump-grid">
+    }} className={`cump-grid${doiPasi && !pasLoc ? " cump-unu" : ""}`}>
       {cheiVechi.filter((k) => k !== key).map((k) => <input key={k} type="hidden" name="inlocuieste" value={k} />)}
       {/* Pagina de cumpărare (Ion, 09.10.2026, varianta 1B): stânga — biletul ales și microbuzul; dreapta — datele și
           plata. Pe telefon totul unul sub altul, cu butonul de plată lipit jos. */}
@@ -247,6 +248,9 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         .cump-rezumat { display: grid; gap: 2px; padding: 10px 14px; border-radius: 14px; background: #fff; border: 1px solid #EFE3E6; }
         .cump-schimba { border: none; background: none; padding: 6px 0; color: ${RED}; font: 700 14px inherit; font-family: inherit; cursor: pointer; }
         .cump-plata { position: sticky; bottom: 0; background: #fff; padding: 12px 0 4px; display: grid; gap: 8px; border-top: 1px dashed #E3D3D6; }
+        .cump-unu { grid-template-columns: minmax(0, 560px); justify-content: center; }
+        .cump-unu .cump-dreapta { gap: 10px; padding: 12px 16px 0; }
+        .cump-mic { font-size: 12px; font-weight: 400; color: #8A7A7D; line-height: 1.4; }
         @media (max-width: 760px) {
           .cump-grid { grid-template-columns: 1fr; }
           .cump-stanga { border-right: none; padding: 14px; }
@@ -305,14 +309,10 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         </div>
       )}
       {!pasLoc && <>
-      <div className="cump-stanga">
-        {doiPasi ? (
-          <div className="cump-rezumat">
-            <div className="cump-linie"><span><b>{trip.time}</b> → {trip.arrivalTime}</span><b>{pretLoc} lei</b></div>
-            <div className="cump-linie"><span>{tx.loc(seats)}{hartaActiva && alese.length > 0 && <> · {alese.length === 1 ? tx.locul : tx.locurile} <b>{listaLocuri(alese)}</b></>}</span>
-              <button type="button" className="cump-schimba" onClick={() => setLocGata(false)}>{tx.schimba}</button></div>
-          </div>
-        ) : <BiletCursa trip={trip} locale={locale} cotor="ales" fond={FOND_LISTA} />}
+      {/* Pasul 2 (Ion, 10.10.2026: «totul să fie în o pagină fără scroll»): fără coloana din stânga — cursa, locul și
+          «schimbă» stau în rezumatul de lângă butonul de plată. */}
+      {!doiPasi && <div className="cump-stanga">
+        <BiletCursa trip={trip} locale={locale} cotor="ales" fond={FOND_LISTA} />
         {/* Harta microbuzului (ION-242), doar la plecarea din Chișinău spre nord; pe tur locul se dă automat. */}
         {alegeLocuri && !doiPasi && (
           <fieldset style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: 8, minWidth: 0 }}>
@@ -343,7 +343,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             )}
           </div>
         )}
-      </div>
+      </div>}
 
       <div className="cump-dreapta">
         {!doiPasi && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -383,31 +383,40 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             <input id="bilet-prenume" name="firstName" required minLength={2} maxLength={40} autoComplete="given-name" value={camp.firstName} onChange={scrie("firstName")} style={inp} />
           </label>
         </div>
-        <label style={lbl}>{tx.phone}
-          <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="+373 69 123 456" value={camp.phone} onChange={scrie("phone")} style={inp} />
-          <span style={{ display: "block", fontSize: 12, fontWeight: 400, color: "#8A7A7D", marginTop: 4 }}>{tx.telNota}</span>
-        </label>
-        <label style={lbl}>{tx.email}
-          <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="nume@exemplu.md" value={camp.email} onChange={scrie("email")} style={inp} />
-        </label>
-        {arePromo && <PromoReduceri faraStudent={Boolean(retur)} locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
-        <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
+        {(() => {
+          const tel = <label style={lbl}>{tx.phone}
+            <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="+373 69 123 456" value={camp.phone} onChange={scrie("phone")} style={inp} />
+            {!doiPasi && <span className="cump-mic" style={{ display: "block", marginTop: 4 }}>{tx.telNota}</span>}
+          </label>;
+          const mail = <label style={lbl}>{tx.email}
+            <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder={doiPasi ? "nume@mail.md" : "nume@exemplu.md"} value={camp.email} onChange={scrie("email")} style={inp} />
+          </label>;
+          if (!doiPasi) return <>{tel}{mail}</>;
+          return <div style={{ display: "grid", gap: 4 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>{tel}{mail}</div>
+            <span className="cump-mic">{tx.telNota}</span>
+          </div>;
+        })()}
+        {arePromo && <PromoReduceri strans={doiPasi} faraStudent={Boolean(retur)} locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
+        {!doiPasi && <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
           {tx.retur}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: "#1b6f9a", fontWeight: 600 }}>{tx.grila}</a>
-        </div>
+        </div>}
         <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14, color: "#4A3E41", minHeight: 44 }}>
           <input type="checkbox" name="consent" required checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ accentColor: RED, width: 22, height: 22, margin: "1px 0 0", flexShrink: 0 }} />
           {/* ION-208: acceptarea condițiilor de vânzare (HG 854/2006) și a politicii, la cumpărare. */}
           <span>{tx.consent}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.terms}</a>{" "}{tx.and}{" "}<a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.policy}</a></span>
         </label>
+        {doiPasi && <div className="cump-mic" style={{ marginTop: -6 }}>{tx.returScurt}</div>}
         {retur && <div style={{ fontSize: 13, color: "#4A3E41", lineHeight: 1.45, marginTop: -4 }}>{locale === "ru" ? "Туда-обратно отменяется только вместе, до отправления рейса туда." : "Tur-returul se anulează doar împreună, până la plecarea cursei tur."}</div>}
         {stare.eroare && <div role="alert" style={{ fontSize: 15, color: RED, fontWeight: 600 }}>{stare.eroare}</div>}
         <div className="cump-plata">
           {/* Rezumatul dinaintea plății (ION-238): ziua, ora, unde urci, locurile, suma. */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
             <span style={{ fontSize: 14, color: "#6B5B5F", lineHeight: 1.35 }}>
-              {ziuaSiOra(trip.trip_date, trip.time, locale)}
+              {ziuaSiOra(trip.trip_date, trip.time, locale, doiPasi)}{doiPasi && trip.arrivalTime && <> → {trip.arrivalTime}</>}
               {ales && <> · {locale === "ru" ? ales.nume_ru : ales.nume_ro}</>}
-              <br />{tx.loc(seats)}{hartaActiva && alese.length > 0 && <> · {alese.length === 1 ? tx.locul : tx.locurile} {listaLocuri(alese)}</>}
+              <br />{tx.loc(seats)}{hartaActiva && alese.length > 0 && <> · {alese.length === 1 ? tx.locul : tx.locurile} <b style={{ color: "#231A1C" }}>{listaLocuri(alese)}</b></>}
+              {doiPasi && <> · <button type="button" className="cump-schimba" style={{ padding: 0, fontSize: 14 }} onClick={() => setLocGata(false)}>{tx.schimba}</button></>}
             </span>
             <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats + (retur ? retur.pret * seats : 0)} lei</span>
           </div>
@@ -415,7 +424,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
           <Trimite locale={locale} lei={pretLoc * seats + (retur ? retur.pret * seats : 0)} blocat={locuriIncomplete || locuriReturIncomplete || reducere.blocheazaPlata} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8A7A7D" }}>{tx.note}</span>
-            <button type="button" onClick={onCancel} style={{ minHeight: 44, padding: "0 6px", border: "none", background: "none", color: "#6B5B5F", fontSize: 14, cursor: "pointer" }}>{tx.cancel}</button>
+            {!doiPasi && <button type="button" onClick={onCancel} style={{ minHeight: 44, padding: "0 6px", border: "none", background: "none", color: "#6B5B5F", fontSize: 14, cursor: "pointer" }}>{tx.cancel}</button>}
           </div>
         </div>
       </div>

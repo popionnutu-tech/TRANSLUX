@@ -31,8 +31,11 @@ describe('calculeazaOferta — grila ION-208 și expirarea 15′', () => {
     expect(poateAnulaPasager(PLECARE, ore(4) + 1000, 240)).toBe(false);
     expect(calculeazaOferta(PLECARE, 135, T + 1)).toEqual({ tip: 'fara_bani', motiv: 'plecat' });
   });
-  it('sub 10 MDL → dispecerul, nu banca', () => {
-    expect(calculeazaOferta(PLECARE, 12, ore(5))).toEqual({ tip: 'dispecer', motiv: 'sub_10' });
+  it('grila sub 10 MDL → 10 lei (minimul băncii), fără dispecer (Ion, 10.10)', () => {
+    const r = calculeazaOferta(PLECARE, 12, ore(5));
+    expect(r.tip).toBe('oferta');
+    if (r.tip === 'oferta') expect(r.suma).toBe(10);
+    expect(calculeazaOferta(PLECARE, 9, ore(5))).toEqual({ tip: 'dispecer', motiv: 'sub_10' });
   });
 });
 

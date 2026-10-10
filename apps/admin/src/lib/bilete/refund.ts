@@ -83,7 +83,7 @@ export async function anuleazaSiReturneaza(
     .in('status', ['platita', 'platita_fara_bilet']).limit(1);
   const pachet = (rp || []).length > 0;
   if (pachet) {
-    if (opt.sursa === 'ai' || opt.sursa === 'pasager') throw new ComandaError('inchis', 'tur-returul se anulează prin dispecer');
+    // Ion, 10.10.2026: «permite să returnez, pe viitor nu este niciun dispecer» — pachetul se anulează și din bot.
     if (Date.now() >= Date.parse(inainte.departure_at) && !(opt.sursa === 'admin' && opt.vinaNoastra) && opt.sursa !== 'sistem') {
       throw new ComandaError('inchis', 'tur-returul se poate anula doar până la plecarea cursei tur (după, doar cu «vina noastră»)');
     }

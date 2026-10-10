@@ -6,7 +6,11 @@ import { GARANTIE_ORE_DUPA_PLECARE, inFereastraGarantiei, noimiRestituire, sumaR
 /** Oferta e valabilă 15 minute (Ion, 05.10), dar niciodată după pragul de 4 h înainte de plecare (plasa executorului). */
 export const OFERTA_VALABILA_MS = 15 * 60_000;
 export const PRAG_RETUR_MIN = 240;
-/** Contractul maib (Anexa 1E): «Suma minimă a unei Operațiuni — 10 MDL»; sub ea returnarea merge la dispecer. */
+/**
+ * Contractul maib (Anexa 1E): «Suma minimă a unei Operațiuni — 10 MDL». Ion, 10.10.2026: «niciodată nu trebuie decide
+ * dispecerul» — o grilă sub 10 lei se rotunjește în sus la 10 (cel mult cât s-a plătit); doar biletul sub 10 lei
+ * (nu se vinde online) n-are cum fi returnat pe card.
+ */
 export const SUMA_MINIMA_REFUND_MDL = 10;
 export const CIFRE_INCERCARI_MAX = 5;
 
@@ -33,8 +37,8 @@ export function calculeazaOferta(departureAt: string, total: number, nowMs: numb
   if (nowMs > prag) return { tip: 'fara_bani', motiv: 'sub_4h' };
   const noimi = noimiRestituire(departureAt, nowMs);
   if (noimi <= 0) return { tip: 'fara_bani', motiv: 'sub_4h' };
-  const suma = sumaRestituire(total, noimi);
-  if (suma < SUMA_MINIMA_REFUND_MDL) return { tip: 'dispecer', motiv: 'sub_10' };
+  if (total < SUMA_MINIMA_REFUND_MDL) return { tip: 'dispecer', motiv: 'sub_10' };
+  const suma = Math.max(sumaRestituire(total, noimi), SUMA_MINIMA_REFUND_MDL);
   return { tip: 'oferta', noimi, suma, expiraMs: Math.min(nowMs + OFERTA_VALABILA_MS, prag) };
 }
 

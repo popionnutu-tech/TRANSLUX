@@ -4,6 +4,22 @@ import { ComandaError } from './comenzi';
 import { anuleazaSiReturneaza, garantieLansareActiva } from './refund';
 import { trimiteEmailAnulare } from './email';
 import { calculeazaOferta, CIFRE_INCERCARI_MAX, stareRetur, type StareRetur } from './retur-bot-reguli';
+import { sumaRestituire } from './refund-reguli';
+
+// Ion, 10.10.2026: «fac test, permite să returnez; pe viitor nu este niciun dispecer, nu bloca utilizatorii»;
+// «niciodată nu trebuie decide dispecerul». Tur-returul (și turul cu un retur −20% legat) se returnează ÎNTREG din bot,
+// până la plecarea turului: turul după grila lui, returul cu aceeași fracție (noimi); butonul de pe bilet-retur duce la
+// tur. Cele 4 cifre greșite dau o pauză de 15 minute (554), nu blocarea și dispecerul.
+
+/** Partea returului legat (pachet sau −20% cumpărat după tur) pentru oferta turului: aceeași fracție a grilei. */
+const parteRetur = (totalRetur: number, noimi: number) => (noimi >= 9 ? Math.round(totalRetur * 100) / 100 : sumaRestituire(totalRetur, noimi));
+
+/** Returul plătit legat de tur (în pachet sau cumpărat cu codul de retur), dacă există. */
+async function returLegat(turId: string, stari: string[] = ['platita', 'platita_fara_bilet']): Promise<{ id: string; total: number } | null> {
+  const { data } = await getSupabase().from('bilete_comenzi').select('id, total').eq('comanda_tur_id', turId).in('status', stari)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  return data ? { id: (data as { id: string }).id, total: Number((data as { total: number }).total) } : null;
+}
 
 // Returnarea biletului din botul Telegram (ION-244). Botul cheamă rutele /api/bilete/retur/* cu BILETE_BOT_API_KEY;
 // aici e toată logica: suma vine din grilă (cod), oferta se ține în bază cu expirare, confirmarea o consumă atomic și
@@ -52,37 +68,35 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   const cod = String(codRaw ?? '').trim().toLowerCase();
   if (!telegramId || !COD_RE.test(cod)) return { ok: false, cod: 'inexistent' };
   const db = getSupabase();
-  const { data: c, error } = await db.from('bilete_comenzi')
-    .select('id, status, telegram_id, telegram_verificat_pentru, retur_cifre_gresite, phone, total, departure_at, from_name, to_name, lang')
-    .eq('cod', cod).maybeSingle();
+  const COL = 'id, status, telegram_id, telegram_verificat_pentru, retur_cifre_gresite, phone, total, departure_at, from_name, to_name, lang, in_pachet, comanda_tur_id';
+  const { data: c0, error } = await db.from('bilete_comenzi').select(COL).eq('cod', cod).maybeSingle();
   if (error) throw new Error(`bilete_comenzi: ${error.message}`);
-  if (!c) return { ok: false, cod: 'inexistent' };
+  if (!c0) return { ok: false, cod: 'inexistent' };
+  // Butonul de pe biletul-retur din tur-retur: pachetul se anulează din tur, deci oferta e a turului.
+  let c = c0 as typeof c0 & { in_pachet: boolean; comanda_tur_id: string | null };
+  if (c.in_pachet && c.comanda_tur_id) {
+    const { data: t } = await db.from('bilete_comenzi').select(COL).eq('id', c.comanda_tur_id).maybeSingle();
+    if (!t) return { ok: false, cod: 'inexistent' };
+    c = t as typeof c;
+  }
   if (Number(c.telegram_id) !== telegramId) return { ok: false, cod: 'nelegat' };
   if (!(c.status === 'platita' || c.status === 'platita_fara_bilet')) return { ok: false, cod: 'stare' };
-  // 548: biletul de retur din tur-retur (o plată) se anulează doar cu turul, prin dispecer.
-  const { data: pc } = await db.from('bilete_comenzi').select('in_pachet').eq('id', c.id).maybeSingle();
-  if ((pc as { in_pachet?: boolean } | null)?.in_pachet) {
-    await alerta(c.id, telegramId, 'returnare cerută pe returul unui tur-retur plătit o dată: se anulează doar pachetul întreg (din tur), până la plecarea turului');
-    return { ok: true, tip: 'dispecer', motiv: 'blocat' };
-  }
 
   // Biletul scanat la urcare nu se mai returnează (funcția din bază refuză oricum; spunem din timp).
   const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', c.id).eq('status', 'urcat');
   if ((urcate ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
 
-  // 546: turul are un retur −20% plătit → suma depinde de alegere («doar turul» pierde reducerea, «ambele», «vina
-  // noastră»). Până la varianta din bot (deploy-bot), decide dispecerul în /bilete, cu bifele «vina noastră» /
-  // «anulează și returul»; botul nu promite o sumă pe care banca n-ar primi-o.
-  const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', c.id).in('status', ['platita', 'platita_fara_bilet']); // revizia 10.10 (L8)
-  if ((retururi ?? 0) > 0) {
-    await alerta(c.id, telegramId, 'returnare cerută pe un tur cu retur −20% (în tur-retur plătit o dată: doar ambele, până la plecarea turului; altfel «doar turul» − reducerea sau «anulează și returul»)');
-    return { ok: true, tip: 'dispecer', motiv: 'blocat' };
+  // Turul cu retur legat: se anulează amândouă, doar până la plecarea turului (regula tur-returului din condiții).
+  const leg = await returLegat(c.id);
+  if (leg) {
+    if (Date.now() >= Date.parse(c.departure_at)) return { ok: true, tip: 'fara_bani', motiv: 'plecat' };
+    const { count: urcR } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', leg.id).eq('status', 'urcat');
+    if ((urcR ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
   }
 
   // Cele 4 cifre: o dată pe CONT (17′); 5 greșeli → blocat + dispecerul. Verificarea și contorul stau în bază,
   // cu comanda blocată (migr. 503): cererile paralele nu ocolesc plafonul.
   if (Number(c.telegram_verificat_pentru) !== telegramId) {
-    if ((c.retur_cifre_gresite ?? 0) >= CIFRE_INCERCARI_MAX) return { ok: true, tip: 'dispecer', motiv: 'blocat' };
     if (cifreRaw == null || String(cifreRaw).trim() === '') return { ok: true, tip: 'cere_cifre' };
     const { data: r, error: eC } = await db.rpc('bilete_retur_cifre', { p_comanda: c.id, p_telegram: telegramId, p_cifre: String(cifreRaw).slice(0, 20), p_max: CIFRE_INCERCARI_MAX });
     if (eC) {
@@ -91,12 +105,8 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
     }
     const v = r as { ok: boolean; ramase: number; blocat: boolean };
     if (!v.ok) {
-      if (v.blocat) {
-        if ((c.retur_cifre_gresite ?? 0) < CIFRE_INCERCARI_MAX) { // alerta o singură dată, la blocare
-          await alerta(c.id, telegramId, `returnare din bot blocată: ${CIFRE_INCERCARI_MAX} încercări greșite ale cifrelor telefonului (telegram ${telegramId})`);
-        }
-        return { ok: true, tip: 'dispecer', motiv: 'blocat' };
-      }
+      // 554: după 5 greșeli — pauză de 15 minute (botul spune «încearcă din nou peste 15 minute»), fără dispecer.
+      if (v.blocat) return { ok: true, tip: 'dispecer', motiv: 'blocat' };
       return { ok: false, cod: 'cifre_gresite', ramase: v.ramase };
     }
   }
@@ -104,13 +114,7 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   // Garanția de lansare (Ion, 07.10): biletul nefolosit primește tot și sub 4 h (după plecare — dispecerul, integral).
   const calc = calculeazaOferta(c.departure_at, Number(c.total), Date.now(), await garantieLansareActiva());
   if (calc.tip === 'fara_bani') return { ok: true, tip: 'fara_bani', motiv: calc.motiv };
-  if (calc.tip === 'dispecer') {
-    // o alertă deschisă pe comandă ajunge; cererile repetate nu mai inundă dispecerul
-    const { count: deschise } = await db.from('bilete_alerte').select('id', { count: 'exact', head: true })
-      .eq('comanda_id', c.id).eq('tip', 'retur_cerere').is('rezolvat_la', null);
-    if (!deschise) await alerta(c.id, telegramId, `returnare din bot sub minimul băncii (10 MDL) — decide dispecerul (telegram ${telegramId})`);
-    return { ok: true, tip: 'dispecer', motiv: 'sub_10' };
-  }
+  if (calc.tip === 'dispecer') return { ok: true, tip: 'dispecer', motiv: 'sub_10' }; // bilet sub 10 lei: nu se vinde online
   const { data: o, error: eO } = await db.rpc('bilete_retur_oferta_noua', {
     p_comanda: c.id, p_telegram: telegramId, p_noimi: calc.noimi, p_suma: calc.suma, p_total: Number(c.total),
     p_expira: new Date(calc.expiraMs).toISOString(),
@@ -123,8 +127,10 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
     throw new Error(`bilete_retur_oferta_noua: ${eO.message}`);
   }
   const of = o as { id: string; expira_la: string };
+  // Oferta din bază ține suma turului; clientul vede tot ce primește înapoi (turul + returul legat).
+  const plusRetur = leg ? parteRetur(leg.total, calc.noimi) : 0;
   return {
-    ok: true, tip: 'oferta', oferta_id: of.id, suma: calc.suma, total: Number(c.total), noimi: calc.noimi, expira_la: of.expira_la,
+    ok: true, tip: 'oferta', oferta_id: of.id, suma: Math.round((calc.suma + plusRetur) * 100) / 100, total: Number(c.total) + (leg?.total ?? 0), noimi: calc.noimi, expira_la: of.expira_la,
     departure_at: c.departure_at, from_name: c.from_name, to_name: c.to_name, lang: c.lang === 'ru' ? 'ru' : 'ro',
   };
 }
@@ -137,7 +143,7 @@ export async function stareOferta(telegramIdRaw: unknown, ofertaIdRaw: unknown):
   const ofertaId = String(ofertaIdRaw ?? '');
   if (!telegramId || !/^[0-9a-f-]{36}$/i.test(ofertaId)) return { ok: false, cod: 'inexistent' };
   const db = getSupabase();
-  const { data: o } = await db.from('bilete_retur_oferte').select('id, comanda_id, telegram_id, suma, folosita_la, inchisa_la, expira_la, rezultat').eq('id', ofertaId).maybeSingle();
+  const { data: o } = await db.from('bilete_retur_oferte').select('id, comanda_id, telegram_id, suma, noimi, folosita_la, inchisa_la, expira_la, rezultat').eq('id', ofertaId).maybeSingle();
   if (!o || Number(o.telegram_id) !== telegramId) return { ok: false, cod: 'inexistent' };
   const { data: c } = await db.from('bilete_comenzi').select('status, checkout_id').eq('id', o.comanda_id).maybeSingle();
   if (!c) return { ok: false, cod: 'inexistent' };
@@ -145,8 +151,10 @@ export async function stareOferta(telegramIdRaw: unknown, ofertaIdRaw: unknown):
     ? await db.from('maib_checkouts').select('refund_id, refund_status').eq('checkout_id', c.checkout_id).maybeSingle()
     : { data: null };
   const s = stareRetur({ oferta: { folosita_la: o.folosita_la, rezultat: o.rezultat }, comanda: { status: c.status }, checkout: ck ?? null });
-  if (s.stare === 'neatinsa' && (o.inchisa_la || Date.parse(o.expira_la) < Date.now())) return { ok: true, stare: 'expirata', suma: Number(o.suma) };
-  return { ok: true, stare: s.stare, suma: Number(o.suma), motiv: s.motiv };
+  const leg = await returLegat(o.comanda_id, ['platita', 'platita_fara_bilet', 'anulata', 'returnata']);
+  const suma = Math.round((Number(o.suma) + (leg ? parteRetur(leg.total, Number(o.noimi ?? 9)) : 0)) * 100) / 100;
+  if (s.stare === 'neatinsa' && (o.inchisa_la || Date.parse(o.expira_la) < Date.now())) return { ok: true, stare: 'expirata', suma };
+  return { ok: true, stare: s.stare, suma, motiv: s.motiv };
 }
 
 /** Consumă oferta și pornește returnarea cu suma ei. Orice ieșire după consumare își scrie rezultatul pe ofertă. */
@@ -165,19 +173,15 @@ export async function confirmaOferta(telegramIdRaw: unknown, ofertaIdRaw: unknow
     if (/OFERTA_(INEXISTENTA|STRAINA)/.test(error.message)) return { ok: false, cod: 'inexistent' };
     throw new Error(`bilete_retur_foloseste: ${error.message}`);
   }
-  const of = o as { id: string; comanda_id: string; suma: number; validata_la: string };
+  const of = o as { id: string; comanda_id: string; suma: number; noimi?: number; validata_la: string };
   let rezultat = 'eroare';
-  // 546 (audit M2): returul −20% plătit între ofertă și confirmare → suma s-ar schimba; decide dispecerul.
-  const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', of.comanda_id).eq('status', 'platita');
-  if ((retururi ?? 0) > 0) {
-    await alerta(of.comanda_id, telegramId, 'confirmare de returnare pe un tur cu retur −20% plătit după ofertă: dispecerul alege «doar turul» sau «anulează și returul»');
-    await db.from('bilete_retur_oferte').update({ rezultat: 'refuz:dispecer' }).eq('id', of.id);
-    return stareOferta(telegramId, of.id);
-  }
+  // Returul legat (pachet sau −20% cumpărat după tur, chiar și după ofertă): se anulează împreună, cu aceeași fracție.
+  const leg = await returLegat(of.comanda_id);
+  const sumaRetur = leg ? parteRetur(leg.total, Number(of.noimi ?? 9)) : undefined;
   try {
     const r = await anuleazaSiReturneaza(of.comanda_id, {
-      sursa: 'ai', motiv: `returnare cerută în botul Telegram (oferta ${of.id}, ${Number(of.suma)} lei după grilă)`,
-      suma: Number(of.suma), acumMs: Date.parse(of.validata_la),
+      sursa: 'ai', motiv: `returnare cerută în botul Telegram (oferta ${of.id}, ${Number(of.suma)} lei după grilă${leg ? ` + returul legat ${sumaRetur} lei` : ''})`,
+      suma: Number(of.suma), acumMs: Date.parse(of.validata_la), ...(leg ? { siReturul: true, sumaRetur } : {}),
     });
     rezultat = r.refund === 'creat' ? 'creat' : r.refund === 'necunoscut' ? 'necunoscut' : 'fara_plata';
     if (r.refund !== 'fara_plata') await trimiteEmailAnulare(of.comanda_id, r.suma ?? Number(of.suma)).catch(() => 'esuat');

@@ -42,10 +42,11 @@ export const T_RETUR = {
     ru: 'Для безопасности: напишите последние 4 цифры телефона, указанного в заказе.',
   },
   doarCifre: { ro: 'Scrie doar 4 cifre, de exemplu 3456.', ru: 'Напишите только 4 цифры, например 3456.' },
-  dispecer: { ro: 'Cererea ta a ajuns la dispecer, te contactează.', ru: 'Ваша заявка передана диспетчеру, с вами свяжутся.' },
+  // Ion, 10.10.2026: «niciodată nu trebuie decide dispecerul». Rămâne doar biletul sub 10 lei (nu se vinde online).
+  dispecer: { ro: 'Suma e sub minimul băncii (10 lei), nu se poate returna pe card.', ru: 'Сумма меньше минимума банка (10 лей), вернуть на карту нельзя.' },
   blocat: {
-    ro: 'Prea multe încercări greșite. Cererea ta a ajuns la dispecer, te contactează.',
-    ru: 'Слишком много неверных попыток. Ваша заявка передана диспетчеру, с вами свяжутся.',
+    ro: 'Prea multe încercări greșite. Încearcă din nou peste 15 minute.',
+    ru: 'Слишком много неверных попыток. Попробуйте снова через 15 минут.',
   },
   faraBani: {
     ro: 'Cu mai puțin de 4 ore înainte de plecare biletul nu se mai returnează. Dacă ai întârziat, biletul e valabil azi pe altă cursă TRANSLUX în aceeași direcție, dacă șoferul are loc.',

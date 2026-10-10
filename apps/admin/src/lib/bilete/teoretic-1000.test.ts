@@ -617,8 +617,10 @@ describe('G3. anuleazaSiReturneaza: tur-returul doar împreună și doar până 
     else if (status === 'noua') ast = 'validare';
     else if (fel === 'retur_pachet') ast = sursa === 'sistem' || (sursa === 'admin' && vina === true) ? 'rpc' : 'inchis';
     else if (fel === 'tur_pachet') {
-      if (sursa === 'ai' || sursa === 'pasager') ast = 'inchis';                               // tur-returul prin dispecer
-      else if (plecat && !(sursa === 'admin' && vina === true) && sursa !== 'sistem') ast = 'inchis';
+      // Ion, 10.10.2026: «niciodată nu trebuie decide dispecerul» — din bot/site se anulează și pachetul, până la plecarea
+      // turului și în fereastra pasagerului (4 h).
+      if (plecat && !(sursa === 'admin' && vina === true) && sursa !== 'sistem') ast = 'inchis';
+      else if (sursa === 'ai' || sursa === 'pasager') ast = minuteInainte >= 240 ? 'rpc' : 'inchis';
     } else if (sursa === 'ai' || sursa === 'pasager') ast = minuteInainte >= 240 ? 'rpc' : 'inchis';  // plasa de 4 h
     it(`#${i} ${fel} ${status} sursa=${sursa} vina=${vina} plecare peste ${minuteInainte} min → ${ast}`, async () => {
       const dep = new Date(Date.now() + minuteInainte * 60_000 + (minuteInainte >= 0 ? 30_000 : -30_000)).toISOString();

@@ -522,7 +522,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 <button type="button" className="of-card st" onClick={() => setExplicaPromo('student')}>
                   <b>−20%</b>
                   <span>{locale === 'ru' ? 'Студентам' : 'Studenți'}</span>
-                  <small>{locale === 'ru' ? 'со студенческим и паспортом, одно место' : 'cu carnet și buletin, un loc'}</small>
+                  <small>{locale === 'ru' ? 'студенческий и паспорт, одно место, не для туда-обратно' : 'carnet și buletin, un loc, fără tur-retur'}</small>
                 </button>
               </div>
               {notaStudent && (

@@ -18,6 +18,7 @@ const TXT = {
         "Returul costă 120 lei în loc de 150. Plătești totul o singură dată.",
         "Biletele se anulează doar împreună, până pleacă cursa tur.",
       ],
+      atentie: "Reducerea de student nu se adaugă la tur-retur.",
       buton: "Alege cursele",
     },
     student: {
@@ -26,8 +27,9 @@ const TXT = {
         "Doar pe cursele Bălți ⇄ Chișinău, la cumpărarea biletului online, pentru un loc.",
         "La cumpărare bifezi «Sunt student» și fotografiezi carnetul și buletinul sau pașaportul.",
         "Verificarea durează câteva secunde. Numele din formular trebuie să fie ca pe carnet.",
-        "La urcare arăți carnetul șoferului. Reducerea nu se cumulează cu tur-retur.",
+        "La urcare arăți carnetul șoferului.",
       ],
+      atentie: "Nu merge dacă alegi tur-retur: atunci reducerea −20% e doar la retur.",
       buton: "Alege cursa",
     },
     din: "din 13.10", inchide: "Închide",
@@ -41,6 +43,7 @@ const TXT = {
         "Обратный стоит 120 лей вместо 150. Оплата — одна на оба билета.",
         "Билеты отменяются только вместе, до отправления рейса туда.",
       ],
+      atentie: "Студенческая скидка к туда-обратно не добавляется.",
       buton: "Выбрать рейсы",
     },
     student: {
@@ -49,8 +52,9 @@ const TXT = {
         "Только на рейсах Бельцы ⇄ Кишинёв, при покупке билета онлайн, на одно место.",
         "При покупке отметьте «Я студент» и сфотографируйте студенческий и паспорт или удостоверение.",
         "Проверка занимает несколько секунд. Имя в форме — как в студенческом.",
-        "При посадке покажите студенческий водителю. Скидка не суммируется с туда-обратно.",
+        "При посадке покажите студенческий водителю.",
       ],
+      atentie: "Не действует, если выбрано туда-обратно: тогда скидка −20% только на обратный.",
       buton: "Выбрать рейс",
     },
     din: "с 13.10", inchide: "Закрыть",
@@ -90,6 +94,8 @@ export function PromoExplicatie({ tip, locale, inainteDe1310, onAlege, onClose }
         <ol className="pe-pasi">
           {p.pasi.map((x, i) => <li key={i}><span>{i + 1}</span>{x}</li>)}
         </ol>
+        {/* Ion, 10.10: «menționează că studenți −20% nu merge dacă cursa e tur-retur». */}
+        <p className="pe-atentie">{p.atentie}</p>
         <button type="button" className="pe-buton" onClick={() => { onAlege(); onClose(); }}>{p.buton} →</button>
       </div>
     </div>
@@ -114,7 +120,8 @@ const CSS = `
 .pe-pasi li span{flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-top:1px}
 .pe-cutie.tr .pe-pasi li span{background:#FDF3E1;color:#B7791F}
 .pe-cutie.st .pe-pasi li span{background:#EAF1F9;color:#2E5A88}
-.pe-buton{width:100%;min-height:52px;margin-top:20px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px inherit;font-family:inherit;cursor:pointer;box-shadow:0 10px 22px rgba(155,27,48,.22)}
+.pe-atentie{margin:14px 0 0;padding:10px 12px;border-radius:12px;background:#FBEFF1;color:#7A1426;font-size:14px;font-weight:700;line-height:1.4}
+.pe-buton{width:100%;min-height:52px;margin-top:16px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px inherit;font-family:inherit;cursor:pointer;box-shadow:0 10px 22px rgba(155,27,48,.22)}
 @keyframes pe-in{from{opacity:0}to{opacity:1}}
 @keyframes pe-sus{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
 @media (max-width:520px){.pe{align-items:flex-end;padding:0}.pe-cutie{width:100%;border-radius:24px 24px 0 0;padding:20px 18px calc(18px + env(safe-area-inset-bottom))}}

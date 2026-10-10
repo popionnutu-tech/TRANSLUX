@@ -169,6 +169,11 @@ body {
   .hero-form > div[style] { flex: 1 1 100% !important; width: 100% !important; }
   .hero-form > .hero-swap { flex: 0 0 auto !important; width: auto !important; }
   .hero-form > .hero-date-wrap > button { width: 100% !important; justify-content: center !important; }
+  /* «Destinații populare» pe telefon (Ion, 10.10.2026, captură de pe iPhone): două coloane de ~120 px
+     rupeau numele pe două-trei rânduri, iar «GRIMĂNCĂUȚI» împingea coloana dreaptă afară din card.
+     O singură coloană: ruta pe un rând, prețul la dreapta. */
+  .routes-card { padding: 20px 18px 22px !important; }
+  .popular-grid { grid-template-columns: minmax(0, 1fr) !important; }
 }
 /* Acum / Mai târziu (ION-43) */
 .hero-now-dot { width: 7px; height: 7px; border-radius: 50%; background: #FFD5DB; animation: heroNowPulse 2s infinite; }

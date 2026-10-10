@@ -394,8 +394,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               {i.popular}
             </h2>
 
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr',
+            <div className="popular-grid" style={{
+              display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
               gap: '0 48px', maxWidth: 520, margin: '0 auto',
             }}>
               {popular.map((r) => {

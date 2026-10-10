@@ -12,6 +12,7 @@ import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
 import { phoneText } from "@/lib/phone";
 import { citesteStudent } from "@/lib/student-sesiune";
 import { salveazaCumpararea, type CumparareSalvata } from "@/lib/cumparare-salvata";
+import { politicaChei } from "@/lib/tur-retur";
 import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 import { BiletCursa, FOND_LISTA } from "./bilet-cursa";
@@ -203,13 +204,23 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const hartaReturActiva = hartaRetur && hr.stare === "ok";
   const locuriReturIncomplete = hartaReturActiva && aleseRetur.length !== seats;
   const [cheieRetur, setCheieRetur] = React.useState(uuid);
-  // Altă alegere de retur = altă comandă (altă sumă la bancă): chei noi, ca o încercare veche să nu fie refolosită.
-  const alegereRetur = retur ? `${retur.trip.trip_date}|${retur.trip.crm_route_id}|${retur.trip.time}` : "";
-  const primaAlegere = React.useRef(true);
+  // Politica cheilor (564, N3 — aceeași ca la tur-retur, politicaChei): panoul refolosește o cheie doar pentru EXACT aceeași
+  // alegere (amprenta: cursa, locurile pe ambele sensuri, numele, telefonul, e-mailul, punctul, reducerea, returul). Orice
+  // schimbare după o trimitere, sau un refuz clar al panoului («idempotenta», …), → chei noi, iar cheia veche pleacă în
+  // `inlocuieste`: încercarea veche se expiră (sau, dacă banca o ține deschisă, se așteaptă) — niciodată două sesiuni plătibile.
+  const [trimisCu, setTrimisCu] = React.useState<string | null>(null);
+  const alegere = [trip.crm_route_id, trip.trip_date, trip.time, seats, [...alese].sort((a, b) => a - b).join(","), punct ?? "",
+    camp.lastName.trim(), camp.firstName.trim(), camp.phone.trim(), camp.email.trim().toLowerCase(), reducere.codRetur ?? "", reducere.studentJeton ?? "",
+    retur ? `${retur.trip.trip_date}|${retur.trip.crm_route_id}|${retur.trip.time}|${[...aleseRetur].sort((a, b) => a - b).join(",")}` : ""].join("|");
+  const roteste = React.useCallback(() => {
+    setCheiVechi((v) => [...v.filter((k) => k !== key), key].slice(-4)); setKey(uuid()); setCheieRetur(uuid()); setTrimisCu(null);
+  }, [key]);
   React.useEffect(() => {
-    if (primaAlegere.current) { primaAlegere.current = false; return; }
-    setKey(uuid()); setCheieRetur(uuid());
-  }, [alegereRetur]);
+    if (trimisCu && trimisCu !== alegere && politicaChei({ alegereSchimbata: true }).chei === "noi") roteste();
+  }, [alegere, trimisCu, roteste]);
+  React.useEffect(() => {
+    if (stare.nr && politicaChei({ alegereSchimbata: false, codEroare: stare.cod ?? null }).chei === "noi") roteste();
+  }, [stare.nr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const locuriIncomplete = hartaActiva && alese.length !== seats;
   // Doi pași, ca la tur-retur (Ion, 10.10.2026: «fă fix cum la tur-retur aici, împarte în 2 pași»): întâi locul pe harta
@@ -232,6 +243,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
 
   return (
     <form action={(fd) => {
+      setTrimisCu(alegere);
       // Alegerea rămâne în filă cât omul e la bancă; o plată eșuată o redeschide cu «Reia plata».
       if (!retur) {
         salveazaCumpararea({ tip: "simplu", from, to, fromRo, toRo, trip, retur: null, seats, alese, aleseRetur: [], punct, camp, chei: [...cheiVechi.filter((k) => k !== key), key] });

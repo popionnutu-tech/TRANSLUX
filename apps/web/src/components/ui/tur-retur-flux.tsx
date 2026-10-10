@@ -188,8 +188,10 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   const [cheiVechi, setCheiVechi] = React.useState<string[]>(reluare?.chei ?? []);
   const [trimisCu, setTrimisCu] = React.useState<string | null>(null);
   // Alegerea completă, cu locurile și punctul de urcare (audit #3): orice schimbare după o trimitere → chei noi.
+  // 564 (N3): și numele, telefonul, e-mailul — panoul compară amprenta întreagă; cheile se schimbă înaintea refuzului.
   const alegere = tur && retur ? [tur.crm_route_id, tur.trip_date, tur.time, retur.crm_route_id, retur.trip_date, retur.time, pasageri,
-    [...aleseTur].sort((a, b) => a - b).join(','), [...aleseRetur].sort((a, b) => a - b).join(','), punct ?? ''].join('|') : "";
+    [...aleseTur].sort((a, b) => a - b).join(','), [...aleseRetur].sort((a, b) => a - b).join(','), punct ?? '',
+    camp.lastName.trim(), camp.firstName.trim(), camp.phone.trim(), camp.email.trim().toLowerCase()].join('|') : "";
   const roteste = React.useCallback(() => {
     setCheiVechi((v) => [...v.filter((k) => k !== cheieTur), cheieTur].slice(-4)); setCheieTur(uuid()); setCheieRetur(uuid()); setTrimisCu(null);
   }, [cheieTur]);

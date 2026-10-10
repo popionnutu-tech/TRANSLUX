@@ -15,7 +15,7 @@ import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
 import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, plafoaneCursei, type MotivFaraReducere } from './promo-server';
-import { hashJeton } from './student-ai';
+import { amprentaAlegerii } from './amprenta';
 import { rezervareExpirata, sesiuneInchisa } from './impacare-reguli';
 
 // Comanda de bilete online (ION-193, pasul 4 din planul ION-190): validare → preț din @translux/db (același ca pe
@@ -326,25 +326,24 @@ async function directiaDeschisa(crmRouteId: number, goingNorth: boolean): Promis
   return goingNorth ? Boolean(data.bilete_online_retur) : Boolean(data.bilete_online_tur);
 }
 
-// Punctul de urcare NU intră în cheie: o reluare cu altă alegere întoarce comanda inițială, cu punctul ei (ION-198).
-function cheileComenzii(c: Pick<BileteComanda, 'trip_date' | 'crm_route_id' | 'going_north' | 'seats' | 'phone'>): string {
-  return [c.trip_date, c.crm_route_id, c.going_north, c.seats, c.phone].join('|');
+/**
+ * N3 (564): amprenta ÎNTREGII alegeri a cererii (vezi amprenta.ts) — una singură, comparată în toate ramurile care refolosesc
+ * o comandă: cheia existentă, sesiunea veche deschisă la bancă, returul din pachet și rândul întors de bilete_creeaza_comanda.
+ * (Înainte: `trip_date|crm_route_id|going_north|seats|phone` — o reluare cu alt loc, alt nume sau alt punct de urcare primea
+ * comanda veche.)
+ */
+function amprentaCererii(input: ComandaInput, v: ReturnType<typeof valideaza>, locuriAlese: number[] | null): string {
+  return amprentaAlegerii({
+    tripDate: input.tripDate, crmRouteId: input.crmRouteId, goingNorth: input.goingNorth, fromRo: input.fromRo, toRo: input.toRo,
+    seats: input.seats, locuriAlese, passengerName: v.name, phone: v.phone, email: v.email, punctUrcareId: input.punctUrcareId ?? null,
+    codRetur: input.codRetur ?? null, studentJeton: input.studentJeton ?? null,
+    retur: input.retur ? {
+      tripDate: String(input.retur.tripDate), crmRouteId: Number(input.retur.crmRouteId), goingNorth: input.retur.goingNorth === true,
+      fromRo: String(input.retur.fromRo ?? '').slice(0, 80), toRo: String(input.retur.toRo ?? '').slice(0, 80), locuriAlese: input.retur.locuriAlese ?? null,
+    } : null,
+  });
 }
-
-/** Turul din codul de retur și verificarea din jeton, cum le-a trimis clientul (pentru reluare), sau null. */
-async function idPromoDinIntrare(input: ComandaInput): Promise<{ turId: string | null; verificareId: string | null }> {
-  const db = getSupabase();
-  let turId: string | null = null, verificareId: string | null = null;
-  if (input.codRetur && /^[0-9a-f]{64}$/.test(input.codRetur)) {
-    const { data } = await db.from('bilete_comenzi').select('id').eq('cod_retur', input.codRetur).maybeSingle();
-    turId = (data as { id: string } | null)?.id ?? null;
-  }
-  if (input.studentJeton && /^[A-Za-z0-9_-]{20,64}$/.test(input.studentJeton)) {
-    const { data } = await db.from('bilete_studenti_verificari').select('id').eq('jeton_hash', hashJeton(input.studentJeton)).maybeSingle();
-    verificareId = (data as { id: string } | null)?.id ?? null;
-  }
-  return { turId, verificareId };
-}
+const MESAJ_ALT_CONTINUT = 'aceeași cheie, alt conținut';
 
 /** Mesajul pentru client când reducerea cerută nu se aplică (același text la cod greșit și la altă persoană). */
 export function mesajFaraReducere(motiv: MotivFaraReducere | undefined): string {
@@ -379,34 +378,30 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if ((opt.mod === 'public' || opt.mod === 'proba') && !input.ipHash) throw new ComandaError('validare', 'ip_hash lipsește');
   const locuriAlese = valideazaLocuriAlese(input.locuriAlese, input.seats, input.goingNorth);
   const db = getSupabase();
+  const amprenta = amprentaCererii(input, v, locuriAlese);
   // Toate cheile vechi ale browserului (cel mult 4): una pe care serverul n-a văzut-o întoarce «nimic» (audit #1).
   for (const k of (input.inlocuieste ?? []).slice(0, 4)) {
     try { await inlocuiesteIncercarea(k, input); } catch (e) {
       // «Reia plata» după «Înapoi» de pe pagina băncii (Ion, 10.10.2026): sesiunea veche e încă deschisă la maib. Dacă
-      // alegerea e aceeași (cursă, locuri, telefon, retur), omul e trimis înapoi pe ACEEAȘI pagină a băncii — nicio a
-      // doua plată posibilă. Altă alegere → mesajul de până acum («plata de dinainte e încă deschisă»).
+      // alegerea e aceeași (amprenta întreagă, 564), omul e trimis înapoi pe ACEEAȘI pagină a băncii — nicio a doua plată
+      // posibilă. Altă alegere → mesajul de până acum («plata de dinainte e încă deschisă»).
       if (!(e instanceof ComandaError) || e.message !== MESAJ_LA_BANCA) throw e;
-      const aceeasi = await sesiuneaAceleiasiAlegeri(k, input, v.phone);
+      const aceeasi = await sesiuneaAceleiasiAlegeri(k, input, amprenta);
       if (!aceeasi) throw e;
       return await asiguraSesiunea(aceeasi, opt);
     }
   }
 
-  // 1. Reluare? Comanda există deja pentru cheia asta → nu re-validăm vânzarea, îi dăm sesiunea ei.
+  // 1. Reluare? Comanda există deja pentru cheia asta → nu re-validăm vânzarea, îi dăm sesiunea ei — DOAR dacă e aceeași
+  // alegere (564, N3): altfel refuz «idempotenta», iar formularul vine cu chei noi și cheia asta în `inlocuieste`.
+  // Amprenta conține și intrarea promoției (codul de retur, jetonul — 546 BLA-3/N11), deci aceeași reducere cerută.
   const { data: existenta, error: eErr } = await db.from('bilete_comenzi').select('*').eq('idempotency_key', input.idempotencyKey).maybeSingle();
   if (eErr) throw new Error(`bilete_comenzi: ${eErr.message}`);
   if (existenta) {
     const comanda = existenta as BileteComanda;
-    if (cheileComenzii(comanda) !== cheileComenzii({ trip_date: input.tripDate, crm_route_id: input.crmRouteId, going_north: input.goingNorth, seats: input.seats, phone: v.phone })) {
-      throw new ComandaError('idempotenta', 'aceeași cheie, alt conținut');
-    }
-    // 546 (BLA-3/N11): reluarea compară INTRAREA promoției (turul din cod, verificarea din jeton), nu reducerea calculată;
-    // jetonul deja legat de această comandă nu e motiv de refuz.
-    const promoIntrare = await idPromoDinIntrare(input);
-    if ((comanda.comanda_tur_id ?? null) !== promoIntrare.turId || (comanda.student_verificare_id ?? null) !== promoIntrare.verificareId) {
-      throw new ComandaError('idempotenta', 'aceeași cheie, altă reducere');
-    }
-    if (input.retur) await asiguraReturPachet(comanda, input, opt);
+    // O comandă fără amprentă (scrisă înainte de 564) nu se refolosește: refuzul duce la o comandă nouă, care o înlocuiește.
+    if ((comanda.amprenta ?? null) !== amprenta) throw new ComandaError('idempotenta', MESAJ_ALT_CONTINUT);
+    if (input.retur) await asiguraReturPachet(comanda, input, opt, amprenta);
     else {
       // Audit H1: returul scos din formular după o încercare eșuată → sesiunea ar cere și returul. Comandă nouă.
       const { count } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', comanda.id).eq('in_pachet', true).in('status', [...DESCHISE]);
@@ -416,12 +411,14 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   }
 
   // Tur-retur: eroarea spune la care bilet (plan tur-retur, B1): «la tur: …» / «la retur: …».
-  const tur = await cuEticheta(input.retur ? 'la tur' : null, () => creeazaRand(input, opt, v, locuriAlese, null));
+  const tur = await cuEticheta(input.retur ? 'la tur' : null, () => creeazaRand(input, opt, v, locuriAlese, null, amprenta));
   if (input.retur) {
-    try { await cuEticheta('la retur', () => asiguraReturPachet(tur, input, opt)); } catch (e) {
+    try { await cuEticheta('la retur', () => asiguraReturPachet(tur, input, opt, amprenta)); } catch (e) {
       // 551 (Ion, 10.10: «pe viitor să nu mai fie»): turul abia creat, fără retur și fără bancă, nu rămâne agățat cu locul
       // ales — altfel harta i-l arată omului ca ocupat și următoarea încercare cere «încă 1 loc».
-      await expiraTurFaraRetur(tur.id);
+      // 564: «idempotenta» la retur = returul pachetului există deja (o cerere concurentă l-a creat): turul e al acelui
+      // pachet și nu se expiră de aici.
+      if (!(e instanceof ComandaError && e.cod === 'idempotenta')) await expiraTurFaraRetur(tur.id);
       throw e;
     }
   }
@@ -491,27 +488,28 @@ async function inlocuiesteIncercarea(cheie: string, input: ComandaInput): Promis
 const MESAJ_LA_BANCA = 'plata de dinainte e încă deschisă la bancă; încearcă din nou peste câteva minute';
 
 /** Comanda veche (cheia dată spre înlocuire), cu sesiune maib, dacă e exact aceeași alegere ca cererea de acum. */
-async function sesiuneaAceleiasiAlegeri(cheie: string, input: ComandaInput, phone: string): Promise<BileteComanda | null> {
+async function sesiuneaAceleiasiAlegeri(cheie: string, input: ComandaInput, amprenta: string): Promise<BileteComanda | null> {
   const db = getSupabase();
   const { data } = await db.from('bilete_comenzi').select('*').eq('idempotency_key', cheie).maybeSingle();
   const c = data as BileteComanda | null;
   if (!c || !c.checkout_id || !DESCHISE.has(c.status)) return null;
-  if (cheileComenzii(c) !== cheileComenzii({ trip_date: input.tripDate, crm_route_id: input.crmRouteId, going_north: input.goingNorth, seats: input.seats, phone })) return null;
-  const locuri = (x: readonly number[] | null | undefined) => [...(x ?? [])].sort((a, b) => a - b).join(',');
-  if (locuri((c as BileteComanda & { locuri_alese?: number[] | null }).locuri_alese) !== locuri(input.locuriAlese)) return null;
-  const { data: rt } = await db.from('bilete_comenzi').select('trip_date, crm_route_id, going_north')
+  // 564 (N3): aceeași amprentă = aceeași cursă, opriri, locuri (ambele sensuri), nume, telefon, e-mail, punct, promoție, retur.
+  if ((c.amprenta ?? null) !== amprenta) return null;
+  const { data: rt } = await db.from('bilete_comenzi').select('id, amprenta')
     .eq('comanda_tur_id', c.id).eq('in_pachet', true).in('status', [...DESCHISE]).maybeSingle();
-  const r = input.retur;
-  if (Boolean(rt) !== Boolean(r)) return null;
-  if (rt && r && (rt.trip_date !== r.tripDate || rt.crm_route_id !== Number(r.crmRouteId) || rt.going_north !== (r.goingNorth === true))) return null;
+  if (Boolean(rt) !== Boolean(input.retur)) return null;
+  if (rt && ((rt as { amprenta?: string | null }).amprenta ?? null) !== amprenta) return null;
   return c;
 }
 
 /**
  * Returul din pachet (548): aceeași persoană, aceleași locuri, plătit în sesiunea turului. Nu se cumulează cu studentul
- * pe tur. Reluarea (aceeași cheie) întoarce returul existent.
+ * pe tur. Reluarea (aceeași cheie, aceeași amprentă) întoarce returul existent.
+ * 564 (F15, Codex r3 C3): un al DOILEA retur pe același tur nu se creează niciodată — nici când primul a expirat (suma
+ * pachetului le-ar număra pe amândouă); reluarea returului identic rămâne. Aceeași regulă stă și în SQL, sub lacătul
+ * perechii (RETUR_PACHET_EXISTENT).
  */
-async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: ComandaOptiuni): Promise<BileteComanda> {
+async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: ComandaOptiuni, amprenta: string): Promise<BileteComanda> {
   const r = input.retur!;
   const db = getSupabase();
   // Configurația promoției se citește deodată cu returul existent; eroarea ei apare tot abia după verificările de mai jos.
@@ -519,12 +517,11 @@ async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: 
   const { data: exist, error: eX } = await db.from('bilete_comenzi').select('*').eq('comanda_tur_id', tur.id).eq('in_pachet', true)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (eX) throw new Error(`bilete_comenzi (pachet): ${eX.message}`);
-  if (exist && DESCHISE.has((exist as BileteComanda).status)) {
+  if (exist) {
     const e = exist as BileteComanda;
-    // Audit M2: altă zi / altă cursă a returului pe aceeași comandă → nu plătim returul vechi.
-    if (e.trip_date !== r.tripDate || e.crm_route_id !== Number(r.crmRouteId) || e.going_north !== (r.goingNorth === true)) {
-      throw new ComandaError('idempotenta', 'returul ales s-a schimbat; reîncarcă pagina');
-    }
+    if (!DESCHISE.has(e.status)) throw new ComandaError('idempotenta', 'returul acestei comenzi nu mai e deschis; reîncarcă pagina');
+    // Audit M2 + 564: altă zi / cursă / opriri / locuri ale returului (sau altă alegere a turului) → nu plătim returul vechi.
+    if ((e.amprenta ?? null) !== amprenta) throw new ComandaError('idempotenta', 'returul ales s-a schimbat; reîncarcă pagina');
     return e;
   }
   if (tur.checkout_id || !DESCHISE.has(tur.status)) throw new ComandaError('validare', 'turul e deja în plată; returul −20% se adaugă doar la cumpărarea turului');
@@ -550,13 +547,17 @@ async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: 
   }
   // Locurile returului pe hartă (doar spre nord, din Chișinău) — Ion, 10.10: «apoi locul din Chișinău».
   const locuriRetur = valideazaLocuriAlese(r.locuriAlese ?? null, tur.seats, returInput.goingNorth);
-  return creeazaRand({ ...returInput, locuriAlese: locuriRetur }, opt, v, locuriRetur, { tur, pct: promoCfg.pct });
+  return creeazaRand({ ...returInput, locuriAlese: locuriRetur }, opt, v, locuriRetur, { tur, pct: promoCfg.pct }, amprenta);
 }
 
-/** Rândul unei comenzi noi (tur sau retur din pachet), cu toate verificările vânzării; fără sesiunea de plată. */
+/**
+ * Rândul unei comenzi noi (tur sau retur din pachet), cu toate verificările vânzării; fără sesiunea de plată.
+ * `amprenta` (564) se scrie pe rând; dacă o cerere concurentă cu aceeași cheie a creat rândul întâi, funcția din bază îl
+ * întoarce doar cu aceeași amprentă (altfel IDEMPOTENTA_CONTINUT, sub lacăt).
+ */
 async function creeazaRand(
   input: ComandaInput, opt: ComandaOptiuni, v: ReturnType<typeof valideaza>, locuriAlese: number[] | null,
-  pachet: { tur: BileteComanda; pct: number } | null,
+  pachet: { tur: BileteComanda; pct: number } | null, amprenta: string,
 ): Promise<BileteComanda> {
   const db = getSupabase();
 
@@ -672,9 +673,13 @@ async function creeazaRand(
       loc_cheie: cota.chei,
       cota_online: cota.cota,
       in_pachet: pachet != null,
+      // 564 (N3): amprenta alegerii; rândul existent cu aceeași cheie se întoarce doar cu aceeași amprentă.
+      amprenta,
     },
   });
   if (error) {
+    if (/IDEMPOTENTA_CONTINUT/.test(error.message)) throw new ComandaError('idempotenta', MESAJ_ALT_CONTINUT);
+    if (/RETUR_PACHET_EXISTENT/.test(error.message)) throw new ComandaError('idempotenta', 'comanda are deja un retur; reîncarcă pagina');
     // Funcția refuză locurile deja luate cu «LOC_OCUPAT:2,3» (bilet viu sau rezervare a altei comenzi deschise).
     const ocupat = /LOC_OCUPAT:([\d,]*)/.exec(error.message);
     if (ocupat) throw new ComandaError('loc_ocupat', 'unul sau mai multe locuri alese sunt deja luate', ocupat[1].split(',').filter(Boolean).map(Number));
@@ -696,6 +701,9 @@ async function creeazaRand(
     if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi neplătite pe acest număr; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
   }
+  // A doua plasă (564): rândul întors (al nostru sau al unei cereri concurente) trebuie să fie exact alegerea de acum.
+  // Fără coloană (migrația 564 neaplicată încă) câmpul lipsește din rând: plasa SQL lipsește și ea, comparația nu se face.
+  if (rand && 'amprenta' in (rand as object) && ((rand as BileteComanda).amprenta ?? null) !== amprenta) throw new ComandaError('idempotenta', MESAJ_ALT_CONTINUT);
   return rand as BileteComanda;
 }
 

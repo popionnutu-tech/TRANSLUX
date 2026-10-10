@@ -963,13 +963,26 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(creeaza.text).toContain('IF NOT v_pachet AND (t.paid_at IS NULL');
     expect(citeste('548_bilete_tur_retur_o_plata.sql')).toContain("CHECK (NOT in_pachet OR (comanda_tur_id IS NOT NULL AND reducere_tip = 'retur' AND checkout_id IS NULL))");
   });
-  it('553 e ultima definiție a bilete_creeaza_comanda și păstrează 546/547/548/551 (copiere textuală fără pierderi)', () => {
-    expect(creeaza.fisier).toBe('553_bilete_revizie_tur_retur.sql');
+  it('564 e ultima definiție a bilete_creeaza_comanda și păstrează 546/547/548/551/553 (copiere textuală fără pierderi)', () => {
+    expect(creeaza.fisier).toBe('564_bilete_amprenta_alegerii.sql');
+    // 564 (N3/F15): amprenta comparată la toate cele trei întoarceri ale rândului existent; al doilea retur din pachet refuzat
+    expect(creeaza.text.match(/r\.amprenta IS DISTINCT FROM v_amprenta THEN RAISE EXCEPTION 'IDEMPOTENTA_CONTINUT'/g)?.length).toBe(3);
+    expect(creeaza.text).toContain("RAISE EXCEPTION 'RETUR_PACHET_EXISTENT'");
+    expect(creeaza.text.indexOf('RETUR_PACHET_EXISTENT')).toBeGreaterThan(creeaza.text.indexOf("pg_advisory_xact_lock(hashtext('bilete_comanda'))"));
+    expect(comenziTs).toContain('IDEMPOTENTA_CONTINUT');
+    expect(comenziTs).toContain('RETUR_PACHET_EXISTENT');
     for (const s of ['PROMO_SOFER', 'RETUR_FOLOSIT', 'RETUR_DUPA_TUR', 'STUDENT_JETON_FOLOSIT', 'STUDENT_PLAFON', 'COTA_PLINA', 'RETUR_TERMEN', 'LOC_OCUPAT', 'in_pachet)']) {
       expect(creeaza.text, s).toContain(s);
     }
     expect(creeaza.text).toMatch(/ip_hash = coalesce\(v_ip, ''\) AND NOT in_pachet/);
     expect(creeaza.text).toMatch(/phone = v_phone AND status = 'noua' AND NOT in_pachet/);
+  });
+  it('reactivarea (564, ultima definiție): fără alerta «se returnează manual»; ce rămâne fără bilet primește intenția de refund (Ion: «dispecer nu va fi»)', () => {
+    const reactiveaza = ultimaDefinitie('bilete_reactiveaza(p_id uuid)');
+    expect(reactiveaza.fisier).toBe('564_bilete_amprenta_alegerii.sql');
+    expect(reactiveaza.text).not.toContain('manual');
+    expect(reactiveaza.text).toContain('bilete_refund_intentie_noua(');
+    expect(reactiveaza.text.indexOf('bilete_refund_intentie_noua(')).toBeGreaterThan(reactiveaza.text.indexOf("status = 'platita_fara_bilet'"));
   });
   it('anularea (560, ultima definiție — copiată din 559/558/548): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
     expect(anuleaza.fisier).toBe('560_bilete_plata_tarzie_bani_inapoi.sql');

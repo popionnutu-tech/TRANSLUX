@@ -85,10 +85,46 @@ export interface Rubrici {
   total: number;
 }
 
+/** Ce se știe despre o rută din `crm_routes` (citit separat de RPC). */
+export interface InfoRuta {
+  route_type: string | null;
+  /** «18:30 - 22:35»: plecarea din Chișinău – sosirea. */
+  time_chisinau: string | null;
+}
+
+/** Prima oră dintr-un interval «HH:MM - HH:MM» = ora plecării. */
+export function oraPlecare(interval: string | null | undefined): string | null {
+  const m = interval?.match(/\d{1,2}:\d{2}/);
+  return m ? m[0] : null;
+}
+
+/**
+ * Denumirea rutei cu ora plecării lângă locul din care pleacă.
+ *
+ * Ion, 10.10.2026: «pune ora în rând cu direcția din care pleacă … trebuie ora din Chișinău
+ * pornire și ora de la nord». `time_nord` e plecarea din nord, `time_chisinau` plecarea din
+ * Chișinău (ambele «plecare - sosire»), deci «Chișinău - Criva» devine
+ * [Chișinău 18:30] - [Criva 11:00]. Ruta fără «Chișinău» în nume (Otaci) primește capătul
+ * Chișinău în față. Fără ore (suburban), rămâne doar numele.
+ */
+export function capeteCuOre(
+  routeName: string,
+  timeChisinau: string | null,
+  timeNord: string | null,
+): { loc: string; ora: string | null }[] {
+  const oraC = oraPlecare(timeChisinau);
+  const oraN = oraPlecare(timeNord);
+  if (!oraC && !oraN) return [{ loc: routeName, ora: null }];
+  const parts = routeName.split(' - ');
+  const nord = parts[0] === 'Chișinău' && parts.length > 1 ? parts.slice(1).join(' - ') : routeName;
+  return [{ loc: 'Chișinău', ora: oraC }, { loc: nord, ora: oraN }];
+}
+
 export interface RutaAgregata extends Rubrici {
   crm_route_id: number;
   route_name: string;
   time_nord: string | null;
+  time_chisinau: string | null;
   route_type: 'interurban' | 'suburban';
   /** Curse neanulate. */
   curse: number;
@@ -200,13 +236,14 @@ function rotunjesteSubtotal(s: Subtotal): Subtotal {
  *   «Curse» le numără doar pe cele neanulate.
  * - Cu/Fără încasare se judecă pe Total foaie, nu pe statutul RPC (acela e pe numerar +
  *   diagramă): așa Cu + Fără = Curse, mereu.
- * - `routeTypes` vine din `crm_routes.route_type`; o rută necunoscută trece la interurban.
+ * - `infoRute` vine din `crm_routes` (tip + ora din Chișinău); o rută necunoscută trece la interurban.
+ *   Ora din Chișinău se ia de acolo, nu din rândul RPC: acolo e cea a rutei de retur a zilei.
  */
 export function agregaPeRute(
   from: string,
   to: string,
   rows: GraficRouteRow[],
-  routeTypes: Map<number, string>,
+  infoRute: Map<number, InfoRuta>,
   orphanInc: Anomaly[],
   orphanManual: OrphanManual[],
 ): RaportPeRute {
@@ -220,7 +257,8 @@ export function agregaPeRute(
         crm_route_id: row.crm_route_id,
         route_name: row.route_name || `Ruta ${row.crm_route_id}`,
         time_nord: row.time_nord,
-        route_type: routeTypes.get(row.crm_route_id) === 'suburban' ? 'suburban' : 'interurban',
+        time_chisinau: infoRute.get(row.crm_route_id)?.time_chisinau ?? null,
+        route_type: infoRute.get(row.crm_route_id)?.route_type === 'suburban' ? 'suburban' : 'interurban',
         curse: 0, cuIncasare: 0, faraIncasare: 0, anulate: 0,
         numarare: 0, numaratFaraIncasare: 0, diferenta: 0,
         mediePeCursa: null, steag: false,

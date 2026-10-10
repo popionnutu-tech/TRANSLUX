@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRaportPeRute } from './incasareActions';
 import {
-  lunaTrecuta, perioadaImplicita, valideazaPerioada,
+  capeteCuOre, lunaTrecuta, perioadaImplicita, valideazaPerioada,
   type RaportPeRute, type RutaAgregata, type Subtotal,
 } from './raport-rute';
 import { construiesteExcel, dmy, ETICHETA_CATEGORIE, ETICHETA_DE_VERIFICAT } from './raport-rute-xls';
@@ -259,9 +259,15 @@ function GroupRows({ label, rute, sub, nrCol, rubriciCells }: {
         <tr key={r.crm_route_id} style={r.steag ? { background: 'var(--danger-dim, #fdecee)' } : undefined}>
           <td style={TDL} title={`ID rută ${r.crm_route_id}`}>
             {r.steag && <span style={{ color: 'var(--danger)', marginRight: 4 }} title="Sub jumătate din curse au bani în casă">⚑</span>}
-            {r.route_name}
-            {/* ora stă în denumire: numele se repetă (6 «Chișinău - Lipcani»), ora le deosebește */}
-            {r.time_nord && <span className="text-muted" style={{ fontSize: 12, marginLeft: 6 }}>{r.time_nord}</span>}
+            {/* Ora plecării lângă locul din care pleacă (Ion, 10.10): «Chișinău 18:30 - Criva 11:00».
+                Numele se repetă (6 «Chișinău - Lipcani»), orele le deosebesc. */}
+            {capeteCuOre(r.route_name, r.time_chisinau, r.time_nord).map((c, i) => (
+              <span key={i}>
+                {i > 0 && ' - '}
+                {c.loc}
+                {c.ora && <span className="text-muted" style={{ fontSize: 12, marginLeft: 4 }}>{c.ora}</span>}
+              </span>
+            ))}
           </td>
           <td style={TD}>{r.curse}{r.anulate > 0 && <span className="text-muted" style={{ fontSize: 11 }} title="anulate"> +{r.anulate}⊘</span>}</td>
           <td style={TD}>{r.cuIncasare}</td>

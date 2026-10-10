@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  agregaPeRute, perioadaImplicita, lunaTrecuta, valideazaPerioada, zileInclusiv,
+  agregaPeRute, capeteCuOre, perioadaImplicita, lunaTrecuta, valideazaPerioada, zileInclusiv,
 } from './raport-rute';
 import type { Anomaly, GraficRouteRow, OrphanManual } from './incasareActions';
 
@@ -20,7 +20,8 @@ function row(p: Partial<GraficRouteRow> & { crm_route_id: number; ziua: string }
   };
 }
 
-const types = new Map<number, string>([[1, 'interurban'], [2, 'interurban'], [44, 'suburban']]);
+const ri = (route_type: string) => ({ route_type, time_chisinau: null });
+const types = new Map([[1, ri('interurban')], [2, ri('interurban')], [44, ri('suburban')]]);
 
 describe('agregaPeRute', () => {
   it('adună cele șase rubrici în Total foaie, pe rută', () => {
@@ -163,6 +164,22 @@ describe('agregaPeRute', () => {
     const rows = Array.from({ length: 300 }, (_, i) =>
       row({ crm_route_id: 1, ziua: `2026-09-${String((i % 30) + 1).padStart(2, '0')}`, incasare_diagrama: 0.1 }));
     expect(agregaPeRute('a', 'b', rows, types, [], []).rute[0].total).toBe(30);
+  });
+});
+
+describe('capeteCuOre', () => {
+  it('ora din Chișinău lângă Chișinău, ora din nord lângă orașul din nord', () => {
+    expect(capeteCuOre('Chișinău - Criva', '18:30 - 22:35', '11:00 - 15:35')).toEqual([
+      { loc: 'Chișinău', ora: '18:30' }, { loc: 'Criva', ora: '11:00' }]);
+  });
+  it('nume cu paranteze și fără «Chișinău» (Otaci)', () => {
+    expect(capeteCuOre('Chișinău - Criva (Larga)', '12:30 - 16:55', '06:00 - 11:35')[1])
+      .toEqual({ loc: 'Criva (Larga)', ora: '06:00' });
+    expect(capeteCuOre('Otaci', '18:55 - 00:01', '12:35 - 17:40')).toEqual([
+      { loc: 'Chișinău', ora: '18:55' }, { loc: 'Otaci', ora: '12:35' }]);
+  });
+  it('suburban fără ore: doar numele', () => {
+    expect(capeteCuOre('Briceni - Lipcani', null, null)).toEqual([{ loc: 'Briceni - Lipcani', ora: null }]);
   });
 });
 

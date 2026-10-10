@@ -1,5 +1,5 @@
 import type * as XLSXType from 'xlsx';
-import type { CategorieFaraRuta, RaportPeRute, Subtotal } from './raport-rute';
+import { oraPlecare, type CategorieFaraRuta, type RaportPeRute, type Subtotal } from './raport-rute';
 
 /** ISO → DD.MM.YYYY ca text: o dată-text nu se mută pe fus în Excel. */
 export function dmy(iso: string | null | undefined): string {
@@ -23,13 +23,13 @@ export const ETICHETA_DE_VERIFICAT = {
 } as const;
 
 const ANTET_RUTE = [
-  'Rută', 'Ora', 'ID', 'Tip', 'Curse', 'Cu încasare', 'Fără încasare', 'Numărat pe cele fără încasare',
+  'Rută', 'Pleacă din Chișinău', 'Pleacă din nord', 'ID', 'Tip', 'Curse', 'Cu încasare', 'Fără încasare', 'Numărat pe cele fără încasare',
   'Numerar', 'Diagramă', 'Ligotnici 0', 'Ligotnici gară', 'Combustibil DT', 'Cheltuieli',
   'Total foaie', 'Medie pe cursă', 'Numărare', 'Diferență (cu numărare)', 'Steag',
 ];
 
 function subtotalRow(label: string, s: Subtotal): (string | number | null)[] {
-  return [label, '', '', '', s.curse, s.cuIncasare, s.faraIncasare, s.numaratFaraIncasare,
+  return [label, '', '', '', '', s.curse, s.cuIncasare, s.faraIncasare, s.numaratFaraIncasare,
     s.numerar, s.diagrama, s.ligotniki0, s.ligotnikiGara, s.dt, s.cheltuieli,
     s.total, s.cuIncasare > 0 ? Math.round((s.total / s.cuIncasare) * 100) / 100 : null, s.numarare, s.diferenta, ''];
 }
@@ -58,7 +58,7 @@ export function construiesteExcel(XLSX: typeof XLSXType, r: RaportPeRute, genera
     const lista = r.rute.filter(x => x.route_type === tip);
     if (lista.length === 0) continue;
     for (const a of lista) {
-      rows.push([a.route_name, a.time_nord || '', a.crm_route_id, tip === 'interurban' ? 'Interurban' : 'Suburban',
+      rows.push([a.route_name, oraPlecare(a.time_chisinau) || '', oraPlecare(a.time_nord) || '', a.crm_route_id, tip === 'interurban' ? 'Interurban' : 'Suburban',
         a.curse, a.cuIncasare, a.faraIncasare, a.numaratFaraIncasare,
         a.numerar, a.diagrama, a.ligotniki0, a.ligotnikiGara, a.dt, a.cheltuieli,
         a.total, a.mediePeCursa, a.numarare, a.diferenta, a.steag ? 'sub 50% curse cu bani' : '']);
@@ -66,14 +66,14 @@ export function construiesteExcel(XLSX: typeof XLSXType, r: RaportPeRute, genera
     rows.push(subtotalRow(tip === 'interurban' ? 'Subtotal interurban' : 'Subtotal suburban', r.subtotaluri[tip]));
   }
   rows.push(subtotalRow('TOTAL PE RUTE', r.totalRute));
-  rows.push(['Bani fără rută', '', '', '', null, null, null, null, null, null, null, null, null, null, r.faraRuta.total]);
-  rows.push(['TOTAL GENERAL', '', '', '', null, null, null, null, null, null, null, null, null, null, r.totalGeneral]);
-  rows.push(['De verificat (în afara totalului)', '', '', '', null, null, null, null, null, null, null, null, null, null, r.deVerificat.total]);
-  rows.push(['TOTAL GENERAL + DE VERIFICAT', '', '', '', null, null, null, null, null, null, null, null, null, null, r.totalGeneralCuDeVerificat]);
+  rows.push(['Bani fără rută', '', '', '', '', null, null, null, null, null, null, null, null, null, null, r.faraRuta.total]);
+  rows.push(['TOTAL GENERAL', '', '', '', '', null, null, null, null, null, null, null, null, null, null, r.totalGeneral]);
+  rows.push(['De verificat (în afara totalului)', '', '', '', '', null, null, null, null, null, null, null, null, null, null, r.deVerificat.total]);
+  rows.push(['TOTAL GENERAL + DE VERIFICAT', '', '', '', '', null, null, null, null, null, null, null, null, null, null, r.totalGeneralCuDeVerificat]);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  formatBani(ws, XLSX, [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], titlu.length + 1);
-  ws['!cols'] = [{ wch: 34 }, { wch: 14 }, { wch: 5 }, { wch: 11 }, ...ANTET_RUTE.slice(4).map(() => ({ wch: 13 }))];
+  formatBani(ws, XLSX, [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], titlu.length + 1);
+  ws['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 10 }, { wch: 5 }, { wch: 11 }, ...ANTET_RUTE.slice(5).map(() => ({ wch: 13 }))];
   XLSX.utils.book_append_sheet(wb, ws, 'Pe rute');
 
   const fr: (string | number)[][] = [

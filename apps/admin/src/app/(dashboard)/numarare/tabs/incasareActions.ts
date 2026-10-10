@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { scrieFoaie } from '@/lib/foaie';
-import { agregaPeRute, valideazaPerioada, type RaportPeRute } from './raport-rute';
+import { agregaPeRute, valideazaPerioada, type InfoRuta, type RaportPeRute } from './raport-rute';
 
 // ─── Tipuri ───
 
@@ -281,7 +281,7 @@ export async function getRaportPeRute(
   const sb = getSupabase();
   const [rep, types] = await Promise.all([
     sb.rpc('get_grafic_report', { p_from: fromDate, p_to: toDate }),
-    sb.from('crm_routes').select('id, route_type'),
+    sb.from('crm_routes').select('id, route_type, time_chisinau'),
   ]);
 
   if (rep.error) {
@@ -293,15 +293,18 @@ export async function getRaportPeRute(
   }
   if (types.error) return { error: types.error.message };
 
-  const routeTypes = new Map<number, string>(
-    (types.data || []).map(r => [Number(r.id), String(r.route_type)]),
+  const rute = new Map<number, InfoRuta>(
+    (types.data || []).map(r => [Number(r.id), {
+      route_type: r.route_type == null ? null : String(r.route_type),
+      time_chisinau: r.time_chisinau == null ? null : String(r.time_chisinau),
+    }]),
   );
   const payload = rep.data as GraficReportResult | null;
   return {
     data: agregaPeRute(
       fromDate, toDate,
       payload?.routes || [],
-      routeTypes,
+      rute,
       payload?.orphan_incasare || [],
       payload?.orphan_manual || [],
     ),

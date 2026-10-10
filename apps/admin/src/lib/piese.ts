@@ -965,3 +965,20 @@ export async function sheetLabelsForParts(partIds: number[], warehouseId: number
     }];
   });
 }
+
+// Lista roșie: recepțiile cărora le lipsește factura fiscală (migr. 411).
+//
+// Factura nu vine odată cu marfa — Eduard a spus-o limpede — deci câmpul nu poate fi obligatoriu la
+// recepție. Rămâne singura cale care nu blochează intrarea mărfii: să nu se uite.
+export type RecepcieFaraFactura = {
+  id: number; data: string; zile: number; furnizor: string | null; depozit: string;
+  serie: string | null; numar: string | null; are_data: boolean;
+  pozitii: number; suma: number; creator: string | null;
+};
+
+export async function recepciiFaraFactura(warehouseId?: number | null): Promise<RecepcieFaraFactura[]> {
+  const { data, error } = await getSupabase()
+    .rpc('piese_recepcii_fara_factura', { p_warehouse: warehouseId ?? null });
+  if (error) throw new Error(error.message);
+  return (data as RecepcieFaraFactura[]) || [];
+}

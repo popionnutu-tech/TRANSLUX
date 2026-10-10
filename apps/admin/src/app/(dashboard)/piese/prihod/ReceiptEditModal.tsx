@@ -142,11 +142,15 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
         {loading ? <p className="muted">Se încarcă…</p> : err ? <div className="alert danger">{err}</div> : (
           <>
             {!canEdit && (
-              <div className="alert" style={{ marginBottom: 12 }}>Doar administratorul poate modifica documente din zile anterioare. Acest document este doar de vizualizat.</div>
+              <div className="alert" style={{ marginBottom: 12 }}>
+                Documentul e din zile anterioare — furnizorul, liniile și comentariul nu se mai schimbă.
+                <strong> Datele facturii fiscale (serie, număr, dată) se pot completa oricând</strong>, și
+                după închiderea zilei: nu mișcă stoc și nu ating FIFO, doar pleacă în contabilitate.
+              </div>
             )}
             {canEdit && !canEditLines && (
               <div className="alert" style={{ marginBottom: 12 }}>
-                <strong>Marfa din această recepție a fost deja folosită</strong> — nu se pot modifica liniile (cantități / prețuri / piese). Poți modifica doar antetul (furnizor / serie / număr / comentariu).
+                <strong>Marfa din această recepție a fost deja folosită</strong> — nu se pot modifica liniile (cantități / prețuri / piese). Poți modifica doar antetul (furnizor / comentariu) și datele facturii fiscale (serie / număr / dată).
                 {consumedBy.length > 0 && (
                   <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
                     {consumedBy.map((c, i) => (
@@ -163,8 +167,13 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
                 <label>Furnizor</label>
                 {canEdit ? <SearchSelect options={suppliers} value={supplierId} onSelect={(o) => setSupplierId(o ? o.id : '')} placeholder="— caută furnizor —" /> : <div>{supplierName}</div>}
               </div>
-              <div className="form-row"><label>Serie</label>{canEdit ? <input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /> : <div>{series || '—'}</div>}</div>
-              <div className="form-row"><label>Număr</label>{canEdit ? <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /> : <div>{number || '—'}</div>}</div>
+              {/* Seria și numărul sunt date ale FACTURII, nu ale mărfii — ca și data de mai jos. Serverul
+                  le lasă editabile și în afara ferestrei de corecție (`doarFacturaSeSchimba`), fiindcă
+                  factura fiscală ajunge la depozit la zile sau săptămâni după marfă. Fără asta, cele 22 de
+                  recepții fără număr n-ar mai putea fi completate niciodată, iar în contabilitate n-ar
+                  ajunge deloc. */}
+              <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
+              <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
               {/* Data facturii fiscale. Se poate completa ORICÂND, inclusiv după ce documentul a ieșit din
                   fereastra de corecție — nu mișcă stoc și nu atinge FIFO, doar pleacă în 1C. De aceea
                   câmpul nu e gardat de `canEdit`, spre deosebire de restul antetului. */}
@@ -245,13 +254,15 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
             {!totalOk && <div className="alert warn" style={{ marginTop: 10 }}>Suma liniilor nu coincide cu totalul facturii. Corectează o cantitate sau un preț, ori golește câmpul de control.</div>}
             {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 10 }}>{msg.m}</div>}
 
-            {canEdit && (
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-                {readOnlyLines
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+              {!canEdit
+                // Document vechi: restul antetului nici nu se afișează ca input, deci rămâne neschimbat și
+                // serverul recunoaște salvarea drept „doar factura" — singura care sare peste fereastra zilei.
+                ? <button className="btn btn-primary" disabled={busy} onClick={saveHeader}>{busy ? 'Se salvează…' : 'Salvează datele facturii'}</button>
+                : readOnlyLines
                   ? <button className="btn btn-primary" disabled={busy || !totalOk} onClick={saveHeader}>{busy ? 'Se salvează…' : 'Salvează antetul'}</button>
                   : <button className="btn btn-primary" disabled={busy || !totalOk} onClick={saveAll}>{busy ? 'Se salvează…' : 'Salvează modificările'}</button>}
-              </div>
-            )}
+            </div>
           </>
         )}
       </div>

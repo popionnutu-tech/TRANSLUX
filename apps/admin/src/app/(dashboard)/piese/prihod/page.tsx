@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic';
 
-import { listWarehouses, listSuppliers, listGroups, receiptDocs } from '@/lib/piese';
+import { listWarehouses, listSuppliers, listGroups, receiptDocs, recepciiFaraFactura } from '@/lib/piese';
 import { requirePieseReceipt, userWarehouseId, warehousesForUser } from '@/lib/piese-access';
 import PrihodTabs from './PrihodTabs';
+import FacturiLipsa from './FacturiLipsa';
 
 export default async function PrihodPage() {
   const session = await requirePieseReceipt();
@@ -11,10 +12,14 @@ export default async function PrihodPage() {
   ]);
   // Etapa 2: contul legat de un depozit vede doar depozitul lui (dropdown + jurnal); garda reală e pe server.
   const allowed = warehousesForUser(warehouses as any[], wid);
-  const initialDocs = await receiptDocs({ warehouseId: wid != null ? wid : undefined, limit: 200 });
+  const [initialDocs, faraFactura] = await Promise.all([
+    receiptDocs({ warehouseId: wid != null ? wid : undefined, limit: 200 }),
+    recepciiFaraFactura(wid),
+  ]);
   return (
     <>
       <div className="page-header"><h1>Prihod — recepție marfă</h1><p>Fiecare poziție intră ca strat FIFO. Stocul crește automat.</p></div>
+      <FacturiLipsa randuri={faraFactura} suppliers={(suppliers as any[]).map((s) => ({ id: s.id, label: s.name }))} />
       <PrihodTabs
         warehouses={allowed.map((w) => ({ id: w.id, label: w.name }))}
         suppliers={(suppliers as any[]).map((s) => ({ id: s.id, label: s.name }))}

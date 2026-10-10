@@ -14,7 +14,7 @@ import { repereleCautarii, rutele } from '@/lib/cautare-cache';
 // în asistent și în API-ul biletelor online.
 import {
   buildTurAssignmentMap, buildReturAssignmentMap, calculeazaCurse, pickRate,
-  resolveOfferForDate, resolveTariffRates, parseTimeLabel, pretVandabilOnline, type DateCurse,
+  baltiChisinauFixedPrice, resolveOfferForDate, resolveTariffRates, parseTimeLabel, pretVandabilOnline, type DateCurse,
 } from '@translux/db';
 
 const todayChisinau = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -144,6 +144,9 @@ async function preturiPopulareLa(today: string): Promise<PopularRoutePrice[]> {
       const rate = pickRate(row.from_district, row.to_district, row.start_district, rateLong, rateSub);
       price = Math.round(km * rate);
     }
+    // Bălți ⇄ Chișinău are preț fix (ION-165; Ion 10.10.2026: «și Chișinău–Bălți 150 lei pe site»), ca la căutare.
+    const fix = baltiChisinauFixedPrice(r.from_ro, r.to_ro, today);
+    if (fix != null) price = fix;
 
     return {
       from_slug: r.from,
@@ -177,7 +180,7 @@ export const getCachedLocalities = unstable_cache(
  */
 const preturiPopulareZi = unstable_cache(
   async (today: string) => preturiPopulareLa(today),
-  ['public-popular-prices-v2'],
+  ['public-popular-prices-v3'],
   { revalidate: 3600, tags: ['popular-prices', 'route-pages'] }
 );
 

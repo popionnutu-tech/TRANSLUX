@@ -2,9 +2,10 @@ import { notFound } from 'next/navigation';
 import type { Locale } from '@/lib/i18n';
 import { biletPublic, type ComandaPublica } from '@/lib/bilete-api';
 import { linkHarta } from '@/lib/bilete-reguli';
-import { AsteaptaPlata, EcranCompletTelegram, ReturDupaTur, SalveazaBilet } from './BiletActiuni';
+import { AsteaptaPlata, EcranCompletTelegram, SalveazaPoza, type PozaLoc } from './BiletActiuni';
+import { OPERATOR } from '@/components/legal/legal-content';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
-import { BILET_CARD_CSS, BiletCard, bileteDeAratat, numeRuta } from './BiletCard';
+import { BILET_CARD_CSS, BiletCard, TXT_CARD, bileteDeAratat, dataScurta, nfPret, numeRuta, oraHHMM } from './BiletCard';
 import LogoTranslux from '../logo-translux';
 import { ReiaPlata } from './ReiaPlata';
 
@@ -30,6 +31,7 @@ const TXT = {
     tgTitlu: 'Pasul următor: ia biletul în Telegram',
     tgMotive: ['biletul cu codul QR mereu în telefon', 'cu 12 ore și cu o oră înainte îți amintim de cursă', 'vezi pe hartă unde e autobuzul și când ajunge'],
     tgStart: 'Se deschide Telegram: apasă START și biletul apare acolo.',
+    tgButon: '📍 În Telegram', tgScurt: 'În Telegram: amintire înainte de cursă și autobuzul pe hartă.',
     retur: 'Returnarea se cere prin botul nostru din Telegram sau la telefon +373 60 401 010: integral cu peste 24 de ore înainte de plecare, apoi tot mai puțin; cu mai puțin de 4 ore nu se restituie. Detalii: translux.md/ro/conditii-vanzare.',
     indisponibil: 'Biletul nu poate fi afișat acum. Reîncarcă pagina peste un minut.', acasa: '← Pagina principală',
   },
@@ -44,6 +46,7 @@ const TXT = {
     tgTitlu: 'Следующий шаг: билет в Telegram',
     tgMotive: ['билет с QR-кодом всегда в телефоне', 'за 12 часов и за час напомним о поездке', 'на карте видно, где автобус и когда он подъедет'],
     tgStart: 'Откроется Telegram: нажмите START, и билет появится там.',
+    tgButon: '📍 В Telegram', tgScurt: 'В Telegram: напоминание о поездке и автобус на карте.',
     retur: 'Возврат — через наш бот в Telegram или по телефону +373 60 401 010: полностью более чем за 24 часа до отправления, затем меньше; менее чем за 4 часа не возвращается. Подробно: translux.md/ru/conditii-vanzare.',
     indisponibil: 'Билет сейчас недоступен. Обновите страницу через минуту.', acasa: '← Главная',
   },
@@ -72,6 +75,9 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
   const tx = TXT[locale];
   const c = await biletPublic(cod);
   if (c === null) notFound();
+  // Biletul plătit pe un singur ecran (Ion, 10.10.2026: «biletul final să fie o pagină fără scroll»): fără antetul cu
+  // logo și fără titlu — logoul e pe bilet; dedesubt doar ce cere maib (comanda, firma, plățile).
+  const ecranBilet = c !== 'indisponibil' && c.status === 'platita' && bileteDeAratat(c).length > 0;
 
   return (
     <div className="legal-page">
@@ -80,14 +86,14 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
         ${BILET_CARD_CSS}
         @media print { .bilet-no-print { display: none !important; } .site-header { display: none !important; } body { background: #fff; } .bilet-card { box-shadow: none !important; border: 1px solid #ddd; } }
       `}</style>
-      {!doar && <header className="site-header bilet-no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px' }}>
+      {!doar && !ecranBilet && <header className="site-header bilet-no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px' }}>
         <a href={`/${locale}`} aria-label="TRANSLUX">
           <LogoTranslux height={30} />
         </a>
       </header>}
 
-      <main className="legal-main" style={{ maxWidth: 520 }}>
-        {!doar && <h1 className="bilet-no-print">{tx.titlu}</h1>}
+      <main className="legal-main" style={{ maxWidth: 520, ...(ecranBilet && !doar ? { paddingTop: 14 } : {}) }}>
+        {!doar && !ecranBilet && <h1 className="bilet-no-print">{tx.titlu}</h1>}
         {c === 'indisponibil' ? (
           <p>{tx.indisponibil}</p>
         ) : (() => {
@@ -118,7 +124,27 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
 
               {platit && (
                 <div style={{ display: 'grid', gap: 18 }}>
-                  {valide.map((b) => <BiletCard key={b.nr} comanda={c} bilet={b} locale={locale} />)}
+                  {/* Biletul și trecerea în Telegram într-un singur bloc (Ion, 10.10.2026: «biletul și Telegram trecere unește»);
+                      «Salvează/tipărește» a devenit poza biletului în galerie (Ion, 10.10.2026). */}
+                  {valide.map((b, i) => <BiletCard key={b.nr} comanda={c} bilet={b} locale={locale} jos={!doar && i === 0 ? (
+                    <div className="bilet-no-print" style={{ padding: '6px 16px 14px', display: 'grid', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, padding: '0 10px', borderRadius: 14,
+                          background: '#1b7fb0', color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: 15, textAlign: 'center',
+                        }}>{tx.tgButon}</a>
+                        <SalveazaPoza locale={locale} stil={{ flex: 1 }} locuri={valide.map((v): PozaLoc => ({
+                          loc: String(v.loc_nr ?? v.nr), eticheta: TXT_CARD[locale].locul.toUpperCase(), cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
+                          ora: oraHHMM(c.departure_at), sosire: c.sosire ?? null, ruta: `${c.from_name} → ${c.to_name}`, numeRuta: nume, data: dataScurta(c.trip_date, locale),
+                          jos: `${c.passenger_name} · ${nfPret.format(Number(c.price_per_seat))} MDL · ${v.status === 'urcat' ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
+                          operator: `${OPERATOR.brand} · ${OPERATOR.name} · IDNO ${OPERATOR.idno}`,
+                          banda: c.proba ? TXT_CARD[locale].proba : c.reducere ? (c.reducere.tip === 'student' ? TXT_CARD[locale].student20 : TXT_CARD[locale].retur20) : null,
+                          bandaProba: Boolean(c.proba), urcat: v.status === 'urcat',
+                        }))} />
+                      </div>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.35 }}>{tx.tgScurt}</span>
+                    </div>
+                  ) : undefined} />)}
                   {!doar && <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>}
                   {!doar && c.punct_urcare && (
                     <p style={{ fontSize: 13, color: '#555', margin: 0 }}><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? c.punct_urcare.nume_ru : c.punct_urcare.nume_ro}</b>{' '}
@@ -134,27 +160,9 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                   <div style={{ fontSize: 14, marginTop: 4 }}>{c.pachet.from_name} → {c.pachet.to_name} · {dataOra(c.pachet.departure_at, locale)}</div>
                 </a>
               )}
-              {!doar && !c.pachet && c.status === 'platita' && c.cod_retur && !c.proba && <div className="bilet-no-print" style={{ marginTop: 14 }}><ReturDupaTur codRetur={c.cod_retur} paidAt={c.paid_at} rutaId={c.ruta?.id ?? null} tripDate={c.trip_date} de={c.from_name} spre={c.to_name} locale={locale} /></div>}
 
               {c.status === 'noua' && <AsteaptaPlata locale={locale} />}
 
-              {!doar && c.status === 'platita' && (
-                <div className="bilet-no-print" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                  {/* Toți spre Telegram (Ion, 05.10, ION-238): cardul e pasul principal de după plată; butonul rămâne cel de până acum. */}
-                  <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: '#eef6fb', border: '2px solid #1b7fb0' }}>
-                    <div style={{ fontWeight: 700, fontSize: 17, color: '#17364a' }}>{tx.tgTitlu}</div>
-                    <div style={{ display: 'grid', gap: 6, fontSize: 15, color: '#24485e' }}>
-                      {tx.tgMotive.map((m) => <span key={m}>✓ {m}</span>)}
-                    </div>
-                    <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 56, padding: '0 14px', borderRadius: 12,
-                      background: '#1b7fb0', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 16, textAlign: 'center',
-                    }}>{tx.telegram}</a>
-                    <div style={{ fontSize: 14, color: '#24485e' }}>{tx.tgStart}</div>
-                  </div>
-                  <SalveazaBilet text={tx.salveaza} />
-                </div>
-              )}
 
               {/* ION-235 (cerințele maib): numărul comenzii și data plății, sub bilet. */}
               {!doar && platit && c.numar && (

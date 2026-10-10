@@ -200,3 +200,113 @@ export function ReturDupaTur({ codRetur, paidAt, rutaId, tripDate, de, spre, loc
     </div>
   );
 }
+
+/** Ce se desenează în poza unui loc (calculat pe server, pe pagina biletului). */
+export interface PozaLoc {
+  loc: string; eticheta: string; cod: string; qrSvg: string; ora: string; sosire: string | null; ruta: string; numeRuta: string | null;
+  data: string; jos: string; operator: string; banda: string | null; bandaProba: boolean; urcat: boolean;
+}
+
+function incarcaImg(src: string): Promise<HTMLImageElement> {
+  return new Promise((ok, nu) => { const i = new Image(); i.onload = () => ok(i); i.onerror = nu; i.src = src; });
+}
+
+function dreptunghi(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: [number, number, number, number]) {
+  ctx.beginPath();
+  ctx.moveTo(x + r[0], y);
+  ctx.arcTo(x + w, y, x + w, y + h, r[1]);
+  ctx.arcTo(x + w, y + h, x, y + h, r[2]);
+  ctx.arcTo(x, y + h, x, y, r[3]);
+  ctx.arcTo(x, y, x + w, y, r[0]);
+  ctx.closePath();
+}
+
+/** Poza biletului (1080 px lățime), la fel ca cardul bordo: ora, ruta, locul, QR-ul, codul. */
+async function deseneazaLoc(p: PozaLoc, font: string): Promise<Blob> {
+  const W = 1080, B = p.banda ? 90 : 0, QR = 620;
+  const sus = B + 70 + 60 + 60 + 150 + 70 + (p.numeRuta ? 50 : 0) + 50;
+  const fereastra = 50 + 30 + 100 + 40 + QR + 70 + 60 + 50 + 60;
+  const H = sus + fereastra + 70;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d")!;
+  const f = (g: number, w = 700) => `${w} ${g}px ${font}`;
+  ctx.fillStyle = RED; ctx.fillRect(0, 0, W, H);
+  if (p.banda) {
+    ctx.fillStyle = p.bandaProba ? "#fff" : "#FFD45C"; ctx.fillRect(0, 0, W, B);
+    ctx.fillStyle = p.bandaProba ? "#b91c1c" : "#231A1C"; ctx.font = f(34, 800); ctx.textAlign = "center";
+    ctx.fillText(p.banda, W / 2, B / 2 + 12, W - 80);
+  }
+  let y = B + 70;
+  // Logoul alb: masca PNG roșie, colorată în alb pe o pânză separată.
+  try {
+    const logo = await incarcaImg("/translux-logo-red.png");
+    const lw = Math.round(60 * 1318 / 192), lc = document.createElement("canvas");
+    lc.width = lw; lc.height = 60;
+    const l = lc.getContext("2d")!;
+    l.drawImage(logo, 0, 0, lw, 60); l.globalCompositeOperation = "source-in"; l.fillStyle = "#fff"; l.fillRect(0, 0, lw, 60);
+    ctx.drawImage(lc, 70, y);
+  } catch { ctx.fillStyle = "#fff"; ctx.font = f(56, 800); ctx.textAlign = "left"; ctx.fillText("TRANSLUX", 70, y + 50); }
+  ctx.font = f(34); const dw = ctx.measureText(p.data).width + 50;
+  ctx.fillStyle = "rgba(255,255,255,0.16)"; dreptunghi(ctx, W - 70 - dw, y + 2, dw, 58, [29, 29, 29, 29]); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.fillText(p.data, W - 70 - dw / 2, y + 43);
+  y += 60 + 60 + 130;
+  ctx.textAlign = "left"; ctx.font = f(150, 800); ctx.fillText(p.ora, 66, y);
+  if (p.sosire) { const ow = ctx.measureText(p.ora).width; ctx.font = f(50, 400); ctx.globalAlpha = 0.85; ctx.fillText(`→ ${p.sosire}`, 66 + ow + 30, y); ctx.globalAlpha = 1; }
+  y += 20 + 70; ctx.font = f(56); ctx.fillText(p.ruta, 70, y, W - 140);
+  if (p.numeRuta) { y += 50; ctx.font = f(34, 400); ctx.globalAlpha = 0.75; ctx.fillText(p.numeRuta, 70, y, W - 140); ctx.globalAlpha = 1; }
+  y += 50;
+  ctx.fillStyle = "#fff"; dreptunghi(ctx, 40, y, W - 80, fereastra, [56, 56, 0, 0]); ctx.fill();
+  let wy = y + 50 + 30;
+  ctx.fillStyle = "#8A7A7D"; ctx.font = f(30); ctx.textAlign = "left"; ctx.fillText(p.eticheta, 100, wy);
+  wy += 100; ctx.fillStyle = RED; ctx.font = f(100, 800); ctx.fillText(p.loc, 100, wy);
+  wy += 40;
+  const qr = await incarcaImg(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(p.qrSvg)}`);
+  ctx.globalAlpha = p.urcat ? 0.3 : 1; ctx.drawImage(qr, (W - QR) / 2, wy, QR, QR); ctx.globalAlpha = 1;
+  wy += QR + 70; ctx.textAlign = "center"; ctx.fillStyle = "#4A3E41"; ctx.font = f(42); ctx.fillText(p.cod, W / 2, wy, W - 160);
+  wy += 60; ctx.fillStyle = "#6B5B5F"; ctx.font = f(36, 400); ctx.fillText(p.jos, W / 2, wy, W - 160);
+  wy += 50; ctx.fillStyle = "#A0939A"; ctx.font = f(26, 400); ctx.fillText(p.operator, W / 2, wy, W - 160);
+  return new Promise((ok, nu) => cv.toBlob((b) => (b ? ok(b) : nu(new Error("toBlob"))), "image/png"));
+}
+
+/** «Salvează biletul în galerie» (Ion, 10.10.2026: «salvează/tipărește să fie salvare poză în galerie de fapt»): pe telefon
+ *  se deschide foaia de partajare cu «Salvează imaginea»; unde nu se poate, poza se descarcă. */
+export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; locale: "ro" | "ru"; stil?: React.CSSProperties }) {
+  const ru = locale === "ru";
+  const [lucru, setLucru] = React.useState(false);
+  // Pozele se fac dinainte: Safari deschide foaia de partajare doar imediat după apăsare, nu după o așteptare.
+  const gata = React.useRef<Promise<File[]> | null>(null);
+  const fa = React.useCallback(() => {
+    if (!gata.current) {
+      gata.current = (async () => {
+        await document.fonts?.ready;
+        const font = getComputedStyle(document.body).fontFamily || "sans-serif";
+        return Promise.all(locuri.map(async (p) => new File([await deseneazaLoc(p, font)], `bilet-translux-loc-${p.loc}.png`, { type: "image/png" })));
+      })();
+      gata.current.catch(() => { gata.current = null; });
+    }
+    return gata.current;
+  }, [locuri]);
+  React.useEffect(() => { const t = setTimeout(() => { void fa().catch(() => undefined); }, 800); return () => clearTimeout(t); }, [fa]);
+  const salveaza = async () => {
+    setLucru(true);
+    try {
+      const files = await fa();
+      if (navigator.canShare?.({ files })) {
+        await navigator.share({ files }).catch(() => undefined);
+      } else {
+        for (const fl of files) {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(fl); a.download = fl.name; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+        }
+      }
+    } catch { window.print(); }
+    setLucru(false);
+  };
+  return (
+    <button type="button" className="bilet-no-print" disabled={lucru} onClick={salveaza} style={{
+      minHeight: 48, padding: "0 12px", borderRadius: 14, border: "none", background: "#fff", color: RED, fontWeight: 800, fontSize: 15, cursor: "pointer", fontFamily: "inherit", ...stil,
+    }}>{lucru ? "…" : (ru ? "📥 В галерею" : "📥 În galerie")}</button>
+  );
+}

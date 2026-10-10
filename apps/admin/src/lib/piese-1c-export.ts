@@ -32,18 +32,29 @@ function check<T>(r: { data: T; error: { message: string } | null }): T {
   return r.data;
 }
 
+
+// Un document ANULAT sau neîncheiat nu are ce căuta în contabilitate. Lista de pe ecran îl ascunde deja,
+// dar adresa se poate deschide și direct, cu un număr scris de mână — iar o recepție anulată trimisă în
+// 1C i-ar dubla contabilului marfa. Garda stă aici, lângă compunere, nu doar în listă.
+function cerDocumentValid(status: string, docId: number): void {
+  if (status !== 'CONFIRMED') {
+    throw new Error(`Documentul ${docId} e în starea „${status}", nu confirmat — nu se trimite în 1C.`);
+  }
+}
+
 export async function pregatesteSpisanie(docId: number): Promise<
   { ok: true; xml: string; nume: string; linii: number } | { ok: false; lipsuri: Lipsa[] }
 > {
   const sb = getSupabase();
 
   const doc = check(await sb.from('piese_stock_documents')
-    .select('id, doc_type, created_at, invoice_date, warehouse_id, vehicle_id, mechanic_id')
+    .select('id, doc_type, status, created_at, invoice_date, warehouse_id, vehicle_id, mechanic_id')
     .eq('id', docId).maybeSingle()) as {
-      id: number; doc_type: string; created_at: string; invoice_date: string | null;
+      id: number; doc_type: string; status: string; created_at: string; invoice_date: string | null;
       warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null } | null;
   if (!doc) throw new Error('Documentul nu există.');
   if (doc.doc_type !== 'ISSUE') throw new Error('Doar eliberările se trimit ca «Списание запчастей».');
+  cerDocumentValid(doc.status, docId);
 
   const [wh, veh, mec, linii] = await Promise.all([
     sb.from('piese_warehouses').select('name, guid_1c').eq('id', doc.warehouse_id).maybeSingle(),
@@ -127,12 +138,13 @@ export async function pregatesteMutare(docId: number): Promise<
   const sb = getSupabase();
 
   const doc = check(await sb.from('piese_stock_documents')
-    .select('id, doc_type, created_at, warehouse_id, to_warehouse_id')
+    .select('id, doc_type, status, created_at, warehouse_id, to_warehouse_id')
     .eq('id', docId).maybeSingle()) as {
-      id: number; doc_type: string; created_at: string;
+      id: number; doc_type: string; status: string; created_at: string;
       warehouse_id: number; to_warehouse_id: number | null } | null;
   if (!doc) throw new Error('Documentul nu există.');
   if (doc.doc_type !== 'TRANSFER') throw new Error('Doar mutările se trimit ca «Перемещение».');
+  cerDocumentValid(doc.status, docId);
   // Mutarea NU folosește `invoice_date`: nu are factură fiscală, e o deplasare internă. Data e ziua în
   // care marfa a plecat din depozit.
 
@@ -206,13 +218,14 @@ export async function pregatesteRecepcie(docId: number): Promise<
   const sb = getSupabase();
 
   const doc = check(await sb.from('piese_stock_documents')
-    .select('id, doc_type, created_at, invoice_date, invoice_series, invoice_number, warehouse_id, supplier_id')
+    .select('id, doc_type, status, created_at, invoice_date, invoice_series, invoice_number, warehouse_id, supplier_id')
     .eq('id', docId).maybeSingle()) as {
-      id: number; doc_type: string; created_at: string; invoice_date: string | null;
+      id: number; doc_type: string; status: string; created_at: string; invoice_date: string | null;
       invoice_series: string | null; invoice_number: string | null;
       warehouse_id: number; supplier_id: number | null } | null;
   if (!doc) throw new Error('Documentul nu există.');
   if (doc.doc_type !== 'RECEIPT') throw new Error('Doar recepțiile se trimit ca «ПрихНалоговаяНакладная».');
+  cerDocumentValid(doc.status, docId);
 
   const [wh, sup, linii] = await Promise.all([
     sb.from('piese_warehouses').select('name, guid_1c, cont_1c').eq('id', doc.warehouse_id).maybeSingle(),

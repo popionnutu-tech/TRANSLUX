@@ -487,7 +487,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 })()}
                 <style>{`
 .tr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px;font-family:var(--font-opensans),Open Sans,sans-serif}
-.tr-seg-sus{display:flex;justify-content:center;margin:0 0 12px}
+.tr-seg-sus{display:flex;justify-content:center;margin:0 0 12px;width:100%;max-width:520px;align-self:center}
 .tr-seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(155,27,48,.07);gap:4px}
 .tr-seg button{white-space:nowrap;border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
 .tr-seg button.on{background:#fff;color:#6E0E14;box-shadow:0 2px 8px rgba(155,27,48,.16)}

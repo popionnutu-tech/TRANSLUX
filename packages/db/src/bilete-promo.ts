@@ -58,12 +58,17 @@ export function cotaOnline(goingNorth: boolean, departureAt: string, cfg: CotaCo
   // Excepție în sus: peste plafonul obișnuit al localității.
   const f = cfg.fereastraVineri ?? FEREASTRA_VINERI;
   if (isodow === 5 && goingNorth && ora >= f.de && ora < f.pana) return f.locuri;
+  // Ion, 10.10.2026 (D3 din dezbatere): vineri spre Bălți, plecarea înainte de 11:00 — «fără limită» (tot autobuzul).
+  if (isodow === 5 && goingNorth && ora < f.de) return LOCURI_AUTOBUZ;
   const ziAglomerata = (isodow === 5 && goingNorth) || (isodow === 7 && !goingNorth);
   return ziAglomerata && ora >= cfg.dupaOra ? Math.min(cfg.seara, cfg.plafon) : cfg.plafon;
 }
 
 /** Vineri Chișinău → Bălți, plecarea între `de` (inclusiv) și `pana` (exclusiv), ora locală: `locuri` online. */
 export const FEREASTRA_VINERI = { de: 11, pana: 12, locuri: 7 } as const;
+
+/** Locurile autobuzului (1 față + 5 × 3 + 4 spate, migr. 501) — «fără limită» online = tot autobuzul. */
+export const LOCURI_AUTOBUZ = 20;
 
 /** Comanda-tur, așa cum o vede regula returului. */
 export interface TurPentruRetur {

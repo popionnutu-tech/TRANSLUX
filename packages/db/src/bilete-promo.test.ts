@@ -24,8 +24,8 @@ describe('aplicaReducere', () => {
 
 describe('cotaOnline', () => {
   const cfg = { plafon: 4, dupaOra: 12, seara: 2 };
-  it('vineri spre Bălți: 4 până la 11:00, 7 între 11 și 12 (Ion 10.10), 2 de la 12:00', () => {
-    expect(cotaOnline(true, '2026-10-16T10:59:00+03:00', cfg)).toBe(4);
+  it('vineri spre Bălți: fără limită (20) până la 11:00, 7 între 11 și 12, 2 de la 12:00 (Ion 10.10)', () => {
+    expect(cotaOnline(true, '2026-10-16T10:59:00+03:00', cfg)).toBe(20); // D3: fără limită înainte de 11
     expect(cotaOnline(true, '2026-10-16T11:00:00+03:00', cfg)).toBe(7);
     expect(cotaOnline(true, '2026-10-16T11:59:00+03:00', cfg)).toBe(7);
     expect(cotaOnline(true, '2026-10-16T12:00:00+03:00', cfg)).toBe(2);

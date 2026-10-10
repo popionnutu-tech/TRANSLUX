@@ -24,7 +24,8 @@ const REINCARCA_HARTA_MS = 30_000;
 
 const TXT = {
   ro: {
-    titlu: "Tur-retur", pas: (n: number) => `${n} / 3`, tur: "Tur", retur: "Retur", locPlata: "Locul și plata",
+    titlu: "Tur-retur", pas: (n: number) => `${n} / 3`, tur: "Tur", retur: "Retur", locPlata: "Date și plata",
+    locTur: "Locul la tur", locRetur: "Locul la retur", continua: "Continuă", returAles: "Retur ales", locAuto: "Locul se dă la urcare (cursa nu pleacă din Chișinău).",
     turAles: "Tur ales", schimba: "schimbă", cautaRetur: "Se caută cursele de retur…",
     zigoala: "În ziua aceasta nu sunt curse de retur cu bilet online.", altaZi: "Alege altă zi de întoarcere",
     limita: "Prea multe căutări într-un timp scurt. Încearcă peste câteva minute.", indisponibil: "Cursele nu se pot încărca acum. Încearcă din nou.",
@@ -38,7 +39,8 @@ const TXT = {
     dupa: "După plată primești ambele bilete cu cod QR.", unde: "Unde urci în autobuz",
   },
   ru: {
-    titlu: "Туда и обратно", pas: (n: number) => `${n} / 3`, tur: "Туда", retur: "Обратно", locPlata: "Место и оплата",
+    titlu: "Туда и обратно", pas: (n: number) => `${n} / 3`, tur: "Туда", retur: "Обратно", locPlata: "Данные и оплата",
+    locTur: "Место туда", locRetur: "Место обратно", continua: "Продолжить", returAles: "Рейс обратно", locAuto: "Место дадут при посадке (рейс не из Кишинёва).",
     turAles: "Рейс туда", schimba: "изменить", cautaRetur: "Ищем обратные рейсы…",
     zigoala: "В этот день нет обратных рейсов с онлайн-билетом.", altaZi: "Выбрать другой день возвращения",
     limita: "Слишком много поисков за короткое время. Попробуйте через несколько минут.", indisponibil: "Рейсы сейчас не загружаются. Попробуйте ещё раз.",
@@ -122,8 +124,20 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   React.useEffect(() => { void procentRetur().then(setPct).catch(() => setPct(0)); }, []);
 
   // Escape: întâi calendarul, apoi un pas înapoi, abia la pasul 1 închide (plan R3).
-  const pas: 1 | 2 | 3 = !tur ? 1 : !retur ? 2 : 3;
-  const inapoi = React.useCallback(() => { if (pas === 3) setRetur(null); else if (pas === 2) setTur(null); else onClose(); }, [pas, onClose]);
+  // Ion, 10.10.2026: «alegerea locului îndată ce am ales ruta, apoi ruta retur (dacă de la nord — locul automat), apoi
+  // datele personale și achitarea». Cursa din Chișinău (going_north) are harta; cea din nord trece direct mai departe.
+  const [locTurGata, setLocTurGata] = React.useState(false);
+  const [locReturGata, setLocReturGata] = React.useState(false);
+  const pasLoc: "tur" | "retur" | null = tur && tur.going_north && !locTurGata ? "tur" : tur && retur && retur.going_north && !locReturGata ? "retur" : null;
+  const pas: 1 | 2 | 3 = !tur || pasLoc === "tur" ? 1 : !retur || pasLoc === "retur" ? 2 : 3;
+  const alegeTur = (t: TripResult | null) => { setTur(t); setLocTurGata(false); };
+  const alegeRetur = (t: TripResult | null) => { setRetur(t); setLocReturGata(false); };
+  const inapoi = React.useCallback(() => {
+    if (pas === 3) { if (retur?.going_north) setLocReturGata(false); else setRetur(null); }
+    else if (pas === 2) { if (pasLoc === "retur") setRetur(null); else if (tur?.going_north) setLocTurGata(false); else setTur(null); }
+    else if (pasLoc === "tur") setTur(null);
+    else onClose();
+  }, [pas, pasLoc, tur, retur, onClose]);
   React.useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (calendar) setCalendar(false); else inapoi(); };
     window.addEventListener("keydown", k);
@@ -178,14 +192,50 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
 
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
   const blocat = lipsaTur > 0 || lipsaRetur > 0 || !rezumat || rezumat.pretRetur == null;
-  const motiv = lipsaTur > 0 ? { t: tx.mai(lipsaTur, tx.tur), ref: refHartaTur } : lipsaRetur > 0 ? { t: tx.mai(lipsaRetur, tx.retur), ref: refHartaRetur } : null;
+  const motiv = lipsaTur > 0 ? { t: tx.mai(lipsaTur, tx.tur), du: () => setLocTurGata(false) } : lipsaRetur > 0 ? { t: tx.mai(lipsaRetur, tx.retur), du: () => setLocReturGata(false) } : null;
 
   // Antet modern, un singur bloc (Ion, 10.10: «foarte arhaic»): sus sensul pasului, dedesubt ziua și pasagerii, apoi o
   // bară subțire de progres în 3 segmente.
   const ziTur = tripsTur[0]?.trip_date ?? tur?.trip_date ?? "";
-  const titlu = pas === 1 ? { eticheta: tx.tur, ruta: `${from} → ${to}`, sub: `${ziLunga(ziTur, locale)} · ${pasageriText(pasageri, locale)}` }
+  const titlu = pasLoc === "tur" && tur ? { eticheta: tx.locTur, ruta: `${from} → ${to}`, sub: `${ziLunga(tur.trip_date, locale)} · ${tur.time} · ${pasageriText(pasageri, locale)}` }
+    : pasLoc === "retur" && retur ? { eticheta: tx.locRetur, ruta: `${to} → ${from}`, sub: `${ziLunga(retur.trip_date, locale)} · ${retur.time} · ${pasageriText(pasageri, locale)}` }
+    : pas === 1 ? { eticheta: tx.tur, ruta: `${from} → ${to}`, sub: `${ziLunga(ziTur, locale)} · ${pasageriText(pasageri, locale)}` }
     : pas === 2 ? { eticheta: tx.retur, ruta: `${to} → ${from}`, sub: `${ziLunga(ziRetur, locale)} · −${pct ?? 20}%` }
     : { eticheta: tx.locPlata, ruta: `${from} ⇄ ${to}`, sub: pasageriText(pasageri, locale) };
+
+  const paxRand = (
+    <div className="trf-pax">
+      <span>{tx.pasageri}</span>
+      <div className="trf-pas-numar">
+        <button type="button" aria-label="−" disabled={pasageri <= 1} onClick={() => schimbaPasageri(pasageri - 1)}>−</button>
+        <b aria-live="polite">{pasageri}</b>
+        <button type="button" aria-label="+" disabled={pasageri >= 4} onClick={() => schimbaPasageri(pasageri + 1)}>+</button>
+      </div>
+    </div>
+  );
+  const pasLocCorp = (x: { ales: string; trip: TripResult; pret: number; harta: Harta | null; alese: number[]; setAlese: React.Dispatch<React.SetStateAction<number[]>>;
+    ref: React.RefObject<HTMLDivElement | null>; schimba: () => void; gata: () => void }) => {
+    const gataOk = x.harta?.stare === "indisponibila" || (x.harta?.stare === "ok" && x.alese.length === pasageri);
+    return (
+      <div className="trf-loc-pas">
+        <button type="button" className="trf-ales trf-ales-plin" onClick={x.schimba}>
+          <span className="trf-ales-eticheta">✓ {x.ales}</span>
+          <span>{ziScurta(x.trip.trip_date, locale)} · {x.trip.time} → {x.trip.arrivalTime} · {x.pret} lei</span>
+          <u>{tx.schimba}</u>
+        </button>
+        {paxRand}
+        <div ref={x.ref} className="trf-harta">
+          <div className="trf-harta-cap"><span>{tx.locLa(x.ales === tx.turAles ? tx.tur : tx.retur)}</span>
+            {x.harta?.stare === "ok" && <em className={x.alese.length === pasageri ? "ok" : ""} aria-live="polite">{tx.alese(x.alese.length, pasageri)}{x.alese.length ? ` · ${listaLocuri(x.alese)}` : ""}</em>}</div>
+          {x.harta?.stare === "incarca" && <p className="trf-mic">{tx.hartaInc}</p>}
+          {x.harta?.stare === "indisponibila" && <p className="trf-mic">{tx.hartaNu}</p>}
+          {x.harta?.stare === "ok" && <SeatMap ocupate={x.harta.ocupate} alese={x.alese} locale={locale}
+            onToggle={(nr) => x.setAlese((a) => comutaLoc(a, nr, pasageri, x.harta!.ocupate))} />}
+        </div>
+        <button type="button" className="trf-plata" disabled={!gataOk} onClick={x.gata}>{tx.continua} →</button>
+      </div>
+    );
+  };
 
   return (
     <div className="trf" role="dialog" aria-modal="true" aria-label={`${tx.titlu} · ${from} ⇄ ${to}`}>
@@ -205,18 +255,25 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
         </div>
 
         <div className="trf-corp">
-          {pas === 1 && (
+          {pas === 1 && !pasLoc && (
             <div className="trf-lista">
+              {paxRand}
               {tripsTur.map((t, i) => (
                 <BiletCursa key={`${t.time}-${i}`} trip={{ ...t, originalPrice: null }} locale={locale} cotor="lista"
-                  onCumpara={t.sale_open ? () => setTur(t) : undefined} />
+                  onCumpara={t.sale_open ? () => alegeTur(t) : undefined} />
               ))}
             </div>
           )}
 
-          {pas === 2 && tur && (
+          {pasLoc === "tur" && tur && pasLocCorp({ ales: tx.turAles, trip: tur, pret: tur.price, harta: hartaTur, alese: aleseTur, setAlese: setAleseTur, ref: refHartaTur,
+            schimba: () => alegeTur(null), gata: () => setLocTurGata(true) })}
+
+          {pasLoc === "retur" && retur && pasLocCorp({ ales: tx.returAles, trip: retur, pret: rezumat?.pretRetur ?? retur.price, harta: hartaRetur, alese: aleseRetur, setAlese: setAleseRetur, ref: refHartaRetur,
+            schimba: () => alegeRetur(null), gata: () => setLocReturGata(true) })}
+
+          {pas === 2 && tur && !pasLoc && (
             <>
-              <button type="button" className="trf-ales" onClick={() => setTur(null)}>
+              <button type="button" className="trf-ales" onClick={() => alegeTur(null)}>
                 <span className="trf-ales-eticheta">✓ {tx.turAles}</span>
                 <span>{ziScurta(tur.trip_date, locale)} · {tur.time} → {tur.arrivalTime} · {tur.price} lei</span>
                 <u>{tx.schimba}</u>
@@ -238,7 +295,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
                 <div className="trf-lista">
                   {curseRetur.map((t, i) => {
                     const r = pct != null ? rezumatTurRetur({ pretTur: 0, pretRetur: t.price, pasageri: 1, pct }).pretRetur : null;
-                    return <BiletCursa key={`r-${t.time}-${i}`} trip={r != null ? { ...t, originalPrice: t.price, price: r } : t} locale={locale} cotor="lista" onCumpara={() => setRetur(t)} />;
+                    return <BiletCursa key={`r-${t.time}-${i}`} trip={r != null ? { ...t, originalPrice: t.price, price: r } : t} locale={locale} cotor="lista" onCumpara={() => alegeRetur(t)} />;
                   })}
                   <button type="button" className="trf-link" onClick={() => setCalendar(true)}>{tx.altaZi}</button>
                 </div>
@@ -246,7 +303,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
             </>
           )}
 
-          {pas === 3 && tur && retur && (
+          {pas === 3 && !pasLoc && tur && retur && (
             <form action={(fd) => { setTrimisCu(alegere); return action(fd); }} className="trf-plata-grid">
               <input type="hidden" name="lang" value={locale} />
               <input type="hidden" name="idempotencyKey" value={cheieTur} />
@@ -274,29 +331,12 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
                   <div key={x.eticheta} className="trf-drum">
                     <div className="trf-drum-eticheta"><b>{x.eticheta}</b><span>{x.de} → {x.spre}</span><em>{ziLunga(x.trip.trip_date, locale)}</em></div>
                     <BiletCursa trip={{ ...x.trip, originalPrice: x.red && rezumat?.pretRetur != null ? x.trip.price : null, price: x.red && rezumat?.pretRetur != null ? rezumat.pretRetur : x.trip.price }} locale={locale} cotor="ales" fond="var(--trf-fond)" />
-                    {x.harta && (
-                      <div ref={x.ref} className="trf-harta">
-                        <div className="trf-harta-cap"><span>{tx.locLa(x.eticheta)}</span>
-                          {x.harta.stare === "ok" && <em className={x.alese.length === pasageri ? "ok" : ""} aria-live="polite">{tx.alese(x.alese.length, pasageri)}{x.alese.length ? ` · ${listaLocuri(x.alese)}` : ""}</em>}</div>
-                        {x.harta.stare === "incarca" && <p className="trf-mic">{tx.hartaInc}</p>}
-                        {x.harta.stare === "indisponibila" && <p className="trf-mic">{tx.hartaNu}</p>}
-                        {x.harta.stare === "ok" && <SeatMap ocupate={x.harta.ocupate} alese={x.alese} locale={locale}
-                          onToggle={(nr) => x.setAlese((a) => comutaLoc(a, nr, pasageri, x.harta!.ocupate))} />}
-                      </div>
-                    )}
+                    <p className="trf-loc-ales">{x.harta?.stare === "ok" && x.alese.length ? <>{tx.locLa(x.eticheta)}: <b>{listaLocuri(x.alese)}</b></> : x.harta ? tx.hartaNu : tx.locAuto}</p>
                   </div>
                 ))}
               </section>
 
               <section className="trf-date">
-                <div className="trf-pax">
-                  <span>{tx.pasageri}</span>
-                  <div className="trf-pas-numar">
-                    <button type="button" aria-label="−" disabled={pasageri <= 1} onClick={() => schimbaPasageri(pasageri - 1)}>−</button>
-                    <b aria-live="polite">{pasageri}</b>
-                    <button type="button" aria-label="+" disabled={pasageri >= 4} onClick={() => schimbaPasageri(pasageri + 1)}>+</button>
-                  </div>
-                </div>
                 {(tur.puncte?.length ?? 0) >= 2 && (
                   <fieldset className="trf-puncte">
                     <input type="hidden" name="punctObligatoriu" value="1" />
@@ -327,7 +367,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
                   <div className="trf-total-rand mare"><span>{tx.total} · {tx.platesti.toLowerCase()}</span><span>{rezumat?.total ?? "—"} lei</span></div>
                   {rezumat && rezumat.pretRetur == null && <p className="trf-eroare">{tx.faraRed}</p>}
                   <Trimite text={tx.plateste(rezumat?.total ?? 0)} blocat={blocat} />
-                  {motiv && <button type="button" className="trf-motiv" onClick={() => motiv.ref.current?.scrollIntoView({ behavior: "smooth", block: "center" })}>{motiv.t}</button>}
+                  {motiv && <button type="button" className="trf-motiv" onClick={motiv.du}>{motiv.t}</button>}
                   <p className="trf-mic">{tx.dupa}</p>
                 </div>
               </section>
@@ -343,7 +383,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
                 const x = ymd(d);
                 const tz = tur?.trip_date ?? ziRetur;
                 const max = ymd(new Date(new Date(`${tz}T12:00:00`).getTime() + 30 * 86_400_000));
-                setZiRetur(x < tz ? tz : x > max ? max : x); setRetur(null); setCalendar(false);
+                setZiRetur(x < tz ? tz : x > max ? max : x); alegeRetur(null); setCalendar(false);
               }} />
             </div>
           </div>
@@ -373,6 +413,12 @@ const CSS = `
 .trf-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px 14px 22px}
 .trf-ales{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 14px 0;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie);font-size:14px;cursor:pointer}
 .trf-ales-eticheta{font-weight:800;color:#2B6B3A}
+.trf-ales-plin{margin:0}
+.trf-lista>.trf-pax{grid-column:1/-1;max-width:420px}
+.trf-loc-pas{display:flex;flex-direction:column;gap:16px;padding:16px 16px 22px;max-width:560px;margin:0 auto;width:100%;box-sizing:border-box}
+.trf-loc-pas .trf-plata:disabled{opacity:.45;cursor:default;box-shadow:none}
+.trf-loc-ales{margin:0;font-size:14px;color:var(--trf-gri)}
+.trf-loc-ales b{color:var(--trf-text)}
 .trf-ales u{margin-left:auto;color:${RED};font-weight:700;text-decoration:none}
 .trf-gol{padding:34px 20px;text-align:center;color:var(--trf-gri);display:flex;flex-direction:column;align-items:center;gap:12px;margin:0}
 .trf-gol p{margin:0}

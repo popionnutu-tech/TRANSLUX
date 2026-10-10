@@ -55,6 +55,8 @@ async function laJpeg(f: File): Promise<string> {
 export interface ReducereAleasa { pret: number | null; codRetur: string | null; studentJeton: string | null; blocheazaPlata: boolean }
 
 export function PromoReduceri(p: {
+  /** Tur-retur ales (Ion, 10.10.2026: «dacă e apăsat tur-retur, student să nu se folosească»): fără opțiunea de student. */
+  faraStudent?: boolean;
   locale: "ro" | "ru"; trip: { trip_date: string; crm_route_id: number; going_north: boolean; price: number };
   fromRo: string; toRo: string; seats: number; nume: string; telefon: string; onChange: (r: ReducereAleasa) => void;
 }) {
@@ -80,6 +82,9 @@ export function PromoReduceri(p: {
   }, []);
 
   const { onChange } = p;
+  React.useEffect(() => {
+    if (p.faraStudent && mod === "student") { setMod("nimic"); setJeton(null); setPret(null); setMesaj(null); }
+  }, [p.faraStudent, mod]);
   React.useEffect(() => {
     const activ = mod === "retur" ? (pret != null ? cod : null) : null;
     const st = mod === "student" && p.seats === 1 ? jeton : null;
@@ -141,6 +146,7 @@ export function PromoReduceri(p: {
     </label>
   );
 
+  if (p.faraStudent && !areCod) return null;
   return (
     <fieldset style={{ border: "1.5px solid #E2D6D9", borderRadius: 12, padding: "10px 12px", margin: 0, display: "grid", gap: 4, minWidth: 0 }}>
       <legend style={{ fontSize: 15, fontWeight: 800, padding: "0 6px" }}>{tx.titlu}</legend>
@@ -155,8 +161,8 @@ export function PromoReduceri(p: {
           <button type="button" disabled={lucru || !cod} onClick={aplicaCod} style={btn}>{tx.aplica}</button>
         </div>
       )}
-      {opt("student", tx.student)}
-      {mod === "student" && !jeton && (
+      {!p.faraStudent && opt("student", tx.student)}
+      {!p.faraStudent && mod === "student" && !jeton && (
         <div style={{ display: "grid", gap: 8 }}>
           <div style={{ fontSize: 13, color: "#4A3E41", lineHeight: 1.45 }}>{tx.studentNota}</div>
           {fisier("carnet", tx.carnet)}

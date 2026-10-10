@@ -453,10 +453,15 @@ body {
   .legal-main { padding: 4px 16px 48px; font-size: 14px; }
 }
 
+/* Sticla mată a cardurilor peste fundalul animat. Pe telefon blur-ul se recalculează la fiecare cadru al
+   fundalului, iar costul crește cu raza: 8 px arată la fel prin alb 50–60 % și derularea rămâne lină (Ion, 11.10). */
+:root { --sticla: 16px; }
+@media (pointer: coarse) { :root { --sticla: 8px; } }
+
 /* ── Pagini de direcție și «Toate rutele» (ION-153) ─────────── */
 .all-routes {
   width: 100%; max-width: 720px; margin-top: 28px;
-  background: rgba(255,255,255,0.5); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  background: rgba(255,255,255,0.5); backdrop-filter: blur(var(--sticla)); -webkit-backdrop-filter: blur(var(--sticla));
   border-radius: 24px; padding: 22px 36px 24px;
   border: 1px solid rgba(255,255,255,0.4);
   box-shadow: 0 4px 24px rgba(155,27,48,0.05);

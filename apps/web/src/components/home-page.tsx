@@ -373,8 +373,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           <div className="hero-card" style={{
             width: '100%', maxWidth: 720,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(var(--sticla))',
+            WebkitBackdropFilter: 'blur(var(--sticla))',
             borderRadius: 24, padding: '40px 36px 32px',
             border: '1px solid rgba(255,255,255,0.5)',
             boxShadow: '0 8px 40px rgba(155,27,48,0.08), 0 1px 3px rgba(0,0,0,0.04)',
@@ -630,8 +630,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           {/* Popular routes card — nu în mini app-ul Telegram (Ion: «doar motorul de căutare, nimic altul») */}
           {!telegram && <div className="routes-card" style={{
             width: '100%', maxWidth: 720, marginTop: 28,
-            background: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            background: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(var(--sticla))',
+            WebkitBackdropFilter: 'blur(var(--sticla))',
             borderRadius: 24, padding: '24px 36px 28px',
             border: '1px solid rgba(255,255,255,0.4)',
             boxShadow: '0 4px 24px rgba(155,27,48,0.05)',

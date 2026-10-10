@@ -134,10 +134,13 @@ const ShaderBackground = () => {
     gl.enableVertexAttribArray(aP);
     const uR = gl.getUniformLocation(prog, 'R'), uT = gl.getUniformLocation(prog, 'T'), uS = gl.getUniformLocation(prog, 'uS'), uD = gl.getUniformLocation(prog, 'uD');
 
-    // Până la 2 pixeli pe pixel CSS: autobuzul și marcajele sunt fine și ar ieși moi la 1; calculul e mic.
+    // Până la 2 pixeli pe pixel CSS pe desktop: autobuzul și marcajele ar ieși moi la 1. Pe telefon 1,5 (Ion, 11.10:
+    // «la noi parcă un pic frânează»): la 2 fundalul plin de ecran costa 1,3 mil. pixeli pe cadru, sub carduri blurate,
+    // iar derularea sărea cadre; la 1,5 sunt 0,74 mil. și diferența nu se vede prin sticla cardurilor.
+    const plafon = window.matchMedia?.('(pointer: coarse)').matches ? 1.5 : 2;
     let scale = 1;
     const resize = () => {
-      scale = Math.min(window.devicePixelRatio || 1, 2);
+      scale = Math.min(window.devicePixelRatio || 1, plafon);
       canvas.width = Math.round(window.innerWidth * scale);
       canvas.height = Math.round(window.innerHeight * scale);
       gl.viewport(0, 0, canvas.width, canvas.height);

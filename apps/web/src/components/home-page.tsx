@@ -33,6 +33,7 @@ const loadCookieConsent = () => import('@/components/CookieConsent');
 const NowResults = dynamic(loadNowResults, { ssr: false });
 const RouteResults = dynamic(loadRouteResults, { ssr: false });
 // Tur-retur (plan 10.10): fluxul în 3 pași, încărcat doar când e nevoie.
+const PromoExplicatie = dynamic(() => import('@/components/ui/promo-explicatie').then((m) => m.PromoExplicatie), { ssr: false });
 const TurReturFlux = dynamic(() => import('@/components/ui/tur-retur-flux').then((m) => m.TurReturFlux), { ssr: false });
 const MiniCalendar = dynamic(loadMiniCalendar, { ssr: false });
 const AssistantWidget = dynamic(loadAssistant, { ssr: false });
@@ -167,6 +168,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   // Ofertele de pe prima pagină (Ion, 10.10.2026: «separat meniu între destinații populare și căutare, pe prima pagină,
   // deodată cum s-a deschis site-ul pe mobile»): un card pune Chișinău → Bălți în bară; «Tur-retur» comută și pe tur-retur.
   const [notaStudent, setNotaStudent] = useState(false);
+  // Ion, 10.10: apăsarea unei promoții deschide întâi fereastra care explică reducerea; butonul ei pune perechea în bară.
+  const [explicaPromo, setExplicaPromo] = useState<'tur-retur' | 'student' | null>(null);
   const inainteDe1310 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }) < '2026-10-13';
   const alegeOferta = (tip: 'tur-retur' | 'student') => {
     const pune = (ref: React.RefObject<HTMLSelectElement | null>, slug: string) => {
@@ -511,12 +514,12 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 {inainteDe1310 && <span className="of-data">{locale === 'ru' ? 'с 13.10' : 'din 13.10'}</span>}
               </div>
               <div className="of-grid">
-                <button type="button" className="of-card tr" onClick={() => alegeOferta('tur-retur')}>
+                <button type="button" className="of-card tr" onClick={() => setExplicaPromo('tur-retur')}>
                   <b>−20%</b>
                   <span>{locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'}</span>
                   <small>{locale === 'ru' ? 'скидка на обратный, одна оплата' : 'la retur, o singură plată'}</small>
                 </button>
-                <button type="button" className="of-card st" onClick={() => alegeOferta('student')}>
+                <button type="button" className="of-card st" onClick={() => setExplicaPromo('student')}>
                   <b>−20%</b>
                   <span>{locale === 'ru' ? 'Студентам' : 'Studenți'}</span>
                   <small>{locale === 'ru' ? 'со студенческим и паспортом, одно место' : 'cu carnet și buletin, un loc'}</small>
@@ -677,6 +680,11 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
       {!assistantOpen && !telegram && <AssistantLauncher locale={locale} onClick={openAssistant} />}
       {assistant && <AssistantWidget locale={locale} open={assistantOpen} onOpenChange={setAssistantOpen} />}
 
+
+      {explicaPromo && (
+        <PromoExplicatie tip={explicaPromo} locale={locale} inainteDe1310={inainteDe1310}
+          onAlege={() => alegeOferta(explicaPromo)} onClose={() => setExplicaPromo(null)} />
+      )}
 
       {showResults && dataRetur && cuRetur && esteBalti && (
         <TurReturFlux

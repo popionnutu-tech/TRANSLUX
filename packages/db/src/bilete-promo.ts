@@ -204,8 +204,11 @@ export function decizieCarnet(x: ExtrasCarnet, pasager: string, aziIso: string, 
   if (x.semne_editare) return { verdict: 'respins', motiv: 'editata' };
   if (!x.e_carnet_student || (x.tip_institutie !== 'universitate' && x.tip_institutie !== 'colegiu')) return { verdict: 'respins', motiv: 'nu_e_carnet' };
   if (x.tip_act !== 'pasaport' && x.tip_act !== 'buletin') return { verdict: 'respins', motiv: 'lipsa_act' };
-  if (!instituteRecunoscuta(x.institutie ?? '', institutii)) return { verdict: 'respins', motiv: 'institutie_necunoscuta' };
-  // Ion, 10.10.2026: «trebuie să fie universitate / colegiu moldovenesc, valabil pentru anul în care suntem».
+  // Ion, 10.10.2026: «trebuie să fie universitate / colegiu moldovenesc, valabil pentru anul în care suntem»; «denumirea
+  // la instituție poate fi oricare din Moldova, doar ca să fie Moldova» — fără listă de denumiri, doar țara (parametrul
+  // `institutii` nu se mai folosește; fără țară de la AI, decid semnele de Moldova din denumire).
+  void institutii;
+  if (!(x.institutie ?? '').trim()) return { verdict: 'poza_neclara', motiv: 'institutie_ilizibila' };
   if (x.tara_institutie === 'alta' || (x.tara_institutie !== 'MD' && !semneMoldova(x.institutie ?? ''))) return { verdict: 'respins', motiv: 'institutie_straina' };
   const p = cheieNume(pasager), c = cheieNume(x.nume_carnet ?? ''), a = cheieNume(x.nume_act ?? '');
   if (!c || !a) return { verdict: 'poza_neclara', motiv: 'nume_ilizibil' };

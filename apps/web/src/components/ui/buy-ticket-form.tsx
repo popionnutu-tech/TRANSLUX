@@ -135,6 +135,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const alegeLocuri = trip.going_north === true;
   const [harta, setHarta] = React.useState<Harta>({ stare: "incarca", ocupate: [] });
   const [alese, setAlese] = React.useState<number[]>(reluare?.alese ?? []);
+  const [proprii] = React.useState<readonly number[]>(() => reluare?.alese ?? []);
   const [reincarca, setReincarca] = React.useState(0);
   const { crm_route_id: rutaId, trip_date: ziua } = trip;
 
@@ -146,13 +147,15 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
       const r = await locuriCursei(rutaId, ziua, true).catch(() => null);
       if (!viu) return;
       if (!r) { setHarta((h) => (h.stare === "ok" ? h : { stare: "indisponibila", ocupate: [] })); return; }
-      setHarta({ stare: "ok", ocupate: r.ocupate });
-      setAlese((a) => potrivesteAlese(a, seats, r.ocupate).alese);
+      // La «Reia plata» locurile alese înainte le ține chiar comanda veche (deschisă la bancă): pentru acest om nu sunt ocupate.
+      const ocupate = r.ocupate.filter((x) => !proprii.includes(x));
+      setHarta({ stare: "ok", ocupate });
+      setAlese((a) => potrivesteAlese(a, seats, ocupate).alese);
     };
     void incarca();
     const t = setInterval(incarca, REINCARCA_HARTA_MS);
     return () => { viu = false; clearInterval(t); };
-  }, [alegeLocuri, rutaId, ziua, seats, reincarca]);
+  }, [alegeLocuri, rutaId, ziua, seats, reincarca, proprii]);
 
   // Răspunsul «loc_ocupat»: locurile luate devin gri imediat, cad din alegere, harta se reîncarcă.
   React.useEffect(() => {

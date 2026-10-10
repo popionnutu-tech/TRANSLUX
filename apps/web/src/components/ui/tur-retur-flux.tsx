@@ -77,7 +77,8 @@ function ziScurta(iso: string, locale: "ro" | "ru"): string {
 type Harta = { stare: "incarca" | "ok" | "indisponibila"; ocupate: number[] };
 
 /** Harta locurilor unei curse din Chișinău (spre nord), reîncărcată la 30 s; null = cursa nu pleacă din Chișinău. */
-function useHarta(trip: TripResult | null, seats: number, setAlese: React.Dispatch<React.SetStateAction<number[]>>): Harta | null {
+// La «Reia plata» locurile alese înainte le ține chiar comanda veche (deschisă la bancă): pentru acest om nu sunt ocupate.
+function useHarta(trip: TripResult | null, seats: number, setAlese: React.Dispatch<React.SetStateAction<number[]>>, proprii: readonly number[] = FARA): Harta | null {
   const [h, setH] = React.useState<Harta>({ stare: "incarca", ocupate: [] });
   const activ = trip?.going_north === true;
   React.useEffect(() => {
@@ -89,15 +90,18 @@ function useHarta(trip: TripResult | null, seats: number, setAlese: React.Dispat
       const r = await locuriCursei(trip.crm_route_id, trip.trip_date, true).catch(() => null);
       if (!viu) return;
       if (!r) { setH((x) => (x.stare === "ok" ? x : { stare: "indisponibila", ocupate: [] })); return; }
-      setH({ stare: "ok", ocupate: r.ocupate });
-      setAlese((a) => potrivesteAlese(a, seats, r.ocupate).alese);
+      const ocupate = r.ocupate.filter((x) => !proprii.includes(x));
+      setH({ stare: "ok", ocupate });
+      setAlese((a) => potrivesteAlese(a, seats, ocupate).alese);
     };
     void incarca();
     const t = setInterval(incarca, REINCARCA_HARTA_MS);
     return () => { viu = false; clearInterval(t); };
-  }, [activ, trip, seats, setAlese]);
+  }, [activ, trip, seats, setAlese, proprii]);
   return activ ? h : null;
 }
+
+const FARA: readonly number[] = [];
 
 function Trimite({ text, blocat }: { text: string; blocat: boolean }) {
   const { pending } = useFormStatus();
@@ -162,8 +166,8 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   const curseRetur = tur && rez ? curseReturPotrivite(tur, rez.curse) : [];
 
   // Pasul 3: locurile pe cursele din Chișinău, prețul, cheile.
-  const hartaTur = useHarta(tur, pasageri, setAleseTur);
-  const hartaRetur = useHarta(retur, pasageri, setAleseRetur);
+  const hartaTur = useHarta(tur, pasageri, setAleseTur, reluare?.alese);
+  const hartaRetur = useHarta(retur, pasageri, setAleseRetur, reluare?.aleseRetur);
   const rezumat = tur && retur && pct != null ? rezumatTurRetur({ pretTur: tur.price, pretRetur: retur.price, pasageri, pct }) : null;
   const lipsaTur = hartaTur?.stare === "ok" ? pasageri - aleseTur.length : 0;
   const lipsaRetur = hartaRetur?.stare === "ok" ? pasageri - aleseRetur.length : 0;

@@ -13,8 +13,8 @@ import { placaAfisata } from '@/lib/bilet-afisare';
 const RED = '#9B1B30';
 
 export const TXT_CARD = {
-  ro: { locurile: 'Locurile', pasageri: (n: number) => `${n} pasageri · un cod pentru toți`, retur20: 'RETUR −20%', student20: 'STUDENT −20% · ARATĂ CARNETUL LA URCARE', biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: 'achitat', urcat: 'urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
-  ru: { locurile: 'Места', pasageri: (n: number) => `${n} пассажира · один код на всех`, retur20: 'ОБРАТНЫЙ −20%', student20: 'СТУДЕНТ −20% · ПОКАЖИТЕ СТУДЕНЧЕСКИЙ', biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: 'оплачено', urcat: 'посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
+  ro: { locurile: 'Locurile', pasageri: (n: number) => `${n} BILETE pe acest cod QR`, retur20: 'RETUR −20%', student20: 'STUDENT −20% · ARATĂ CARNETUL LA URCARE', biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: 'achitat', urcat: 'urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
+  ru: { locurile: 'Места', pasageri: (n: number) => `${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'БИЛЕТА' : 'БИЛЕТОВ'} на этом QR-коде`, retur20: 'ОБРАТНЫЙ −20%', student20: 'СТУДЕНТ −20% · ПОКАЖИТЕ СТУДЕНЧЕСКИЙ', biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: 'оплачено', urcat: 'посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
 } as const;
 
 export const nfPret = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
@@ -61,6 +61,12 @@ const LOGO_STIL = {
   maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
 } as const;
 
+/** Câte bilete ține codul QR (Ion, 10.10.2026: «dacă pe un QR sunt mai multe bilete — să scrie efectiv câte bilete sunt»). */
+const NUMAR_STIL = (px: number) => ({
+  display: 'inline-block', justifySelf: 'start', alignSelf: 'flex-start', padding: '4px 9px', borderRadius: 8, background: '#FFF1D6',
+  border: '1.5px solid #F2C46D', color: RED, fontSize: px, fontWeight: 800, lineHeight: 1.25,
+} as const);
+
 /** CSS-ul cardului (QR-ul pe toată lățimea, cardul nu se rupe la tipar); se pune o dată pe pagină. */
 export const BILET_CARD_CSS = `
   .bilet-qr svg { width: 100%; height: auto; display: block; }
@@ -106,7 +112,7 @@ export function BiletCard({ comanda: c, bilet: b, locale, jos, grup, compact = f
               <span style={{ fontSize: 10, fontWeight: 700, color: '#8A7A7D', letterSpacing: 0.5 }}>{(multi ? tx.locurile : tx.locul).toUpperCase()}</span>
               <span style={{ fontSize: multi ? 22 : 28, fontWeight: 800, color: RED, lineHeight: 1 }}>{textLocuri(locuri)}</span>
             </>}
-            {multi && <span style={{ fontSize: textLocuri(locuri) ? 11 : 15, fontWeight: textLocuri(locuri) ? 400 : 800, color: textLocuri(locuri) ? '#6B5B5F' : RED }}>{tx.pasageri(locuri.length)}</span>}
+            {multi && <span style={NUMAR_STIL(13)}>🎫 {tx.pasageri(locuri.length)}</span>}
             <code style={{ fontSize: 11, letterSpacing: 1, fontWeight: 700, color: '#4A3E41', fontFamily: 'inherit', wordBreak: 'break-all' }}>{b.cod_qr.replace(/(.{4})(?=.)/g, '$1 ')}</code>
             <span style={{ fontSize: 12, color: '#6B5B5F' }}>{c.passenger_name} · {pretText} · <b style={{ color: urcat ? '#6B5B5F' : '#1B7F3B' }}>{urcat ? tx.urcat : tx.achitat}</b></span>
             <span style={{ fontSize: 9, color: '#A0939A' }}>{OPERATOR.name} · IDNO {OPERATOR.idno}</span>
@@ -146,7 +152,7 @@ export function BiletCard({ comanda: c, bilet: b, locale, jos, grup, compact = f
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#8A7A7D', letterSpacing: 0.5 }}>{(multi ? tx.locurile : tx.locul).toUpperCase()}</span>
                 <span style={{ fontSize: multi ? 26 : 34, fontWeight: 800, color: RED, lineHeight: 1 }}>{textLocuri(locuri)}</span>
               </>}
-              {multi && <span style={{ fontSize: textLocuri(locuri) ? 11 : 16, fontWeight: textLocuri(locuri) ? 400 : 800, color: textLocuri(locuri) ? '#6B5B5F' : RED, marginTop: 3 }}>{tx.pasageri(locuri.length)}</span>}
+              {multi && <span style={{ ...NUMAR_STIL(15), marginTop: 5 }}>🎫 {tx.pasageri(locuri.length)}</span>}
             </div>
           ) : <span />}
           {/* Echipajul cursei (migr. 538): după bifa dispecerului; până atunci textul de așteptare. */}

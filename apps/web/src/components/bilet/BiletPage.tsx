@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Locale } from '@/lib/i18n';
 import { biletPublic, type ComandaPublica } from '@/lib/bilete-api';
 import { linkHarta } from '@/lib/bilete-reguli';
-import { AsteaptaPlata, EcranCompletTelegram, SalveazaPoza, type PozaLoc } from './BiletActiuni';
+import { AsteaptaPlata, EcranCompletTelegram, SalveazaPoza, SpreUrmatorul, type PozaLoc } from './BiletActiuni';
 import { OPERATOR } from '@/components/legal/legal-content';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 import { BILET_CARD_CSS, BiletCard, TXT_CARD, bileteDeAratat, biletulQr, dataScurta, nfPret, numeRuta, oraHHMM, textLocuri } from './BiletCard';
@@ -83,7 +83,8 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
     const urcat = valide.every((x) => x.status === 'urcat');
     return [{
       loc: textLocuri(valide),
-      eticheta: textLocuri(valide) ? (valide.length > 1 ? TXT_CARD[locale].locurile : TXT_CARD[locale].locul).toUpperCase() : valide.length > 1 ? TXT_CARD[locale].pasageri(valide.length).toUpperCase() : '',
+      eticheta: textLocuri(valide) ? (valide.length > 1 ? TXT_CARD[locale].locurile : TXT_CARD[locale].locul).toUpperCase() : '',
+      bilete: valide.length > 1 ? `${valide.length} ${locale === 'ru' ? (valide.length <= 4 ? 'БИЛЕТА' : 'БИЛЕТОВ') : 'BILETE'}` : null,
       cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
       ora: oraHHMM(k.departure_at), sosire: k.sosire ?? null, ruta: `${k.from_name} → ${k.to_name}`, numeRuta: numeRuta(k, locale), data: dataScurta(k.trip_date, locale),
       jos: `${k.passenger_name} · ${valide.length > 1 ? `${valide.length} × ` : ''}${nfPret.format(Number(k.price_per_seat))} MDL · ${urcat ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
@@ -153,7 +154,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                     {/* Biletul și trecerea în Telegram într-un singur bloc (Ion, 10.10.2026: «biletul și Telegram trecere unește»);
                         «Salvează/tipărește» a devenit poza biletului în galerie (Ion, 10.10.2026). */}
                     {grupuri.map((k, gi) => (
-                      <div key={k.cod} style={{ display: 'grid', gap: 8 }}>
+                      <div key={k.cod} id={`bilet-${gi + 1}`} style={{ display: 'grid', gap: 8, scrollMarginTop: 12 }}>
                         {[biletulQr(bileteDeAratat(k))!].map((b) => <BiletCard key={b.nr} comanda={k} bilet={b} grup={bileteDeAratat(k)} compact={Boolean(pereche)} sens={pereche ? (sens(k) === 'tur' ? (locale === 'ru' ? 'ТУДА' : 'TUR') : (locale === 'ru' ? 'ОБРАТНО' : 'RETUR')) : undefined} locale={locale} jos={!doar && gi === 0 ? (
                           <div className="bilet-no-print" style={{ padding: '6px 16px 14px', display: 'grid', gap: 6 }}>
                             <div style={{ display: 'flex', gap: 8 }}>
@@ -173,6 +174,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                       </div>
                     ))}
                     {!doar && <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>}
+                    {grupuri.length > 1 && <SpreUrmatorul tinta="bilet-2" text={sens(grupuri[1]) === 'retur' ? (locale === 'ru' ? 'Обратный билет — ниже' : 'Biletul de retur — mai jos') : (locale === 'ru' ? 'Второй билет — ниже' : 'Al doilea bilet — mai jos')} />}
                   </div>
                 );
               })()}

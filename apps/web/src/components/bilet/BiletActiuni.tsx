@@ -214,7 +214,7 @@ export function ReturDupaTur({ codRetur, paidAt, rutaId, tripDate, de, spre, loc
 
 /** Ce se desenează în poza unui loc (calculat pe server, pe pagina biletului). */
 export interface PozaLoc {
-  loc: string; eticheta: string; cod: string; qrSvg: string; ora: string; sosire: string | null; ruta: string; numeRuta: string | null;
+  loc: string; eticheta: string; bilete: string | null; cod: string; qrSvg: string; ora: string; sosire: string | null; ruta: string; numeRuta: string | null;
   data: string; jos: string; operator: string; banda: string | null; bandaProba: boolean; urcat: boolean;
 }
 
@@ -270,6 +270,12 @@ async function deseneazaLoc(p: PozaLoc, font: string): Promise<Blob> {
   ctx.fillStyle = "#fff"; dreptunghi(ctx, 40, y, W - 80, fereastra, [56, 56, 0, 0]); ctx.fill();
   let wy = y + 50 + 30;
   ctx.fillStyle = "#8A7A7D"; ctx.font = f(30); ctx.textAlign = "left"; ctx.fillText(p.eticheta, 100, wy);
+  // Câte bilete ține codul: mare, în dreapta, pe galben.
+  if (p.bilete) {
+    ctx.font = f(44, 800); const bw = ctx.measureText(p.bilete).width + 50;
+    ctx.fillStyle = "#FFF1D6"; dreptunghi(ctx, W - 100 - bw, wy - 2, bw, 80, [18, 18, 18, 18]); ctx.fill();
+    ctx.fillStyle = RED; ctx.textAlign = "center"; ctx.fillText(p.bilete, W - 100 - bw / 2, wy + 54); ctx.textAlign = "left";
+  }
   wy += 100; ctx.fillStyle = RED; ctx.font = f(100, 800); ctx.fillText(p.loc, 100, wy);
   wy += 40;
   const qr = await incarcaImg(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(p.qrSvg)}`);
@@ -363,5 +369,26 @@ export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; loca
         </div>
       )}
     </>
+  );
+}
+
+/** «↓ Al doilea bilet — mai jos» (Ion, 10.10.2026: «când sunt mai multe bilete să apară acolo: fă scroll mai jos pentru
+ *  al doilea bilet»): butonul plutește jos cât biletul următor nu se vede; apăsat, pagina coboară la el. */
+export function SpreUrmatorul({ tinta, text }: { tinta: string; text: string }) {
+  const [vizibil, setVizibil] = React.useState(false);
+  React.useEffect(() => {
+    const el = document.getElementById(tinta);
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const o = new IntersectionObserver(([e]) => setVizibil(!e.isIntersecting && e.boundingClientRect.top > 0), { threshold: 0.35 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [tinta]);
+  if (!vizibil) return null;
+  return (
+    <button type="button" className="bilet-no-print" onClick={() => document.getElementById(tinta)?.scrollIntoView({ behavior: "smooth", block: "start" })} style={{
+      position: "fixed", left: "50%", bottom: 18, transform: "translateX(-50%)", zIndex: 50, minHeight: 46, padding: "0 18px", borderRadius: 999,
+      border: "none", background: "#231A1C", color: "#fff", fontWeight: 800, fontSize: 15, boxShadow: "0 10px 26px rgba(0,0,0,0.3)", cursor: "pointer",
+      fontFamily: "inherit", whiteSpace: "nowrap",
+    }}>↓ {text}</button>
   );
 }

@@ -89,15 +89,22 @@ describe('agregaPeRute', () => {
     expect(r.rute[0].steag).toBe(false);
   });
 
-  it('grupează interurban înaintea suburbanului, în grup după Total desc, cu subtotaluri', () => {
+  it('grupează interurban înaintea suburbanului, în grup după plecarea din Chișinău, cu subtotaluri', () => {
+    const cu = new Map([
+      [1, { route_type: 'interurban', time_chisinau: '18:30 - 22:35' }],
+      [2, { route_type: 'interurban', time_chisinau: '06:55 - 11:00' }],
+      [3, { route_type: 'interurban', time_chisinau: null }],
+      [44, { route_type: 'suburban', time_chisinau: null }],
+    ]);
     const r = agregaPeRute('a', 'b', [
       row({ crm_route_id: 44, ziua: '2026-09-01', incasare_numerar: 5000 }),
       row({ crm_route_id: 1, ziua: '2026-09-01', incasare_numerar: 100 }),
+      row({ crm_route_id: 3, ziua: '2026-09-01', incasare_numerar: 0 }),
       row({ crm_route_id: 2, ziua: '2026-09-01', incasare_numerar: 300 }),
-    ], types, [], []);
-    expect(r.rute.map(x => x.crm_route_id)).toEqual([2, 1, 44]);
+    ], cu, [], []);
+    expect(r.rute.map(x => x.crm_route_id)).toEqual([2, 1, 3, 44]);
     expect(r.subtotaluri.interurban.total).toBe(400);
-    expect(r.subtotaluri.interurban.rute).toBe(2);
+    expect(r.subtotaluri.interurban.rute).toBe(3);
     expect(r.subtotaluri.suburban.total).toBe(5000);
     expect(r.totalRute.total).toBe(5400);
   });

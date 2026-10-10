@@ -99,6 +99,33 @@ export function oraPlecare(interval: string | null | undefined): string | null {
 }
 
 /**
+ * Ordinea rutelor după plecarea din Chișinău, de la prima cursă la ultima (Ion, 10.10.2026:
+ * «aranjare după curse pornire din Chișinău de la prima la ultima»). Rutele fără oră (suburban)
+ * merg la coadă, între ele după nume; la aceeași oră decide ora din nord, apoi id-ul.
+ */
+export function comparaPlecareChisinau(
+  a: { time_chisinau: string | null; time_nord: string | null; route_name: string; crm_route_id: number },
+  b: { time_chisinau: string | null; time_nord: string | null; route_name: string; crm_route_id: number },
+): number {
+  const ca = oraPlecare(a.time_chisinau);
+  const cb = oraPlecare(b.time_chisinau);
+  if (ca !== cb) {
+    if (!ca) return 1;
+    if (!cb) return -1;
+    return minute(ca) - minute(cb);
+  }
+  const na = oraPlecare(a.time_nord);
+  const nb = oraPlecare(b.time_nord);
+  if (na && nb && na !== nb) return minute(na) - minute(nb);
+  return a.route_name.localeCompare(b.route_name, 'ro') || a.crm_route_id - b.crm_route_id;
+}
+
+function minute(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/**
  * Denumirea rutei cu ora plecării lângă locul din care pleacă.
  *
  * Ion, 10.10.2026: «pune ora în rând cu direcția din care pleacă … trebuie ora din Chișinău
@@ -298,11 +325,11 @@ export function agregaPeRute(
     steag: a.curse >= MIN_CURSE_STEAG && a.cuIncasare < PRAG_STEAG * a.curse,
   }));
 
-  // Ordinea implicită: interurban înaintea suburbanului, în grup după Total descrescător.
+  // Ordinea implicită (și în Excel): interurban înaintea suburbanului, în grup după plecarea
+  // din Chișinău, de la prima cursă la ultima.
   rute.sort((x, y) => {
     if (x.route_type !== y.route_type) return x.route_type === 'interurban' ? -1 : 1;
-    if (y.total !== x.total) return y.total - x.total;
-    return x.crm_route_id - y.crm_route_id;
+    return comparaPlecareChisinau(x, y);
   });
 
   const inter = subtotalGol();

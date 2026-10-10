@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRaportPeRute } from './incasareActions';
 import {
-  capeteCuOre, lunaTrecuta, perioadaImplicita, valideazaPerioada,
+  capeteCuOre, comparaPlecareChisinau, lunaTrecuta, perioadaImplicita, valideazaPerioada,
   type RaportPeRute, type RutaAgregata, type Subtotal,
 } from './raport-rute';
 import { construiesteExcel, dmy, ETICHETA_CATEGORIE, ETICHETA_DE_VERIFICAT } from './raport-rute-xls';
@@ -15,6 +15,7 @@ function todayChisinau(): string {
 const lei = (v: number | null) =>
   v == null ? '—' : v.toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
+// «ruta» = după plecarea din Chișinău, de la prima cursă la ultima — ordinea implicită (Ion, 10.10).
 type SortKey = 'total' | 'ruta' | 'curse' | 'fara' | 'medie';
 
 const TH: React.CSSProperties = {
@@ -38,7 +39,7 @@ export default function RaportRuteTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [descifrare, setDescifrare] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('total');
+  const [sortKey, setSortKey] = useState<SortKey>('ruta');
   const [exporting, setExporting] = useState(false);
   // Doar răspunsul ultimei cereri contează: o perioadă lungă cerută înainte poate sosi după
   // una scurtă cerută după ea și ar suprascrie tabelul cu cifrele altei perioade.
@@ -71,7 +72,7 @@ export default function RaportRuteTab() {
     if (!data) return [];
     const cmp = (a: RutaAgregata, b: RutaAgregata) => {
       switch (sortKey) {
-        case 'ruta': return a.route_name.localeCompare(b.route_name, 'ro') || (a.time_nord || '').localeCompare(b.time_nord || '');
+        case 'ruta': return comparaPlecareChisinau(a, b);
         case 'curse': return b.curse - a.curse;
         case 'fara': return b.faraIncasare - a.faraIncasare || b.numaratFaraIncasare - a.numaratFaraIncasare;
         case 'medie': return (b.mediePeCursa ?? -1) - (a.mediePeCursa ?? -1);
@@ -186,7 +187,7 @@ export default function RaportRuteTab() {
             <table style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {sortTh('ruta', 'Rută', undefined, 'left')}
+                  {sortTh('ruta', 'Rută', 'După plecarea din Chișinău, de la prima cursă la ultima', 'left')}
                   {sortTh('curse', 'Curse', 'Curse neanulate în perioadă')}
                   <th style={TH} title="Curse cu Total foaie > 0">Cu bani</th>
                   {sortTh('fara', 'Fără bani', 'Curse fără niciun leu în casă')}

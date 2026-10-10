@@ -415,6 +415,17 @@ export async function cautaCurse(
   // Biletele online (ION-197): butonul cere șofer atribuit PE ziua cursei: când ziua n-are încă grafic,
   // site-ul arată șoferul zilei anterioare, dar pe ăla nu se vinde (API-ul ar refuza oricum).
   const graficPeZi = assignmentDate === date;
+  // Ion, 10.10.2026: «vindem fără grafic» — ziua fără graficul ei se vinde fără verificarea șoferului (ca în panou);
+  // ziua cu grafic cere șoferul ei legat de Telegram. «Are grafic» = rânduri pe ZIUA cursei, nu pe ziua de rezervă.
+  const { count: randuriZi } = await supabase.from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', date);
+  const ziAreGrafic = (randuriZi ?? 0) > 0;
+  const deschisPeSite = (trip: { routeId: number; goingNorth: boolean; time: string }, pret: number, legat: boolean) =>
+    pretVandabilOnline(pret) && vanzareDeschisaPeSite({
+      cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
+      pornireRuta: pornireRuta(trip.routeId, trip.goingNorth),
+      urcare: numeOprireUrcare(trip.routeId), coborare: numeOprireCoborare(trip.routeId),
+      soferPeZi: ziAreGrafic ? legat : true, nowMs,
+    });
   const nowMs = Date.now();
   function pornireRuta(routeId: number, goingNorth: boolean): string | null {
     const r = datele.routes.find((x) => x.id === routeId);
@@ -450,6 +461,8 @@ export async function cautaCurse(
       duration: trip.routeDuration,
     };
 
+    // Fără grafic pe ziua cursei, cursa se vinde online și peste 7 zile (prețul se arată, cum îl socotește panoul).
+    const vandabilFaraSofer = !ziAreGrafic && deschisPeSite(trip, displayPrice, true);
     if (!hasDriver) {
       // Cursa fără șofer se ARATĂ pentru orice zi viitoare. Decizia lui Ion (25.08,
       // pe agentul vocal; 26.08 aceeași lipsă văzută pe site): «dacă nu este șoferul,
@@ -466,12 +479,12 @@ export async function cautaCurse(
           vehicle_plate: null,
           // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
           // apropiate prețul e cunoscut și pasagerul are dreptul să-l vadă.
-          price: daysUntilDeparture > 7 ? 0 : displayPrice,
-          originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
+          price: daysUntilDeparture > 7 && !vandabilFaraSofer ? 0 : displayPrice,
+          originalPrice: daysUntilDeparture > 7 && !vandabilFaraSofer ? null : displayOriginal,
           isAwaitingDriver: true,
           ...bilet,
-          // Fără șofer cunoscut nu se vinde online (Ion, 09.10: doar la șoferii legați de Telegram).
-          sale_open: false,
+          // Ziua cu grafic și fără șofer pe cursă → nu; ziua fără grafic → se vinde (Ion, 10.10).
+          sale_open: vandabilFaraSofer,
           puncte: [],
         });
       }
@@ -486,15 +499,8 @@ export async function cautaCurse(
       originalPrice: displayOriginal,
       ...bilet,
       // ION-237: sub 10 MDL pe loc nu se vinde online (minimul unei plăți în contractul maib).
-      sale_open: pretVandabilOnline(displayPrice) && vanzareDeschisaPeSite({
-        cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
-        pornireRuta: pornireRuta(trip.routeId, trip.goingNorth),
-        urcare: numeOprireUrcare(trip.routeId), coborare: numeOprireCoborare(trip.routeId),
-        // Ion, 09.10: «vânzarea e posibilă fără grafic» + «la șoferii care încă nu sunt logați în Telegram … să nu fie
-        // posibilă vânzarea»: se vinde doar dacă șoferul cursei (din graficul zilei sau, fără el, din cel mai nou grafic
-        // — același afișat aici) e legat de Telegram.
-        soferPeZi: details!.legat, nowMs,
-      }),
+      // Ion, 09.10 + 10.10: șoferul din graficul ZILEI trebuie să fie legat de Telegram; fără grafic pe zi se vinde.
+      sale_open: deschisPeSite(trip, displayPrice, details!.legat),
       puncte: [],
     });
   }

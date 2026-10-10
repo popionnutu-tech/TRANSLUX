@@ -218,6 +218,43 @@ async function bileteOnline() {
 
 const COD_DIN_LINK = /([0-9a-f]{32})/i;
 
+/**
+ * Ziua și ora plecării GATA SCRISE, în ora Moldovei (Ion, 10.10.2026: «asistentul aiurește, ora greșită»): modelul primea
+ * departure_at în UTC și a scris 05:50 în loc de 08:50. Nu-i mai dăm ISO-ul.
+ */
+function plecareLocala(iso: string): { ziua: string; ora: string } {
+  const d = new Date(iso);
+  return {
+    ziua: d.toLocaleDateString('ro-RO', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'Europe/Chisinau' }),
+    ora: d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Chisinau' }),
+  };
+}
+
+type Gasit = { from: string; to: string; departure_at: string; locuri: number[]; link: string; cod: string };
+
+/**
+ * Biletele pentru model: tur-returul plătit o dată e UN rând (o anulare, o sumă), cu returul înăuntru
+ * (Ion, 10.10.2026: «zice 540 lei returnare, de fapt 270» — modelul a anulat «ambele» și a adunat suma pachetului de două ori).
+ */
+function bileteDeSpus(gasite: Gasit[], card: Card | null) {
+  const info = new Map((card?.type === 'tickets' ? card.tickets : []).map((t) => [t.cod, t]));
+  const coduri = new Set(gasite.map((g) => g.cod));
+  const out: Record<string, unknown>[] = [];
+  for (const g of gasite) {
+    const t = info.get(g.cod);
+    if (t?.sens === 'retur' && t.pachet_cod && coduri.has(t.pachet_cod)) continue; // intră la turul lui
+    const retur = t?.sens === 'tur' && t.pachet_cod ? gasite.find((x) => x.cod === t.pachet_cod) : undefined;
+    out.push({
+      ruta: `${g.from} → ${g.to}`, ...plecareLocala(g.departure_at), locuri: g.locuri, link: g.link,
+      ...(retur ? {
+        tur_retur: { ruta: `${retur.from} → ${retur.to}`, ...plecareLocala(retur.departure_at) },
+        nota: 'Tur-retur plătit o dată: UN singur bilet de anulat (cu linkul turului), O singură sumă pentru amândouă drumurile.',
+      } : {}),
+    });
+  }
+  return out;
+}
+
 async function callVoiceTool(ctx: ToolContext, name: string, input: Record<string, unknown>): Promise<unknown> {
   const apiKey = process.env.VOICE_API_KEY;
   if (!apiKey) return { error: 'tool indisponibil' };
@@ -309,7 +346,7 @@ export async function executeSiteTool(ctx: ToolContext, name: string, input: Rec
         return { card, result: r.ok
           ? (gasite.length
             ? {
-              bilete: gasite.map((b) => ({ ruta: `${b.from} → ${b.to}`, plecare: b.departure_at, locuri: b.locuri, link: b.link })),
+              bilete: bileteDeSpus(gasite, card),
               afisat_pe_ecran: card
                 ? 'Biletele, fiecare cu codul QR și butonul «Deschide biletul», apar pe ecran sub mesajul tău. Scrie doar o propoziție scurtă (câte bilete ai găsit, codul QR îl arată șoferului); nu le mai înșira și nu scrie linkurile.'
                 : 'Cardurile nu s-au putut face: scrie fiecare bilet cu linkul lui, întreg.',
@@ -327,6 +364,11 @@ export async function executeSiteTool(ctx: ToolContext, name: string, input: Rec
         if (!cod) return { result: { error: 'Nu văd codul biletului în ce a scris clientul. Cere-i linkul biletului (din e-mail, SMS sau pagina biletului).' } };
         if (cifre.length !== 4) return { result: { error: 'Cere-i clientului ultimele 4 cifre ale telefonului din comandă.' } };
         const r = input.confirma === true ? await confirmaAnulare(cod, cifre, input.suma, 'asistent') : await ofertaAnulare(cod, cifre);
+        if (r.ok && r.tip === 'oferta') {
+          const { departure_at, ...rest } = r;
+          return { result: { ...rest, ...plecareLocala(departure_at),
+            de_spus: `Primește înapoi ${r.suma} lei${r.cu_retur ? ' pentru tot tur-returul (tur + retur, o singură sumă)' : ''}. Spui EXACT această sumă; n-o aduni cu altă sumă și n-o înmulțești.` } };
+        }
         return { result: r };
       }
       case 'arata_statia': {

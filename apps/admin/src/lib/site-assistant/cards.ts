@@ -10,6 +10,7 @@ import { localitiesToRo } from '@/lib/voice-locality';
 import { cursaInLocalitatileVanzarii } from '@translux/db';
 import { citesteConfigBilete } from '@/lib/bilete/comenzi';
 import { biletPublic } from '@/lib/bilete/public';
+import { getSupabase } from '@/lib/supabase';
 
 /**
  * Cine duce cursa (Ion, 23.09: «lângă oră să fie datele: șofer, mașină, număr șofer»).
@@ -57,15 +58,35 @@ export interface TicketItem {
   count: number;
   /** Bilet de probă: nu e valabil la urcare. */
   proba: boolean;
+  cod: string;
+  /** Tur-retur plătit o dată (548): codul celuilalt bilet al pachetului și sensul acestuia. */
+  pachet_cod: string | null;
+  sens: 'tur' | 'retur' | null;
 }
 
 export async function ticketsCard(bilete: { from: string; to: string; departure_at: string; locuri: number[]; link: string; cod: string }[]): Promise<Card | null> {
   if (!bilete.length) return null;
+  // Perechea tur-retur din bază (548): returul are in_pachet = true și comanda_tur_id = id-ul turului.
+  const { data: rel } = await getSupabase().from('bilete_comenzi').select('id, cod, comanda_tur_id, in_pachet').in('cod', bilete.map((b) => b.cod));
+  const rows = (rel || []) as { id: string; cod: string; comanda_tur_id: string | null; in_pachet: boolean }[];
+  const perCod = new Map(rows.map((r) => [r.cod, r]));
+  const perId = new Map(rows.map((r) => [r.id, r]));
+  const pereche = (cod: string): { pachet_cod: string | null; sens: 'tur' | 'retur' | null } => {
+    const r = perCod.get(cod);
+    if (!r) return { pachet_cod: null, sens: null };
+    if (r.in_pachet && r.comanda_tur_id) return { pachet_cod: perId.get(r.comanda_tur_id)?.cod ?? null, sens: 'retur' };
+    const ret = rows.find((x) => x.in_pachet && x.comanda_tur_id === r.id);
+    return ret ? { pachet_cod: ret.cod, sens: 'tur' } : { pachet_cod: null, sens: null };
+  };
   const tickets = await Promise.all(bilete.map(async (b): Promise<TicketItem> => {
     const c = await biletPublic(b.cod).catch(() => null);
     const valide = (c?.bilete ?? []).filter((x) => x.status === 'valid' || x.status === 'urcat');
     const qr = valide.find((x) => x.status === 'valid') ?? valide[0] ?? null; // ca biletulQr de pe pagină
-    return { from: b.from, to: b.to, departure_at: b.departure_at, locuri: b.locuri, link: b.link, qr_svg: qr?.qr_svg ?? null, count: valide.length || 1, proba: Boolean(c?.proba) };
+    return {
+      from: b.from, to: b.to, departure_at: b.departure_at, locuri: b.locuri, link: b.link, qr_svg: qr?.qr_svg ?? null,
+      count: valide.length || 1, proba: Boolean(c?.proba), cod: b.cod,
+      ...pereche(b.cod),
+    };
   }));
   return { type: 'tickets', tickets };
 }

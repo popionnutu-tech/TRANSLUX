@@ -7,6 +7,7 @@ export interface Crew { driver: string | null; plate: string | null; phone: stri
 export interface TicketItem {
   from: string; to: string; departure_at: string; locuri: number[];
   link: string; qr_svg: string | null; count: number; proba: boolean;
+  cod: string; pachet_cod: string | null; sens: 'tur' | 'retur' | null;
 }
 
 export type Card =

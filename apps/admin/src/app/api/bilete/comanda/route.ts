@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
       : (typeof body.cod_retur === 'string' && /^[0-9a-f]{64}$/.test(body.cod_retur) ? body.cod_retur : null),
     // 548: returul din pachet (o singură plată cu turul); forma se verifică aici, restul în creeazaComanda.
     retur: returDin(body.retur),
+    // 550: cheia încercării de dinainte a aceluiași browser (UUID); orice altă formă e ignorată.
+    inlocuieste: typeof (body as Record<string, unknown>).inlocuieste === 'string' && /^[0-9a-f-]{36}$/i.test(String((body as Record<string, unknown>).inlocuieste)) ? String((body as Record<string, unknown>).inlocuieste) : null,
     studentJeton: typeof body.studentJeton === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(body.studentJeton) ? body.studentJeton
       : (typeof body.student_jeton === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(body.student_jeton) ? body.student_jeton : null),
   };

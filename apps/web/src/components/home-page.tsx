@@ -32,6 +32,8 @@ const loadAssistant = () => import('@/components/AssistantWidget');
 const loadCookieConsent = () => import('@/components/CookieConsent');
 const NowResults = dynamic(loadNowResults, { ssr: false });
 const RouteResults = dynamic(loadRouteResults, { ssr: false });
+// Tur-retur (plan 10.10): fluxul în 3 pași, încărcat doar când e nevoie.
+const TurReturFlux = dynamic(() => import('@/components/ui/tur-retur-flux').then((m) => m.TurReturFlux), { ssr: false });
 const MiniCalendar = dynamic(loadMiniCalendar, { ssr: false });
 const AssistantWidget = dynamic(loadAssistant, { ssr: false });
 const CookieConsent = dynamic(loadCookieConsent, { ssr: false });
@@ -96,6 +98,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const [dataRetur, setDataRetur] = useState<string | null>(null);
   // Ion, 10.10: «la data tur-retur pune același calendar ca la Mai târziu» — fereastra «Când pleci?» pentru ambele câmpuri.
   const [calPentru, setCalPentru] = useState<null | 'plecare' | 'intoarcere'>(null);
+  // Plan tur-retur (10.10): numărul de pasageri se alege odată cu zilele, nu abia la plată.
+  const [pasageri, setPasageri] = useState(1);
   // Ion, 10.10: «când bifez tur-retur −20% să apară alegerea datei … clientul se va pierde» — două câmpuri vizibile.
   const [ziPlecare, setZiPlecare] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); });
   const [ziIntoarcere, setZiIntoarcere] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 3); return ymd(d); });
@@ -429,6 +433,14 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                         </div>
                         {jum('intoarcere', locale === 'ru' ? 'Обратно' : 'Întoarcere', ziIntoarcere)}
                       </div>
+                      <div className="tr-pax">
+                        <span>{locale === 'ru' ? 'Пассажиры' : 'Pasageri'}</span>
+                        <div className="tr-pax-n">
+                          <button type="button" aria-label="−" disabled={pasageri <= 1} onClick={() => setPasageri((n) => Math.max(1, n - 1))}>−</button>
+                          <b aria-live="polite">{pasageri}</b>
+                          <button type="button" aria-label="+" disabled={pasageri >= 4} onClick={() => setPasageri((n) => Math.min(4, n + 1))}>+</button>
+                        </div>
+                      </div>
                       <button type="button" className="tr-cauta" onClick={cautaTurRetur}>
                         {searching ? '...' : (locale === 'ru' ? 'Найти туда-обратно' : 'Caută tur-retur')}
                         <span>{locale === 'ru' ? 'обратный −20%, одна оплата' : 'returul −20%, o singură plată'}</span>
@@ -457,6 +469,11 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .tr-mij{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 6px;border-left:1px dashed rgba(155,27,48,.18);border-right:1px dashed rgba(155,27,48,.18)}
 .tr-sag{width:32px;height:32px;border-radius:50%;background:#F6ECEE;color:#9B1B30;display:flex;align-items:center;justify-content:center}
 .tr-dur{font-size:11px;font-weight:700;color:#8A7A7D;white-space:nowrap}
+.tr-pax{width:100%;max-width:520px;display:flex;align-items:center;justify-content:space-between;padding:8px 6px 8px 16px;background:#fff;border:1px solid rgba(155,27,48,.14);border-radius:14px;font-size:14px;font-weight:700;color:#6B5B5F}
+.tr-pax-n{display:flex;align-items:center;gap:10px}
+.tr-pax-n button{width:38px;height:38px;border-radius:11px;border:1px solid rgba(155,27,48,.2);background:#fff;color:#9B1B30;font:700 19px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.tr-pax-n button:disabled{color:#D6C8CB;cursor:default}
+.tr-pax-n b{min-width:20px;text-align:center;font-size:18px;color:#231A1C}
 .tr-cauta{width:100%;max-width:520px;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 8px 20px rgba(155,27,48,.22);transition:filter .15s}
 .tr-cauta:hover{filter:brightness(1.06)}
 .tr-cauta span{font-size:12px;font-weight:600;opacity:.85}
@@ -596,7 +613,21 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
       {assistant && <AssistantWidget locale={locale} open={assistantOpen} onOpenChange={setAssistantOpen} />}
 
 
-      {showResults && (
+      {showResults && dataRetur && cuRetur && esteBalti && (
+        <TurReturFlux
+          from={fromRef.current?.selectedOptions[0]?.text || ''}
+          to={toRef.current?.selectedOptions[0]?.text || ''}
+          fromRo={fromRef.current?.value || ''}
+          toRo={toRef.current?.value || ''}
+          tripsTur={trips}
+          dataRetur={dataRetur}
+          pasageri={pasageri}
+          locale={locale}
+          onClose={() => setShowResults(false)}
+          contact={telegram?.contact ?? null}
+        />
+      )}
+      {showResults && !(dataRetur && cuRetur && esteBalti) && (
         <RouteResults
           from={fromRef.current?.selectedOptions[0]?.text || ''}
           to={toRef.current?.selectedOptions[0]?.text || ''}
@@ -607,7 +638,6 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           locale={locale}
           onClose={() => setShowResults(false)}
           contact={telegram?.contact ?? null}
-          dataRetur={cuRetur && esteBalti ? dataRetur : null}
         />
       )}
 

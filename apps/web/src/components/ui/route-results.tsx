@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { searchTrips, type TripResult } from "@/app/(public)/actions";
-import { aplicaReducere } from "@translux/db";
+import type { TripResult } from "@/app/(public)/actions";
 import { BiletCursa } from "./bilet-cursa";
 import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { track } from "@/lib/track";
@@ -20,31 +19,10 @@ interface RouteResultsProps {
   onClose: () => void;
   /** ION-249: în mini app-ul Telegram, numele și telefonul din ultima comandă a contului precompletează formularul. */
   contact?: ContactPrecompletat | null;
-  /** Tur-retur ales din bara de căutare: ziua întoarcerii (YYYY-MM-DD); formularul pornește cu returul bifat. */
-  dataRetur?: string | null;
 }
 
-export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null, dataRetur = null }: RouteResultsProps) {
+export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null }: RouteResultsProps) {
   const [cumpara, setCumpara] = React.useState<number | null>(null);
-  // Tur-retur pe pași (Ion, 10.10.2026: «întâi alege ruta de pe tur și vede clar data sus, apoi alege cursa pe retur și
-  // vede data clar sus, apoi locul din Chișinău»; «simplificăm tur-returul la cumpărare»).
-  const tr = Boolean(dataRetur);
-  const [returAles, setReturAles] = React.useState<TripResult | null>(null);
-  const [curseRetur, setCurseRetur] = React.useState<TripResult[] | null>(null);
-  const turAles = cumpara !== null ? trips[cumpara] : null;
-  React.useEffect(() => {
-    if (!tr || !turAles || !dataRetur) { setCurseRetur(null); setReturAles(null); return; }
-    let viu = true;
-    setCurseRetur(null); setReturAles(null);
-    searchTrips(toRo, fromRo, dataRetur).then((r) => {
-      if (!viu) return;
-      setCurseRetur((r || []).filter((t) => t.sale_open && t.crm_route_id !== turAles.crm_route_id
-        && (t.trip_date > turAles.trip_date || (t.trip_date === turAles.trip_date && t.time > turAles.arrivalTime))));
-    }).catch(() => viu && setCurseRetur([]));
-    return () => { viu = false; };
-  }, [tr, turAles, dataRetur, fromRo, toRo]);
-  const pas: 1 | 2 | 3 = !tr ? (turAles ? 3 : 1) : !turAles ? 1 : !returAles ? 2 : 3;
-  const ziLunga = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
 
@@ -149,7 +127,7 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
         {/* Antetul: ruta, ziua, câte curse și prețul; la cumpărare — «Bilet online» cu întoarcerea la listă. */}
         <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #EFE4E6" }}>
           {ales && (
-            <button type="button" onClick={() => { if (tr && returAles) setReturAles(null); else setCumpara(null); }} aria-label={tx.inapoi}
+            <button type="button" onClick={() => setCumpara(null)} aria-label={tx.inapoi}
               style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "#F4EEEF", color: "#6B5B5F", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>&larr;</button>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -170,36 +148,10 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
             style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "#F4EEEF", color: "#6B5B5F", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>&times;</button>
         </div>
 
-        {tr && (
-          <div style={{ padding: "12px 20px", background: pas === 2 ? "#fdf3e7" : "#F4EEEF", borderBottom: "1px solid #EFE4E6", display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: "#9B1B30" }}>{locale === "ru" ? `Шаг ${pas} из 3` : `Pasul ${pas} din 3`}</span>
-            <span style={{ fontSize: 18, fontWeight: 800 }}>
-              {pas === 1 && <>{locale === "ru" ? "Туда" : "Tur"} · {from} → {to} · {dataCursei}</>}
-              {pas === 2 && <>{locale === "ru" ? "Обратно" : "Retur"} · {to} → {from} · {dataRetur ? ziLunga(dataRetur) : ""}</>}
-              {pas === 3 && (locale === "ru" ? "Место и оплата" : "Locul și plata")}
-            </span>
-          </div>
-        )}
         <div style={{ position: "relative" }}>
         <div ref={scrollRef} className="route-results-scroll" style={{ overflowY: "auto", background: "#FAF6F5", padding: ales ? 0 : "16px 14px 20px" }}>
-          {tr && ales && !returAles ? (
-            <div style={{ padding: "16px 14px 20px" }}>
-              {curseRetur == null && <div style={{ padding: 30, textAlign: "center", color: "#8A7A7D" }}>{locale === "ru" ? "Ищем обратные рейсы…" : "Se caută cursele de retur…"}</div>}
-              {curseRetur != null && curseRetur.length === 0 && <div style={{ padding: 30, textAlign: "center", color: "#8A7A7D" }}>{locale === "ru" ? "В этот день нет обратных рейсов с онлайн-билетом. Вернитесь и выберите другой день." : "În ziua aceasta nu sunt curse de retur cu bilet online. Întoarce-te și alege altă zi."}</div>}
-              <div className="bilete-grid">
-                {(curseRetur ?? []).map((t, i) => {
-                  const redus = aplicaReducere(t.price, 20);
-                  return (
-                    <div key={`r-${t.time}-${i}`} style={{ minWidth: 0 }}>
-                      <BiletCursa trip={redus != null ? { ...t, originalPrice: t.price, price: redus } : t} locale={locale} cotor="lista"
-                        onCumpara={() => { setReturAles(t); scrollRef.current?.scrollTo({ top: 0 }); }} />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : ales && fromRo && toRo ? (
-            <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} returFix={tr ? returAles : null} />
+          {ales && fromRo && toRo ? (
+            <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} />
           ) : (
             <>
               {trips.length === 0 && (

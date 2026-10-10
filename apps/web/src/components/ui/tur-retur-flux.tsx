@@ -1,0 +1,439 @@
+"use client";
+
+import * as React from "react";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+import { cautaCurse, type RezultatCautare, type TripResult } from "@/app/(public)/actions";
+import { cumparaBilet, locuriCursei, procentRetur, type StareComanda } from "@/app/(public)/bilete-actions";
+import { citesteInitData } from "@/components/telegram/telegram-webapp";
+import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
+import { phoneText } from "@/lib/phone";
+import type { ContactPrecompletat } from "@/lib/telegram-client";
+import { curseReturPotrivite, pasageriText, politicaChei, rezumatTurRetur } from "@/lib/tur-retur";
+import { BiletCursa } from "./bilet-cursa";
+import { MiniCalendar } from "./mini-calendar";
+import { SeatMap } from "./seat-map";
+
+// Tur-retur Bălți ⇄ Chișinău în 3 pași (Ion, 10.10.2026: «întâi alege ruta de pe tur și vede clar data sus, apoi alege
+// cursa pe retur și vede data clar sus, apoi locul din Chișinău»; «gândește-te tot acest proces să fie ușor pentru client
+// și intuitiv»; «ok aplică, dar totul într-o stilistică elegantă»). Planul: docs/plans/2026-10-10-tur-retur-ux-simplu.md
+// (3 runde Claude + Codex). O singură plată (migr. 548); o încercare eșuată se înlocuiește cu cheia ei (migr. 550).
+
+const RED = "#9B1B30";
+const REINCARCA_HARTA_MS = 30_000;
+
+const TXT = {
+  ro: {
+    titlu: "Tur-retur", pas: (n: number) => `${n} / 3`, tur: "Tur", retur: "Retur", locPlata: "Locul și plata",
+    turAles: "Tur ales", schimba: "schimbă", cautaRetur: "Se caută cursele de retur…",
+    zigoala: "În ziua aceasta nu sunt curse de retur cu bilet online.", altaZi: "Alege altă zi de întoarcere",
+    limita: "Prea multe căutări într-un timp scurt. Încearcă peste câteva minute.", indisponibil: "Cursele nu se pot încărca acum. Încearcă din nou.",
+    reincearca: "Încearcă din nou", cand: "Când te întorci?", locLa: (s: string) => `Locul la ${s}`, alese: (a: number, n: number) => `${a} din ${n}`,
+    hartaInc: "Se încarcă locurile…", hartaNu: "Locul se dă la urcare.", pasageri: "Pasageri",
+    nume: "Nume", prenume: "Prenume", telefon: "Telefon", email: "E-mail (opțional)", telNota: "Șoferul te sună pe acest număr dacă e nevoie.",
+    regula: "Tur-returul se anulează doar împreună, până la plecarea cursei tur.",
+    acord: "Am citit și accept", conditii: "condițiile de vânzare", si: "și", politica: "politica de confidențialitate",
+    platesti: "O singură plată", total: "Total", plateste: (l: number) => `Plătește ${l} lei cu cardul`, seDeschide: "Se deschide pagina băncii…",
+    mai: (n: number, unde: string) => `Alege încă ${n === 1 ? "1 loc" : `${n} locuri`} la ${unde} ↑`, faraRed: "Returul nu are reducere la acest preț — alege altă cursă.",
+    dupa: "După plată primești ambele bilete cu cod QR.", unde: "Unde urci în autobuz",
+  },
+  ru: {
+    titlu: "Туда и обратно", pas: (n: number) => `${n} / 3`, tur: "Туда", retur: "Обратно", locPlata: "Место и оплата",
+    turAles: "Рейс туда", schimba: "изменить", cautaRetur: "Ищем обратные рейсы…",
+    zigoala: "В этот день нет обратных рейсов с онлайн-билетом.", altaZi: "Выбрать другой день возвращения",
+    limita: "Слишком много поисков за короткое время. Попробуйте через несколько минут.", indisponibil: "Рейсы сейчас не загружаются. Попробуйте ещё раз.",
+    reincearca: "Попробовать ещё раз", cand: "Когда возвращаетесь?", locLa: (s: string) => `Место: ${s.toLowerCase()}`, alese: (a: number, n: number) => `${a} из ${n}`,
+    hartaInc: "Загружаем места…", hartaNu: "Место дадут при посадке.", pasageri: "Пассажиры",
+    nume: "Фамилия", prenume: "Имя", telefon: "Телефон", email: "E-mail (необязательно)", telNota: "Водитель позвонит на этот номер, если нужно.",
+    regula: "Туда-обратно отменяется только вместе, до отправления рейса туда.",
+    acord: "Я прочитал(а) и принимаю", conditii: "условия продажи", si: "и", politica: "политику конфиденциальности",
+    platesti: "Одна оплата", total: "Итого", plateste: (l: number) => `Оплатить ${l} лей картой`, seDeschide: "Открываем страницу банка…",
+    mai: (n: number, unde: string) => `Выберите ещё ${n} мест${n === 1 ? "о" : "а"}: ${unde.toLowerCase()} ↑`, faraRed: "На этот рейс скидка не применяется — выберите другой.",
+    dupa: "После оплаты вы получите оба билета с QR-кодом.", unde: "Где вы сядете в автобус",
+  },
+} as const;
+
+function uuid(): string {
+  try { return crypto.randomUUID(); } catch {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+}
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function ziLunga(iso: string, locale: "ro" | "ru"): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
+function ziScurta(iso: string, locale: "ro" | "ru"): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+type Harta = { stare: "incarca" | "ok" | "indisponibila"; ocupate: number[] };
+
+/** Harta locurilor unei curse din Chișinău (spre nord), reîncărcată la 30 s; null = cursa nu pleacă din Chișinău. */
+function useHarta(trip: TripResult | null, seats: number, setAlese: React.Dispatch<React.SetStateAction<number[]>>): Harta | null {
+  const [h, setH] = React.useState<Harta>({ stare: "incarca", ocupate: [] });
+  const activ = trip?.going_north === true;
+  React.useEffect(() => {
+    if (!activ || !trip) return;
+    let viu = true;
+    setH({ stare: "incarca", ocupate: [] });
+    const incarca = async () => {
+      if (document.visibilityState === "hidden") return;
+      const r = await locuriCursei(trip.crm_route_id, trip.trip_date, true).catch(() => null);
+      if (!viu) return;
+      if (!r) { setH((x) => (x.stare === "ok" ? x : { stare: "indisponibila", ocupate: [] })); return; }
+      setH({ stare: "ok", ocupate: r.ocupate });
+      setAlese((a) => potrivesteAlese(a, seats, r.ocupate).alese);
+    };
+    void incarca();
+    const t = setInterval(incarca, REINCARCA_HARTA_MS);
+    return () => { viu = false; clearInterval(t); };
+  }, [activ, trip, seats, setAlese]);
+  return activ ? h : null;
+}
+
+function Trimite({ text, blocat }: { text: string; blocat: boolean }) {
+  const { pending } = useFormStatus();
+  return <button type="submit" className="trf-plata" disabled={pending || blocat}>{pending ? "…" : text}</button>;
+}
+
+export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziReturInitiala, pasageri: pasageriInitial, locale, onClose, contact = null }: {
+  from: string; to: string; fromRo: string; toRo: string; tripsTur: TripResult[]; dataRetur: string; pasageri: number;
+  locale: "ro" | "ru"; onClose: () => void; contact?: ContactPrecompletat | null;
+}) {
+  const tx = TXT[locale];
+  const [tur, setTur] = React.useState<TripResult | null>(null);
+  const [retur, setRetur] = React.useState<TripResult | null>(null);
+  const [ziRetur, setZiRetur] = React.useState(ziReturInitiala);
+  const [calendar, setCalendar] = React.useState(false);
+  const [pasageri, setPasageri] = React.useState(Math.max(1, Math.min(4, pasageriInitial)));
+  const [pct, setPct] = React.useState<number | null>(null);
+  const [cache, setCache] = React.useState<Record<string, RezultatCautare>>({});
+  const [incarca, setIncarca] = React.useState(false);
+  const [camp, setCamp] = React.useState(() => ({ lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" }));
+  const [consent, setConsent] = React.useState(false);
+  const [punct, setPunct] = React.useState<number | null>(null);
+  const [aleseTur, setAleseTur] = React.useState<number[]>([]);
+  const [aleseRetur, setAleseRetur] = React.useState<number[]>([]);
+  const [tgInitData, setTgInitData] = React.useState("");
+  React.useEffect(() => { setTgInitData(citesteInitData()); }, []);
+  React.useEffect(() => { void procentRetur().then(setPct).catch(() => setPct(0)); }, []);
+
+  // Escape: întâi calendarul, apoi un pas înapoi, abia la pasul 1 închide (plan R3).
+  const pas: 1 | 2 | 3 = !tur ? 1 : !retur ? 2 : 3;
+  const inapoi = React.useCallback(() => { if (pas === 3) setRetur(null); else if (pas === 2) setTur(null); else onClose(); }, [pas, onClose]);
+  React.useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (calendar) setCalendar(false); else inapoi(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [calendar, inapoi]);
+
+  // Pasul 2: o singură căutare pe zi de retur (plan E1/U4); rezultatul rămâne în fereastră.
+  const cheieCautare = `${toRo}|${fromRo}|${ziRetur}`;
+  const rez = cache[cheieCautare];
+  const cauta = React.useCallback(async () => {
+    setIncarca(true);
+    const r = await cautaCurse(toRo, fromRo, ziRetur).catch((): RezultatCautare => ({ stare: "indisponibil", curse: [] }));
+    setCache((c) => ({ ...c, [cheieCautare]: r }));
+    setIncarca(false);
+  }, [toRo, fromRo, ziRetur, cheieCautare]);
+  React.useEffect(() => { if (tur && !rez && !incarca) void cauta(); }, [tur, rez, incarca, cauta]);
+  const curseRetur = tur && rez ? curseReturPotrivite(tur, rez.curse) : [];
+
+  // Pasul 3: locurile pe cursele din Chișinău, prețul, cheile.
+  const hartaTur = useHarta(tur, pasageri, setAleseTur);
+  const hartaRetur = useHarta(retur, pasageri, setAleseRetur);
+  const rezumat = tur && retur && pct != null ? rezumatTurRetur({ pretTur: tur.price, pretRetur: retur.price, pasageri, pct }) : null;
+  const lipsaTur = hartaTur?.stare === "ok" ? pasageri - aleseTur.length : 0;
+  const lipsaRetur = hartaRetur?.stare === "ok" ? pasageri - aleseRetur.length : 0;
+  const refHartaTur = React.useRef<HTMLDivElement>(null);
+  const refHartaRetur = React.useRef<HTMLDivElement>(null);
+  const schimbaPasageri = (n: number) => {
+    setPasageri(n);
+    setAleseTur((a) => potrivesteAlese(a, n, hartaTur?.ocupate ?? []).alese);
+    setAleseRetur((a) => potrivesteAlese(a, n, hartaRetur?.ocupate ?? []).alese);
+  };
+
+  // Politica cheilor (Codex r2 C4, Claude r3 S1): orice schimbare după o trimitere → chei noi + înlocuirea încercării vechi.
+  const [cheieTur, setCheieTur] = React.useState(uuid);
+  const [cheieRetur, setCheieRetur] = React.useState(uuid);
+  const [inlocuieste, setInlocuieste] = React.useState<string | null>(null);
+  const [trimisCu, setTrimisCu] = React.useState<string | null>(null);
+  const alegere = tur && retur ? `${tur.crm_route_id}|${tur.trip_date}|${tur.time}|${retur.crm_route_id}|${retur.trip_date}|${retur.time}|${pasageri}` : "";
+  const roteste = React.useCallback(() => {
+    setInlocuieste(cheieTur); setCheieTur(uuid()); setCheieRetur(uuid()); setTrimisCu(null);
+  }, [cheieTur]);
+  React.useEffect(() => {
+    if (trimisCu && alegere && trimisCu !== alegere && politicaChei({ alegereSchimbata: true }).chei === "noi") roteste();
+  }, [alegere, trimisCu, roteste]);
+  const [stare, action] = useActionState<StareComanda, FormData>(cumparaBilet, {});
+  React.useEffect(() => {
+    if (stare.nr && politicaChei({ alegereSchimbata: false, codEroare: stare.cod ?? null }).chei === "noi") roteste();
+  }, [stare.nr]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
+  const blocat = lipsaTur > 0 || lipsaRetur > 0 || !rezumat || rezumat.pretRetur == null;
+  const motiv = lipsaTur > 0 ? { t: tx.mai(lipsaTur, tx.tur), ref: refHartaTur } : lipsaRetur > 0 ? { t: tx.mai(lipsaRetur, tx.retur), ref: refHartaRetur } : null;
+
+  const titluPas = pas === 1
+    ? <><b>{tx.tur}</b><span>{from} → {to}</span><em>{tripsTur[0] ? ziLunga(tripsTur[0].trip_date, locale) : ""}</em></>
+    : pas === 2
+      ? <><b>{tx.retur}</b><span>{to} → {from}</span><em>{ziLunga(ziRetur, locale)}</em></>
+      : <><b>{tx.locPlata}</b><span>{pasageriText(pasageri, locale)}</span></>;
+
+  return (
+    <div className="trf" role="dialog" aria-modal="true" aria-label={`${tx.titlu} · ${from} ⇄ ${to}`}>
+      <style>{CSS}</style>
+      <div className="trf-fundal" onClick={onClose} />
+      <div className="trf-fereastra">
+        <header className="trf-antet">
+          <button type="button" className="trf-rotund" onClick={inapoi} aria-label="←">&larr;</button>
+          <div className="trf-antet-text">
+            <div className="trf-titlu">{tx.titlu} · {from} ⇄ {to}</div>
+            <ol className="trf-pasi" aria-label="pași">
+              {[1, 2, 3].map((n) => <li key={n} className={n === pas ? "on" : n < pas ? "gata" : ""}>{n < pas ? "✓" : n}</li>)}
+            </ol>
+          </div>
+          <button type="button" className="trf-rotund" onClick={onClose} aria-label="×">&times;</button>
+        </header>
+        <div className={`trf-banda ${pas === 2 ? "ret" : ""}`}>
+          <small>{tx.pas(pas)}</small>{titluPas}
+          {pas < 3 && <span className="trf-pas-pax">{pasageriText(pasageri, locale)}</span>}
+        </div>
+
+        <div className="trf-corp">
+          {pas === 1 && (
+            <div className="trf-lista">
+              {tripsTur.map((t, i) => (
+                <BiletCursa key={`${t.time}-${i}`} trip={{ ...t, originalPrice: null }} locale={locale} cotor="lista"
+                  onCumpara={t.sale_open ? () => setTur(t) : undefined} />
+              ))}
+            </div>
+          )}
+
+          {pas === 2 && tur && (
+            <>
+              <button type="button" className="trf-ales" onClick={() => setTur(null)}>
+                <span className="trf-ales-eticheta">✓ {tx.turAles}</span>
+                <span>{ziScurta(tur.trip_date, locale)} · {tur.time} → {tur.arrivalTime} · {tur.price} lei</span>
+                <u>{tx.schimba}</u>
+              </button>
+              {(!rez || incarca) && <p className="trf-gol">{tx.cautaRetur}</p>}
+              {rez && !incarca && rez.stare !== "ok" && (
+                <div className="trf-gol">
+                  <p>{rez.stare === "limita" ? tx.limita : tx.indisponibil}</p>
+                  <button type="button" className="trf-secundar" onClick={() => void cauta()}>{tx.reincearca}</button>
+                </div>
+              )}
+              {rez && !incarca && rez.stare === "ok" && curseRetur.length === 0 && (
+                <div className="trf-gol">
+                  <p>{tx.zigoala}</p>
+                  <button type="button" className="trf-secundar" onClick={() => setCalendar(true)}>{tx.altaZi}</button>
+                </div>
+              )}
+              {rez && !incarca && curseRetur.length > 0 && (
+                <div className="trf-lista">
+                  {curseRetur.map((t, i) => {
+                    const r = pct != null ? rezumatTurRetur({ pretTur: 0, pretRetur: t.price, pasageri: 1, pct }).pretRetur : null;
+                    return <BiletCursa key={`r-${t.time}-${i}`} trip={r != null ? { ...t, originalPrice: t.price, price: r } : t} locale={locale} cotor="lista" onCumpara={() => setRetur(t)} />;
+                  })}
+                  <button type="button" className="trf-link" onClick={() => setCalendar(true)}>{tx.altaZi}</button>
+                </div>
+              )}
+            </>
+          )}
+
+          {pas === 3 && tur && retur && (
+            <form action={(fd) => { setTrimisCu(alegere); return action(fd); }} className="trf-plata-grid">
+              <input type="hidden" name="lang" value={locale} />
+              <input type="hidden" name="idempotencyKey" value={cheieTur} />
+              <input type="hidden" name="crmRouteId" value={tur.crm_route_id} />
+              <input type="hidden" name="goingNorth" value={String(tur.going_north)} />
+              <input type="hidden" name="tripDate" value={tur.trip_date} />
+              <input type="hidden" name="fromRo" value={fromRo} />
+              <input type="hidden" name="toRo" value={toRo} />
+              <input type="hidden" name="seats" value={pasageri} />
+              {hartaTur?.stare === "ok" && <input type="hidden" name="locuriAlese" value={JSON.stringify(aleseTur)} />}
+              <input type="hidden" name="returTripDate" value={retur.trip_date} />
+              <input type="hidden" name="returCrmRouteId" value={retur.crm_route_id} />
+              <input type="hidden" name="returGoingNorth" value={String(retur.going_north)} />
+              <input type="hidden" name="returFromRo" value={toRo} />
+              <input type="hidden" name="returToRo" value={fromRo} />
+              <input type="hidden" name="returKey" value={cheieRetur} />
+              {hartaRetur?.stare === "ok" && <input type="hidden" name="returLocuri" value={JSON.stringify(aleseRetur)} />}
+              {inlocuieste && <input type="hidden" name="inlocuieste" value={inlocuieste} />}
+              {tgInitData && <input type="hidden" name="tgInitData" value={tgInitData} />}
+              <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="trf-capcana" />
+
+              <section className="trf-calatorie">
+                {[{ eticheta: tx.tur, trip: tur, de: from, spre: to, harta: hartaTur, alese: aleseTur, setAlese: setAleseTur, ref: refHartaTur, red: false },
+                  { eticheta: tx.retur, trip: retur, de: to, spre: from, harta: hartaRetur, alese: aleseRetur, setAlese: setAleseRetur, ref: refHartaRetur, red: true }].map((x) => (
+                  <div key={x.eticheta} className="trf-drum">
+                    <div className="trf-drum-eticheta"><b>{x.eticheta}</b><span>{x.de} → {x.spre}</span><em>{ziLunga(x.trip.trip_date, locale)}</em></div>
+                    <BiletCursa trip={{ ...x.trip, originalPrice: x.red && rezumat?.pretRetur != null ? x.trip.price : null, price: x.red && rezumat?.pretRetur != null ? rezumat.pretRetur : x.trip.price }} locale={locale} cotor="ales" fond="var(--trf-fond)" />
+                    {x.harta && (
+                      <div ref={x.ref} className="trf-harta">
+                        <div className="trf-harta-cap"><span>{tx.locLa(x.eticheta)}</span>
+                          {x.harta.stare === "ok" && <em className={x.alese.length === pasageri ? "ok" : ""} aria-live="polite">{tx.alese(x.alese.length, pasageri)}{x.alese.length ? ` · ${listaLocuri(x.alese)}` : ""}</em>}</div>
+                        {x.harta.stare === "incarca" && <p className="trf-mic">{tx.hartaInc}</p>}
+                        {x.harta.stare === "indisponibila" && <p className="trf-mic">{tx.hartaNu}</p>}
+                        {x.harta.stare === "ok" && <SeatMap ocupate={x.harta.ocupate} alese={x.alese} locale={locale}
+                          onToggle={(nr) => x.setAlese((a) => comutaLoc(a, nr, pasageri, x.harta!.ocupate))} />}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </section>
+
+              <section className="trf-date">
+                <div className="trf-pax">
+                  <span>{tx.pasageri}</span>
+                  <div className="trf-pas-numar">
+                    <button type="button" aria-label="−" disabled={pasageri <= 1} onClick={() => schimbaPasageri(pasageri - 1)}>−</button>
+                    <b aria-live="polite">{pasageri}</b>
+                    <button type="button" aria-label="+" disabled={pasageri >= 4} onClick={() => schimbaPasageri(pasageri + 1)}>+</button>
+                  </div>
+                </div>
+                {(tur.puncte?.length ?? 0) >= 2 && (
+                  <fieldset className="trf-puncte">
+                    <input type="hidden" name="punctObligatoriu" value="1" />
+                    <legend>{tx.unde}</legend>
+                    {tur.puncte.map((p) => (
+                      <label key={p.id} className={punct === p.id ? "on" : ""}>
+                        <input type="radio" name="punctUrcareId" value={p.id} required checked={punct === p.id} onChange={() => setPunct(p.id)} />
+                        {locale === "ru" ? p.nume_ru : p.nume_ro}
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
+                <div className="trf-doua">
+                  <label>{tx.nume}<input name="lastName" required minLength={2} maxLength={40} autoComplete="family-name" value={camp.lastName} onChange={scrie("lastName")} /></label>
+                  <label>{tx.prenume}<input name="firstName" required minLength={2} maxLength={40} autoComplete="given-name" value={camp.firstName} onChange={scrie("firstName")} /></label>
+                </div>
+                <label>{tx.telefon}<input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="+373 69 123 456" value={camp.phone} onChange={scrie("phone")} /><small>{tx.telNota}</small></label>
+                <label>{tx.email}<input name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} value={camp.email} onChange={scrie("email")} /></label>
+                <p className="trf-regula">{tx.regula}</p>
+                <label className="trf-acord">
+                  <input type="checkbox" name="consent" required checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                  <span>{tx.acord} <a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener">{tx.conditii}</a> {tx.si} <a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener">{tx.politica}</a></span>
+                </label>
+                {stare.eroare && <p className="trf-eroare" role="alert">{stare.eroare}</p>}
+                <div className="trf-total">
+                  <div className="trf-total-rand"><span>{tx.tur} · {pasageri} × {tur.price}</span><span>{rezumat?.tur ?? "—"} lei</span></div>
+                  <div className="trf-total-rand"><span>{tx.retur} · {pasageri} × {rezumat?.pretRetur ?? "—"} <s>{retur.price}</s> (−{pct ?? 0}%)</span><span>{rezumat?.retur ?? "—"} lei</span></div>
+                  <div className="trf-total-rand mare"><span>{tx.total} · {tx.platesti.toLowerCase()}</span><span>{rezumat?.total ?? "—"} lei</span></div>
+                  {rezumat && rezumat.pretRetur == null && <p className="trf-eroare">{tx.faraRed}</p>}
+                  <Trimite text={tx.plateste(rezumat?.total ?? 0)} blocat={blocat} />
+                  {motiv && <button type="button" className="trf-motiv" onClick={() => motiv.ref.current?.scrollIntoView({ behavior: "smooth", block: "center" })}>{motiv.t}</button>}
+                  <p className="trf-mic">{tx.dupa}</p>
+                </div>
+              </section>
+            </form>
+          )}
+        </div>
+
+        {calendar && (
+          <div className="trf-cal" onClick={() => setCalendar(false)}>
+            <div className="trf-cal-cutie" role="dialog" aria-modal="true" aria-label={tx.cand} onClick={(e) => e.stopPropagation()}>
+              <div className="trf-cal-cap"><span>{tx.cand}</span><button type="button" className="trf-rotund" onClick={() => setCalendar(false)} aria-label="×">&times;</button></div>
+              <MiniCalendar value={new Date(`${ziRetur}T12:00:00`)} locale={locale} onChange={(d) => {
+                const x = ymd(d);
+                const tz = tur?.trip_date ?? ziRetur;
+                const max = ymd(new Date(new Date(`${tz}T12:00:00`).getTime() + 30 * 86_400_000));
+                setZiRetur(x < tz ? tz : x > max ? max : x); setRetur(null); setCalendar(false);
+              }} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const CSS = `
+.trf{--trf-fond:#FAF6F5;--trf-linie:rgba(155,27,48,.12);--trf-text:#231A1C;--trf-gri:#857579;--trf-cald:#FDF3E7;--trf-calda-linie:#E6B57B;
+  position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:var(--trf-text)}
+.trf-fundal{position:absolute;inset:0;background:rgba(35,20,24,.38);backdrop-filter:blur(6px)}
+.trf-fereastra{position:relative;width:min(94vw,860px);max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 70px rgba(60,20,30,.2)}
+.trf-antet{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--trf-linie)}
+.trf-antet-text{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.trf-titlu{font-size:17px;font-weight:800;letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trf-rotund{width:40px;height:40px;flex:none;border-radius:50%;border:none;background:#F4EEEF;color:#6B5B5F;font-size:19px;cursor:pointer}
+.trf-pasi{display:flex;gap:6px;list-style:none;margin:0;padding:0}
+.trf-pasi li{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--trf-gri);border:1.5px solid var(--trf-linie)}
+.trf-pasi li.on{background:${RED};border-color:${RED};color:#fff}
+.trf-pasi li.gata{background:#F6ECEE;border-color:#F6ECEE;color:${RED}}
+.trf-banda{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:12px 18px;background:#F7F1F2;border-bottom:1px solid var(--trf-linie)}
+.trf-banda.ret{background:var(--trf-cald);border-bottom-color:var(--trf-calda-linie)}
+.trf-banda small{font-size:11px;font-weight:800;letter-spacing:1px;color:${RED}}
+.trf-banda b{font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:${RED}}
+.trf-banda span{font-size:17px;font-weight:800}
+.trf-banda em{font-style:normal;font-size:15px;color:#4A3E41;text-transform:capitalize}
+.trf-pas-pax{margin-left:auto;font-size:13px!important;font-weight:700!important;color:var(--trf-gri)}
+.trf-corp{flex:1;min-height:0;overflow-y:auto;background:var(--trf-fond)}
+.trf-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px 14px 22px}
+.trf-ales{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 14px 0;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie);font-size:14px;cursor:pointer}
+.trf-ales-eticheta{font-weight:800;color:#2B6B3A}
+.trf-ales u{margin-left:auto;color:${RED};font-weight:700;text-decoration:none}
+.trf-gol{padding:34px 20px;text-align:center;color:var(--trf-gri);display:flex;flex-direction:column;align-items:center;gap:12px;margin:0}
+.trf-gol p{margin:0}
+.trf-secundar{min-height:44px;padding:0 18px;border-radius:12px;border:1.5px solid ${RED};background:#fff;color:${RED};font:700 15px inherit;font-family:inherit;cursor:pointer}
+.trf-link{grid-column:1/-1;justify-self:center;background:none;border:none;color:${RED};font:700 14px inherit;font-family:inherit;cursor:pointer;padding:6px}
+.trf-plata-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.trf-calatorie{padding:18px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--trf-linie);min-width:0}
+.trf-drum{display:flex;flex-direction:column;gap:8px}
+.trf-drum-eticheta{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.trf-drum-eticheta b{font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#fff;background:${RED};border-radius:6px;padding:2px 8px}
+.trf-drum-eticheta span{font-size:16px;font-weight:800}
+.trf-drum-eticheta em{font-style:normal;font-size:14px;color:#4A3E41;text-transform:capitalize}
+.trf-harta{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.trf-harta-cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px;font-weight:800}
+.trf-harta-cap em{font-style:normal;font-size:13px;color:${RED}}
+.trf-harta-cap em.ok{color:#2B6B3A}
+.trf-date{padding:18px 20px;background:#fff;display:flex;flex-direction:column;gap:14px;min-width:0}
+.trf-date label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:#6B5B5F;min-width:0}
+.trf-date input:not([type=checkbox]):not([type=radio]){height:48px;padding:0 12px;border-radius:12px;border:1.5px solid #E6DADC;font-size:16px;font-family:inherit;background:#fff;color:var(--trf-text)}
+.trf-date input:focus-visible{outline:2px solid ${RED};outline-offset:1px}
+.trf-date small{font-weight:400;color:var(--trf-gri);font-size:12px}
+.trf-doua{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.trf-pax{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:800}
+.trf-pas-numar{display:flex;align-items:center;gap:10px}
+.trf-pas-numar button{width:42px;height:42px;border-radius:12px;border:1.5px solid #E6DADC;background:#fff;font-size:20px;font-weight:700;color:var(--trf-text);cursor:pointer}
+.trf-pas-numar button:disabled{color:#CDBFC2;cursor:default}
+.trf-pas-numar b{min-width:22px;text-align:center;font-size:19px}
+.trf-puncte{border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.trf-puncte legend{font-size:13px;font-weight:700;color:#6B5B5F;margin-bottom:6px;padding:0}
+.trf-puncte label{flex-direction:row!important;align-items:center;gap:10px!important;min-height:46px;padding:0 12px;border-radius:12px;border:1.5px solid #E6DADC;font-size:15px!important;color:var(--trf-text)!important;cursor:pointer}
+.trf-puncte label.on{border-color:${RED}}
+.trf-regula{margin:0;font-size:13px;color:#4A3E41;padding:10px 12px;border-radius:12px;background:var(--trf-cald)}
+.trf-acord{flex-direction:row!important;align-items:flex-start;gap:10px!important;font-weight:400!important;color:#4A3E41!important;font-size:14px!important}
+.trf-acord input{width:22px;height:22px;margin:1px 0 0;accent-color:${RED};flex:none}
+.trf-acord a{color:${RED}}
+.trf-eroare{margin:0;color:${RED};font-weight:700;font-size:15px}
+.trf-total{position:sticky;bottom:0;background:#fff;display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px dashed #E3D3D6;font-variant-numeric:tabular-nums}
+.trf-total-rand{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#4A3E41}
+.trf-total-rand s{color:var(--trf-gri)}
+.trf-total-rand.mare{font-size:17px;font-weight:800;color:var(--trf-text);padding-top:4px}
+.trf-plata{min-height:54px;border:none;border-radius:14px;background:${RED};color:#fff;font:800 17px inherit;font-family:inherit;cursor:pointer;margin-top:4px;box-shadow:0 10px 22px rgba(155,27,48,.22)}
+.trf-plata:disabled{background:#C9A0A8;box-shadow:none;cursor:default}
+.trf-motiv{background:none;border:none;color:${RED};font:700 13px inherit;font-family:inherit;cursor:pointer;padding:2px}
+.trf-mic{margin:0;font-size:12px;color:var(--trf-gri);text-align:center}
+.trf-capcana{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.trf-cal{position:absolute;inset:0;z-index:5;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:16px}
+.trf-cal-cutie{width:100%;max-width:340px;background:#fff;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 60px rgba(40,10,18,.3)}
+.trf-cal-cap{display:flex;justify-content:space-between;align-items:center;font-size:18px;font-weight:800}
+@media (max-width:760px){
+  .trf{align-items:stretch}
+  .trf-fereastra{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0}
+  .trf-plata-grid{grid-template-columns:1fr}
+  .trf-calatorie{border-right:none;padding:14px}
+  .trf-date{padding:16px 14px 12px}
+  .trf-lista{grid-template-columns:1fr;padding:14px 12px 22px}
+  .trf-banda{padding:10px 14px}
+  .trf-banda span{font-size:16px}
+  .trf-titlu{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){.trf *{scroll-behavior:auto!important}}
+`;

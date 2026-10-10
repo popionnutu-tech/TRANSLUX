@@ -3,7 +3,7 @@
 import { createHash } from 'crypto';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { comandaBilet, locuriCursa, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
+import { comandaBilet, configBilete, locuriCursa, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
 import { emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, urlPlataSigur } from '@/lib/bilete-reguli';
 import { mesajLocOcupat, parseazaLocuriAlese, type LocuriCursa } from '@/lib/locuri';
 
@@ -16,6 +16,8 @@ export interface StareComanda {
   ocupate?: number[];
   /** Crește la fiecare răspuns, ca formularul să reacționeze și la două erori identice la rând. */
   nr?: number;
+  /** 550: codul erorii panoului (politica cheilor tur-retur: «idempotenta», «maib», «in_lucru», …). */
+  cod?: string;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -26,6 +28,13 @@ const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
  * fiecare 30 s. Doar spre nord (plecarea din Chișinău); null = indisponibilă → se cumpără fără alegere.
  * Export din 'use server' = acțiune apelabilă de oricine: nu are secret, parametrii se verifică aici.
  */
+/** Mesajul tur-retur: textul panoului (RO), cu un prefix RU când pagina e în rusă și fraza clară pentru cheia refuzată. */
+function textTurRetur(eroareApi: string, cod: string | undefined, ru: boolean): string {
+  if (cod === 'idempotenta') return ru ? 'Выбор изменился — нажмите «Оплатить» ещё раз.' : 'Alegerea s-a schimbat — apasă din nou «Plătește».';
+  const t = eroareApi.charAt(0).toUpperCase() + eroareApi.slice(1);
+  return ru ? `Не получилось: ${t}.` : `${t}.`;
+}
+
 export async function locuriCursei(crmRouteId: number, tripDate: string, goingNorth: boolean): Promise<LocuriCursa | null> {
   if (goingNorth !== true) return null;
   if (!Number.isInteger(crmRouteId) || crmRouteId <= 0 || crmRouteId > 1_000_000) return null;
@@ -104,6 +113,7 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     punctUrcareId,
     // ION-249: din mini app-ul Telegram vine initData-ul contului (câmp ascuns); panoul îl verifică — aici doar se trimite.
     telegramInitData: String(fd.get('tgInitData') ?? '').slice(0, 4096) || null,
+    inlocuieste: UUID_RE.test(String(fd.get('inlocuieste') ?? '')) ? String(fd.get('inlocuieste')) : null,
     locuriAlese: locuri.locuri,
     // 546: promoțiile Bălți ⇄ Chișinău — panoul le verifică și recalculează prețul; aici doar formatul.
     codRetur: /^[0-9a-f]{64}$/.test(String(fd.get('codRetur') ?? '')) ? String(fd.get('codRetur')) : null,
@@ -122,7 +132,9 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
       return eroare(mesajLocOcupat(ocupate, locale), { ocupate });
     }
     if (r.status >= 500 && r.cod !== 'maib') console.error('[bilete] comanda:', r.status, r.eroare);
-    return eroare(mesajEroareComanda(r.cod, r.status, locale, r.eroare));
+    // Tur-retur: textul panoului spune exact ce s-a întâmplat (tur sau retur, plata de dinainte la bancă).
+    const turRetur = fd.get('returKey') != null;
+    return eroare(turRetur && r.eroare && r.cod !== 'maib' ? textTurRetur(r.eroare, r.cod, ru) : mesajEroareComanda(r.cod, r.status, locale, r.eroare), { cod: r.cod });
   }
   // Doar spre pagina de plată maib (https, domeniul băncii): un răspuns ciudat al panoului nu trimite omul altundeva.
   if (!urlPlataSigur(r.checkoutUrl)) {
@@ -189,4 +201,10 @@ export async function cumparaRetur(plan: PlanRetur, codRetur: string): Promise<{
   if (!r.ok) return { eroare: mesajEroareComanda(r.cod, r.status, locale, r.eroare) };
   if (!urlPlataSigur(r.checkoutUrl)) return { eroare: mesajEroareComanda('necunoscut', 500, locale) };
   return { url: r.checkoutUrl };
+}
+
+/** Procentul reducerii la retur din configurația panoului (546 `bilete_promo_pct`), pentru prețul afișat în tur-retur. */
+export async function procentRetur(): Promise<number> {
+  const c = await configBilete();
+  return c.promo?.activ ? Number(c.promo.pct) || 20 : 0;
 }

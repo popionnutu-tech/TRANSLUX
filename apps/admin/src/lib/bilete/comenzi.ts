@@ -69,6 +69,11 @@ export interface ComandaInput {
    * în aceeași sesiune (−20%); aceeași persoană și aceleași locuri ca turul.
    */
   retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string; locuriAlese?: number[] | null } | null;
+  /**
+   * 550: cheia turului din încercarea de dinainte a ACELUIAȘI browser (alegerea s-a schimbat după o încercare eșuată):
+   * încercarea veche, neplătibilă, se expiră înaintea oricărei verificări, ca să nu țină locurile (planul tur-retur v4).
+   */
+  inlocuieste?: string | null;
 }
 
 /** Prețul unui loc pe pagina de probă fizică (Ion, 08.10.2026: «pui să fie biletul 10 lei ieftin»); = minimul plății maib. */
@@ -359,6 +364,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if ((opt.mod === 'public' || opt.mod === 'proba') && !input.ipHash) throw new ComandaError('validare', 'ip_hash lipsește');
   const locuriAlese = valideazaLocuriAlese(input.locuriAlese, input.seats, input.goingNorth);
   const db = getSupabase();
+  if (input.inlocuieste) await inlocuiesteIncercarea(input.inlocuieste, v.phone, input);
 
   // 1. Reluare? Comanda există deja pentru cheia asta → nu re-validăm vânzarea, îi dăm sesiunea ei.
   const { data: existenta, error: eErr } = await db.from('bilete_comenzi').select('*').eq('idempotency_key', input.idempotencyKey).maybeSingle();
@@ -383,10 +389,44 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     return await asiguraSesiunea(comanda, opt);
   }
 
-  const tur = await creeazaRand(input, opt, v, locuriAlese, null);
-  if (input.retur) await asiguraReturPachet(tur, input, opt);
+  // Tur-retur: eroarea spune la care bilet (plan tur-retur, B1): «la tur: …» / «la retur: …».
+  const tur = await cuEticheta(input.retur ? 'la tur' : null, () => creeazaRand(input, opt, v, locuriAlese, null));
+  if (input.retur) await cuEticheta('la retur', () => asiguraReturPachet(tur, input, opt));
   return await asiguraSesiunea(tur, opt);
 }
+
+async function cuEticheta<T>(eticheta: string | null, f: () => Promise<T>): Promise<T> {
+  try { return await f(); } catch (e) {
+    if (eticheta && e instanceof ComandaError && e.cod !== 'idempotenta') throw new ComandaError(e.cod, `${eticheta}: ${e.message}`, e.ocupate);
+    throw e;
+  }
+}
+
+/**
+ * Înlocuirea încercării proprii de dinainte (550). Cheia veche = dovada posesiei. O încercare cu sesiuni încercate la bancă
+ * se înlocuiește doar dacă maib nu are o sesiune deschisă pentru ea; altfel omul așteaptă (fără a doua plată).
+ */
+async function inlocuiesteIncercarea(cheie: string, phone: string, input: ComandaInput): Promise<void> {
+  if (!/^[0-9a-f-]{36}$/i.test(cheie)) throw new ComandaError('validare', 'cheia încercării de dinainte nu e validă');
+  if (cheie === input.idempotencyKey || cheie === input.retur?.idempotencyKey) throw new ComandaError('validare', 'încercarea de dinainte nu poate fi comanda de acum');
+  const db = getSupabase();
+  const { data, error } = await db.from('bilete_comenzi').select('id, status, checkout_id, creare_incercari, creare_in_curs_la, phone')
+    .eq('idempotency_key', cheie).maybeSingle();
+  if (error) throw new Error(`bilete_comenzi (înlocuire): ${error.message}`);
+  const c = data as { id: string; status: string; checkout_id: string | null; creare_incercari: number; creare_in_curs_la: string | null; phone: string } | null;
+  if (!c || c.phone !== phone || !DESCHISE.has(c.status as BileteComanda['status'])) return;
+  let incercari: number | null = c.creare_incercari;
+  if (c.creare_incercari > 0 && !c.checkout_id && !c.creare_in_curs_la) {
+    let gasit: Awaited<ReturnType<typeof findCheckoutByOrderId>>;
+    try { gasit = await findCheckoutByOrderId(c.id); } catch { throw new ComandaError('in_lucru', MESAJ_LA_BANCA); }
+    const s = (gasit?.status ?? '').toLowerCase();
+    if (gasit && !['expired', 'cancelled', 'failed', 'abandoned'].includes(s)) incercari = null;
+  }
+  const { data: r, error: eR } = await db.rpc('bilete_inlocuieste_incercare', { p_cheie: cheie, p_phone: phone, p_incercari: incercari });
+  if (eR) throw new Error(`bilete_inlocuieste_incercare: ${eR.message}`);
+  if (r === 'la_banca') throw new ComandaError('in_lucru', MESAJ_LA_BANCA);
+}
+const MESAJ_LA_BANCA = 'plata de dinainte e încă deschisă la bancă; revino la alegerea de dinainte sau încearcă peste câteva minute';
 
 /**
  * Returul din pachet (548): aceeași persoană, aceleași locuri, plătit în sesiunea turului. Nu se cumulează cu studentul

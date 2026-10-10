@@ -290,11 +290,19 @@ async function clientFingerprint(): Promise<{ ip_hash: string | null; user_agent
   }
 }
 
-export async function searchTrips(
+/** 550 (plan tur-retur, R2): căutarea cu stare — «limita» (anti-scraper) și «indisponibil» (baza) nu mai arată ca «nicio cursă». */
+export interface RezultatCautare { stare: 'ok' | 'limita' | 'indisponibil'; curse: TripResult[] }
+
+/** Căutarea de până acum (doar cursele): cei trei apelanți vechi rămân neschimbați. */
+export async function searchTrips(fromRo: string, toRo: string, date: string): Promise<TripResult[]> {
+  return (await cautaCurse(fromRo, toRo, date)).curse;
+}
+
+export async function cautaCurse(
   fromRo: string,
   toRo: string,
   date: string,
-): Promise<TripResult[]> {
+): Promise<RezultatCautare> {
   const supabase = getSupabase();
   // headers() o singură dată pe căutare; tot ce depinde de cerere iese de aici.
   const sursa = await clientFingerprint();
@@ -322,8 +330,8 @@ export async function searchTrips(
     configBilete(),
   ]);
 
-  if (blocata) return [];
-  if (!repere) return [];
+  if (blocata) return { stare: 'limita', curse: [] };
+  if (!repere) return { stare: 'indisponibil', curse: [] };
   const { matchingRouteIds } = repere;
 
   // Compute days between today and the requested date (Europe/Chișinău).
@@ -356,9 +364,9 @@ export async function searchTrips(
   ]);
   if (routesSauEroare.eroare !== null) {
     console.error('[searchTrips] datele cursei indisponibile:', routesSauEroare.eroare);
-    return [];
+    return { stare: 'indisponibil', curse: [] };
   }
-  if (!routesSauEroare.routes) return [];
+  if (!routesSauEroare.routes) return { stare: 'ok', curse: [] };
   const datele: DateCurse = { ...repere, routes: routesSauEroare.routes };
 
   // Fetch drivers and vehicles separately to avoid Supabase FK join issues
@@ -511,11 +519,11 @@ export async function searchTrips(
   if (date === todayStr) {
     const now = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
     const nowMin = parseInt(now.split(':')[0]) * 60 + parseInt(now.split(':')[1]);
-    return results.filter(r => {
+    return { stare: 'ok', curse: results.filter(r => {
       const [h, m] = r.time.split(':').map(Number);
       return h * 60 + m > nowMin;
-    });
+    }) };
   }
 
-  return results;
+  return { stare: 'ok', curse: results };
 }

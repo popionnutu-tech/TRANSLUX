@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
     const turn = await runTurn(current.messages, message, locale, {
       baseUrl: req.nextUrl.origin,
       conversationId: current.id,
+      ipHash: hash ?? current.id,
+      locale,
     });
     const next: SiteConversation = {
       ...current,

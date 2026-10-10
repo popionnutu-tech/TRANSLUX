@@ -98,5 +98,5 @@ export const LINE_PHONE = formatPhone(COMPANY_PHONE_LOCAL) ?? COMPANY_PHONE_LOCA
  * serviciu. Până nu scrie Ion cum se plătește și cum se arată biletul, asistentul
  * spune exact atât, fără să inventeze un mod de plată.
  */
-export const ONLINE_TICKETS_RO = 'Deocamdată pe translux.md nu se cumpără bilete online: site-ul arată cursele, prețul și numărul șoferului. Achitarea online și biletul electronic sunt în pregătire. Până atunci locul se rezervă sunând șoferul cursei, iar biletul se achită în autobuz.';
-export const ONLINE_TICKETS_RU = 'Пока на translux.md билеты онлайн не продаются: сайт показывает рейсы, цену и номер водителя. Онлайн-оплата и электронный билет готовятся. До тех пор место бронируется звонком водителю рейса, а билет оплачивается в автобусе.';
+export const ONLINE_TICKETS_RO = 'Pe translux.md se cumpără bilete online pe cursele marcate cu «Cumpără», cu cardul (Visa/Mastercard) pe pagina băncii maib; biletul cu cod QR vine imediat pe pagina biletului, pe e-mail și în botul Telegram. Pe celelalte curse locul se rezervă sunând șoferul, iar biletul se achită în autobuz.';
+export const ONLINE_TICKETS_RU = 'На translux.md онлайн-билеты продаются на рейсах с кнопкой «Купить», картой (Visa/Mastercard) на странице банка maib; билет с QR-кодом сразу приходит на страницу билета, на e-mail и в Telegram-бот. На остальных рейсах место бронируется звонком водителю, а билет оплачивается в автобусе.';

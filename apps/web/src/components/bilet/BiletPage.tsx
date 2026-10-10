@@ -8,6 +8,7 @@ import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 import { BILET_CARD_CSS, BiletCard, TXT_CARD, bileteDeAratat, biletulQr, dataScurta, nfPret, numeRuta, oraHHMM, textLocuri } from './BiletCard';
 import LogoTranslux from '../logo-translux';
 import { ReiaPlata } from './ReiaPlata';
+import { AnuleazaBilet } from './AnuleazaBilet';
 
 // Pagina biletului (ION-197): /ro/bilet/<cod>, /ru/bilet/<cod>. Codul din link e secretul comenzii (128 de biți);
 // pagina nu se indexează, nu se cache-uiește, nu trimite referrer (next.config) și nu intră în page_views.
@@ -175,6 +176,8 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                     ))}
                     {!doar && <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>}
                     {grupuri.length > 1 && <SpreUrmatorul tinta="bilet-2" text={sens(grupuri[1]) === 'retur' ? (locale === 'ru' ? 'Обратный билет — ниже' : 'Biletul de retur — mai jos') : (locale === 'ru' ? 'Второй билет — ниже' : 'Al doilea bilet — mai jos')} />}
+                    {/* Anularea pe site (557): linkul + 4 cifre ale telefonului; tur-returul întreg. */}
+                    {!doar && <AnuleazaBilet cod={c.cod} locale={locale} />}
                   </div>
                 );
               })()}

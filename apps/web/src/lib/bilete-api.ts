@@ -343,3 +343,17 @@ export async function gasesteBileteLaPanou(corp: { phone: string; ipHash: string
     return { ok: false, motiv: String(j?.motiv ?? j?.eroare ?? `HTTP ${r.status}`) };
   } catch { return { ok: false, motiv: 'timeout' }; }
 }
+
+/** Anularea biletului (557): oferta (cât primește înapoi) sau confirmarea, după cod + 4 cifre. Răspunsul panoului, ca atare. */
+export async function anulareLaPanou(corp: { cod: string; cifre: string; actiune: 'oferta' | 'confirma'; suma: number; sursa: 'site' | 'asistent' }): Promise<Record<string, unknown>> {
+  const cheie = process.env.BILETE_API_KEY;
+  if (!cheie) return { ok: false, cod: 'indisponibil' };
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/anulare`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cheie}` },
+      body: JSON.stringify(corp), signal: AbortSignal.timeout(28_000), cache: 'no-store',
+    });
+    const j = await r.json().catch(() => null);
+    return j && typeof j === 'object' ? j : { ok: false, cod: 'indisponibil' };
+  } catch { return { ok: false, cod: 'indisponibil' }; }
+}

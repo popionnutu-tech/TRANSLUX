@@ -15,6 +15,11 @@ import { driversGroupChatId, formatLostItemForGroup, notifyDriversGroup } from '
 import { normalizePhone } from '@/lib/voice/phone';
 import { tripsOnRoad, busLocation } from './bus-location';
 import { busCard, pickCard, stationCard, tripsCard, type Card } from './cards';
+import { configPublica } from '@/lib/bilete/public';
+import { garantieLansareActiva } from '@/lib/bilete/refund';
+import { GRILA_RESTITUIRE } from '@/lib/bilete/refund-reguli';
+import { gasesteBilete } from '@/lib/bilete/sms';
+import { confirmaAnulare, ofertaAnulare } from '@/lib/bilete/anulare-site';
 
 const LOC = 'Numele localității în română (ex. «Chișinău», «Bălți»).';
 const DAY = 'Ziua, cum a spus-o clientul: «azi», «mâine», «ieri», «sâmbătă» sau data (ex. «25.09»). Serverul o rezolvă.';
@@ -124,6 +129,36 @@ export const SITE_TOOLS: Anthropic.Tool[] = [
       required: ['from', 'to', 'departure'],
     },
   },
+  // Biletele online (Ion, 10.10.2026: «asistentul AI de pe site să poată ajuta tot ce este legat de bilete online, până
+  // și găsirea biletului»; «anularea … și din asistentul online, dacă se identifică clientul»).
+  {
+    name: 'bilete_online',
+    description: 'Regulile și starea de acum a biletelor online: unde se vând, promoțiile (tur-retur, student), grila de returnare, garanția. Chemi înainte de orice răspuns despre cumpărarea, promoțiile sau returnarea biletului online.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'gaseste_biletul',
+    description: '«Găsește biletul meu»: trimite prin SMS, pe telefonul dat, linkurile biletelor viitoare cumpărate cu el. Nu arată nimic în chat.',
+    input_schema: {
+      type: 'object',
+      properties: { phone: { type: 'string', description: 'Telefonul cu care s-a cumpărat biletul, cum l-a scris clientul.' } },
+      required: ['phone'],
+    },
+  },
+  {
+    name: 'anuleaza_bilet',
+    description: 'Anularea biletului online cu returnarea banilor pe card. Întâi fără confirma (afli suma), apoi, după «da» clar al clientului, cu confirma = true și suma aflată. Clientul se identifică prin linkul biletului (sau codul din link) + ultimele 4 cifre ale telefonului din comandă.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        link: { type: 'string', description: 'Linkul biletului (translux.md/ro/bilet/…) sau codul de 32 de caractere din el, exact cum l-a lipit clientul.' },
+        cifre: { type: 'string', description: 'Ultimele 4 cifre ale telefonului din comandă.' },
+        confirma: { type: 'boolean', description: 'true doar după ce clientul a văzut suma și a spus clar că vrea anularea.' },
+        suma: { type: 'number', description: 'Suma aflată la pasul fără confirmare (obligatorie cu confirma = true).' },
+      },
+      required: ['link', 'cifre'],
+    },
+  },
   {
     name: 'arata_statia',
     description: 'Arată sub mesaj cardul stației cu adresa și butoanele Google Maps și Waze.',
@@ -150,7 +185,35 @@ const NEEDS_CONVERSATION = new Set(['find_past_trip', 'register_complaint']);
 export interface ToolContext {
   baseUrl: string;
   conversationId: string;
+  /** Amprenta IP-ului (plafoanele «Găsește biletul»); lipsă → id-ul conversației. */
+  ipHash?: string;
+  locale?: 'ro' | 'ru';
 }
+
+async function bileteOnline() {
+  const [cfg, garantie] = await Promise.all([configPublica(), garantieLansareActiva()]);
+  return {
+    vanzare_activa: cfg.activ,
+    localitati_cu_bilet_online: cfg.localitati, destinatii: cfg.destinatii, din_data: cfg.localitati_de_la,
+    cum_se_cumpara_ro: 'Pe translux.md: alegi de unde, unde și ziua (Acum / Mai târziu), apeși «Cumpără» la cursă; la cursele din Chișinău alegi locul pe harta autobuzului (din nord locul se dă la urcare); scrii numele, prenumele, telefonul (e-mailul e opțional), bifezi acordul și plătești cu cardul (Visa/Mastercard) pe pagina băncii maib. Biletul cu cod QR apare imediat pe pagina biletului, pe e-mail (dacă l-ai lăsat) și în botul Telegram (butonul «Salvează în Telegram»). Codul QR îl arăți șoferului la urcare.',
+    plata_esuata_ro: 'Dacă plata nu trece, pe pagina biletului și pe prima pagină apare «Reia plata»: alegerea e păstrată 30 de minute.',
+    promotii: cfg.promo.activ ? {
+      doar_pe: 'Bălți ⇄ Chișinău, la cumpărarea online', pct: cfg.promo.pct,
+      tur_retur_ro: `Tur-retur: comutatorul «Tur-retur −${cfg.promo.pct}%» din căutare; returul e cu ${cfg.promo.pct}% mai ieftin, în cel mult ${cfg.promo.retur_zile} zile după tur, pe altă cursă, o singură plată; se anulează doar împreună, până la plecarea turului.`,
+      student_ro: `Student −${cfg.promo.pct}%: comutatorul «Student» din căutare cere întâi verificarea: poza carnetului (universitate sau colegiu din Moldova, vizat pe anul universitar de acum) și a buletinului/pașaportului; verificarea e automată, în câteva secunde; un loc pe bilet; carnetul se arată șoferului. Nu se cumulează cu tur-retur.`,
+    } : null,
+    returnare: {
+      unde_ro: 'Biletul se anulează: pe pagina biletului («Anulează biletul»), în botul Telegram («Returnează biletul») sau aici, în chat (cu linkul biletului și ultimele 4 cifre ale telefonului). Banii se întorc pe cardul cu care s-a plătit.',
+      garantie_lansare_activa: garantie,
+      garantie_ro: garantie ? 'Acum e garanția de lansare: biletul nefolosit se returnează integral, până la 24 de ore după plecare.' : null,
+      grila_ore_inainte_de_plecare: GRILA_RESTITUIRE.map((g) => ({ minim_ore: g.minOreInainte, parte: `${g.noimi}/9 din preț` })),
+      sub_4_ore_ro: 'Cu mai puțin de 4 ore înainte de plecare biletul nu se mai returnează (afară de garanția de lansare).',
+    },
+    gaseste_biletul_ro: 'Linkul biletului vine după plată (pagina, e-mailul, Telegram). Pierdut? «Găsește biletul meu» pe translux.md: linkurile vin prin SMS pe telefonul din comandă — sau tool-ul gaseste_biletul.',
+  };
+}
+
+const COD_DIN_LINK = /([0-9a-f]{32})/i;
 
 async function callVoiceTool(ctx: ToolContext, name: string, input: Record<string, unknown>): Promise<unknown> {
   const apiKey = process.env.VOICE_API_KEY;
@@ -232,6 +295,26 @@ export async function executeSiteTool(ctx: ToolContext, name: string, input: Rec
       case 'unde_e_autobuzul': {
         const r = await busLocation(str(input.from), str(input.to), str(input.departure));
         return { result: r.result, card: r.point ? busCard(r.point) : null };
+      }
+      case 'bilete_online':
+        return { result: await bileteOnline() };
+      case 'gaseste_biletul': {
+        const r = await gasesteBilete(str(input.phone), ctx.ipHash ?? ctx.conversationId, ctx.locale ?? 'ro');
+        return { result: r.ok
+          ? { result_ro: 'Dacă pe acest număr sunt bilete viitoare, SMS-ul cu linkurile vine în câteva secunde.', result_ru: 'Если на этом номере есть будущие билеты, SMS со ссылками придёт через несколько секунд.' }
+          : r.motiv === 'neconfigurat'
+            ? { result_ro: 'Trimiterea prin SMS pornește în curând. Până atunci linkul biletului e în e-mailul de după plată și în botul Telegram, dacă l-ai salvat acolo.', result_ru: 'Отправка по SMS скоро заработает. Пока ссылка на билет есть в письме после оплаты и в Telegram-боте, если вы его сохранили.' }
+            : r.motiv === 'plafon'
+              ? { result_ro: 'Prea multe cereri de pe acest număr. Încearcă peste o oră.', result_ru: 'Слишком много запросов с этого номера. Попробуйте через час.' }
+              : { result_ro: 'Numărul nu pare corect. Cere-i clientului telefonul cu care a cumpărat.', result_ru: 'Номер выглядит неверно. Попросите номер, с которого покупали.' } };
+      }
+      case 'anuleaza_bilet': {
+        const cod = COD_DIN_LINK.exec(str(input.link))?.[1]?.toLowerCase() ?? '';
+        const cifre = str(input.cifre).replace(/\D/g, '').slice(-4);
+        if (!cod) return { result: { error: 'Nu văd codul biletului în ce a scris clientul. Cere-i linkul biletului (din e-mail, SMS sau pagina biletului).' } };
+        if (cifre.length !== 4) return { result: { error: 'Cere-i clientului ultimele 4 cifre ale telefonului din comandă.' } };
+        const r = input.confirma === true ? await confirmaAnulare(cod, cifre, input.suma, 'asistent') : await ofertaAnulare(cod, cifre);
+        return { result: r };
       }
       case 'arata_statia': {
         const card = stationCard(str(input.statie));

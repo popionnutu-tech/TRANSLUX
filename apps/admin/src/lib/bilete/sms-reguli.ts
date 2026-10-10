@@ -52,3 +52,67 @@ export function numePotrivit(scris: string, peBilet: string): boolean {
   const b = new Set(cheieNume(peBilet).split(' ').filter(Boolean));
   return s.every((w) => b.has(w));
 }
+
+// ── N5 (dezbaterea Claude–Codex, 10.10.2026): reluarea SMS-ului de confirmare, fără trimitere dublă (migr. 563) ──────────
+
+/** Câte încercări are o confirmare, cât ține revendicarea și pauza dintre reluări; aceleași valori merg la funcția din bază. */
+export const SMS_INCERCARI_MAX = 3;
+export const SMS_TERMEN_REVENDICARE_MS = 2 * 60_000;
+export const SMS_PAUZA_RELUARE_MS = 2 * 60_000;
+/** Fereastra plasei din împăcare: plătite în ultimele 2 ore. */
+export const SMS_FEREASTRA_MS = 2 * 3_600_000;
+
+export interface RandSmsConfirmare {
+  stare: string; incercari: number; revendicat_la: string | null; trimitere_la: string | null; created_at: string;
+}
+
+/**
+ * Plasa din împăcare: rândul de confirmare merită o revendicare (funcția din bază decide atomic; asta doar alege). Refuz
+ * confirmat sub plafon și după pauză; revendicare expirată (înainte de cerere → reluare; după → baza o închide ca
+ * «necunoscut»). Trimis / necunoscut / epuizat → nu. Pur.
+ */
+export function confirmareDeReluat(r: RandSmsConfirmare, nowMs: number): boolean {
+  const ultima = Date.parse(r.revendicat_la ?? r.created_at);
+  if (r.stare === 'refuzat') return r.incercari < SMS_INCERCARI_MAX && nowMs - ultima >= SMS_PAUZA_RELUARE_MS;
+  if (r.stare === 'in_lucru') return nowMs - ultima >= SMS_TERMEN_REVENDICARE_MS;
+  return false;
+}
+
+export type RezultatTrimitereSms = { ok: true; id: string | null } | { ok: false; eroare: string; necunoscut: boolean };
+export type Revendicare = { ok: true; id: string; token: string } | { ok: false; motiv: string };
+
+export interface DepsConfirmareSms {
+  revendica(): Promise<Revendicare>;
+  /** marchează începerea cererii (doar cu jetonul curent); false = revendicarea s-a pierdut, nu se trimite */
+  incepe(id: string, token: string): Promise<boolean>;
+  /** textul SMS-ului, construit după revendicare și ÎNAINTE de începere (o eroare aici lasă revendicarea să expire → reluare) */
+  text(): Promise<string>;
+  trimite(text: string): Promise<RezultatTrimitereSms>;
+  rezultat(id: string, token: string, stare: 'trimis' | 'refuzat' | 'necunoscut', furnizorId: string | null, eroare: string | null): Promise<void>;
+  jurnal?(mesaj: string): void;
+}
+
+export type RezultatConfirmareSms = 'trimis' | 'nimic' | 'esuat' | 'necunoscut';
+
+/**
+ * Pașii unei confirmări: revendică → textul → marchează începerea → trimite → scrie rezultatul. Necunoscut = stare finală (fără retrimitere), refuzat = se reia din plasă până la plafon.
+ */
+export async function trimiteConfirmareSms(deps: DepsConfirmareSms): Promise<RezultatConfirmareSms> {
+  const rv = await deps.revendica();
+  if (!rv.ok) {
+    if (rv.motiv === 'necunoscut') deps.jurnal?.('[bilete/sms] confirmare cu rezultat necunoscut (procesul a murit în timpul trimiterii) — nu se retrimite');
+    return 'nimic';
+  }
+  const text = await deps.text();
+  if (!(await deps.incepe(rv.id, rv.token))) return 'nimic';
+  let r: RezultatTrimitereSms;
+  try {
+    r = await deps.trimite(text);
+  } catch (e) {
+    r = { ok: false, eroare: e instanceof Error ? e.message : String(e), necunoscut: true };
+  }
+  if (r.ok) { await deps.rezultat(rv.id, rv.token, 'trimis', r.id, null); return 'trimis'; }
+  await deps.rezultat(rv.id, rv.token, r.necunoscut ? 'necunoscut' : 'refuzat', null, r.eroare.slice(0, 300));
+  deps.jurnal?.(`[bilete/sms] confirmare ${r.necunoscut ? 'necunoscută' : 'refuzată'}: ${r.eroare}`);
+  return r.necunoscut ? 'necunoscut' : 'esuat';
+}

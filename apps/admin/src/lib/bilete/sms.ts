@@ -2,7 +2,10 @@ import 'server-only';
 import { cheieNume, normalizeazaTelefonPasager } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { smsConfigurat, trimiteSms } from '@/lib/sms/trimite';
-import { numePotrivit, textConfirmare, textGaseste, type BiletSms } from './sms-reguli';
+import {
+  confirmareDeReluat, numePotrivit, SMS_FEREASTRA_MS, SMS_INCERCARI_MAX, SMS_PAUZA_RELUARE_MS, SMS_TERMEN_REVENDICARE_MS,
+  textConfirmare, textGaseste, trimiteConfirmareSms, type BiletSms, type RandSmsConfirmare, type Revendicare,
+} from './sms-reguli';
 
 // SMS-urile biletelor (552; Ion, 10.10.2026: «să vină mesaj la client cu bronarea și cum poate el pe site să-și găsească
 // biletul; un buton «Găsește biletul meu»»). Confirmarea: o dată pe comandă (indexul unic din bilete_sms), după callback-ul
@@ -22,7 +25,7 @@ async function biletSms(c: RandComanda): Promise<BiletSms> {
 
 const COLOANE = 'id, cod, lang, from_name, to_name, departure_at, phone, status, in_pachet, comanda_tur_id, test, going_north';
 
-export type RezultatSmsBilet = 'trimis' | 'nimic' | 'neconfigurat' | 'esuat';
+export type RezultatSmsBilet = 'trimis' | 'nimic' | 'neconfigurat' | 'esuat' | 'necunoscut';
 
 /** Confirmarea unei comenzi plătite (turul; returul din pachet intră în același SMS). */
 export async function trimiteSmsConfirmare(comandaId: string): Promise<RezultatSmsBilet> {
@@ -32,17 +35,32 @@ export async function trimiteSmsConfirmare(comandaId: string): Promise<RezultatS
   if (error) throw new Error(`bilete_comenzi (sms): ${error.message}`);
   const c = data as RandComanda | null;
   if (!c || c.status !== 'platita' || c.in_pachet || c.test) return 'nimic';
-  // Revendicarea: un singur rând «confirmare» pe comandă (index unic) — al doilea apel nu trimite a doua oară.
-  const { data: rand, error: eI } = await db.from('bilete_sms').insert({ comanda_id: c.id, tip: 'confirmare', telefon: c.phone }).select('id').maybeSingle();
-  if (eI) { if (eI.code === '23505') return 'nimic'; throw new Error(`bilete_sms: ${eI.message}`); }
-  const { data: rt } = await db.from('bilete_comenzi').select(COLOANE).eq('comanda_tur_id', c.id).eq('in_pachet', true).eq('status', 'platita').maybeSingle();
-  const text = textConfirmare(await biletSms(c), rt ? await biletSms(rt as RandComanda) : null, SITE());
-  const r = await trimiteSms(c.phone, text);
-  await db.from('bilete_sms').update(r.ok
-    ? { stare: 'trimis', trimis_la: new Date().toISOString(), furnizor_id: r.id }
-    : { stare: 'eroare', eroare: r.eroare.slice(0, 300) }).eq('id', (rand as { id: string }).id);
-  if (!r.ok) console.error('[bilete/sms] confirmare', c.id, r.eroare);
-  return r.ok ? 'trimis' : 'esuat';
+  // N5 (563): revendicare cu termen + jeton în bază (un singur rând «confirmare» pe comandă), începerea marcată înaintea
+  // cererii, rezultatul separat: refuzat (se reia din plasă, max 3, în 2 h) / necunoscut (nu se retrimite orbește).
+  return trimiteConfirmareSms({
+    async revendica(): Promise<Revendicare> {
+      const { data: v, error: e } = await db.rpc('bilete_sms_confirmare_revendica', {
+        p_comanda: c.id, p_telefon: c.phone, p_termen_sec: SMS_TERMEN_REVENDICARE_MS / 1000, p_max: SMS_INCERCARI_MAX, p_pauza_sec: SMS_PAUZA_RELUARE_MS / 1000,
+      });
+      if (e) throw new Error(`bilete_sms_confirmare_revendica: ${e.message}`);
+      return v as Revendicare;
+    },
+    async text() {
+      const { data: rt } = await db.from('bilete_comenzi').select(COLOANE).eq('comanda_tur_id', c.id).eq('in_pachet', true).eq('status', 'platita').maybeSingle();
+      return textConfirmare(await biletSms(c), rt ? await biletSms(rt as RandComanda) : null, SITE());
+    },
+    async incepe(id, token) {
+      const { data: v, error: e } = await db.rpc('bilete_sms_confirmare_incepe', { p_id: id, p_token: token });
+      if (e) throw new Error(`bilete_sms_confirmare_incepe: ${e.message}`);
+      return v === true;
+    },
+    trimite: (text) => trimiteSms(c.phone, text),
+    async rezultat(id, token, stare, furnizorId, eroare) {
+      const { error: e } = await db.rpc('bilete_sms_confirmare_rezultat', { p_id: id, p_token: token, p_stare: stare, p_furnizor: furnizorId, p_eroare: eroare });
+      if (e) console.error('[bilete/sms] rezultat', c.id, stare, e.message);
+    },
+    jurnal: (m) => console.error(m, c.id),
+  });
 }
 
 /** Pentru callback-ul maib: comanda sesiunii. */
@@ -52,18 +70,21 @@ export async function trimiteSmsPentruCheckout(checkoutId: string): Promise<Rezu
   return data?.id ? trimiteSmsConfirmare(data.id) : 'nimic';
 }
 
-/** Plasa din împăcare: comenzile plătite în ultimele 2 ore, fără confirmare încă. */
+/** Plasa din împăcare: comenzile plătite în ultimele 2 ore fără confirmare, sau cu una de reluat (N5: refuz sub plafon,
+ *  revendicare expirată). Baza decide atomic la revendicare; aici doar se aleg candidații. */
 export async function smsRestante(limita = 20): Promise<string[]> {
   if (!smsConfigurat()) return [];
   const db = getSupabase();
+  const acum = Date.now();
   const { data } = await db.from('bilete_comenzi').select('id').eq('status', 'platita').eq('in_pachet', false).eq('test', false)
-    .gt('paid_at', new Date(Date.now() - 2 * 3_600_000).toISOString()).lt('paid_at', new Date(Date.now() - 2 * 60_000).toISOString())
+    .gt('paid_at', new Date(acum - SMS_FEREASTRA_MS).toISOString()).lt('paid_at', new Date(acum - 2 * 60_000).toISOString())
     .order('paid_at').limit(100);
   const ids = ((data || []) as { id: string }[]).map((x) => x.id);
   if (!ids.length) return [];
-  const { data: avute } = await db.from('bilete_sms').select('comanda_id').eq('tip', 'confirmare').in('comanda_id', ids);
-  const cu = new Set(((avute || []) as { comanda_id: string }[]).map((x) => x.comanda_id));
-  return ids.filter((id) => !cu.has(id)).slice(0, limita);
+  const { data: avute } = await db.from('bilete_sms').select('comanda_id, stare, incercari, revendicat_la, trimitere_la, created_at')
+    .eq('tip', 'confirmare').in('comanda_id', ids);
+  const randuri = new Map(((avute || []) as (RandSmsConfirmare & { comanda_id: string })[]).map((x) => [x.comanda_id, x]));
+  return ids.filter((id) => { const r = randuri.get(id); return !r || confirmareDeReluat(r, acum); }).slice(0, limita);
 }
 
 export type RezultatGaseste =

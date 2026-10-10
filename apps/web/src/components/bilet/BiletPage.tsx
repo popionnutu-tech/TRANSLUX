@@ -75,9 +75,21 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
   const tx = TXT[locale];
   const c = await biletPublic(cod);
   if (c === null) notFound();
+  const poze = (k: ComandaPublica): PozaLoc[] => bileteDeAratat(k).map((v) => ({
+    loc: String(v.loc_nr ?? v.nr), eticheta: TXT_CARD[locale].locul.toUpperCase(), cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
+    ora: oraHHMM(k.departure_at), sosire: k.sosire ?? null, ruta: `${k.from_name} → ${k.to_name}`, numeRuta: numeRuta(k, locale), data: dataScurta(k.trip_date, locale),
+    jos: `${k.passenger_name} · ${nfPret.format(Number(k.price_per_seat))} MDL · ${v.status === 'urcat' ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
+    operator: `${OPERATOR.brand} · ${OPERATOR.name} · IDNO ${OPERATOR.idno}`,
+    banda: k.proba ? TXT_CARD[locale].proba : k.reducere ? (k.reducere.tip === 'student' ? TXT_CARD[locale].student20 : TXT_CARD[locale].retur20) : null,
+    bandaProba: Boolean(k.proba), urcat: v.status === 'urcat',
+  }));
   // Biletul plătit pe un singur ecran (Ion, 10.10.2026: «biletul final să fie o pagină fără scroll»): fără antetul cu
   // logo și fără titlu — logoul e pe bilet; dedesubt doar ce cere maib (comanda, firma, plățile).
   const ecranBilet = c !== 'indisponibil' && c.status === 'platita' && bileteDeAratat(c).length > 0;
+  // Tur-retur (548) pe o singură pagină (Ion, 10.10.2026: «dacă sunt cumpărate 2 bilete, ambele trebuie să apară»):
+  // celălalt bilet al perechii se aduce aici, cu QR-ul lui; turul întâi, returul după.
+  const p = ecranBilet && c.pachet ? await biletPublic(c.pachet.cod) : null;
+  const pereche = p && p !== 'indisponibil' && p.status === 'platita' && bileteDeAratat(p).length > 0 ? p : null;
 
   return (
     <div className="legal-page">
@@ -122,39 +134,47 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                 </div>
               )}
 
-              {platit && (
-                <div style={{ display: 'grid', gap: 18 }}>
-                  {/* Biletul și trecerea în Telegram într-un singur bloc (Ion, 10.10.2026: «biletul și Telegram trecere unește»);
-                      «Salvează/tipărește» a devenit poza biletului în galerie (Ion, 10.10.2026). */}
-                  {valide.map((b, i) => <BiletCard key={b.nr} comanda={c} bilet={b} locale={locale} jos={!doar && i === 0 ? (
-                    <div className="bilet-no-print" style={{ padding: '6px 16px 14px', display: 'grid', gap: 6 }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
-                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, padding: '0 10px', borderRadius: 14,
-                          background: '#1b7fb0', color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: 15, textAlign: 'center',
-                        }}>{tx.tgButon}</a>
-                        <SalveazaPoza locale={locale} stil={{ flex: 1 }} locuri={valide.map((v): PozaLoc => ({
-                          loc: String(v.loc_nr ?? v.nr), eticheta: TXT_CARD[locale].locul.toUpperCase(), cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
-                          ora: oraHHMM(c.departure_at), sosire: c.sosire ?? null, ruta: `${c.from_name} → ${c.to_name}`, numeRuta: nume, data: dataScurta(c.trip_date, locale),
-                          jos: `${c.passenger_name} · ${nfPret.format(Number(c.price_per_seat))} MDL · ${v.status === 'urcat' ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
-                          operator: `${OPERATOR.brand} · ${OPERATOR.name} · IDNO ${OPERATOR.idno}`,
-                          banda: c.proba ? TXT_CARD[locale].proba : c.reducere ? (c.reducere.tip === 'student' ? TXT_CARD[locale].student20 : TXT_CARD[locale].retur20) : null,
-                          bandaProba: Boolean(c.proba), urcat: v.status === 'urcat',
-                        }))} />
+              {platit && (() => {
+                // Turul întâi: dacă pagina e a returului, perechea (turul) vine sus.
+                const grupuri = pereche ? (c.pachet?.sens === 'tur' ? [pereche, c] : [c, pereche]) : [c];
+                const sens = (k: ComandaPublica) => (k === c ? (c.pachet?.sens === 'tur' ? 'retur' : 'tur') : (c.pachet?.sens ?? 'retur'));
+                const toate = grupuri.flatMap(poze);
+                return (
+                  <div style={{ display: 'grid', gap: 18 }}>
+                    {/* Biletul și trecerea în Telegram într-un singur bloc (Ion, 10.10.2026: «biletul și Telegram trecere unește»);
+                        «Salvează/tipărește» a devenit poza biletului în galerie (Ion, 10.10.2026). */}
+                    {grupuri.map((k, gi) => (
+                      <div key={k.cod} style={{ display: 'grid', gap: 10 }}>
+                        {pereche && (
+                          <div style={{ fontSize: 15, fontWeight: 800, color: '#231A1C' }}>
+                            {sens(k) === 'tur' ? (locale === 'ru' ? 'Туда' : 'Tur') : (locale === 'ru' ? 'Обратно' : 'Retur')} · {k.from_name} → {k.to_name}
+                          </div>
+                        )}
+                        {bileteDeAratat(k).map((b, i) => <BiletCard key={b.nr} comanda={k} bilet={b} locale={locale} jos={!doar && gi === 0 && i === 0 ? (
+                          <div className="bilet-no-print" style={{ padding: '6px 16px 14px', display: 'grid', gap: 6 }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
+                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, padding: '0 10px', borderRadius: 14,
+                                background: '#1b7fb0', color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: 15, textAlign: 'center',
+                              }}>{tx.tgButon}</a>
+                              <SalveazaPoza locale={locale} stil={{ flex: 1 }} locuri={toate} />
+                            </div>
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.35 }}>{tx.tgScurt}</span>
+                          </div>
+                        ) : undefined} />)}
+                        {!doar && k.punct_urcare && (
+                          <p style={{ fontSize: 13, color: '#555', margin: 0 }}><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? k.punct_urcare.nume_ru : k.punct_urcare.nume_ro}</b>{' '}
+                            <a href={linkHarta(k.punct_urcare)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a></p>
+                        )}
                       </div>
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.35 }}>{tx.tgScurt}</span>
-                    </div>
-                  ) : undefined} />)}
-                  {!doar && <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>}
-                  {!doar && c.punct_urcare && (
-                    <p style={{ fontSize: 13, color: '#555', margin: 0 }}><span style={{ color: '#888' }}>{tx.urcare}: </span><b>{locale === 'ru' ? c.punct_urcare.nume_ru : c.punct_urcare.nume_ro}</b>{' '}
-                      <a href={linkHarta(c.punct_urcare)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a></p>
-                  )}
-                </div>
-              )}
+                    ))}
+                    {!doar && <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{tx.arata}</p>}
+                  </div>
+                );
+              })()}
 
-              {/* 548: celălalt bilet din tur-retur (plătit o dată). */}
-              {!doar && c.pachet && (
+              {/* 548: celălalt bilet din tur-retur, când nu s-a putut aduce pe pagină — rămâne linkul. */}
+              {!doar && c.pachet && !pereche && (
                 <a href={`/${locale}/bilet/${c.pachet.cod}`} className="bilet-no-print" style={{ display: 'block', marginTop: 14, padding: 14, borderRadius: 16, background: '#fdf3e7', border: '2px solid #d98a2b', color: '#231A1C', textDecoration: 'none' }}>
                   <b style={{ fontSize: 16 }}>{c.pachet.sens === 'retur' ? (locale === 'ru' ? 'Обратный билет' : 'Biletul de retur') : (locale === 'ru' ? 'Билет туда' : 'Biletul tur')} →</b>
                   <div style={{ fontSize: 14, marginTop: 4 }}>{c.pachet.from_name} → {c.pachet.to_name} · {dataOra(c.pachet.departure_at, locale)}</div>

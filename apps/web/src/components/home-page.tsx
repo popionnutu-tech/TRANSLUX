@@ -476,7 +476,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .tr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px;font-family:var(--font-opensans),Open Sans,sans-serif}
 .tr-seg-sus{display:flex;justify-content:center;margin:0 0 12px}
 .tr-seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(155,27,48,.07);gap:4px}
-.tr-seg button{border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
+.tr-seg button{white-space:nowrap;border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
 .tr-seg button.on{background:#fff;color:#6E0E14;box-shadow:0 2px 8px rgba(155,27,48,.16)}
 .tr-badge{font-size:11px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 7px}
 .tr-card{width:100%;max-width:520px;display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;background:#fff;border:1px solid rgba(155,27,48,.14);border-radius:18px;box-shadow:0 6px 22px rgba(155,27,48,.08);overflow:hidden}
@@ -502,7 +502,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .tr-cauta{width:100%;max-width:520px;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 8px 20px rgba(155,27,48,.22);transition:filter .15s}
 .tr-cauta:hover{filter:brightness(1.06)}
 .tr-cauta span{font-size:12px;font-weight:600;opacity:.85}
-@media (max-width:420px){.tr-zi{padding:10px 12px}.tr-data b{font-size:26px}.tr-luna{font-size:14px}}
+@media (max-width:420px){.tr-seg button{padding:9px 13px;font-size:13.5px}.tr-zi{padding:10px 12px}.tr-data b{font-size:26px}.tr-luna{font-size:14px}}
 `}</style>
               </div>
             )}

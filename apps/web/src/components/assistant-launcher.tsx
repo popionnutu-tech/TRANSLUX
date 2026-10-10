@@ -6,6 +6,7 @@
 // liber. Aspectul e cel al machetei din ION-39: aceleași clase, aceeași culoare, aceeași
 // pictogramă (MessageCircle din lucide, desenată aici ca SVG ca să nu tragă biblioteca).
 
+import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '@/lib/i18n';
 
 const RED = '#9B1B30';
@@ -24,15 +25,51 @@ export const LAUNCHER_CSS = `
   box-shadow:0 12px 32px rgba(155,27,48,.35);transition:transform .18s ease}
 .asst-launcher:hover{transform:translateY(-2px)}
 @media (max-width:520px){.asst-launcher{right:16px;bottom:16px}}
+.asst-launcher.mic{padding:0 17px}.asst-launcher.mic .asst-launcher-label{display:none}
+.asst-launcher.ascuns{opacity:0;pointer-events:none;transform:translateY(12px)}
+.asst-launcher{transition:transform .18s ease,opacity .18s ease}
 @media (max-width:380px){.asst-launcher-label{display:none}.asst-launcher{padding:0 17px}}
 `;
 
+/** Butoanele căutării pe care asistentul nu are voie să le acopere (Ion, 10.10.2026: «Asistent face overlap»). */
+const NU_ACOPERI = '.tr-cauta, .hero-actions, .tr-pax, .tr-card, .tr-seg';
+
+type Dreptunghi = { left: number; right: number; top: number; bottom: number };
+const seIntersecteaza = (a: Dreptunghi, b: Dreptunghi) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
 export function AssistantLauncher({ locale, onClick }: { locale: Locale; onClick: () => void }) {
   const i = TEXT[locale];
+  const ref = useRef<HTMLButtonElement>(null);
+  // Peste un buton al căutării: întâi se strânge la pictogramă; dacă și pictograma acoperă, se ascunde până la derulare.
+  const [mod, setMod] = useState<'plin' | 'mic' | 'ascuns'>('plin');
+  useEffect(() => {
+    let latPlin = 0;
+    let cadru = 0;
+    const masoara = () => {
+      cadru = 0;
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (el.classList.length === 1) latPlin = r.width; // doar «asst-launcher»: lățimea întreagă, cu text
+      const lat = latPlin || r.width;
+      const plin = { left: r.right - lat, right: r.right, top: r.top, bottom: r.bottom };
+      const mic = { left: r.right - r.height, right: r.right, top: r.top, bottom: r.bottom };
+      const tinte = Array.from(document.querySelectorAll(NU_ACOPERI)).map((x) => x.getBoundingClientRect()).filter((x) => x.width > 0 && x.height > 0);
+      const urm = !tinte.some((t) => seIntersecteaza(plin, t)) ? 'plin' : !tinte.some((t) => seIntersecteaza(mic, t)) ? 'mic' : 'ascuns';
+      setMod((m) => (m === urm ? m : urm));
+    };
+    const cere = () => { if (!cadru) cadru = requestAnimationFrame(masoara); };
+    cere();
+    window.addEventListener('scroll', cere, { passive: true });
+    window.addEventListener('resize', cere);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(cere) : null;
+    ro?.observe(document.body);
+    return () => { window.removeEventListener('scroll', cere); window.removeEventListener('resize', cere); ro?.disconnect(); if (cadru) cancelAnimationFrame(cadru); };
+  }, []);
   return (
     <>
       <style>{LAUNCHER_CSS}</style>
-      <button type="button" className="asst-launcher" onClick={onClick} aria-label={i.open}>
+      <button ref={ref} type="button" className={`asst-launcher${mod === 'plin' ? '' : ` ${mod}`}`} onClick={onClick} aria-label={i.open}>
         <svg xmlns="http://www.w3.org/2000/svg" width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />

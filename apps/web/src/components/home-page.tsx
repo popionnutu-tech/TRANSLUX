@@ -74,6 +74,9 @@ const EMPTY_OPTIONS: HomeOptions = { major: [], minor: [] };
 
 export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeLinks = [], localityLinks = [], telegram }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
+  const [toateSatele, setToateSatele] = useState(false);
+  // satele care n-au deja o rută cu aceeași pagină în listă
+  const satele = localityLinks.filter((l) => !routeLinks.some((r) => r.href === l.href));
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   // Câte ture a făcut săgeata de inversare — se rotește la fiecare apăsare, ca omul să vadă că s-a schimbat.
@@ -433,30 +436,27 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             </div>
           </div>}
 
-          {/* Toate paginile de direcție (ION-153): orar și preț pe fiecare, pentru oameni și pentru Google. */}
-          {routeLinks.length > 0 && (
-            <nav className="all-routes" aria-label={i.allRoutes}>
+          {/* Toate paginile de direcție (ION-153) și satele din nord (Ion, 01.10) într-un singur card
+              (Ion, 10.10.2026: «unește toate locațiile nord și toate rutele TRANSLUX»). Rutele se văd;
+              satele urmează în aceeași listă, strânse sub buton — sunt 70+, iar textul rămâne în HTML
+              pentru Google. Satele fără prefetch, altfel s-ar descărca 70 de pagini la derulare (ION-203). */}
+          {(routeLinks.length > 0 || satele.length > 0) && (
+            <nav className={`all-routes${toateSatele ? ' sate-deschise' : ''}`} aria-label={i.allRoutes}>
               <h2>{i.allRoutes}</h2>
               <ul>
                 {routeLinks.map((r) => (
                   <li key={r.key}><Link href={r.href}>{r.label}</Link></li>
                 ))}
-              </ul>
-            </nav>
-          )}
-
-          {/* Satele din nord, fiecare cu pagina Chișinău → sat (Ion, 01.10). Strânse implicit:
-              lista e lungă; textul rămâne în HTML pentru Google. 70+ linkuri fără prefetch,
-              altfel s-ar descărca 70 de pagini la derulare (ION-203). */}
-          {localityLinks.length > 0 && (
-            <details className="all-routes all-localities">
-              <summary><h2>{i.allLocalities}</h2></summary>
-              <ul>
-                {localityLinks.map((r) => (
-                  <li key={r.key}><Link href={r.href} prefetch={false}>{i.toLocality(r.label)}</Link></li>
+                {satele.map((r) => (
+                  <li key={r.key} className="sat-nord"><Link href={r.href} prefetch={false}>{i.toLocality(r.label)}</Link></li>
                 ))}
               </ul>
-            </details>
+              {satele.length > 0 && (
+                <button type="button" className="sate-toggle" aria-expanded={toateSatele} onClick={() => setToateSatele((v) => !v)}>
+                  {i.allLocalities} ({satele.length}) {toateSatele ? '▴' : '▾'}
+                </button>
+              )}
+            </nav>
           )}
 
         </section>

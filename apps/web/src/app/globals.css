@@ -505,9 +505,12 @@ a.route-row:hover { background: rgba(155,27,48,0.04); }
   .route-table th:nth-child(3), .route-table td:nth-child(3) { display: none; }
   .route-others { columns: 1; }
 }
-.all-localities summary { list-style: none; cursor: pointer; }
-.all-localities summary::-webkit-details-marker { display: none; }
-.all-localities summary h2 { margin-bottom: 0; }
-.all-localities summary h2::after { content: ' ▾'; font-style: normal; font-size: 13px; }
-.all-localities[open] summary h2 { margin-bottom: 14px; }
-.all-localities[open] summary h2::after { content: ' ▴'; }
+/* Satele din nord în cardul «Toate rutele»: ascunse până la buton, dar în HTML (pentru Google). */
+.all-routes .sat-nord { display: none; }
+.all-routes.sate-deschise .sat-nord { display: list-item; }
+.sate-toggle {
+  display: block; margin: 12px auto 0; padding: 8px 16px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(155,27,48,0.25); background: rgba(255,255,255,0.7); color: #9B1B30;
+  font: italic 600 13px var(--font-opensans), 'Open Sans', sans-serif;
+}
+.sate-toggle:hover { background: rgba(155,27,48,0.06); }

@@ -390,26 +390,78 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 </button>
               </div>
             </form>
+            {/* Tur-retur (Ion, 10.10.2026: «fă mai elegant datele pentru tur-retur»): comutator «Doar tur | Tur-retur −20%»,
+                apoi un card cu cele două zile (ca pe site-urile de avion) și durata; fiecare zi deschide calendarul «Mai târziu». */}
             {esteBalti && (
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, fontSize: 14, fontWeight: 700, color: '#9B1B30', cursor: 'pointer', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
-                <input type="checkbox" checked={cuRetur} onChange={(e) => { setCuRetur(e.target.checked); setDataRetur(null); }} style={{ accentColor: '#9B1B30', width: 20, height: 20, margin: 0 }} />
-                {locale === 'ru' ? 'Туда и обратно — обратный −20%' : 'Tur-retur — returul −20%'}
-              </label>
-            )}
-            {esteBalti && cuRetur && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', justifyContent: 'center', marginTop: 10, fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
-                {([['plecare', locale === 'ru' ? 'Туда' : 'Plecare', ziPlecare], ['intoarcere', locale === 'ru' ? 'Обратно' : 'Întoarcere', ziIntoarcere]] as const).map(([k, et, val]) => (
-                  <div key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: '#6B5B5F', flex: '1 1 140px', maxWidth: 200 }}>{et}
-                    <button type="button" onClick={() => setCalPentru(k)}
-                      style={{ height: 46, borderRadius: 12, border: '1.5px solid #9B1B30', padding: '0 10px', fontSize: 15, fontWeight: 700, color: '#9B1B30', background: '#fff', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', textTransform: 'capitalize' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                      {ziScurta(val)}
-                    </button>
-                  </div>
-                ))}
-                <button type="button" onClick={cautaTurRetur} style={{ height: 46, flex: '1 1 140px', maxWidth: 220, borderRadius: 12, border: 'none', background: '#9B1B30', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {searching ? '...' : (locale === 'ru' ? 'Найти туда-обратно' : 'Caută tur-retur')}
-                </button>
+              <div className="tr-wrap">
+                <div className="tr-seg" role="radiogroup" aria-label={locale === 'ru' ? 'Тип поездки' : 'Tipul călătoriei'}>
+                  <button type="button" role="radio" aria-checked={!cuRetur} className={!cuRetur ? 'on' : ''} onClick={() => { setCuRetur(false); setDataRetur(null); }}>
+                    {locale === 'ru' ? 'Только туда' : 'Doar tur'}
+                  </button>
+                  <button type="button" role="radio" aria-checked={cuRetur} className={cuRetur ? 'on' : ''} onClick={() => { setCuRetur(true); setDataRetur(null); }}>
+                    {locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'} <span className="tr-badge">−20%</span>
+                  </button>
+                </div>
+                {cuRetur && (() => {
+                  const zi = (iso: string) => {
+                    const d = new Date(`${iso}T12:00:00`);
+                    const loc = locale === 'ru' ? 'ru-RU' : 'ro-RO';
+                    return { nr: d.getDate(), luna: d.toLocaleDateString(loc, { month: 'long' }), sapt: d.toLocaleDateString(loc, { weekday: 'long' }) };
+                  };
+                  const zile = Math.round((Date.parse(`${ziIntoarcere}T12:00:00`) - Date.parse(`${ziPlecare}T12:00:00`)) / 86_400_000);
+                  const durata = zile === 0 ? (locale === 'ru' ? 'в тот же день' : 'aceeași zi') : locale === 'ru' ? `${zile} дн.` : `${zile} ${zile === 1 ? 'zi' : 'zile'}`;
+                  const jum = (k: 'plecare' | 'intoarcere', et: string, iso: string) => {
+                    const z = zi(iso);
+                    return (
+                      <button type="button" className="tr-zi" onClick={() => setCalPentru(k)} aria-label={`${et}: ${z.sapt}, ${z.nr} ${z.luna}`}>
+                        <span className="tr-et">{et}</span>
+                        <span className="tr-data"><b>{z.nr}</b><span><span className="tr-luna">{z.luna}</span><span className="tr-sapt">{z.sapt}</span></span></span>
+                      </button>
+                    );
+                  };
+                  return (
+                    <>
+                      <div className="tr-card">
+                        {jum('plecare', locale === 'ru' ? 'Туда' : 'Plecare', ziPlecare)}
+                        <div className="tr-mij" aria-hidden="true">
+                          <span className="tr-sag"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+                          <span className="tr-dur">{durata}</span>
+                        </div>
+                        {jum('intoarcere', locale === 'ru' ? 'Обратно' : 'Întoarcere', ziIntoarcere)}
+                      </div>
+                      <button type="button" className="tr-cauta" onClick={cautaTurRetur}>
+                        {searching ? '...' : (locale === 'ru' ? 'Найти туда-обратно' : 'Caută tur-retur')}
+                        <span>{locale === 'ru' ? 'обратный −20%, одна оплата' : 'returul −20%, o singură plată'}</span>
+                      </button>
+                    </>
+                  );
+                })()}
+                <style>{`
+.tr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px;font-family:var(--font-opensans),Open Sans,sans-serif}
+.tr-seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(155,27,48,.07);gap:4px}
+.tr-seg button{border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
+.tr-seg button.on{background:#fff;color:#6E0E14;box-shadow:0 2px 8px rgba(155,27,48,.16)}
+.tr-badge{font-size:11px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 7px}
+.tr-card{width:100%;max-width:520px;display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;background:#fff;border:1px solid rgba(155,27,48,.14);border-radius:18px;box-shadow:0 6px 22px rgba(155,27,48,.08);overflow:hidden}
+.tr-zi{border:none;background:transparent;padding:12px 16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px;font-family:inherit;transition:background .15s}
+.tr-zi:hover{background:rgba(155,27,48,.04)}
+.tr-zi:last-child{text-align:right;align-items:flex-end}
+.tr-et{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:#9A8A8D}
+.tr-data{display:flex;align-items:center;gap:8px;color:#231A1C}
+.tr-zi:last-child .tr-data{flex-direction:row-reverse}
+.tr-data b{font-size:30px;line-height:1;font-weight:800;color:#9B1B30}
+.tr-data>span{display:flex;flex-direction:column;line-height:1.15}
+.tr-zi:last-child .tr-data>span{align-items:flex-end}
+.tr-luna{font-size:15px;font-weight:700}
+.tr-sapt{font-size:12px;color:#8A7A7D;text-transform:capitalize}
+.tr-mij{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 6px;border-left:1px dashed rgba(155,27,48,.18);border-right:1px dashed rgba(155,27,48,.18)}
+.tr-sag{width:32px;height:32px;border-radius:50%;background:#F6ECEE;color:#9B1B30;display:flex;align-items:center;justify-content:center}
+.tr-dur{font-size:11px;font-weight:700;color:#8A7A7D;white-space:nowrap}
+.tr-cauta{width:100%;max-width:520px;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 8px 20px rgba(155,27,48,.22);transition:filter .15s}
+.tr-cauta:hover{filter:brightness(1.06)}
+.tr-cauta span{font-size:12px;font-weight:600;opacity:.85}
+@media (max-width:420px){.tr-zi{padding:10px 12px}.tr-data b{font-size:26px}.tr-luna{font-size:14px}}
+`}</style>
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 import 'server-only';
 import { getSupabase } from '@/lib/supabase';
 import { anuntaBotul } from '@/lib/bilete/anunta-botul';
+import { anuntaVanzarea } from '@/lib/bilete/vanzari-grupa';
 import { getCheckout, getPayment, stareEgala, MaibError } from '@/lib/maib/client';
 import { oraExecutarii } from '@/lib/bilete/impacare-reguli';
 
@@ -99,7 +100,7 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
       const { data: emise, error: rpcErr } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: rand.checkout_id });
       if (rpcErr) return { ok: false, eroare: `starea e actualizată, dar emiterea biletelor a eșuat: ${rpcErr.message}` };
       // ION-274: biletele emise aici (callback pierdut) ajung și în chatul Telegram la secundă, ca din callback.
-      if (Number(emise ?? 0) > 0) await anuntaBotul(rand.checkout_id);
+      if (Number(emise ?? 0) > 0) { await anuntaBotul(rand.checkout_id); await anuntaVanzarea(rand.checkout_id); }
     }
     return { ok: true, rand: data };
   } catch (e) {

@@ -14,6 +14,7 @@ import { calculeazaDepartureAt, cursaDupaDataDeStart, vanzareDeschisa } from './
 import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
+import { anuntaVanzarea } from './vanzari-grupa';
 import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, plafoaneCursei, type MotivFaraReducere } from './promo-server';
 import { amprentaAlegerii } from './amprenta';
 import { rezervareExpirata, sesiuneInchisa } from './impacare-reguli';
@@ -869,7 +870,7 @@ async function recupereazaSesiunea(comanda: BileteComanda, opt: ComandaOptiuni):
     }).eq('checkout_id', gasit.id);
     const { data: emise, error } = await db.rpc('bilete_marcheaza_platita', { p_checkout_id: gasit.id });
     if (error) console.error('[bilete] emiterea la recuperare:', error.message);
-    else if (Number(emise ?? 0) > 0) await anuntaBotul(gasit.id); // ION-274: și biletele emise la recuperare ajung în chat la secundă
+    else if (Number(emise ?? 0) > 0) { await anuntaBotul(gasit.id); await anuntaVanzarea(gasit.id); } // ION-274: și biletele emise la recuperare ajung în chat la secundă
   }
   return { comanda: { ...comanda, checkout_id: gasit.id, creare_in_curs_la: null }, checkoutUrl: gasit.url ?? '' };
 }

@@ -9,6 +9,7 @@ import { leagaSesiuneExistenta, stareSoferCursa } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
 import { smsRestante, trimiteSmsConfirmare } from './sms';
 import { alertaBilete } from './alerte-tab';
+import { anuntaVanzarileRamase } from './vanzari-grupa';
 import { ruleazaEchipajul, type RaportEchipaj } from './echipaj-job';
 import { mesajAlerte, type AlertaPentruMesaj } from './alerte-mesaj';
 import { alertaSesiuneNeinchisa, deciziaSesiune, INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneDeInchis, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
@@ -36,6 +37,8 @@ export interface RaportImpacare {
   alerte: ContorJob;
   /** G (migr. 538): echipajul cursei trimis clientului în chat după bifa dispecerului și la fiecare schimbare. */
   echipaj?: RaportEchipaj;
+  /** F2 (migr. 565): vânzări anunțate în grupă la acest tick. */
+  vanzari?: number;
   durata_ms: number;
   oprit_de_buget: boolean;
 }
@@ -310,6 +313,12 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
         raport.alerte.erori = 1;
       }
     }
+  }
+
+  // F2. vânzările în tabul «Bilete online» al grupei (migr. 565): ce n-a plecat la plată (callback pierdut, emitere
+  // manuală, grupă căzută) pleacă aici, cel mult 10 pe tick.
+  if (!opt.dry && maiAmTimp()) {
+    raport.vanzari = await anuntaVanzarileRamase().catch((e) => { console.error('[impacare] vânzări:', e instanceof Error ? e.message : e); return 0; });
   }
 
   // G. echipajul în chat (migr. 538), ULTIMUL: are nevoie de timp pentru trimiteri și nu are voie să-i ia timpul lui F.

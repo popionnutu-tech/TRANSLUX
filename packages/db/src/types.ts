@@ -1034,6 +1034,8 @@ export interface BileteComanda {
   inchidere_esuata?: number;
   /** 564 (N3): amprenta alegerii cumpărătorului (lib/bilete/amprenta.ts); aceeași cheie cu altă amprentă = refuz. */
   amprenta?: string | null;
+  /** 565: când vânzarea a fost anunțată în tabul «Bilete online» al grupei (lib/bilete/vanzari-grupa.ts). */
+  grupa_anuntat_la?: string | null;
 }
 
 export interface Bilet {

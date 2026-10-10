@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { ComandaError } from './comenzi';
 import { anuleazaSiReturneaza, garantieLansareActiva } from './refund';
 import { trimiteEmailAnulare } from './email';
-import { calculeazaOferta, CIFRE_INCERCARI_MAX, stareRetur, type StareRetur } from './retur-bot-reguli';
+import { CIFRE_INCERCARI_MAX, eligibilitateRetur, stareRetur, type StareRetur } from './retur-bot-reguli';
 import { sumaRestituire } from './refund-reguli';
 
 // Ion, 10.10.2026: «fac test, permite să returnez; pe viitor nu este niciun dispecer, nu bloca utilizatorii»;
@@ -82,18 +82,6 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   if (Number(c.telegram_id) !== telegramId) return { ok: false, cod: 'nelegat' };
   if (!(c.status === 'platita' || c.status === 'platita_fara_bilet')) return { ok: false, cod: 'stare' };
 
-  // Biletul scanat la urcare nu se mai returnează (funcția din bază refuză oricum; spunem din timp).
-  const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', c.id).eq('status', 'urcat');
-  if ((urcate ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
-
-  // Turul cu retur legat: se anulează amândouă, doar până la plecarea turului (regula tur-returului din condiții).
-  const leg = await returLegat(c.id);
-  if (leg) {
-    if (Date.now() >= Date.parse(c.departure_at)) return { ok: true, tip: 'fara_bani', motiv: 'plecat' };
-    const { count: urcR } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', leg.id).eq('status', 'urcat');
-    if ((urcR ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
-  }
-
   // Cele 4 cifre: o dată pe CONT (17′); 5 greșeli → blocat + dispecerul. Verificarea și contorul stau în bază,
   // cu comanda blocată (migr. 503): cererile paralele nu ocolesc plafonul.
   if (Number(c.telegram_verificat_pentru) !== telegramId) {
@@ -111,8 +99,13 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
     }
   }
 
-  // Garanția de lansare (Ion, 07.10): biletul nefolosit primește tot și sub 4 h (după plecare — dispecerul, integral).
-  const calc = calculeazaOferta(c.departure_at, Number(c.total), Date.now(), await garantieLansareActiva());
+  // C6 (10.10): aceeași eligibilitate ca pagina biletului și asistentul (eligibilitateRetur): bilet urcat → nimic; tur cu
+  // retur legat → doar până la plecarea turului; apoi grila sau garanția de lansare (biletul nefolosit primește tot și sub
+  // 4 h, până la plecare + 24 h — funcția ofertei din bază o acceptă din 562).
+  const leg = await returLegat(c.id);
+  const urcate = async (id: string) => (await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', id).eq('status', 'urcat')).count ?? 0;
+  const [urcateTur, urcateRetur, garantie] = await Promise.all([urcate(c.id), leg ? urcate(leg.id) : Promise.resolve(0), garantieLansareActiva()]);
+  const calc = eligibilitateRetur({ departureAt: c.departure_at, total: Number(c.total), urcateTur, leg: leg ? { total: leg.total, urcate: urcateRetur } : null, nowMs: Date.now(), garantie });
   if (calc.tip === 'fara_bani') return { ok: true, tip: 'fara_bani', motiv: calc.motiv };
   if (calc.tip === 'dispecer') return { ok: true, tip: 'dispecer', motiv: 'sub_10' }; // bilet sub 10 lei: nu se vinde online
   const { data: o, error: eO } = await db.rpc('bilete_retur_oferta_noua', {

@@ -42,6 +42,49 @@ export function calculeazaOferta(departureAt: string, total: number, nowMs: numb
   return { tip: 'oferta', noimi, suma, expiraMs: Math.min(nowMs + OFERTA_VALABILA_MS, prag) };
 }
 
+export interface DateEligibilitate {
+  /** plecarea și totalul TURULUI (biletul-retur din pachet se judecă prin tur) */
+  departureAt: string;
+  total: number;
+  /** locuri scanate la urcare pe tur */
+  urcateTur: number;
+  /** returul plătit legat de tur (pachet sau −20%), cu locurile lui urcate */
+  leg: { total: number; urcate: number } | null;
+  nowMs: number;
+  /** garanția de lansare activă (app_config.bilete_garantie_100_pana, ziua Chișinăului) */
+  garantie: boolean;
+}
+
+export type Eligibilitate =
+  | { tip: 'oferta'; noimi: number; suma: number; expiraMs: number }
+  | { tip: 'fara_bani'; motiv: 'sub_4h' | 'plecat' | 'urcat' }
+  | { tip: 'dispecer'; motiv: 'sub_10' };
+
+/**
+ * C6 (dezbaterea Claude–Codex, 10.10.2026): O SINGURĂ regulă de eligibilitate pentru returnarea cerută de client — botul
+ * (retur-bot.ts), pagina biletului și asistentul site-ului (anulare-site.ts) o cheamă pe aceasta, după identificare.
+ * Ordinea: bilet urcat → nimic; tur cu retur legat → doar până la plecarea turului (regula tur-returului, și în garanție:
+ * decizia D4 e încă deschisă, rămâne regula din refund.ts); apoi grila sau garanția (calculeazaOferta). Pur.
+ */
+export function eligibilitateRetur(d: DateEligibilitate): Eligibilitate {
+  if (d.urcateTur > 0) return { tip: 'fara_bani', motiv: 'urcat' };
+  if (d.leg) {
+    if (d.nowMs >= Date.parse(d.departureAt)) return { tip: 'fara_bani', motiv: 'plecat' };
+    if (d.leg.urcate > 0) return { tip: 'fara_bani', motiv: 'urcat' };
+  }
+  return calculeazaOferta(d.departureAt, d.total, d.nowMs, d.garantie);
+}
+
+/**
+ * Oglinda verificării expirării din bilete_retur_oferta_noua (migr. 562): fără garanție, expirarea ≤ plecarea − 240 min;
+ * cu garanția activă, ≤ plecarea + 24 h. Testele cer ca orice ofertă din calculeazaOferta să treacă de ea (C6).
+ */
+export function expirareAcceptataDeBaza(expiraMs: number, departureAt: string, nowMs: number, garantie: boolean): boolean {
+  const t = Date.parse(departureAt);
+  if (!Number.isFinite(t) || expiraMs <= nowMs) return false;
+  return garantie ? expiraMs <= t + GARANTIE_ORE_DUPA_PLECARE * 3_600_000 : expiraMs <= t - PRAG_RETUR_MIN * 60_000;
+}
+
 /** Ultimele 4 cifre ale telefonului din comandă (373XXXXXXXX) == ce a scris clientul (spații/cratime ignorate). */
 export function cifreCorecte(phone: string, cifre: string): boolean {
   const p = String(phone ?? '').replace(/\D/g, '');

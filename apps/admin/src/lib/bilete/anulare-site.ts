@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { ComandaError } from './comenzi';
 import { anuleazaSiReturneaza, garantieLansareActiva } from './refund';
 import { trimiteEmailAnulare } from './email';
-import { calculeazaOferta, CIFRE_INCERCARI_MAX } from './retur-bot-reguli';
+import { CIFRE_INCERCARI_MAX, eligibilitateRetur } from './retur-bot-reguli';
 import { sumaRestituire } from './refund-reguli';
 
 // Anularea biletului pe site și din asistentul online (Ion, 10.10.2026: «anularea la bilet posibilă și pe site în
@@ -49,17 +49,14 @@ async function pregateste(codRaw: unknown, cifreRaw: unknown): Promise<
   const vc = v as { ok: boolean; ramase: number; blocat: boolean; minute?: number };
   if (!vc.ok) return { ok: false, r: vc.blocat ? { ok: false, cod: 'pauza', minute: vc.minute ?? 15 } : { ok: false, cod: 'cifre_gresite', ramase: vc.ramase } };
 
-  const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', tur.id).eq('status', 'urcat');
-  if ((urcate ?? 0) > 0) return { ok: false, r: { ok: false, cod: 'urcat' } };
   const { data: l } = await db.from('bilete_comenzi').select('id, total').eq('comanda_tur_id', tur.id).in('status', ['platita', 'platita_fara_bilet'])
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   const leg = l ? { id: (l as { id: string }).id, total: Number((l as { total: number }).total) } : null;
-  if (leg) {
-    if (Date.now() >= Date.parse(tur.departure_at)) return { ok: false, r: { ok: false, cod: 'plecat' } };
-    const { count: urcR } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', leg.id).eq('status', 'urcat');
-    if ((urcR ?? 0) > 0) return { ok: false, r: { ok: false, cod: 'urcat' } };
-  }
-  const calc = calculeazaOferta(tur.departure_at, tur.total, Date.now(), await garantieLansareActiva());
+  // C6 (10.10): aceeași eligibilitate ca botul (eligibilitateRetur) — urcat, tur-retur până la plecarea turului, grila
+  // sau garanția de lansare.
+  const urcate = async (id: string) => (await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', id).eq('status', 'urcat')).count ?? 0;
+  const [urcateTur, urcateRetur, garantie] = await Promise.all([urcate(tur.id), leg ? urcate(leg.id) : Promise.resolve(0), garantieLansareActiva()]);
+  const calc = eligibilitateRetur({ departureAt: tur.departure_at, total: tur.total, urcateTur, leg: leg ? { total: leg.total, urcate: urcateRetur } : null, nowMs: Date.now(), garantie });
   if (calc.tip === 'fara_bani') return { ok: false, r: { ok: false, cod: calc.motiv } };
   if (calc.tip === 'dispecer') return { ok: false, r: { ok: false, cod: 'sub_10' } };
   const plus = leg ? parteRetur(leg.total, calc.noimi) : 0;

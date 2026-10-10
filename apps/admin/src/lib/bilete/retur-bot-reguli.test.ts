@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculeazaOferta, cifreCorecte, stareRetur } from './retur-bot-reguli';
+import { calculeazaOferta, cifreCorecte, eligibilitateRetur, expirareAcceptataDeBaza, stareRetur } from './retur-bot-reguli';
 import { poateAnulaPasager } from './refund-reguli';
 
 const PLECARE = '2026-12-14T12:00:00+02:00';
@@ -93,5 +93,46 @@ describe('calculeazaOferta — garanția de lansare (Ion, 07.10: «100% garantat
   });
   it('fără garanție: grila neschimbată (sub 4 h nimic)', () => {
     expect(calculeazaOferta(PLECARE, 135, plecare - 30 * 60_000, false)).toEqual({ tip: 'fara_bani', motiv: 'sub_4h' });
+  });
+});
+
+// C6 (dezbaterea Claude–Codex, 10.10.2026): aceeași eligibilitate în bot, pe pagina biletului și în asistent
+// (eligibilitateRetur), iar oferta botului trece de verificarea funcției din bază (562) și în garanția de lansare.
+describe('C6: eligibilitateRetur + expirarea acceptată de bază', () => {
+  const baza = { departureAt: PLECARE, total: 135, urcateTur: 0, leg: null, garantie: false };
+  it('fără garanție: aceleași rezultate ca grila (calculeazaOferta)', () => {
+    for (const h of [30, 20, 8, 5, 4, 3, 0.5, -1]) {
+      expect(eligibilitateRetur({ ...baza, nowMs: ore(h) })).toEqual(calculeazaOferta(PLECARE, 135, ore(h)));
+    }
+  });
+  it('bilet urcat → fără bani, și în garanție', () => {
+    expect(eligibilitateRetur({ ...baza, urcateTur: 1, nowMs: ore(30), garantie: true })).toEqual({ tip: 'fara_bani', motiv: 'urcat' });
+  });
+  it('garanția: 2 h înainte și 10 h după plecare → 9/9, toată suma; după 24 h → plecat', () => {
+    expect(eligibilitateRetur({ ...baza, nowMs: ore(2), garantie: true })).toMatchObject({ tip: 'oferta', noimi: 9, suma: 135 });
+    expect(eligibilitateRetur({ ...baza, nowMs: ore(-10), garantie: true })).toMatchObject({ tip: 'oferta', noimi: 9, suma: 135 });
+    expect(eligibilitateRetur({ ...baza, nowMs: ore(-24), garantie: true })).toEqual({ tip: 'fara_bani', motiv: 'plecat' });
+  });
+  it('tur-retur: doar până la plecarea turului (și în garanție — D4 deschis); returul urcat → nimic', () => {
+    const leg = { total: 108, urcate: 0 };
+    expect(eligibilitateRetur({ ...baza, leg, nowMs: ore(30) })).toMatchObject({ tip: 'oferta', noimi: 9 });
+    expect(eligibilitateRetur({ ...baza, leg, nowMs: ore(-1), garantie: true })).toEqual({ tip: 'fara_bani', motiv: 'plecat' });
+    expect(eligibilitateRetur({ ...baza, leg: { total: 108, urcate: 1 }, nowMs: ore(30) })).toEqual({ tip: 'fara_bani', motiv: 'urcat' });
+  });
+  it('orice ofertă (cu sau fără garanție, din minut în minut, −30 h … +30 h) trece de verificarea din bază', () => {
+    for (const garantie of [false, true]) {
+      for (let m = -30 * 60; m <= 30 * 60; m += 7) {
+        const now = T - m * 60_000;
+        const o = calculeazaOferta(PLECARE, 135, now, garantie);
+        if (o.tip !== 'oferta') continue;
+        expect(expirareAcceptataDeBaza(o.expiraMs, PLECARE, now, garantie)).toBe(true);
+      }
+    }
+  });
+  it('bugul vechi: oferta din garanție cu 2 h înainte ar fi fost respinsă de regula fără garanție', () => {
+    const o = calculeazaOferta(PLECARE, 135, ore(2), true);
+    expect(o.tip).toBe('oferta');
+    expect(expirareAcceptataDeBaza((o as { expiraMs: number }).expiraMs, PLECARE, ore(2), false)).toBe(false);
+    expect(expirareAcceptataDeBaza((o as { expiraMs: number }).expiraMs, PLECARE, ore(2), true)).toBe(true);
   });
 });

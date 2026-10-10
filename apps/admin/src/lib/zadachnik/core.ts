@@ -1,3 +1,4 @@
+import { chisinauLocalLaMs } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 
 // Ядро задачника (порт из TLX, этап A): создание задачи, переходы состояний, журнал, уведомления.
@@ -64,21 +65,17 @@ function nextDay18ISO(): string {
   const y = +parts.find((p) => p.type === 'year')!.value;
   const m = +parts.find((p) => p.type === 'month')!.value;
   const d = +parts.find((p) => p.type === 'day')!.value;
-  // следующий календарный день, 18:00 Кишинёв = 15:00 UTC (летом UTC+3); считаем явно через смещение
-  const next = new Date(Date.UTC(y, m - 1, d + 1, 15, 0, 0));
-  return next.toISOString();
+  // următoarea zi calendaristică, 18:00 Chișinău — vara 15:00 UTC, iarna 16:00 UTC (înainte era fix 15:00 UTC; N6, 10.10.2026)
+  return chisinauYmdHmISO(new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10), '18:00');
 }
 
-/** Смещение Кишинёва (мин) с учётом лета/зимы. Exportat — sursa unică server-side. */
-export function chisinauOffsetMin(d: Date): number {
-  const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
-    .formatToParts(d).find((p) => p.type === 'timeZoneName')?.value || 'GMT+3';
-  const mt = tz.match(/GMT([+-]?\d+)(?::(\d+))?/);
-  if (!mt) return 180;
-  const h = parseInt(mt[1], 10);
-  const mm = mt[2] ? parseInt(mt[2], 10) : 0;
-  return h * 60 + (h < 0 ? -mm : mm);
+/** Ziua + ora locală Chișinău → ISO (UTC), cu offset-ul orei exacte (@translux/db chisinau-ora.ts, N6 10.10.2026).
+ *  «H:MM» / «HH:MM:SS» se normalizează. */
+function chisinauYmdHmISO(ymd: string, hhmm: string): string {
+  const [h = '0', mi = '0'] = hhmm.split(':');
+  return new Date(chisinauLocalLaMs(ymd, `${h.padStart(2, '0')}:${mi.padStart(2, '0')}`)).toISOString();
 }
+
 /** Сегодня в Кишинёве в HH:MM → ISO (UTC). */
 function chisinauTodayISO(hhmm: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -87,9 +84,7 @@ function chisinauTodayISO(hhmm: string): string {
   const y = +parts.find((p) => p.type === 'year')!.value;
   const mo = +parts.find((p) => p.type === 'month')!.value;
   const d = +parts.find((p) => p.type === 'day')!.value;
-  const [hh, mi] = hhmm.split(':').map(Number);
-  const guess = new Date(Date.UTC(y, mo - 1, d, hh, mi));
-  return new Date(guess.getTime() - chisinauOffsetMin(guess) * 60000).toISOString();
+  return chisinauYmdHmISO(new Date(Date.UTC(y, mo - 1, d)).toISOString().slice(0, 10), hhmm);
 }
 /** Duminica săptămânii curente în Chișinău la HH:MM → ISO (UTC) — termenul sarcinilor 'weekly'.
  *  Aritmetică pe calendar (Date.UTC normalizează depășirea de zi), nu pe milisecunde reale —
@@ -102,9 +97,7 @@ function chisinauSundayISO(hhmm: string): string {
   const mo = +parts.find((p) => p.type === 'month')!.value;
   const d = +parts.find((p) => p.type === 'day')!.value;
   const wd = new Date(Date.UTC(y, mo - 1, d)).getUTCDay(); // 0=Du..6=Sâ, independent de TZ-ul mașinii
-  const [hh, mi] = hhmm.split(':').map(Number);
-  const guess = new Date(Date.UTC(y, mo - 1, d + ((7 - wd) % 7), hh, mi));
-  return new Date(guess.getTime() - chisinauOffsetMin(guess) * 60000).toISOString();
+  return chisinauYmdHmISO(new Date(Date.UTC(y, mo - 1, d + ((7 - wd) % 7))).toISOString().slice(0, 10), hhmm);
 }
 /** Срабатывает ли шаблон сегодня (по дню недели Кишинёва). */
 function recurringFiresToday(period: 'daily' | 'mon_fri' | 'custom' | 'weekly', weekDays: number[] | null | undefined): boolean {

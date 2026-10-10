@@ -2,6 +2,8 @@
 // Convenția unică LDE: o «zi»/«lună» calendaristică = ziua/luna locală Chișinău,
 // nu miezul nopții UTC și nu un offset fix.
 
+import { chisinauInstantIso as chisinauInstantIsoExact } from '@translux/db';
+
 const TZ = 'Europe/Chisinau';
 
 // Formatoarele se refolosesc: `toLocaleDateString` cu opțiuni construiește un
@@ -23,30 +25,20 @@ export function chisinauDayOf(ts: string): string {
   return FMT_ZI.format(new Date(ts));
 }
 
-// Offset-ul («+03:00»/«+02:00») al zilei date — sondat la prânz, stabil în afara orei de tranziție DST
-// (tranziția e la 03:00/04:00 local; eroarea posibilă e limitată la ora aceea, de 2 ori pe an).
-function dayOffset(dateStr: string): string {
-  const probe = new Date(`${dateStr}T12:00:00Z`);
-  const part = new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'longOffset' })
-    .formatToParts(probe)
-    .find((p) => p.type === 'timeZoneName')?.value;
-  const m = part?.match(/GMT([+-]\d{2}:\d{2})/);
-  return m ? m[1] : '+03:00';
-}
-
 /** Miezul nopții Chișinău al zilei date, ca ISO cu offset — pentru filtre pe timestamptz. */
 export function chisinauDayStartIso(dateStr: string): string {
-  return `${dateStr}T00:00:00${dayOffset(dateStr)}`;
+  return chisinauInstantIsoExact(dateStr, '00:00');
 }
 
 /**
  * Instantul unei zile + ore locale Chișinău ('2026-09-10' + '07:00'), ca ISO cu offset.
  * `new Date('2026-09-10T07:00')` ia fusul BROWSERULUI: un dispecer aflat în altă
  * țară ar fi salvat cursa cu ore deplasate.
+ * Offset-ul se ia pe ORA exactă (packages/db/src/chisinau-ora.ts), nu pe ziua sondată la prânz: în noaptea de
+ * 25.10.2026 orele 00:00–03:59 sunt încă ora de vară (N6, dezbaterea Claude–Codex, 10.10.2026).
  */
 export function chisinauInstantIso(dateStr: string, hhmm: string): string {
-  const ora = /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '00:00';
-  return `${dateStr}T${ora}:00${dayOffset(dateStr)}`;
+  return chisinauInstantIsoExact(dateStr, hhmm);
 }
 
 /** Ora locală Chișinău ('HH:MM') a unui instant. */

@@ -21,7 +21,7 @@ import type {
   OperatorTripSkip,
   DriverReferencePhoto,
 } from '@translux/db';
-import { POINT_DIRECTION_MAP } from '@translux/db';
+import { POINT_DIRECTION_MAP, chisinauLocalLaMs } from '@translux/db';
 
 const db = () => getSupabase();
 
@@ -551,22 +551,11 @@ export async function autoCloseReclamaTask(
 }
 
 // ── Zadachnik: generator de sarcini recurente (apelat de scheduler dimineața) ──
-function chisinauOffsetMinutes(d: Date): number {
-  const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
-    .formatToParts(d).find((p) => p.type === 'timeZoneName')?.value || 'GMT+3';
-  const m = tz.match(/GMT([+-]?\d+)(?::(\d+))?/);
-  if (!m) return 180;
-  const h = parseInt(m[1], 10);
-  const min = m[2] ? parseInt(m[2], 10) : 0;
-  return h * 60 + (h < 0 ? -min : min);
-}
-
+/** Ziua + ora locală Chișinău → ISO (UTC). Offset-ul pe ora exactă (@translux/db chisinau-ora.ts, N6 10.10.2026):
+ *  varianta veche lua offset-ul instantului «ora locală citită ca UTC» și greșea cu o oră între ~01:00 și 04:00
+ *  în nopțile schimbării orei. */
 function chisinauDateTimeISO(ymd: string, hhmm: string): string {
-  const [y, m, d] = ymd.split('-').map(Number);
-  const [hh, mm] = hhmm.split(':').map(Number);
-  const utcGuess = new Date(Date.UTC(y, m - 1, d, hh, mm));
-  const off = chisinauOffsetMinutes(utcGuess);
-  return new Date(utcGuess.getTime() - off * 60000).toISOString();
+  return new Date(chisinauLocalLaMs(ymd, hhmm)).toISOString();
 }
 
 /** Следующий календарный день: 'YYYY-MM-DD' → 'YYYY-MM-DD'. */

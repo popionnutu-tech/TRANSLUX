@@ -1,5 +1,7 @@
 // Общие клиентские хелперы Mini App задачника (палитра TLX-терминала, initData, fetch, статусы).
 
+import { chisinauLocalLaMs } from '@translux/db';
+
 // Бренд TRANSLUX: бордовый #9B1B30 на светлом.
 export const C = {
   bg: '#faf8f7', panel: '#ffffff', panel2: '#f6f1f0', border: '#e7dede',
@@ -127,18 +129,13 @@ export const catKeyOf = (c?: string) => (c && CAT[c] ? c : 'ALTELE');
 export interface TargetProgress { template_id: string; assignee_id?: string; label: string; done: number; target: number; goal?: string | null }
 
 /** 'YYYY-MM-DDTHH:MM' (introdus ca oră a Chișinăului) → instant ISO, indiferent de fusul telefonului.
- *  Decalajul se ia la DATA țintă (corect peste trecerea la ora de vară/iarnă).
+ *  Decalajul se ia la ORA exactă (@translux/db chisinau-ora.ts, N6 10.10.2026: corect și în noaptea schimbării orei).
  *  Întoarce null pentru input gol/invalid — apelantul afișează eroarea, nu aruncă. */
 export function chisinauLocalToISO(local: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return null;
-  const probe = new Date(`${local}:00Z`);
-  if (Number.isNaN(probe.getTime())) return null;
-  const tzName = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
-    .formatToParts(probe).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+3';
-  const h = parseInt(tzName.replace('GMT', ''), 10) || 3;
-  const sign = h < 0 ? '-' : '+';
-  const d = new Date(`${local}:00${sign}${String(Math.abs(h)).padStart(2, '0')}:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  if (Number.isNaN(new Date(`${local}:00Z`).getTime())) return null;
+  const ms = chisinauLocalLaMs(local.slice(0, 10), local.slice(11, 16));
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
 /** Câte zile pe săptămână rulează un șablon (plafonul și valoarea implicită a țintei).

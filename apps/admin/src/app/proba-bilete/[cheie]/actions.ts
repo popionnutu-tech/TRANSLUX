@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { headers } from 'next/headers';
 import { calculeazaCurse, incarcaCurse } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { chisinauTodayIso } from '@/lib/chisinau-time';
+import { chisinauDayStartIso, chisinauTodayIso } from '@/lib/chisinau-time';
 import { ComandaError, creeazaComanda } from '@/lib/bilete/comenzi';
 import { cheieProbaValida, dataProbaPermisa, pasiProba, telefonMascat, type PasProba, type StareProbaRand } from '@/lib/bilete/proba-reguli';
 import { curataVerdicte, mesajRezultat } from '@/lib/bilete/proba-teste';
@@ -84,7 +84,7 @@ export async function stareProbe(cheie: string): Promise<{ ok: true; randuri: Ra
   const { azi } = ziua();
   const { data, error } = await getSupabase().from('bilete_comenzi')
     .select('id, created_at, trip_date, from_name, to_name, departure_at, passenger_name, phone, status, email, email_livrat_la, telegram_id, bilete(status)')
-    .eq('proba_fizica', true).gte('created_at', `${azi}T00:00:00+03:00`).order('created_at', { ascending: false }).limit(20);
+    .eq('proba_fizica', true).gte('created_at', chisinauDayStartIso(azi)).order('created_at', { ascending: false }).limit(20);
   if (error) return { ok: false, eroare: 'baza nu răspunde' };
   const ora = (iso: string) => new Date(iso).toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
   const randuri = ((data ?? []) as Array<StareProbaRand & { id: string; created_at: string; trip_date: string; from_name: string; to_name: string; departure_at: string; passenger_name: string; phone: string }>)

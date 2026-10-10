@@ -42,7 +42,11 @@ describe(`stres ${N}: ora plecării de la oprire`, () => {
       const ziua = iso.slice(0, 10);
       if (oprire >= pornire) expect(ziua).toBe(zi);
       else expect(ziua > zi).toBe(true);
-      expect(iso.slice(11, 16)).toBe(hhmm(oprire));
+      // Ora scrisă e ora cerută; singura excepție e golul de primăvară (03:00–03:59 nu există), mutat cu o oră (N6).
+      const peGol = iso.slice(5, 10) === '03-28' || iso.slice(5, 10) === '03-29' ? iso.slice(11, 13) === '04' && hhmm(oprire).startsWith('03') : false;
+      expect(iso.slice(11, 16)).toBe(peGol ? `04${hhmm(oprire).slice(2)}` : hhmm(oprire));
+      // Instantul se întoarce în ora locală scrisă (offset-ul e al orei, nu al zilei).
+      expect(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(t)).toBe(iso.slice(11, 16));
     }
   });
 });

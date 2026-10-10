@@ -575,7 +575,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 const Row = href ? 'a' : 'div';
                 return (
                   <Row key={routeName} {...(href ? { href } : {})} className="route-row" style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
                     padding: '9px 4px', borderBottom: '1px solid rgba(155,27,48,0.06)',
                     borderRadius: 4, transition: 'background 0.15s ease', textDecoration: 'none',
                   }}>
@@ -586,7 +586,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                       {routeName}
                     </span>
                     <span style={{
-                      fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap',
+                      fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap', textAlign: 'right',
                       fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
                     }}>
                       {r.price} LEI

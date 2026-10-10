@@ -2,13 +2,13 @@ export const dynamic = 'force-dynamic';
 
 import { catalogForExport, offersForExport } from '@/lib/piese-ops';
 import { requirePiese1C } from '@/lib/piese-access';
-import { eliberariDeExportat, mutariDeExportat } from '@/lib/piese-1c-export';
+import { eliberariDeExportat, mutariDeExportat, recepciiDeExportat } from '@/lib/piese-1c-export';
 import { getSupabase } from '@/lib/supabase';
 
 export default async function Integrare1CPage() {
   await requirePiese1C();
-  const [cat, offers, eliberari, mutari, acoperire] = await Promise.all([
-    catalogForExport(), offersForExport(), eliberariDeExportat(50), mutariDeExportat(50),
+  const [cat, offers, eliberari, mutari, recepcii, acoperire] = await Promise.all([
+    catalogForExport(), offersForExport(), eliberariDeExportat(50), mutariDeExportat(50), recepciiDeExportat(50),
     getSupabase().from('piese_1c_acoperire').select('*').then((r) => (r.data as any[]) || []),
   ]);
   const lei = (n: number) => Number(n).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -138,6 +138,58 @@ export default async function Integrare1CPage() {
           Valoarea de mai sus e doar informativă — în fișier nu pleacă. Costul îl calculează 1C din
           evidența lui, cum face și la documentele proprii; la noi, până la încărcarea stocului inițial,
           multe linii au cost zero și trimis ca atare ar duce marfa în contabilitate la valoare zero.
+        </p>
+      </div>
+
+      {/* Recepțiile: ultimul dintre cele trei documente. Cifrele de aici sunt verificate pe o
+          tranzacție care există în ambele programe — recepția noastră 505 e chiar documentul-model al
+          contabilului, cu aceleași 3600, 20% și 4500. */}
+      <div className="card">
+        <h2>Приходная накладная — recepțiile pe factură fiscală</h2>
+        <p className="muted">
+          Prețul introdus la prihod e CU TVA: documentul pleacă cu suma brută, cu taxa calculată
+          dinăuntrul ei, și cu prețul nostru de vânzare ca «СуммаРозн» — exact cum arată documentul
+          contabilului pentru aceeași marfă. Furnizorul se recunoaște după codul fiscal, nu după
+          identificator, deci un furnizor fără cod nu se poate trimite.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 70 }}>Nr.</th><th style={{ width: 100 }}>Data facturii</th>
+              <th>Furnizor</th><th style={{ width: 130 }}>Factura</th><th>Depozit</th>
+              <th style={{ width: 70 }}>Poziții</th><th style={{ width: 110 }}>Suma cu TVA</th>
+              <th style={{ width: 200 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {recepcii.map((r) => (
+              <tr key={r.id}>
+                <td>{r.id}</td>
+                <td>{r.data}</td>
+                <td>{r.furnizor ?? <span className="muted">—</span>}</td>
+                <td>{r.factura || <span className="muted">—</span>}</td>
+                <td>{r.depozit}</td>
+                <td>{r.linii}</td>
+                <td>{r.linii ? lei(r.suma) : <span className="muted">—</span>}</td>
+                <td>
+                  {r.gata ? (
+                    <a className="btn btn-primary" style={{ padding: '3px 10px', fontSize: 12 }}
+                      href={`/api/piese/1c/prihod/${r.id}`} download>
+                      ⬇ {r.trimis ? 'Descarcă din nou' : 'Descarcă pentru 1C'}
+                    </a>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12 }}>{r.motiv}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!recepcii.length && <tr><td colSpan={8} className="muted">Nicio recepție încă.</td></tr>}
+          </tbody>
+        </table>
+        <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+          Seria și numărul sunt ale facturii FISCALE, nu ale celei de expediție — la contabil ele chiar
+          diferă pentru aceeași marfă. Fără număr, documentul nu se poate trimite: n-ar avea cum să fie
+          regăsit în contabilitate.
         </p>
       </div>
 

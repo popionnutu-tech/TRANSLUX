@@ -125,3 +125,14 @@ export function escapeHtml(s: string): string {
 }
 
 export const NUME_PLATFORMA: Record<string, string> = { tiktok: 'TikTok', facebook: 'Facebook', instagram: 'Instagram' };
+
+/**
+ * Pagina Facebook a fiecărui bot (Ion, 10.10.2026: «pentru toate TLX se unește Facebook TLX, pentru toate Translux se
+ * unește Facebook Translux»). Id-urile din GET /api/uploadposts/facebook/pages (10.10): contul personal al lui Ion
+ * aduce 6 pagini (Agroprofit, Dezinfector, Translux, TLX, Bacara coffe, Ion Pop), deci pagina se dă mereu explicit —
+ * fără ea Upload-Post refuză publicarea, nu alege una. /social_pagina o poate schimba pe un topic.
+ */
+export const PAGINA_FACEBOOK: Record<BotSocial, string> = {
+  tlx: '101326344887435',
+  translux: '522481397952192',
+};

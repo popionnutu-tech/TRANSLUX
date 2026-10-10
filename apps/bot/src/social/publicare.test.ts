@@ -305,6 +305,28 @@ describe('primirea clipului', () => {
   });
 });
 
+describe('pagina Facebook pe brand (Ion, 10.10)', () => {
+  it('/lega_social pune singur pagina TLX în grupul TLX și pagina Translux în grupul Translux', async () => {
+    initSocial({ ...apiFals, sendMessage: async (_c: number, t: string) => { trimise.push(t); return { message_id: 1 }; } } as never);
+    const { initSocial: _i } = await import('./comun.js');
+    void _i;
+    fake = installMocks({
+      tables: { social_topics: [], social_bloggers: [], social_posts: [], users: [{ id: 'u1', telegram_id: 42, role: 'ADMIN', active: true }] },
+    });
+    const cmd = (chat: number, text: string) => ({ message_id: 1, chat: { id: chat, type: 'supergroup' }, message_thread_id: 7, is_topic_message: true,
+      from: { id: 42, is_bot: false, first_name: 'Ion' }, date: 0, text });
+    await trateazaMesajSocial('translux', cmd(-1001, '/lega_social translux tiktok,facebook') as never);
+    expect(fake._tables.social_topics[0]).toMatchObject({ bot: 'translux', facebook_page_id: '522481397952192' });
+    process.env.TLX_BOT_TOKEN = '1:tlx';
+    initSocial(apiFals as never);
+    await trateazaMesajSocial('tlx', cmd(-1002, '/lega_social tlx_balti tiktok,facebook,instagram') as never);
+    expect(fake._tables.social_topics.find((t) => t.bot === 'tlx')).toMatchObject({ facebook_page_id: '101326344887435' });
+    await trateazaMesajSocial('translux', cmd(-1003, '/lega_social translux_balti tiktok') as never);
+    expect(fake._tables.social_topics.find((t) => t.upload_post_user === 'translux_balti')).toMatchObject({ facebook_page_id: null });
+    delete process.env.TLX_BOT_TOKEN;
+  });
+});
+
 describe('cheile Upload-Post pe bot', () => {
   it('TLX publică cu cheia TLX, Translux cu cheia Translux; cheia comună e rezerva', async () => {
     const { cheieUploadPost } = await import('./comun.js');

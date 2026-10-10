@@ -1,7 +1,7 @@
 import type { Api } from 'grammy';
 import type { CallbackQuery, InlineKeyboardMarkup, Message } from 'grammy/types';
 import {
-  apiBot, db, esteAdmin, esteBlogger, escapeHtml, NUME_PLATFORMA, publicareReala, tokenBot, topicDupaId, topicDupaLoc,
+  apiBot, db, esteAdmin, PAGINA_FACEBOOK, esteBlogger, escapeHtml, NUME_PLATFORMA, publicareReala, tokenBot, topicDupaId, topicDupaLoc,
   type BotSocial, type Postare, type Topic,
 } from './comun.js';
 import { formatLoc, minuteDinOra, urmatorulLoc } from './calendar.js';
@@ -165,6 +165,8 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
     }
     const { error } = await db().from('social_topics').upsert({
       bot, chat_id: msg.chat.id, thread_id: thread, nume, upload_post_user: profil, platforme, decalaj_min: decalaj,
+      // Pagina Facebook a brandului se pune singură (o schimbare făcută cu /social_pagina rămâne).
+      facebook_page_id: platforme.includes('facebook') ? (topic?.facebook_page_id ?? PAGINA_FACEBOOK[bot]) : null,
       activ: true, updated_at: new Date().toISOString(),
     }, { onConflict: 'chat_id,thread_id' });
     if (error) { console.error('social lega:', error.message); await r('Nu am putut lega topicul. Încercați din nou peste un minut.'); return true; }

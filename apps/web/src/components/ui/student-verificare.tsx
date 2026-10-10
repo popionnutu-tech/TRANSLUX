@@ -12,7 +12,7 @@ const TXT = {
   ro: {
     titlu: "Verificarea de student", sub: "Pasul 1 din 2 · apoi alegi cursa",
     nume: "Nume", prenume: "Prenume", telefon: "Telefon", telNota: "Aceleași date le vei avea pe bilet.",
-    carnet: "Carnetul de student", act: "Buletinul sau pașaportul", fa: "Fă poza", refa: "Refă poza",
+    carnet: "Carnetul de student", act: "Buletinul sau pașaportul", fa: "Fă poza", refa: "Poza e gata · refă",
     nota: "Poze reale, la lumină, nu capturi de ecran. Numele trebuie să fie ca pe carnet.",
     acord: "Sunt de acord ca TRANSLUX să prelucreze pozele actelor pentru verificarea reducerii (inclusiv compararea fețelor, prin serviciul Anthropic). Poza actului se șterge după verificare, restul în 90 de zile.",
     verifica: "Verifică actele", seVerifica: "Se verifică…", ok: "Carnet verificat: −20%", continua: "Alege cursa →",
@@ -24,7 +24,7 @@ const TXT = {
   ru: {
     titlu: "Проверка студента", sub: "Шаг 1 из 2 · затем выбор рейса",
     nume: "Фамилия", prenume: "Имя", telefon: "Телефон", telNota: "Эти же данные будут на билете.",
-    carnet: "Студенческий билет", act: "Удостоверение или паспорт", fa: "Сделать фото", refa: "Переснять",
+    carnet: "Студенческий билет", act: "Удостоверение или паспорт", fa: "Сделать фото", refa: "Фото готово · переснять",
     nota: "Реальные фото при свете, не скриншоты. Имя должно совпадать со студенческим.",
     acord: "Я согласен(на), что TRANSLUX обработает фото документов для проверки скидки (включая сравнение лиц, через сервис Anthropic). Фото документа удаляется после проверки, остальное — через 90 дней.",
     verifica: "Проверить документы", seVerifica: "Проверяем…", ok: "Студенческий проверен: −20%", continua: "Выбрать рейс →",
@@ -129,24 +129,24 @@ const CSS = `
 .sv-cap{display:flex;align-items:center;gap:14px;padding-right:40px}
 .sv-pct{flex:none;font-size:26px;font-weight:800;line-height:1;padding:12px;border-radius:16px;background:#EAF1F9;color:#2E5A88}
 .sv-cap h2{margin:0;font-size:20px;font-weight:800}
-.sv-cap p{margin:2px 0 0;font-size:13.5px;color:#7A6A6E}
+.sv-cap p{margin:2px 0 0;font-size:15px;color:#4A3E41}
 .sv-corp{display:flex;flex-direction:column;gap:12px;margin-top:16px}
-.sv-corp label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:#6B5B5F;min-width:0}
-.sv-corp input:not([type=checkbox]):not([type=file]){height:46px;padding:0 12px;border-radius:12px;border:1.5px solid #E6DADC;font-size:16px;font-family:inherit;color:#231A1C;background:#fff;min-width:0}
-.sv-corp small{font-weight:400;font-size:12px;color:#8A7A7D}
+.sv-corp label{display:flex;flex-direction:column;gap:5px;font-size:15px;font-weight:700;color:#231A1C;min-width:0}
+.sv-corp input:not([type=checkbox]):not([type=file]){height:46px;padding:0 12px;border-radius:12px;border:1.5px solid #E6DADC;font-size:17px;font-family:inherit;color:#231A1C;background:#fff;min-width:0;height:50px!important}
+.sv-corp small{font-weight:400;font-size:13.5px;color:#4A3E41}
 .sv-doua{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.sv-poza{position:relative;border:1.5px dashed #C9B4BA;border-radius:14px;padding:12px 10px;align-items:center;text-align:center;cursor:pointer;background:#FBF8F8}
+.sv-poza{position:relative;border:1.5px dashed #B99AA2;border-radius:14px;padding:14px 10px;align-items:center;text-align:center;cursor:pointer;background:#FBF8F8}
 .sv-poza.are{border-style:solid;border-color:#2B6B3A;background:#F1F8F2}
 .sv-poza input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.sv-poza-t{font-size:12.5px;color:#4A3E41}
-.sv-poza-b{font-size:14px;font-weight:800;color:#9B1B30}
+.sv-poza-t{font-size:15px;font-weight:700;color:#231A1C}
+.sv-poza-b{font-size:16px;font-weight:800;color:#9B1B30}
 .sv-poza.are .sv-poza-b{color:#2B6B3A}
-.sv-nota{margin:0;font-size:12.5px;color:#6B5B5F;line-height:1.4}
-.sv-acord{flex-direction:row!important;align-items:flex-start;gap:8px!important;font-weight:400!important;font-size:12px!important;line-height:1.4;color:#4A3E41!important}
-.sv-acord input{width:20px;height:20px;margin:0;flex:none;accent-color:#9B1B30}
-.sv-mesaj{margin:0;font-size:14px;font-weight:700;color:#9B1B30}
-.sv-buton{width:100%;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px inherit;font-family:inherit;cursor:pointer;box-shadow:0 10px 22px rgba(155,27,48,.22)}
-.sv-buton:disabled{background:#E9DFE1;color:#A8979B;box-shadow:none;cursor:default}
+.sv-nota{margin:0;font-size:15px;color:#231A1C;line-height:1.5}
+.sv-acord{flex-direction:row!important;align-items:flex-start;gap:8px!important;font-weight:400!important;font-size:14px!important;line-height:1.45;color:#231A1C!important}
+.sv-acord input{width:24px;height:24px;margin:0;flex:none;accent-color:#9B1B30}
+.sv-mesaj{margin:0;font-size:16px;font-weight:700;color:#9B1B30}
+.sv-buton{width:100%;min-height:56px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 17px inherit;font-family:inherit;cursor:pointer;box-shadow:0 10px 22px rgba(155,27,48,.22)}
+.sv-buton:disabled{background:#E3D6D9;color:#7A6A6E;box-shadow:none;cursor:default}
 .sv-ok{display:flex;flex-direction:column;gap:14px;margin-top:18px}
 .sv-ok p{margin:0;font-size:17px;font-weight:800;color:#2B6B3A;background:#F1F8F2;border-radius:14px;padding:14px;text-align:center}
 .sv-x:focus-visible,.sv-buton:focus-visible{outline:2px solid #9B1B30;outline-offset:2px}

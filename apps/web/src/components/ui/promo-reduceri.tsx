@@ -16,7 +16,7 @@ const TXT = {
     titlu: "Reduceri −20%", nimic: "Fără reducere", retur: "Am bilet tur (cumpăr returul)", student: "Sunt student (universitate sau colegiu)",
     cod: "Codul de retur de pe biletul tur", aplica: "Aplică",
     studentNota: "Fotografiază carnetul de student și pașaportul sau buletinul (poze reale, nu capturi de ecran). Numele trebuie să fie același ca în formular. Reducerea e pentru un singur loc; arăți carnetul șoferului la urcare.",
-    carnet: "Carnetul de student", act: "Pașaportul sau buletinul", alege: "Fă poza",
+    carnet: "Carnetul de student", act: "Pașaportul sau buletinul", alege: "Fă poza", refa: "Poza e gata · refă",
     acord: "Sunt de acord ca TRANSLUX să prelucreze pozele actelor pentru verificarea reducerii (inclusiv compararea fețelor, prin serviciul Anthropic). Poza actului se șterge după verificare, restul în 90 de zile.",
     verifica: "Verifică", seVerifica: "Se verifică…", ok: "Carnet verificat: −20%", unLoc: "Reducerea de student e pentru 1 loc.",
     neclar: "Poza nu se citește bine. Fă o poză mai clară, la lumină, fără reflexii.",
@@ -28,7 +28,7 @@ const TXT = {
     titlu: "Скидки −20%", nimic: "Без скидки", retur: "У меня есть билет туда (покупаю обратный)", student: "Я студент (университет или колледж)",
     cod: "Код обратного билета с билета туда", aplica: "Применить",
     studentNota: "Сфотографируйте студенческий билет и паспорт или удостоверение (реальные фото, не скриншоты). Имя должно совпадать с формой. Скидка — на одно место; студенческий покажите водителю при посадке.",
-    carnet: "Студенческий билет", act: "Паспорт или удостоверение", alege: "Сделать фото",
+    carnet: "Студенческий билет", act: "Паспорт или удостоверение", alege: "Сделать фото", refa: "Фото готово · переснять",
     acord: "Я согласен(на), что TRANSLUX обработает фото документов для проверки скидки (включая сравнение лиц, через сервис Anthropic). Фото документа удаляется после проверки, остальное — через 90 дней.",
     verifica: "Проверить", seVerifica: "Проверяем…", ok: "Студенческий проверен: −20%", unLoc: "Студенческая скидка — на 1 место.",
     neclar: "Фото плохо читается. Сделайте более чёткое фото, при свете, без бликов.",
@@ -141,9 +141,15 @@ export function PromoReduceri(p: {
     </label>
   );
   const btn: React.CSSProperties = { minHeight: 44, padding: "0 14px", borderRadius: 10, border: `1.5px solid ${RED}`, background: "#fff", color: RED, fontWeight: 700, fontSize: 15, cursor: "pointer" };
+  // Ion, 10.10: «va fi greu de înțeles pentru student care nu înțelege EN, plus șriftul e slab» — butonul nativ al
+  // fișierului scrie «Choose File / No file chosen»; acum e un buton al nostru, mare, în limba paginii.
   const fisier = (k: "carnet" | "act", t: string) => (
-    <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 700, color: "#6B5B5F" }}>{t}
-      <input type="file" accept="image/*" capture="environment" onChange={(e) => setPoze((x) => ({ ...x, [k]: e.target.files?.[0] ?? null }))} style={{ fontSize: 14 }} />
+    <label style={{ position: "relative", display: "grid", gap: 4, padding: "12px 14px", borderRadius: 12, cursor: "pointer",
+      border: poze[k] ? "1.5px solid #2B6B3A" : "1.5px dashed #B99AA2", background: poze[k] ? "#F1F8F2" : "#FBF8F8" }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: "#231A1C" }}>{t}</span>
+      <span style={{ fontSize: 16, fontWeight: 800, color: poze[k] ? "#2B6B3A" : RED }}>{poze[k] ? `✓ ${tx.refa}` : `📷 ${tx.alege}`}</span>
+      <input type="file" accept="image/*" capture="environment" onChange={(e) => setPoze((x) => ({ ...x, [k]: e.target.files?.[0] ?? null }))}
+        style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
     </label>
   );
 
@@ -165,10 +171,10 @@ export function PromoReduceri(p: {
       {!p.faraStudent && opt("student", tx.student)}
       {!p.faraStudent && mod === "student" && !jeton && (
         <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ fontSize: 13, color: "#4A3E41", lineHeight: 1.45 }}>{tx.studentNota}</div>
+          <div style={{ fontSize: 15, color: "#231A1C", lineHeight: 1.5 }}>{tx.studentNota}</div>
           {fisier("carnet", tx.carnet)}
           {fisier("act", tx.act)}
-          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "#4A3E41", lineHeight: 1.4 }}>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, color: "#231A1C", lineHeight: 1.45 }}>
             <input type="checkbox" checked={acord} onChange={(e) => setAcord(e.target.checked)} style={{ accentColor: RED, width: 20, height: 20, margin: 0, flexShrink: 0 }} />
             <span>{tx.acord}</span>
           </label>

@@ -75,7 +75,7 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   // «anulează și returul»; botul nu promite o sumă pe care banca n-ar primi-o.
   const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', c.id).eq('status', 'platita');
   if ((retururi ?? 0) > 0) {
-    await alerta(c.id, telegramId, 'returnare cerută pe un tur cu retur −20% plătit: dispecerul alege «doar turul» (−reducerea) sau «anulează și returul»');
+    await alerta(c.id, telegramId, 'returnare cerută pe un tur cu retur −20% (în tur-retur plătit o dată: doar ambele, până la plecarea turului; altfel «doar turul» − reducerea sau «anulează și returul»)');
     return { ok: true, tip: 'dispecer', motiv: 'blocat' };
   }
 

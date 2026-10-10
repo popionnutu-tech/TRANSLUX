@@ -142,7 +142,7 @@ END $$;
 
 CREATE OR REPLACE FUNCTION public.bilete_marcheaza_platita(p_checkout_id uuid) RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' SET statement_timeout TO '5s' AS $$
-DECLARE c bilete_comenzi; m maib_checkouts; i int; v_id uuid; v_alerta text; rt bilete_comenzi; v_alerta_rt text;
+DECLARE c bilete_comenzi; m maib_checkouts; i int; v_id uuid; v_alerta text; rt bilete_comenzi; v_alerta_rt text; v_suma numeric;
 BEGIN
   SELECT * INTO m FROM maib_checkouts WHERE checkout_id = p_checkout_id;
   IF NOT FOUND THEN RETURN 0; END IF;
@@ -169,8 +169,10 @@ BEGIN
   -- 548: returul din pachet (aceeași plată): rândul lui, sub același lacăt al perechii, după tur.
   SELECT * INTO rt FROM bilete_comenzi WHERE comanda_tur_id = c.id AND in_pachet
      AND status IN ('noua', 'eroare_creare', 'expirata') ORDER BY created_at LIMIT 1 FOR UPDATE;
-  IF m.amount <> c.total + coalesce(rt.total, 0) THEN
-    INSERT INTO bilete_alerte (comanda_id, tip, detalii) VALUES (c.id, 'suma_nepotrivita', format('maib %s ≠ comanda %s', m.amount, c.total + coalesce(rt.total, 0)));
+  -- Suma pachetului din TOATE rândurile lui (orice stare): un callback repetat după plată nu dă «sumă nepotrivită».
+  v_suma := c.total + coalesce((SELECT sum(total) FROM bilete_comenzi WHERE comanda_tur_id = c.id AND in_pachet), 0);
+  IF m.amount <> v_suma THEN
+    INSERT INTO bilete_alerte (comanda_id, tip, detalii) VALUES (c.id, 'suma_nepotrivita', format('maib %s ≠ comanda %s', m.amount, v_suma));
     RETURN 0;
   END IF;
   -- Plata trebuie să fie executată și neatinsă de refund: altfel s-ar emite bilete valide pe bani deja returnați.
@@ -249,6 +251,7 @@ BEGIN
 
   UPDATE bilete_comenzi SET status = 'platita', updated_at = now(),
          cod_retur = CASE WHEN promo_pereche AND comanda_tur_id IS NULL AND NOT proba_fizica
+                           AND NOT EXISTS (SELECT 1 FROM bilete_comenzi x WHERE x.comanda_tur_id = p_id AND x.in_pachet)
                           THEN coalesce(cod_retur, replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')) ELSE cod_retur END
    WHERE id = p_id;
   FOR i IN 1..c.seats LOOP
@@ -268,7 +271,7 @@ BEGIN
   SELECT * INTO c FROM bilete_comenzi WHERE id = p_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'COMANDA_INEXISTENTA' USING ERRCODE = 'P0001'; END IF;
   IF c.status <> 'anulata' THEN RETURN c; END IF;
-  IF c.in_pachet THEN RAISE EXCEPTION 'PACHET_DIN_TUR' USING ERRCODE = 'P0001'; END IF;
+  -- (returul din pachet anulat singur, «vina noastră», se reactivează singur; checkout-ul e pe tur)
   IF c.checkout_id IS NOT NULL THEN
     SELECT * INTO m FROM maib_checkouts WHERE checkout_id = c.checkout_id;
     IF FOUND AND (m.refund_id IS NOT NULL OR coalesce(m.refunded_amount, 0) <> 0) THEN
@@ -279,8 +282,9 @@ BEGIN
   -- 548: returul din pachet (același refund refuzat) revine odată cu turul.
   UPDATE bilete SET status = 'valid' WHERE status = 'anulat' AND comanda_id IN
     (SELECT id FROM bilete_comenzi WHERE comanda_tur_id = p_id AND in_pachet AND status = 'anulata');
-  UPDATE bilete_comenzi SET status = 'platita', cancelled_at = NULL, cancel_source = NULL, refund_reason = NULL, updated_at = now()
-   WHERE comanda_tur_id = p_id AND in_pachet AND status = 'anulata';
+  UPDATE bilete_comenzi b SET status = CASE WHEN EXISTS (SELECT 1 FROM bilete x WHERE x.comanda_id = b.id) THEN 'platita' ELSE 'platita_fara_bilet' END,
+         cancelled_at = NULL, cancel_source = NULL, refund_reason = NULL, updated_at = now()
+   WHERE b.comanda_tur_id = p_id AND b.in_pachet AND b.status = 'anulata';
   UPDATE bilete_comenzi
      SET status = 'platita', cancelled_at = NULL, cancel_source = NULL, refund_reason = NULL, scazut_la_refund = 0, updated_at = now()
    WHERE id = p_id
@@ -310,7 +314,8 @@ BEGIN
   END IF;
   IF c.status NOT IN ('platita', 'platita_fara_bilet') THEN RAISE EXCEPTION 'STARE_%', upper(c.status) USING ERRCODE = 'P0001'; END IF;
   -- 548: tur-returul plătit o dată se anulează doar împreună, din tur.
-  IF c.in_pachet THEN RAISE EXCEPTION 'PACHET_DOAR_IMPREUNA' USING ERRCODE = 'P0001'; END IF;
+  -- Excepția: cursa de retur anulată de firmă (sursa «sistem» sau dispecerul cu «vina noastră») — returul singur.
+  IF c.in_pachet AND NOT (coalesce(p_vina_noastra, false) OR p_sursa = 'sistem') THEN RAISE EXCEPTION 'PACHET_DOAR_IMPREUNA' USING ERRCODE = 'P0001'; END IF;
   SELECT count(*) INTO n FROM bilete WHERE comanda_id = p_id AND status = 'urcat';
   IF n > 0 THEN RAISE EXCEPTION 'BILET_URCAT' USING ERRCODE = 'P0001'; END IF;
   IF p_grila > c.total THEN RAISE EXCEPTION 'GRILA_PESTE_TOTAL' USING ERRCODE = 'P0001'; END IF;
@@ -396,6 +401,16 @@ BEGIN
     PERFORM bilete_anuleaza(ret.id, 'admin', 'probă', 120, false, false, NULL);
     RAISE EXCEPTION 'P548: returul din pachet s-a anulat singur';
   EXCEPTION WHEN OTHERS THEN IF SQLERRM <> 'PACHET_DOAR_IMPREUNA' THEN RAISE; END IF; END;
+  -- callback repetat după plată: nicio alertă nouă de sumă (audit M1)
+  PERFORM bilete_marcheaza_platita(ck);
+  SELECT count(*) INTO n FROM bilete_alerte WHERE comanda_id = tur.id AND tip = 'suma_nepotrivita';
+  IF n <> 1 THEN RAISE EXCEPTION 'P548: alerte de sumă după plată: %', n; END IF;
+  -- returul anulat de firmă: singur, cu «vina noastră» (audit H2); apoi reactivat (refuzul băncii)
+  r := bilete_anuleaza(ret.id, 'admin', 'cursa de retur anulată', 120, true, false, NULL);
+  IF jsonb_array_length(r) <> 1 OR (r->0->>'suma')::numeric <> 120 THEN RAISE EXCEPTION 'P548: retur singur (%)', r; END IF;
+  PERFORM bilete_reactiveaza(ret.id);
+  SELECT * INTO ret FROM bilete_comenzi WHERE id = ret.id;
+  IF ret.status <> 'platita' THEN RAISE EXCEPTION 'P548: reactivarea returului: %', ret.status; END IF;
   r := bilete_anuleaza(tur.id, 'admin', 'probă', 150, false, false, NULL);
   IF jsonb_array_length(r) <> 2 OR (r->1->>'suma')::numeric <> 120 THEN RAISE EXCEPTION 'P548: anularea pachetului (%)', r; END IF;
   RAISE EXCEPTION 'PROBA548_OK';

@@ -95,7 +95,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null; dataRetur?: string | null;
 }) {
   const tx = TXT[locale];
-  const [key] = React.useState(uuid);
+  const [key, setKey] = React.useState(uuid);
   const [seats, setSeats] = React.useState(1);
   const [punct, setPunct] = React.useState<number | null>(null);
   const ales = trip.puncte?.find((p) => p.id === punct) ?? null;
@@ -156,7 +156,14 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const numeComplet = `${camp.lastName.trim()} ${camp.firstName.trim()}`.trim();
   // 547: returul ales acum se plătește imediat după tur (pagina biletului); planul stă în sessionStorage.
   const [retur, setRetur] = React.useState<ReturAles | null>(null);
-  const [cheieRetur] = React.useState(uuid);
+  const [cheieRetur, setCheieRetur] = React.useState(uuid);
+  // Altă alegere de retur = altă comandă (altă sumă la bancă): chei noi, ca o încercare veche să nu fie refolosită.
+  const alegereRetur = retur ? `${retur.trip.trip_date}|${retur.trip.crm_route_id}|${retur.trip.time}` : "";
+  const primaAlegere = React.useRef(true);
+  React.useEffect(() => {
+    if (primaAlegere.current) { primaAlegere.current = false; return; }
+    setKey(uuid()); setCheieRetur(uuid());
+  }, [alegereRetur]);
 
   const locuriIncomplete = hartaActiva && alese.length !== seats;
 

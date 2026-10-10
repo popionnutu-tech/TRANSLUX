@@ -375,6 +375,11 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       throw new ComandaError('idempotenta', 'aceeași cheie, altă reducere');
     }
     if (input.retur) await asiguraReturPachet(comanda, input, opt);
+    else {
+      // Audit H1: returul scos din formular după o încercare eșuată → sesiunea ar cere și returul. Comandă nouă.
+      const { count } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', comanda.id).eq('in_pachet', true).in('status', [...DESCHISE]);
+      if ((count ?? 0) > 0) throw new ComandaError('idempotenta', 'comanda are deja un retur; reîncarcă pagina ca să cumperi fără retur');
+    }
     return await asiguraSesiunea(comanda, opt);
   }
 
@@ -393,7 +398,14 @@ async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: 
   const { data: exist, error: eX } = await db.from('bilete_comenzi').select('*').eq('comanda_tur_id', tur.id).eq('in_pachet', true)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (eX) throw new Error(`bilete_comenzi (pachet): ${eX.message}`);
-  if (exist && DESCHISE.has((exist as BileteComanda).status)) return exist as BileteComanda;
+  if (exist && DESCHISE.has((exist as BileteComanda).status)) {
+    const e = exist as BileteComanda;
+    // Audit M2: altă zi / altă cursă a returului pe aceeași comandă → nu plătim returul vechi.
+    if (e.trip_date !== r.tripDate || e.crm_route_id !== Number(r.crmRouteId) || e.going_north !== (r.goingNorth === true)) {
+      throw new ComandaError('idempotenta', 'returul ales s-a schimbat; reîncarcă pagina');
+    }
+    return e;
+  }
   if (tur.checkout_id || !DESCHISE.has(tur.status)) throw new ComandaError('validare', 'turul e deja în plată; returul −20% se adaugă doar la cumpărarea turului');
   if (opt.mod === 'proba') throw new ComandaError('validare', 'tur-returul nu merge pe comanda de probă');
   if (tur.reducere_tip) throw new ComandaError('validare', 'reducerile nu se cumulează: tur-returul e fără reducerea de student');
@@ -681,6 +693,11 @@ async function recupereazaSesiunea(comanda: BileteComanda, opt: ComandaOptiuni):
   if (!gasit) return null;
   const s = (gasit.status ?? '').toLowerCase();
   if (['expired', 'cancelled', 'failed', 'abandoned'].includes(s)) return null;
+  // Audit H1 (548): sesiunea veche cu altă sumă decât comanda de acum (returul adăugat/scos) nu se refolosește — banii
+  // ar ajunge fără bilete. Una neplătită cere comandă nouă; una plătită se leagă (callback-ul alertează suma).
+  if (s !== 'completed' && Math.abs(Number(gasit.amount) - (await sumaDePlata(comanda))) >= 0.005) {
+    throw new ComandaError('idempotenta', 'suma s-a schimbat față de încercarea de plată de dinainte; reîncarcă pagina');
+  }
   const legat = await scrieSiLeaga(comanda.id, { checkoutId: gasit.id, checkoutUrl: gasit.url ?? null, amount: Number(gasit.amount), description: descriereDin(comanda) }, opt);
   if (!legat.ok) return legat.platita ? { comanda: { ...comanda, status: 'platita' }, checkoutUrl: gasit.url ?? '' } : null;
   if (s === 'completed') {

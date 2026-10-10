@@ -76,7 +76,9 @@ export async function anuleazaSiReturneaza(
   }
   // 548: tur-returul plătit o dată (Ion, 10.10: «poate să facă returul doar până a începe cursa la tur») — se anulează doar
   // din tur, ambele bilete, într-un singur refund, până la plecarea turului; după, doar dispecerul cu «vina noastră».
-  if (inainte.in_pachet) throw new ComandaError('inchis', 'biletul de retur din tur-retur se anulează doar împreună cu turul, din biletul tur');
+  // Excepția (audit H2): cursa de retur anulată de firmă — returul singur, refund parțial pe plata turului.
+  const returSingur = inainte.in_pachet === true && (opt.sursa === 'sistem' || (opt.sursa === 'admin' && opt.vinaNoastra === true));
+  if (inainte.in_pachet && !returSingur) throw new ComandaError('inchis', 'biletul de retur din tur-retur se anulează doar împreună cu turul, din biletul tur (sau cu «vina noastră»)');
   const { data: rp } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', comandaId).eq('in_pachet', true)
     .in('status', ['platita', 'platita_fara_bilet']).limit(1);
   const pachet = (rp || []).length > 0;
@@ -127,6 +129,10 @@ export async function anuleazaSiReturneaza(
   if (eC) throw new Error(`bilete_comenzi: ${eC.message}`);
   const comanda = c1 as BileteComanda;
   const sumaTur = Number(randuri[0]?.suma ?? grila);
+  if (returSingur) {
+    const { data: t } = await db.from('bilete_comenzi').select('checkout_id').eq('id', inainte.comanda_tur_id!).single();
+    return { ...(await returneazaBanii({ ...comanda, checkout_id: (t as { checkout_id: string | null } | null)?.checkout_id ?? null } as BileteComanda, motiv, sumaTur)), suma: sumaTur };
+  }
   // 548: pachetul are o singură plată → un singur refund, cu suma ambelor rânduri, pe sesiunea turului.
   if (pachet) {
     const sumaPachet = randuri.reduce((a, r) => a + Number(r.suma ?? 0), 0);

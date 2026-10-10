@@ -88,10 +88,11 @@ export async function finalizeazaRefund(checkoutId: string, stare: StareRefundMa
   await db.from('maib_checkouts').update(upd).eq('checkout_id', checkoutId);
 
   const { data: c } = await db.from('bilete_comenzi').select('id, status').eq('checkout_id', checkoutId).maybeSingle();
-  if (!c || c.status !== 'anulata') return { decizie, comandaId: c?.id ?? null };
-  // 548: returul din pachet (fără sesiune proprie) urmează refund-ul turului.
+  if (!c) return { decizie, comandaId: null };
+  // 548: returul din pachet (fără sesiune proprie) urmează refund-ul turului — și când doar el a fost anulat (vina noastră).
   const { data: pachet } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', c.id).eq('in_pachet', true).eq('status', 'anulata');
-  const ids = [c.id, ...((pachet || []) as { id: string }[]).map((x) => x.id)];
+  const ids = [...(c.status === 'anulata' ? [c.id] : []), ...((pachet || []) as { id: string }[]).map((x) => x.id)];
+  if (ids.length === 0) return { decizie, comandaId: c.id };
   if (decizie === 'returnata') {
     await db.from('bilete_comenzi').update({ status: 'returnata', refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() })
       .in('id', ids).eq('status', 'anulata');

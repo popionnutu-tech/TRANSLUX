@@ -7,6 +7,8 @@ import type { BusPoint, OnRoadTrip } from './bus-location';
 import { driverFirstName } from '@/lib/driver-name';
 import { searchTrips } from '@/lib/trips-search';
 import { localitiesToRo } from '@/lib/voice-locality';
+import { cursaInLocalitatileVanzarii } from '@translux/db';
+import { citesteConfigBilete } from '@/lib/bilete/comenzi';
 
 /**
  * Cine duce cursa (Ion, 23.09: «lângă oră să fie datele: șofer, mașină, număr șofer»).
@@ -31,6 +33,8 @@ export function crewOf(t: { driver: string | null; vehicle_plate: string | null;
 
 export type Card =
   | { type: 'trips'; from: string; to: string; date: string; total: number;
+      /** Direcția se vinde online → butonul «Cumpără bilet online» (căutarea site-ului, direcția gata aleasă). */
+      buy?: boolean;
       trips: (Crew & { time: string; price: number | null })[] }
   | { type: 'station'; key: Station['key']; name_ro: string; name_ru: string;
       address_ro: string; address_ru: string; maps: string; waze: string }
@@ -56,13 +60,26 @@ export async function tripsCard(input: Record<string, unknown>, result: unknown)
   if (dep) trips = trips.filter((t) => t.time.padStart(5, '0') === dep);
   if (trips.length === 0) return null;
   return {
-    type: 'trips', from: fromRo, to: toRo, date: r.date, total: trips.length,
+    type: 'trips', from: fromRo, to: toRo, date: r.date, total: trips.length, buy: await seVindeOnline(fromRo, toRo),
     trips: trips.slice(0, TRIPS_SHOWN).map((t) => ({
       time: t.time.padStart(5, '0'),
       price: t.price > 0 ? t.price : null,
       ...crewOf(t),
     })),
   };
+}
+
+/**
+ * Perechea se vinde online (steagul, plafoanele, localitățile + destinațiile, ca în panou). Ziua și cursa anume le judecă
+ * apoi căutarea site-ului, unde duce butonul. Baza căzută → fără buton.
+ */
+async function seVindeOnline(from: string, to: string): Promise<boolean> {
+  try {
+    const cfg = await citesteConfigBilete();
+    return cfg.activ && cfg.plafoaneLocalitati !== null && cursaInLocalitatileVanzarii(cfg.localitati, from, to, cfg.destinatii);
+  } catch {
+    return false;
+  }
 }
 
 export function stationCard(key: string): Card | null {

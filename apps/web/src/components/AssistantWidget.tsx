@@ -9,7 +9,8 @@
 // bază, nu de model.
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Maximize2, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Maximize2, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus, Ticket, QrCode, Undo2 } from 'lucide-react';
+import { slugify } from '@/lib/seo-paths';
 import type { Locale } from '@/lib/i18n';
 import { parseAssistantText, type Inline } from '@/lib/assistant-text';
 import type { Card, Crew } from '@/lib/assistant-cards';
@@ -39,9 +40,19 @@ const TEXT = {
       { key: 'complaint', title: 'Reclamație', sub: 'Șofer, mașină, site', ask: 'Vreau să las o reclamație' },
       { key: 'station', title: 'Stații', sub: 'Maps, Waze', ask: 'Unde e stația din Chișinău?' },
     ],
+    // Ion, 10.10.2026: «pune una din principale la asistent biletul meu» · «tot ce e legat de cumpărare bilet, bilet deja
+    // cumpărat, returnare să pot face».
+    ticketsTitle: 'Bilete online',
+    tickets: [
+      { key: 'buy', title: 'Cumpără', sub: 'cu cardul', ask: 'Vreau să cumpăr un bilet online' },
+      { key: 'mine', title: 'Biletul meu', sub: 'codul QR', ask: 'Unde e biletul meu? L-am cumpărat online' },
+      { key: 'refund', title: 'Returnare', sub: 'banii înapoi', ask: 'Vreau să returnez biletul cumpărat online' },
+    ],
+    buyOnline: 'Cumpără bilet online',
     faqTitle: 'Întrebări frecvente',
-    faq: ['Pot plăti biletul online?', 'De ce a crescut prețul?'],
-    teaserChips: ['Unde e autobuzul?', 'Curse de azi', 'Am uitat ceva', 'Reclamație'],
+    faq: ['De ce a crescut prețul?'],
+    teaserChips: ['Unde e autobuzul?', 'Biletul meu', 'Cumpără bilet', 'Curse de azi', 'Reclamație'],
+    teaserAsk: { 'Biletul meu': 'Unde e biletul meu? L-am cumpărat online', 'Cumpără bilet': 'Vreau să cumpăr un bilet online' } as Record<string, string>,
     placeholder: 'Scrie o întrebare…',
     send: 'Trimite',
     minimize: 'Minimizează',
@@ -89,9 +100,17 @@ const TEXT = {
       { key: 'complaint', title: 'Жалоба', sub: 'Водитель, машина, сайт', ask: 'Хочу оставить жалобу' },
       { key: 'station', title: 'Станции', sub: 'Maps, Waze', ask: 'Где станция в Кишинёве?' },
     ],
+    ticketsTitle: 'Онлайн-билеты',
+    tickets: [
+      { key: 'buy', title: 'Купить', sub: 'картой', ask: 'Хочу купить билет онлайн' },
+      { key: 'mine', title: 'Мой билет', sub: 'QR-код', ask: 'Где мой билет? Я купил(а) его онлайн' },
+      { key: 'refund', title: 'Возврат', sub: 'деньги на карту', ask: 'Хочу вернуть билет, купленный онлайн' },
+    ],
+    buyOnline: 'Купить билет онлайн',
     faqTitle: 'Частые вопросы',
-    faq: ['Можно оплатить билет онлайн?', 'Почему выросла цена?'],
-    teaserChips: ['Где автобус?', 'Рейсы на сегодня', 'Забытая вещь', 'Жалоба'],
+    faq: ['Почему выросла цена?'],
+    teaserChips: ['Где автобус?', 'Мой билет', 'Купить билет', 'Рейсы на сегодня', 'Жалоба'],
+    teaserAsk: { 'Мой билет': 'Где мой билет? Я купил(а) его онлайн', 'Купить билет': 'Хочу купить билет онлайн' } as Record<string, string>,
     placeholder: 'Напишите вопрос…',
     send: 'Отправить',
     minimize: 'Свернуть',
@@ -226,6 +245,13 @@ function CardView({ card, i, locale, ask, busy, live = false }: { card: Card; i:
             {i.allTrips(card.total)}
           </button>
         )}
+        {card.buy ? (
+          <div style={{ padding: '10px 14px 4px' }}>
+            <a className="asst-btn-main" style={{ width: '100%' }} href={`/${locale}?dela=${slugify(card.from)}&spre=${slugify(card.to)}`}>
+              <Ticket size={17} /> {i.buyOnline}
+            </a>
+          </div>
+        ) : null}
         <div className="asst-card-hint">{i.reserveHint}</div>
       </div>
     );
@@ -376,6 +402,7 @@ function BusCardView({ card: first, i, locale, live }: { card: BusCard; i: T; lo
 }
 
 const TILE_ICONS = { trips: Clock, lost: ShoppingBag, complaint: MessageSquareWarning, station: MapPin } as const;
+const TICKET_ICONS = { buy: Ticket, mine: QrCode, refund: Undo2 } as const;
 
 /**
  * ION-204 (03.10): butonul «Întreabă asistentul» stă în pagina principală (assistant-launcher.tsx),
@@ -483,7 +510,7 @@ export default function AssistantWidget({ locale, open, onOpenChange }: { locale
           <div className="asst-chips">
             {i.teaserChips.map((c, k) => (
               <button key={c} type="button" className={`asst-chip ${k === 0 ? 'hot' : ''}`}
-                onClick={() => send(k === 0 ? i.busAsk : c)}>
+                onClick={() => send(k === 0 ? i.busAsk : i.teaserAsk[c] ?? c)}>
                 {k === 0 && <span className="asst-live-dot light" />}{c}
               </button>
             ))}
@@ -527,6 +554,21 @@ export default function AssistantWidget({ locale, open, onOpenChange }: { locale
                   </span>
                   <ChevronRight size={18} />
                 </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="asst-label">{i.ticketsTitle}</div>
+                  <div className="asst-tickets">
+                    {i.tickets.map((t) => {
+                      const Icon = TICKET_ICONS[t.key as keyof typeof TICKET_ICONS];
+                      return (
+                        <button key={t.key} type="button" className="asst-ticket" onClick={() => send(t.ask)}>
+                          <span className="asst-tile-icon"><Icon size={18} /></span>
+                          <span className="asst-tile-title">{t.title}</span>
+                          <span className="asst-tile-sub">{t.sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="asst-tiles">
                   {i.tiles.map((t) => {
                     const Icon = TILE_ICONS[t.key as keyof typeof TILE_ICONS];
@@ -622,6 +664,10 @@ const CSS = `
 .asst-hero-title{font-size:16px;font-weight:700}
 .asst-hero-sub{font-size:13px;line-height:1.4;color:#F6DCE1}
 .asst-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.asst-tickets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.asst-ticket{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;background:#fff;border:1.5px solid #E5C9CF;border-radius:14px;text-align:center;cursor:pointer;font-family:inherit;min-width:0}
+.asst-ticket:hover{border-color:${RED}}
+.asst-ticket .asst-tile-sub{max-width:100%}
 .asst-tile{display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border:1px solid #EFE6E8;border-radius:14px;text-align:left;cursor:pointer;font-family:inherit}
 .asst-tile:hover{border-color:#D9C7CB}
 .asst-tile-icon{width:34px;height:34px;flex-shrink:0;border-radius:10px;background:#F4E8EA;color:${RED};display:flex;align-items:center;justify-content:center}

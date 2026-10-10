@@ -288,12 +288,19 @@ export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; loca
     return gata.current;
   }, [locuri]);
   React.useEffect(() => { const t = setTimeout(() => { void fa().catch(() => undefined); }, 800); return () => clearTimeout(t); }, [fa]);
+  // Pe telefon poza se arată pe ecran și se salvează ținând degetul pe ea (Ion, 10.10.2026: «în galerie nu se salvează
+  // automat, dă un fișier care trebuie ceva de făcut»): foaia de partajare lipsește în Chrome pe iPhone, iar descărcarea
+  // ajunge în «Fișiere», nu în «Poze». Apăsarea lungă pe imagine merge în orice browser. Pe calculator — descărcare.
+  const [arata, setArata] = React.useState<string[] | null>(null);
   const salveaza = async () => {
     setLucru(true);
     try {
       const files = await fa();
-      if (navigator.canShare?.({ files })) {
-        await navigator.share({ files }).catch(() => undefined);
+      if (window.matchMedia?.("(pointer: coarse)").matches) {
+        const urls = await Promise.all(files.map((fl) => new Promise<string>((ok, nu) => {
+          const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = nu; r.readAsDataURL(fl);
+        })));
+        setArata(urls);
       } else {
         for (const fl of files) {
           const a = document.createElement("a");
@@ -305,8 +312,31 @@ export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; loca
     setLucru(false);
   };
   return (
-    <button type="button" className="bilet-no-print" disabled={lucru} onClick={salveaza} style={{
-      minHeight: 48, padding: "0 12px", borderRadius: 14, border: "none", background: "#fff", color: RED, fontWeight: 800, fontSize: 15, cursor: "pointer", fontFamily: "inherit", ...stil,
-    }}>{lucru ? "…" : (ru ? "📥 В галерею" : "📥 În galerie")}</button>
+    <>
+      <button type="button" className="bilet-no-print" disabled={lucru} onClick={salveaza} style={{
+        minHeight: 48, padding: "0 12px", borderRadius: 14, border: "none", background: "#fff", color: RED, fontWeight: 800, fontSize: 15, cursor: "pointer", fontFamily: "inherit", ...stil,
+      }}>{lucru ? "…" : (ru ? "📥 В галерею" : "📥 În galerie")}</button>
+      {arata && (
+        <div role="dialog" aria-modal="true" className="bilet-no-print" style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(20,10,12,0.97)", overflowY: "auto", padding: "16px 16px 28px" }}>
+          <div style={{ maxWidth: 420, margin: "0 auto", display: "grid", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ flex: 1, color: "#fff", fontSize: 18, fontWeight: 800, lineHeight: 1.35 }}>
+                {ru ? "👆 Нажмите и держите палец на фото, затем выберите «Сохранить в Фото»" : "👆 Ține degetul apăsat pe poză, apoi alege «Salvează în Poze»"}
+              </div>
+              <button type="button" aria-label={ru ? "Закрыть" : "Închide"} onClick={() => setArata(null)} style={{
+                width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", fontSize: 22, cursor: "pointer", flexShrink: 0,
+              }}>×</button>
+            </div>
+            {arata.map((u, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={u} alt={ru ? "Билет TRANSLUX" : "Bilet TRANSLUX"} style={{ width: "100%", height: "auto", borderRadius: 18, display: "block", WebkitTouchCallout: "default" }} />
+            ))}
+            <button type="button" onClick={() => setArata(null)} style={{ minHeight: 48, borderRadius: 14, border: "none", background: "#fff", color: RED, fontWeight: 800, fontSize: 16, cursor: "pointer", fontFamily: "inherit" }}>
+              {ru ? "Готово" : "Gata"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

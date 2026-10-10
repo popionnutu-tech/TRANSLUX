@@ -18,7 +18,7 @@ import { busCard, pickCard, stationCard, tripsCard, type Card } from './cards';
 import { configPublica } from '@/lib/bilete/public';
 import { garantieLansareActiva } from '@/lib/bilete/refund';
 import { GRILA_RESTITUIRE } from '@/lib/bilete/refund-reguli';
-import { gasesteBilete } from '@/lib/bilete/sms';
+import { gasesteBileteInChat } from '@/lib/bilete/sms';
 import { confirmaAnulare, ofertaAnulare } from '@/lib/bilete/anulare-site';
 
 const LOC = 'Numele localității în română (ex. «Chișinău», «Bălți»).';
@@ -138,20 +138,23 @@ export const SITE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'gaseste_biletul',
-    description: '«Găsește biletul meu»: trimite prin SMS, pe telefonul dat, linkurile biletelor viitoare cumpărate cu el. Nu arată nimic în chat.',
+    description: 'Găsește biletele online viitoare ale clientului după telefonul din comandă + numele de pe bilet (fără linkul biletului). Întoarce biletele (ruta, plecarea, locul, linkul biletului cu codul QR) — le arăți clientului în chat. Și primul pas al anulării.',
     input_schema: {
       type: 'object',
-      properties: { phone: { type: 'string', description: 'Telefonul cu care s-a cumpărat biletul, cum l-a scris clientul.' } },
-      required: ['phone'],
+      properties: {
+        phone: { type: 'string', description: 'Telefonul cu care s-a cumpărat biletul, exact cum l-a scris clientul (069…, +373…, cu spații) — nu-l judeca tu.' },
+        nume: { type: 'string', description: 'Numele și/sau prenumele pasagerului, cum le-a scris clientul.' },
+      },
+      required: ['phone', 'nume'],
     },
   },
   {
     name: 'anuleaza_bilet',
-    description: 'Anularea biletului online cu returnarea banilor pe card. Întâi fără confirma (afli suma), apoi, după «da» clar al clientului, cu confirma = true și suma aflată. Clientul se identifică prin linkul biletului (sau codul din link) + ultimele 4 cifre ale telefonului din comandă.',
+    description: 'Anularea biletului online cu returnarea banilor pe card. Întâi fără confirma (afli suma), apoi, după «da» clar al clientului, cu confirma = true și suma aflată. Biletul: linkul lui din rezultatul gaseste_biletul (clientul se identifică acolo cu telefon + nume) sau linkul lipit de client; cifre = ultimele 4 cifre ale telefonului din comandă.',
     input_schema: {
       type: 'object',
       properties: {
-        link: { type: 'string', description: 'Linkul biletului (translux.md/ro/bilet/…) sau codul de 32 de caractere din el, exact cum l-a lipit clientul.' },
+        link: { type: 'string', description: 'Linkul biletului din rezultatul gaseste_biletul (sau cel lipit de client).' },
         cifre: { type: 'string', description: 'Ultimele 4 cifre ale telefonului din comandă.' },
         confirma: { type: 'boolean', description: 'true doar după ce clientul a văzut suma și a spus clar că vrea anularea.' },
         suma: { type: 'number', description: 'Suma aflată la pasul fără confirmare (obligatorie cu confirma = true).' },
@@ -203,13 +206,13 @@ async function bileteOnline() {
       student_ro: `Student −${cfg.promo.pct}%: comutatorul «Student» din căutare cere întâi verificarea: poza carnetului (universitate sau colegiu din Moldova, vizat pe anul universitar de acum) și a buletinului/pașaportului; verificarea e automată, în câteva secunde; un loc pe bilet; carnetul se arată șoferului. Nu se cumulează cu tur-retur.`,
     } : null,
     returnare: {
-      unde_ro: 'Biletul se anulează: pe pagina biletului («Anulează biletul»), în botul Telegram («Returnează biletul») sau aici, în chat (cu linkul biletului și ultimele 4 cifre ale telefonului). Banii se întorc pe cardul cu care s-a plătit.',
+      unde_ro: 'Biletul se anulează: pe pagina biletului («Anulează biletul»), în botul Telegram («Returnează biletul») sau aici, în chat (cu telefonul din comandă și numele de pe bilet). Banii se întorc pe cardul cu care s-a plătit.',
       garantie_lansare_activa: garantie,
       garantie_ro: garantie ? 'Acum e garanția de lansare: biletul nefolosit se returnează integral, până la 24 de ore după plecare.' : null,
       grila_ore_inainte_de_plecare: GRILA_RESTITUIRE.map((g) => ({ minim_ore: g.minOreInainte, parte: `${g.noimi}/9 din preț` })),
       sub_4_ore_ro: 'Cu mai puțin de 4 ore înainte de plecare biletul nu se mai returnează (afară de garanția de lansare).',
     },
-    gaseste_biletul_ro: 'Linkul biletului vine după plată (pagina, e-mailul, Telegram). Pierdut? «Găsește biletul meu» pe translux.md: linkurile vin prin SMS pe telefonul din comandă — sau tool-ul gaseste_biletul.',
+    gaseste_biletul_ro: 'Linkul biletului vine după plată (pagina, e-mailul, Telegram). Pierdut? Aici, în chat: telefonul din comandă + numele de pe bilet (tool-ul gaseste_biletul) — sau «Găsește biletul meu» pe translux.md.',
   };
 }
 
@@ -299,11 +302,14 @@ export async function executeSiteTool(ctx: ToolContext, name: string, input: Rec
       case 'bilete_online':
         return { result: await bileteOnline() };
       case 'gaseste_biletul': {
-        const r = await gasesteBilete(str(input.phone), ctx.ipHash ?? ctx.conversationId, ctx.locale ?? 'ro');
+        const r = await gasesteBileteInChat(str(input.phone), ctx.ipHash ?? ctx.conversationId, str(input.nume));
+        const site = (process.env.SITE_URL || 'https://translux.md').replace(/\/+$/, '');
         return { result: r.ok
-          ? { result_ro: 'Dacă pe acest număr sunt bilete viitoare, SMS-ul cu linkurile vine în câteva secunde.', result_ru: 'Если на этом номере есть будущие билеты, SMS со ссылками придёт через несколько секунд.' }
-          : r.motiv === 'neconfigurat'
-            ? { result_ro: 'Trimiterea prin SMS pornește în curând. Până atunci linkul biletului e în e-mailul de după plată și în botul Telegram, dacă l-ai salvat acolo.', result_ru: 'Отправка по SMS скоро заработает. Пока ссылка на билет есть в письме после оплаты и в Telegram-боте, если вы его сохранили.' }
+          ? (r.bilete?.length
+            ? { bilete: r.bilete.map((b) => ({ ruta: `${b.from} → ${b.to}`, plecare: b.departure_at, locuri: b.locuri, link: `${site}/${b.lang}/bilet/${b.cod}` })) }
+            : { bilete: [], result_ro: 'Pe acest telefon cu acest nume nu sunt bilete online viitoare. Verifică numărul și numele scrise la cumpărare.', result_ru: 'На этот телефон с этим именем нет будущих онлайн-билетов. Проверьте номер и имя, указанные при покупке.' })
+          : r.motiv === 'nume'
+            ? { error: 'Cere-i clientului numele sau prenumele pasagerului, cum e pe bilet.' }
             : r.motiv === 'plafon'
               ? { result_ro: 'Prea multe cereri de pe acest număr. Încearcă peste o oră.', result_ru: 'Слишком много запросов с этого номера. Попробуйте через час.' }
               : { result_ro: 'Numărul nu pare corect. Cere-i clientului telefonul cu care a cumpărat.', result_ru: 'Номер выглядит неверно. Попросите номер, с которого покупали.' } };

@@ -89,6 +89,14 @@ async function gasestePeEcran(telefon: string, ipHash: string, nume: string): Pr
   return { ok: true, bilete: await Promise.all(rows.map(biletSms)) };
 }
 
+/** Asistentul de pe site (Ion, 10.10.2026: «asistentul dă biletul în baza la nume și număr», «fără link bilet»): omul
+ *  se identifică cu telefonul + numele de pe bilet și primește biletele în chat, cu sau fără SMS; aceleași plafoane. */
+export async function gasesteBileteInChat(telefonBrut: string, ipHash: string, nume: string): Promise<RezultatGaseste> {
+  const telefon = normalizeazaTelefonPasager(telefonBrut);
+  if (!telefon) return { ok: false, motiv: 'telefon' };
+  return gasestePeEcran(telefon, ipHash, nume);
+}
+
 /** «Găsește biletul meu»: linkurile biletelor viitoare, prin SMS, doar pe acel număr. */
 export async function gasesteBilete(telefonBrut: string, ipHash: string, lang: 'ro' | 'ru', nume = ''): Promise<RezultatGaseste> {
   const telefon = normalizeazaTelefonPasager(telefonBrut);

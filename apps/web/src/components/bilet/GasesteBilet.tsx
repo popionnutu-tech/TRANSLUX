@@ -10,7 +10,7 @@ import { OPERATOR } from "@/components/legal/legal-content";
 
 const TXT = {
   ro: {
-    titlu: "Găsește biletul meu", sub: "Scrie telefonul și numele de familie cu care ai cumpărat biletul.",
+    titlu: "Găsește biletul cumpărat", sub: "Scrie telefonul și numele de familie cu care ai cumpărat biletul.",
     telefon: "Telefon", nume: "Numele de familie (ca pe bilet)", trimite: "Găsește biletele", seTrimite: "Caut…",
     gasite: "Biletele tale:", deschide: "Deschide biletul", loc: "locul",
     nimic: "Nu am găsit bilete viitoare pe acest telefon și nume. Verifică numele, așa cum l-ai scris la cumpărare.",
@@ -21,7 +21,7 @@ const TXT = {
     altfel: "Biletul e și în e-mailul de după plată (dacă l-ai lăsat) și în botul Telegram. La întrebări:", acasa: "← Pagina principală",
   },
   ru: {
-    titlu: "Найти мой билет", sub: "Укажите телефон и фамилию, с которыми покупали билет.",
+    titlu: "Найти купленный билет", sub: "Укажите телефон и фамилию, с которыми покупали билет.",
     telefon: "Телефон", nume: "Фамилия (как в билете)", trimite: "Найти билеты", seTrimite: "Ищем…",
     gasite: "Ваши билеты:", deschide: "Открыть билет", loc: "место",
     nimic: "Не нашли будущих билетов на этот телефон и фамилию. Проверьте фамилию — как при покупке.",

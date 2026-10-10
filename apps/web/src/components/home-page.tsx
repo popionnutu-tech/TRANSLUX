@@ -563,10 +563,19 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             )}
           </div>
 
-          {/* «Găsește biletul meu» (Ion, 10.10.2026; 552): linkurile biletelor prin SMS pe telefonul cumpărătorului. */}
+          {/* «Găsește biletul meu» (Ion, 10.10.2026; 552). Ion, 10.10: «omul poate să confunde găsește biletul meu cu căutarea
+              la bilet nou» — de aceea întrebarea «Ai cumpărat deja?» deasupra, iconița de bilet desenată (emoji-ul 🎫 ieșea
+              pe iPhone ca o poză «ADMIT ONE») și forma de rând-link, nu de buton ca «Acum» / «Mai târziu». */}
           <Link href={`/${locale}/biletul-meu`} className="gb-link">
-            <span aria-hidden="true">🎫</span>{locale === 'ru' ? 'Найти мой билет' : 'Găsește biletul meu'}
-            <style>{`.gb-link{margin-top:12px;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:999px;background:rgba(255,255,255,.8);border:1.5px solid rgba(155,27,48,.22);color:#9B1B30;font:700 14.5px var(--font-opensans),Open Sans,sans-serif;text-decoration:none;box-shadow:0 4px 14px rgba(155,27,48,.08)}.gb-link:hover{background:#fff}`}</style>
+            <svg className="gb-ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /><path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" />
+            </svg>
+            <span className="gb-t">
+              <small>{locale === 'ru' ? 'Уже купили билет онлайн?' : 'Ai cumpărat deja bilet online?'}</small>
+              <b>{locale === 'ru' ? 'Найти купленный билет' : 'Găsește biletul cumpărat'}</b>
+            </span>
+            <svg className="gb-sag" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            <style>{`.gb-link{margin-top:12px;display:inline-flex;align-items:center;gap:10px;padding:8px 12px 8px 14px;border-radius:14px;background:rgba(255,255,255,.72);border:1px dashed rgba(155,27,48,.35);color:#9B1B30;text-decoration:none;text-align:left;font-family:var(--font-opensans),Open Sans,sans-serif}.gb-link:hover{background:#fff}.gb-ic{flex:none;opacity:.9}.gb-t{display:flex;flex-direction:column;line-height:1.2}.gb-t small{font-size:12.5px;font-weight:600;color:#6b5a5e}.gb-t b{font-size:15px;font-weight:800}.gb-sag{flex:none;opacity:.7}`}</style>
           </Link>
 
           {/* Ofertele Bălți ⇄ Chișinău: între căutare și «Destinații populare», compacte ca să se vadă din primul ecran pe telefon. */}

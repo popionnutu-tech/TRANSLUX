@@ -24,7 +24,7 @@ const REINCARCA_HARTA_MS = 30_000;
 
 const TXT = {
   ro: {
-    titlu: "Tur-retur", pas: (n: number) => `${n} / 3`, tur: "Tur", retur: "Retur", locPlata: "Date și plata",
+    titlu: "Tur-retur", pas: (n: number) => `${n} / 3`, tur: "Tur", retur: "Retur", locPlata: "Plata", locNr: (l: string) => `loc ${l}`, laUrcare: "locul la urcare",
     locTur: "Locul la tur", locRetur: "Locul la retur", continua: "Continuă", returAles: "Retur ales", locAuto: "Locul se dă la urcare (cursa nu pleacă din Chișinău).",
     turAles: "Tur ales", schimba: "schimbă", cautaRetur: "Se caută cursele de retur…",
     zigoala: "În ziua aceasta nu sunt curse de retur cu bilet online.", altaZi: "Alege altă zi de întoarcere",
@@ -39,7 +39,7 @@ const TXT = {
     dupa: "După plată primești ambele bilete cu cod QR.", unde: "Unde urci în autobuz",
   },
   ru: {
-    titlu: "Туда и обратно", pas: (n: number) => `${n} / 3`, tur: "Туда", retur: "Обратно", locPlata: "Данные и оплата",
+    titlu: "Туда и обратно", pas: (n: number) => `${n} / 3`, tur: "Туда", retur: "Обратно", locPlata: "Оплата", locNr: (l: string) => `место ${l}`, laUrcare: "место при посадке",
     locTur: "Место туда", locRetur: "Место обратно", continua: "Продолжить", returAles: "Рейс обратно", locAuto: "Место дадут при посадке (рейс не из Кишинёва).",
     turAles: "Рейс туда", schimba: "изменить", cautaRetur: "Ищем обратные рейсы…",
     zigoala: "В этот день нет обратных рейсов с онлайн-билетом.", altaZi: "Выбрать другой день возвращения",
@@ -335,10 +335,13 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
               <section className="trf-calatorie">
                 {[{ eticheta: tx.tur, trip: tur, de: from, spre: to, harta: hartaTur, alese: aleseTur, setAlese: setAleseTur, ref: refHartaTur, red: false },
                   { eticheta: tx.retur, trip: retur, de: to, spre: from, harta: hartaRetur, alese: aleseRetur, setAlese: setAleseRetur, ref: refHartaRetur, red: true }].map((x) => (
+                  // Minimalist (Ion, 10.10: «tot pe o pagină»): fiecare drum pe două rânduri, fără cartela mare.
                   <div key={x.eticheta} className="trf-drum">
-                    <div className="trf-drum-eticheta"><b>{x.eticheta}</b><span>{x.de} → {x.spre}</span><em>{ziLunga(x.trip.trip_date, locale)}</em></div>
-                    <BiletCursa trip={{ ...x.trip, originalPrice: x.red && rezumat?.pretRetur != null ? x.trip.price : null, price: x.red && rezumat?.pretRetur != null ? rezumat.pretRetur : x.trip.price }} locale={locale} cotor="ales" fond="var(--trf-fond)" />
-                    <p className="trf-loc-ales">{x.harta?.stare === "ok" && x.alese.length ? <>{tx.locLa(x.eticheta)}: <b>{listaLocuri(x.alese)}</b></> : x.harta ? tx.hartaNu : tx.locAuto}</p>
+                    <div className="trf-drum-sus">
+                      <b className={x.red ? "ret" : ""}>{x.eticheta}</b><span>{x.de} → {x.spre}</span>
+                      <strong>{x.red && rezumat?.pretRetur != null ? <><s>{x.trip.price}</s> {rezumat.pretRetur}</> : x.trip.price} lei</strong>
+                    </div>
+                    <div className="trf-drum-jos">{ziScurta(x.trip.trip_date, locale)} · {x.trip.time} → {x.trip.arrivalTime} · {x.harta?.stare === "ok" && x.alese.length ? <b>{tx.locNr(listaLocuri(x.alese))}</b> : tx.laUrcare}</div>
                   </div>
                 ))}
               </section>
@@ -440,12 +443,16 @@ const CSS = `
 .trf-secundar{min-height:44px;padding:0 18px;border-radius:12px;border:1.5px solid ${RED};background:#fff;color:${RED};font:700 15px inherit;font-family:inherit;cursor:pointer}
 .trf-link{grid-column:1/-1;justify-self:center;background:none;border:none;color:${RED};font:700 14px inherit;font-family:inherit;cursor:pointer;padding:6px}
 .trf-plata-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.trf-calatorie{padding:18px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--trf-linie);min-width:0}
-.trf-drum{display:flex;flex-direction:column;gap:8px}
-.trf-drum-eticheta{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.trf-drum-eticheta b{font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#fff;background:${RED};border-radius:6px;padding:2px 8px}
-.trf-drum-eticheta span{font-size:16px;font-weight:800}
-.trf-drum-eticheta em{font-style:normal;font-size:14px;color:#4A3E41;text-transform:capitalize}
+.trf-calatorie{padding:14px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--trf-linie);min-width:0}
+.trf-drum{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie)}
+.trf-drum-sus{display:flex;align-items:center;gap:8px;min-width:0}
+.trf-drum-sus b{flex:none;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fff;background:${RED};border-radius:6px;padding:2px 7px}
+.trf-drum-sus b.ret{background:#C47A1C}
+.trf-drum-sus span{flex:1;min-width:0;font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trf-drum-sus strong{flex:none;font-size:15px;font-weight:800}
+.trf-drum-sus s{color:var(--trf-gri);font-weight:600;font-size:13px}
+.trf-drum-jos{font-size:13px;color:#4A3E41}
+.trf-drum-jos b{color:var(--trf-text)}
 .trf-harta{display:flex;flex-direction:column;gap:8px;padding-top:4px}
 .trf-harta-cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px;font-weight:800}
 .trf-harta-cap em{font-style:normal;font-size:13px;color:${RED}}
@@ -486,7 +493,7 @@ const CSS = `
   .trf{align-items:stretch}
   .trf-fereastra{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0}
   .trf-plata-grid{grid-template-columns:1fr}
-  .trf-calatorie{border-right:none;padding:14px}
+  .trf-calatorie{border-right:none;padding:12px 14px 4px}
   .trf-date{padding:16px 14px 12px}
   .trf-lista{grid-template-columns:1fr;padding:14px 12px 22px}
   .trf-ruta{font-size:17px}

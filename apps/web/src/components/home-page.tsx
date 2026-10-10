@@ -556,6 +556,12 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             )}
           </div>
 
+          {/* «Găsește biletul meu» (Ion, 10.10.2026; 552): linkurile biletelor prin SMS pe telefonul cumpărătorului. */}
+          <Link href={`/${locale}/biletul-meu`} className="gb-link">
+            <span aria-hidden="true">🎫</span>{locale === 'ru' ? 'Найти мой билет' : 'Găsește biletul meu'}
+            <style>{`.gb-link{margin-top:12px;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:999px;background:rgba(255,255,255,.8);border:1.5px solid rgba(155,27,48,.22);color:#9B1B30;font:700 14.5px var(--font-opensans),Open Sans,sans-serif;text-decoration:none;box-shadow:0 4px 14px rgba(155,27,48,.08)}.gb-link:hover{background:#fff}`}</style>
+          </Link>
+
           {/* Ofertele Bălți ⇄ Chișinău: între căutare și «Destinații populare», compacte ca să se vadă din primul ecran pe telefon. */}
           {!telegram && (
             <div className="of-wrap" aria-label={locale === 'ru' ? 'Скидки Бельцы ⇄ Кишинёв' : 'Reduceri Bălți ⇄ Chișinău'}>
@@ -709,6 +715,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           }}>
             <Link href={`/${locale}/confidentialitate`} style={{ color: '#777', textDecoration: 'none' }}>{i.privacy}</Link>
             <Link href={`/${locale}/cookies`} style={{ color: '#777', textDecoration: 'none' }}>{i.cookies}</Link>
+            <Link href={`/${locale}/biletul-meu`} style={{ color: '#777', textDecoration: 'none' }}>{locale === 'ru' ? 'Найти мой билет' : 'Găsește biletul meu'}</Link>
             <Link href={`/${locale}/conditii-vanzare`} style={{ color: '#777', textDecoration: 'none' }}>{i.terms}</Link>
             <button type="button" onClick={() => { if (cookie) openConsentSettings(); else setCookie('settings'); }} style={{
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',

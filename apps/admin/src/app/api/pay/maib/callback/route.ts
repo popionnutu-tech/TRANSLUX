@@ -5,6 +5,7 @@ import { verifyMaibCallback } from '@/lib/maib/signature';
 import { stareEgala } from '@/lib/maib/client';
 import { persistaCheckout } from '@/lib/maib/persist';
 import { trimiteEmailPentruCheckout } from '@/lib/bilete/email';
+import { trimiteSmsPentruCheckout } from '@/lib/bilete/sms';
 import { anuntaBotul } from '@/lib/bilete/anunta-botul';
 
 // Callback-ul maib Checkout (ION-188). Public (lib/public-paths.ts) — banca nu are sesiune la noi;
@@ -194,6 +195,8 @@ async function marcheazaBiletele(checkoutId: string, executat: boolean) {
   if (Number(data ?? 0) > 0) {
     after(() => trimiteEmailPentruCheckout(checkoutId).catch((e) => console.error('[maib/callback] e-mail:', e instanceof Error ? e.message : e)));
     after(() => anuntaBotul(checkoutId));
+    // SMS-ul cu biletul și «Găsește biletul meu» (552); fără date SMS nu pleacă nimic.
+    after(() => trimiteSmsPentruCheckout(checkoutId).catch((e) => console.error('[maib/callback] sms:', e instanceof Error ? e.message : e)));
   }
   return NextResponse.json({ ok: true, cunoscut: true, aplicat: true, bilete: Number(data ?? 0) });
 }

@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
   const db = getSupabase();
   const zi = 86_400_000;
-  const raport = { sterse_vechi: 0, acte_sterse: 0, ramase_cu_poze_vechi: 0 };
+  const raport = { sterse_vechi: 0, acte_sterse: 0, ramase_cu_poze_vechi: 0, sms_sterse: 0 };
+  // Jurnalul SMS al biletelor (552): 90 de zile, ca în politica de confidențialitate.
+  {
+    const { count } = await db.from('bilete_sms').delete({ count: 'exact' }).lt('created_at', new Date(Date.now() - 90 * zi).toISOString());
+    raport.sms_sterse = count ?? 0;
+  }
 
   // 1. > 90 de zile: toate pozele + numele
   const { data: vechi, error: e1 } = await db.from('bilete_studenti_verificari').select('id, poza_carnet, poza_act')

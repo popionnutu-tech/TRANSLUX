@@ -6,6 +6,7 @@ import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
 import { leagaSesiuneExistenta, stareSoferCursa } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
+import { smsRestante, trimiteSmsConfirmare } from './sms';
 import { alertaBilete } from './alerte-tab';
 import { ruleazaEchipajul, type RaportEchipaj } from './echipaj-job';
 import { mesajAlerte, type AlertaPentruMesaj } from './alerte-mesaj';
@@ -191,6 +192,14 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
       if (opt.dry) return;
       if ((await trimiteEmailBilet(c.id)) === 'trimis') raport.email.aplicate += 1;
     }, raport.email);
+  }
+
+  // E2. SMS-urile de confirmare rămase (552): plătite în ultimele 2 ore, fără rând în bilete_sms. Doar cu date SMS.
+  if (maiAmTimp() && !opt.dry) {
+    for (const id of await smsRestante().catch(() => [])) {
+      if (!maiAmTimp()) break;
+      await trimiteSmsConfirmare(id).catch((e) => console.error('[impacare] sms', id, e instanceof Error ? e.message : e));
+    }
   }
 
   // F. alertele la Ion (ION-207): nenotificate → un mesaj Telegram la ADMIN; marcate doar dacă mesajul a plecat.

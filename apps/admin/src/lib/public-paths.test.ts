@@ -38,6 +38,10 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/bilete/retur/admin')).toBe(false);
   });
 
+  it('«Găsește biletul meu» (552): DOAR /api/bilete/gaseste, exact', () => {
+    expect(isPublicPath('/api/bilete/gaseste')).toBe(true);
+    expect(isPublicPath('/api/bilete/gaseste/x')).toBe(false);
+  });
   it('promoțiile Bălți ⇄ Chișinău (546): DOAR /api/bilete/pret și /api/bilete/student/verifica, exacte', () => {
     expect(isPublicPath('/api/bilete/pret')).toBe(true);
     expect(isPublicPath('/api/bilete/pret/x')).toBe(false);

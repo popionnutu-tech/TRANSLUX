@@ -267,3 +267,20 @@ export async function verificaCarnetLaPanou(corp: { passengerName: string; phone
     return { verdict: ['poza_neclara', 'respins', 'refuzat'].includes(j.verdict) ? j.verdict : 'eroare', motiv: String(j.motiv ?? '') };
   } catch { return { verdict: 'eroare', motiv: 'timeout' }; }
 }
+
+export type RaspunsGaseste = { ok: true } | { ok: false; motiv: string };
+
+/** «Găsește biletul meu» (552): panoul trimite linkurile prin SMS pe acel număr. */
+export async function gasesteBileteLaPanou(corp: { phone: string; ipHash: string; lang: 'ro' | 'ru' }): Promise<RaspunsGaseste> {
+  const cheie = process.env.BILETE_API_KEY;
+  if (!cheie) return { ok: false, motiv: 'config' };
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/gaseste`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cheie}` },
+      body: JSON.stringify(corp), signal: AbortSignal.timeout(15_000), cache: 'no-store',
+    });
+    const j = await r.json().catch(() => null);
+    if (j?.ok === true) return { ok: true };
+    return { ok: false, motiv: String(j?.motiv ?? j?.eroare ?? `HTTP ${r.status}`) };
+  } catch { return { ok: false, motiv: 'timeout' }; }
+}

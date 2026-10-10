@@ -13,7 +13,7 @@ export const CHEIE_COD_RETUR = "tlx_cod_retur";
 
 const TXT = {
   ro: {
-    titlu: "Reduceri −20%", deschide: (s: boolean) => (s ? "Reduceri −20%: retur sau student" : "Reduceri −20% la retur"), nimic: "Fără reducere", retur: "Am bilet tur (cumpăr returul)", student: "Sunt student (universitate sau colegiu)",
+    titlu: "Reduceri −20%", nimic: "Fără reducere", retur: "Am bilet tur (cumpăr returul)", student: "Sunt student (universitate sau colegiu)",
     cod: "Codul de retur de pe biletul tur", aplica: "Aplică",
     studentNota: "Fotografiază carnetul de student și pașaportul sau buletinul (poze reale, nu capturi de ecran). Numele trebuie să fie același ca în formular. Reducerea e pentru un singur loc; arăți carnetul șoferului la urcare.",
     carnet: "Carnetul de student", act: "Pașaportul sau buletinul", alege: "Fă poza", refa: "Poza e gata · refă",
@@ -25,7 +25,7 @@ const TXT = {
     pret: (p: number, i: number) => `${p} lei în loc de ${i} lei pe loc`,
   },
   ru: {
-    titlu: "Скидки −20%", deschide: (s: boolean) => (s ? "Скидки −20%: обратный билет или студент" : "Скидка −20% на обратный билет"), nimic: "Без скидки", retur: "У меня есть билет туда (покупаю обратный)", student: "Я студент (университет или колледж)",
+    titlu: "Скидки −20%", nimic: "Без скидки", retur: "У меня есть билет туда (покупаю обратный)", student: "Я студент (университет или колледж)",
     cod: "Код обратного билета с билета туда", aplica: "Применить",
     studentNota: "Сфотографируйте студенческий билет и паспорт или удостоверение (реальные фото, не скриншоты). Имя должно совпадать с формой. Скидка — на одно место; студенческий покажите водителю при посадке.",
     carnet: "Студенческий билет", act: "Паспорт или удостоверение", alege: "Сделать фото", refa: "Фото готово · переснять",
@@ -43,8 +43,9 @@ export interface ReducereAleasa { pret: number | null; codRetur: string | null; 
 export function PromoReduceri(p: {
   /** Tur-retur ales (Ion, 10.10.2026: «dacă e apăsat tur-retur, student să nu se folosească»): fără opțiunea de student. */
   faraStudent?: boolean;
-  /** Pasul 2 al cumpărării (fără scroll): panoul stă pliat într-un rând până îl deschide omul. */
-  strans?: boolean;
+  /** Pasul 2 al cumpărării (Ion, 10.10.2026: «reducerile scoate de aici, ele apar la căutare»): fără alegere în formular —
+   *  studentul verificat la căutare și codul de retur de pe biletul tur se aplică singure; se vede doar prețul redus. */
+  fundal?: boolean;
   locale: "ro" | "ru"; trip: { trip_date: string; crm_route_id: number; going_north: boolean; price: number };
   fromRo: string; toRo: string; seats: number; nume: string; telefon: string; onChange: (r: ReducereAleasa) => void;
 }) {
@@ -57,7 +58,6 @@ export function PromoReduceri(p: {
   const [lucru, setLucru] = React.useState(false);
   const [poze, setPoze] = React.useState<{ carnet: File | null; act: File | null }>({ carnet: null, act: null });
   const [acord, setAcord] = React.useState(false);
-  const [deschis, setDeschis] = React.useState(false);
   // 547: returul −20% se cumpără «în același moment» (Adaugă retur / pasul 2 de pe bilet); opțiunea manuală apare doar
   // când pagina biletului tur a lăsat codul (în primele 30 de minute după plată).
   const [areCod, setAreCod] = React.useState(false);
@@ -77,6 +77,15 @@ export function PromoReduceri(p: {
     if (st) { setMod("student"); setJeton(st.jeton); }
   }, [p.faraStudent]);
   const ceruta = React.useRef("");
+  // Fără panou, codul de retur se aplică singur când sunt scrise numele și telefonul (codul e legat de persoană).
+  const cerutRetur = React.useRef("");
+  React.useEffect(() => {
+    if (!p.fundal || mod !== "retur" || !cod || !p.nume || !p.telefon) return;
+    const cheie = `${cod}|${p.nume}|${p.telefon}|${p.seats}`;
+    if (cerutRetur.current === cheie) return;
+    cerutRetur.current = cheie;
+    void cere({ codRetur: cod });
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (mod !== "student" || !jeton || p.seats !== 1 || !p.nume || !p.telefon) return;
     const cheie = `${jeton}|${p.nume}|${p.telefon}|${p.trip.crm_route_id}|${p.trip.trip_date}`;
@@ -157,13 +166,11 @@ export function PromoReduceri(p: {
   );
 
   if (p.faraStudent && !areCod) return null;
-  if (p.strans && !deschis && mod === "nimic") {
-    return (
-      <button type="button" onClick={() => setDeschis(true)} style={{ minHeight: 44, padding: "0 12px", borderRadius: 12, border: "1.5px dashed #E2D6D9",
-        background: "#fff", color: RED, fontWeight: 700, fontSize: 14, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
-        {tx.deschide(!p.faraStudent)} ›
-      </button>
-    );
+  if (p.fundal) {
+    if (mod === "nimic") return null;
+    if (pret != null) return <div aria-live="polite" style={{ fontSize: 14, fontWeight: 700, color: "#2b6b3a" }}>{mod === "student" ? tx.ok : tx.titlu} · {tx.pret(pret, p.trip.price)}</div>;
+    if (mesaj && (mod === "student" || p.nume)) return <div role="status" style={{ fontSize: 14, color: RED, fontWeight: 600 }}>{mesaj}</div>;
+    return null;
   }
   return (
     <fieldset style={{ border: "1.5px solid #E2D6D9", borderRadius: 12, padding: "10px 12px", margin: 0, display: "grid", gap: 4, minWidth: 0 }}>

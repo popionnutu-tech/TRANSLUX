@@ -397,7 +397,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             <span className="cump-mic">{tx.telNota}</span>
           </div>;
         })()}
-        {arePromo && <PromoReduceri strans={doiPasi} faraStudent={Boolean(retur)} locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
+        {arePromo && <PromoReduceri fundal faraStudent={Boolean(retur)} locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
         {!doiPasi && <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
           {tx.retur}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: "#1b6f9a", fontWeight: 600 }}>{tx.grila}</a>
         </div>}

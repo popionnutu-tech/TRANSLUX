@@ -68,6 +68,13 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
   const [vazut, setVazut] = React.useState<{ carnet: string | null; act: string | null }>({ carnet: null, act: null });
   const [detalii, setDetalii] = React.useState(false);
   const [lucru, setLucru] = React.useState(false);
+  // Ion, 10.10.2026: «în loc să se învârtească «se verifică» să fie loading bar care arată progresul în umplere și %,
+  // și pe dedesubt «se verifică»». Progresul: pozele pregătite → 15 %, apoi spre 92 % cât lucrează AI-ul (~10–15 s),
+  // 100 % la răspuns.
+  const [progres, setProgres] = React.useState(0);
+  const ceas = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const opresteCeas = () => { if (ceas.current) clearInterval(ceas.current); ceas.current = null; };
+  React.useEffect(() => opresteCeas, []);
   const [mesaj, setMesaj] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState(false);
   const inchide = React.useRef(onClose);
@@ -95,15 +102,20 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
   const verifica = async () => {
     if (!camp.telefon.trim()) { setMesaj(tx.completeaza); return; }
     if (!poze.carnet || !poze.act) return;
-    setLucru(true); setMesaj(null);
+    setLucru(true); setMesaj(null); setProgres(3);
     try {
       const [carnet, act] = await Promise.all([laJpeg(poze.carnet), laJpeg(poze.act)]);
+      setProgres(15);
+      opresteCeas();
+      ceas.current = setInterval(() => setProgres((p) => Math.min(92, p + (92 - p) * 0.045)), 200);
       // Fără nume: panoul îl ia din act și leagă jetonul de el. Apăsarea butonului, cu textul acordului alături, e acordul.
       const r = await fetch("/api/bilete/student", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: camp.telefon, carnet, act, consimtamant: true }),
       });
       const j = await r.json().catch(() => null);
+      opresteCeas(); setProgres(100);
+      await new Promise((ok) => setTimeout(ok, 350));
       if (j?.verdict === "accept" && typeof j.jeton === "string") {
         const nume = String(j.nume ?? ""), prenume = String(j.prenume ?? "");
         scrieStudent({ jeton: j.jeton, expiraLa: String(j.expiraLa), nume, prenume, telefon: camp.telefon.trim() });
@@ -113,7 +125,8 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
         setMesaj(j?.verdict === "poza_neclara" ? tx.neclar : j?.verdict === "respins" ? tx.respins : j?.verdict === "refuzat" ? tx.refuzat : tx.eroare);
       }
     } catch { setMesaj(tx.neclar); }
-    setLucru(false);
+    opresteCeas();
+    setLucru(false); setProgres(0);
   };
 
   const placa = (k: "carnet" | "act", t: string) => (
@@ -155,9 +168,19 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
             <p className="sv-sfat"><span aria-hidden="true">💡</span>{tx.sfat}</p>
 
             {mesaj && <p className="sv-mesaj" role="status">{mesaj}</p>}
-            <button type="button" className="sv-buton" disabled={!gata || lucru} onClick={verifica}>
-              {lucru && <span className="sv-roata" aria-hidden="true" />}{lucru ? tx.seVerifica : tx.verifica}
+            {lucru ? (
+              <div className="sv-progres" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progres)} aria-label={tx.seVerifica}>
+                <div className="sv-progres-r">
+                  <div className="sv-bara"><span style={{ width: `${progres}%` }} /></div>
+                  <b>{Math.round(progres)}%</b>
+                </div>
+                <p>{tx.seVerifica}</p>
+              </div>
+            ) : (
+            <button type="button" className="sv-buton" disabled={!gata} onClick={verifica}>
+              {tx.verifica}
             </button>
+            )}
             {/* Ion, 10.10: «acordul GDPR, dacă se poate — ascunde». Pozele cu fața cer acord explicit (Legea 195/2024), deci
                 nu dispare: un rând mic lângă buton (apăsarea e acordul), textul întreg la «Detalii» + politica. */}
             <div className="sv-acord">
@@ -212,6 +235,12 @@ const CSS = `
 .sv-buton{width:100%;min-height:56px;border:none;border-radius:16px;background:var(--sv-red);color:#fff;font:800 17px inherit;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 24px rgba(155,27,48,.25);transition:filter .15s}
 .sv-buton:hover{filter:brightness(1.06)}
 .sv-buton:disabled{background:#E6E2E4;color:#7A7276;box-shadow:none;cursor:default}
+.sv-progres{padding:6px 2px 2px}
+.sv-progres-r{display:flex;align-items:center;gap:12px}
+.sv-bara{flex:1;height:14px;border-radius:999px;background:#EDE7EA;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.06)}
+.sv-bara span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--sv-red),#C8384F);transition:width .25s linear}
+.sv-progres-r b{min-width:44px;text-align:right;font-size:17px;font-weight:800;color:var(--sv-red);font-variant-numeric:tabular-nums}
+.sv-progres p{margin:8px 0 0;text-align:center;font-size:15px;font-weight:600;color:#6b5a5e}
 .sv-roata{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:sv-roata .8s linear infinite}
 .sv-buton:disabled .sv-roata{border-color:rgba(0,0,0,.15);border-top-color:#7A7276}
 .sv-bifa{align-self:center;width:72px;height:72px;border-radius:50%;background:#E6F3E8;color:#2B6B3A;font-size:38px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:6px 0}

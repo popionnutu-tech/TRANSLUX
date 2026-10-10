@@ -25,7 +25,7 @@ const TXT = {
       titlu: "Studenți −20%", sub: "Pentru universitate și colegiu",
       pasi: [
         "Doar pe cursele Bălți ⇄ Chișinău, la cumpărarea biletului online, pentru un loc.",
-        "La cumpărare bifezi «Sunt student» și fotografiezi carnetul și buletinul sau pașaportul.",
+        "Alege ziua și cursa, iar la cumpărare bifează «Sunt student» și fotografiază carnetul și buletinul.",
         "Verificarea durează câteva secunde. Numele din formular trebuie să fie ca pe carnet.",
         "La urcare arăți carnetul șoferului.",
       ],
@@ -50,7 +50,7 @@ const TXT = {
       titlu: "Студентам −20%", sub: "Университет и колледж",
       pasi: [
         "Только на рейсах Бельцы ⇄ Кишинёв, при покупке билета онлайн, на одно место.",
-        "При покупке отметьте «Я студент» и сфотографируйте студенческий и паспорт или удостоверение.",
+        "Выберите день и рейс, а при покупке отметьте «Я студент» и сфотографируйте студенческий и паспорт.",
         "Проверка занимает несколько секунд. Имя в форме — как в студенческом.",
         "При посадке покажите студенческий водителю.",
       ],

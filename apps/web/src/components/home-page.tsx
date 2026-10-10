@@ -167,7 +167,6 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   };
   // Ofertele de pe prima pagină (Ion, 10.10.2026: «separat meniu între destinații populare și căutare, pe prima pagină,
   // deodată cum s-a deschis site-ul pe mobile»): un card pune Chișinău → Bălți în bară; «Tur-retur» comută și pe tur-retur.
-  const [notaStudent, setNotaStudent] = useState(false);
   // Ion, 10.10: apăsarea unei promoții deschide întâi fereastra care explică reducerea; butonul ei pune perechea în bară.
   const [explicaPromo, setExplicaPromo] = useState<'tur-retur' | 'student' | null>(null);
   const inainteDe1310 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }) < '2026-10-13';
@@ -180,7 +179,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
       pune(fromRef, 'chisinau'); pune(toRef, 'balti');
     }
     setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
-    setCuRetur(tip === 'tur-retur'); setDataRetur(null); setNotaStudent(tip === 'student');
+    setCuRetur(tip === 'tur-retur'); setDataRetur(null);
     fromRef.current?.closest('.hero-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   const verificaPerechea = () => setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
@@ -328,6 +327,20 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               {i.hero}
             </h1>
 
+            {/* Varianta B (Ion, 10.10.2026: «hai să încercăm B»): comutatorul «Doar tur | Tur-retur» stă deasupra orașelor,
+                ca la companiile aeriene; la «Tur-retur» dispar Acum / Mai târziu și rămâne un singur buton «Caută tur-retur». */}
+            {esteBalti && (
+              <div className="tr-seg-sus">
+                <div className="tr-seg" role="radiogroup" aria-label={locale === 'ru' ? 'Тип поездки' : 'Tipul călătoriei'}>
+                  <button type="button" role="radio" aria-checked={!cuRetur} className={!cuRetur ? 'on' : ''} onClick={() => { setCuRetur(false); setDataRetur(null); }}>
+                    {locale === 'ru' ? 'Только туда' : 'Doar tur'}
+                  </button>
+                  <button type="button" role="radio" aria-checked={cuRetur} className={cuRetur ? 'on' : ''} onClick={() => { setCuRetur(true); setDataRetur(null); }}>
+                    {locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'} <span className="tr-badge">−20%</span>
+                  </button>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSearch} onPointerDown={warm} onFocus={warm} className="hero-form" style={{
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
             }}>
@@ -391,7 +404,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 
               {/* Acum / Mai târziu (ION-43): omul alege direcția, apoi când pleacă.
                   «Mai târziu» deschide calendarul; ziua aleasă rulează căutarea de până acum. */}
-              <div ref={calRef} className="hero-actions" style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: 8 }}>
+              <div ref={calRef} className="hero-actions" style={{ position: 'relative', flexShrink: 0, display: esteBalti && cuRetur ? 'none' : 'flex', gap: 8 }}>
                 <button type="button" onClick={openNow} className="hero-now search-btn-3d" style={{
                   flex: '1 1 0', height: 48, borderRadius: 12, padding: '0 20px', cursor: 'pointer',
                   fontWeight: 700, fontSize: 14, fontStyle: 'italic', whiteSpace: 'nowrap',
@@ -417,14 +430,6 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 apoi un card cu cele două zile (ca pe site-urile de avion) și durata; fiecare zi deschide calendarul «Mai târziu». */}
             {esteBalti && (
               <div className="tr-wrap">
-                <div className="tr-seg" role="radiogroup" aria-label={locale === 'ru' ? 'Тип поездки' : 'Tipul călătoriei'}>
-                  <button type="button" role="radio" aria-checked={!cuRetur} className={!cuRetur ? 'on' : ''} onClick={() => { setCuRetur(false); setDataRetur(null); }}>
-                    {locale === 'ru' ? 'Только туда' : 'Doar tur'}
-                  </button>
-                  <button type="button" role="radio" aria-checked={cuRetur} className={cuRetur ? 'on' : ''} onClick={() => { setCuRetur(true); setDataRetur(null); }}>
-                    {locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'} <span className="tr-badge">−20%</span>
-                  </button>
-                </div>
                 {cuRetur && (() => {
                   const zi = (iso: string) => {
                     const d = new Date(`${iso}T12:00:00`);
@@ -469,6 +474,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 })()}
                 <style>{`
 .tr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px;font-family:var(--font-opensans),Open Sans,sans-serif}
+.tr-seg-sus{display:flex;justify-content:center;margin:0 0 12px}
 .tr-seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(155,27,48,.07);gap:4px}
 .tr-seg button{border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
 .tr-seg button.on{background:#fff;color:#6E0E14;box-shadow:0 2px 8px rgba(155,27,48,.16)}
@@ -525,11 +531,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   <small>{locale === 'ru' ? 'студенческий и паспорт, одно место, не для туда-обратно' : 'carnet și buletin, un loc, fără tur-retur'}</small>
                 </button>
               </div>
-              {notaStudent && (
-                <p className="of-nota">{locale === 'ru'
-                  ? 'Выберите день и рейс, а при покупке отметьте «Я студент» и сфотографируйте студенческий и паспорт.'
-                  : 'Alege ziua și cursa, iar la cumpărare bifează «Sunt student» și fotografiază carnetul și buletinul.'}</p>
-              )}
+              {/* Ion, 10.10: îndemnul de student trece în fereastra reducerii; aici rămâne «apasă pentru a afla mai mult». */}
+              <p className="of-mai-mult">{locale === 'ru' ? 'Нажмите на скидку, чтобы узнать больше' : 'Apasă pe o reducere pentru a afla mai mult'}</p>
               <style>{`
 .of-wrap{width:100%;max-width:720px;margin-top:14px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-opensans),Open Sans,sans-serif}
 .of-cap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 8px;font-size:13px;font-weight:600;color:#6B5B5F;text-align:center}
@@ -544,6 +547,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .of-card.st b{background:#EAF1F9;color:#2E5A88}
 .of-card span{font-size:15px;font-weight:800;color:#231A1C;align-self:end}
 .of-card small{font-size:12px;color:#7A6A6E;align-self:start;line-height:1.3}
+.of-mai-mult{margin:0;font-size:12.5px;font-weight:600;color:#8A7A7D;text-align:center}
 .of-nota{margin:0;font-size:13px;color:#2E5A88;background:rgba(234,241,249,.9);border-radius:12px;padding:9px 12px;text-align:center}
 @media (max-width:420px){.of-card{grid-template-columns:1fr;grid-template-rows:auto;row-gap:2px;padding:11px 12px}.of-card b{grid-row:auto;justify-self:start;font-size:20px;padding:5px 8px;margin-bottom:4px}}
 @media (prefers-reduced-motion:reduce){.of-card{transition:none}}

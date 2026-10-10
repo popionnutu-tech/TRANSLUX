@@ -167,6 +167,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   // Ofertele de pe prima pagină (Ion, 10.10.2026: «separat meniu între destinații populare și căutare, pe prima pagină,
   // deodată cum s-a deschis site-ul pe mobile»): un card pune Chișinău → Bălți în bară; «Tur-retur» comută și pe tur-retur.
   const [notaStudent, setNotaStudent] = useState(false);
+  const inainteDe1310 = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }) < '2026-10-13';
   const alegeOferta = (tip: 'tur-retur' | 'student') => {
     const pune = (ref: React.RefObject<HTMLSelectElement | null>, slug: string) => {
       const o = ref.current ? [...ref.current.options].find((x) => x.value && slugify(x.value) === slug) : undefined;
@@ -501,7 +502,14 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           {/* Ofertele Bălți ⇄ Chișinău: între căutare și «Destinații populare», compacte ca să se vadă din primul ecran pe telefon. */}
           {!telegram && (
             <div className="of-wrap" aria-label={locale === 'ru' ? 'Скидки Бельцы ⇄ Кишинёв' : 'Reduceri Bălți ⇄ Chișinău'}>
-              <div className="of-cap">{locale === 'ru' ? 'Скидки · Бельцы ⇄ Кишинёв' : 'Reduceri · Bălți ⇄ Chișinău'}</div>
+              {/* Ion, 10.10: «încercuiește faptul că anume la cursele Bălți–Chișinău; menționează la cumpărare bilet online». */}
+              <div className="of-cap">
+                <span>{locale === 'ru' ? 'Скидки только на рейсах' : 'Reduceri doar pe cursele'}</span>
+                <span className="of-ruta">{locale === 'ru' ? 'Бельцы ⇄ Кишинёв' : 'Bălți ⇄ Chișinău'}</span>
+                <span>{locale === 'ru' ? 'при покупке билета онлайн' : 'la cumpărarea biletului online'}</span>
+                {/* Ion, 10.10: «adaugă că din 13.10; după 13.10 să dispară asta» — doar până la prima zi de vânzare. */}
+                {inainteDe1310 && <span className="of-data">{locale === 'ru' ? 'с 13.10' : 'din 13.10'}</span>}
+              </div>
               <div className="of-grid">
                 <button type="button" className="of-card tr" onClick={() => alegeOferta('tur-retur')}>
                   <b>−20%</b>
@@ -511,7 +519,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 <button type="button" className="of-card st" onClick={() => alegeOferta('student')}>
                   <b>−20%</b>
                   <span>{locale === 'ru' ? 'Студентам' : 'Studenți'}</span>
-                  <small>{locale === 'ru' ? 'по студенческому, одно место' : 'cu carnetul, un loc'}</small>
+                  <small>{locale === 'ru' ? 'со студенческим и паспортом, одно место' : 'cu carnet și buletin, un loc'}</small>
                 </button>
               </div>
               {notaStudent && (
@@ -521,7 +529,9 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               )}
               <style>{`
 .of-wrap{width:100%;max-width:720px;margin-top:14px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-opensans),Open Sans,sans-serif}
-.of-cap{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#9B1B30;opacity:.8;text-align:center}
+.of-cap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 8px;font-size:13px;font-weight:600;color:#6B5B5F;text-align:center}
+.of-data{font-size:13px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 10px}
+.of-ruta{font-size:14px;font-weight:800;color:#9B1B30;border:2px solid #9B1B30;border-radius:999px;padding:2px 12px;background:rgba(255,255,255,.75);white-space:nowrap}
 .of-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .of-card{all:unset;box-sizing:border-box;cursor:pointer;border-radius:18px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(155,27,48,.12);box-shadow:0 6px 18px rgba(155,27,48,.07);transition:transform .15s,box-shadow .15s}
 .of-card:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(155,27,48,.12)}

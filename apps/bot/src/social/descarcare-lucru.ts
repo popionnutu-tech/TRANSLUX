@@ -15,6 +15,50 @@ import { idCanal, motivSchimbat, type CerereDescarcare, type RaspunsDescarcare }
 // pe alt DC, cu reconectare — nu comentariul de aici.
 
 const BUCATA = 512 * 1024;
+const ASTEAPTA_HASH_MS = 30_000;
+
+/**
+ * access_hash-ul supergrupului pentru acest bot. Cu 0, `channels.GetMessages` dă CHANNEL_INVALID (10.10.2026), iar un
+ * bot nu poate cere lista chaturilor. Îl află din prima actualizare a grupului care ajunge la această sesiune:
+ * sesiunea se abonează (`updates.GetState`), botul scrie prin Bot API un mesaj scurt sub clip, actualizarea lui aduce
+ * supergrupul cu access_hash, iar mesajul se șterge. Se face o dată per bot și grup; părintele ține rezultatul în
+ * memorie. Actualizările Bot API nu se pierd: fiecare sesiune a botului primește copia ei.
+ */
+async function hashCanal(tg: TelegramClient, c: CerereDescarcare): Promise<bigint> {
+  if (c.accessHash) return BigInt(c.accessHash);
+  const id = BigInt(idCanal(c.chatId));
+  const gaseste = async (): Promise<bigint | null> => {
+    try {
+      const p = await tg.getInputEntity(new Api.PeerChannel({ channelId: helpers.returnBigInt(id) }));
+      return p instanceof Api.InputPeerChannel ? BigInt(p.accessHash.toString()) : null;
+    } catch { return null; }
+  };
+  await tg.invoke(new Api.updates.GetState());
+  const bot = `https://api.telegram.org/bot${c.token}`;
+  const trimis = await fetch(`${bot}/sendMessage`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: c.chatId, text: '⏳ Pregătesc clipul pentru publicare…', disable_notification: true,
+      reply_parameters: { message_id: c.messageId, allow_sending_without_reply: true },
+    }),
+  }).then((r) => r.json() as Promise<{ ok: boolean; result?: { message_id: number } }>).catch(() => null);
+  try {
+    const pana = Date.now() + ASTEAPTA_HASH_MS;
+    while (Date.now() < pana) {
+      const h = await gaseste();
+      if (h !== null) return h;
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
+    throw new Error('nu am aflat access_hash-ul grupului (actualizarea n-a ajuns la sesiunea MTProto)');
+  } finally {
+    if (trimis?.result) {
+      await fetch(`${bot}/deleteMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: c.chatId, message_id: trimis.result.message_id }),
+      }).catch(() => {});
+    }
+  }
+}
 
 async function descarca(c: CerereDescarcare): Promise<RaspunsDescarcare> {
   const apiId = Number(process.env.TELEGRAM_API_ID);
@@ -28,18 +72,19 @@ async function descarca(c: CerereDescarcare): Promise<RaspunsDescarcare> {
       query: new Api.auth.ImportBotAuthorization({ flags: 0, apiId, apiHash, botAuthToken: c.token }),
     }) as never);
   }
+  const accessHash = await hashCanal(tg, c);
   const r = await tg.invoke(new Api.InvokeWithoutUpdates({
     query: new Api.channels.GetMessages({
-      channel: new Api.InputChannel({ channelId: helpers.returnBigInt(idCanal(c.chatId)), accessHash: helpers.returnBigInt(0) }),
+      channel: new Api.InputChannel({ channelId: helpers.returnBigInt(idCanal(c.chatId)), accessHash: helpers.returnBigInt(accessHash) }),
       id: [new Api.InputMessageID({ id: c.messageId })],
     }),
   }) as never) as unknown as Api.messages.TypeMessages;
   const msg = 'messages' in r ? r.messages.find((m): m is Api.Message => m instanceof Api.Message && m.id === c.messageId) : undefined;
-  if (!msg) return { ok: false, schimbat: true, mesaj: 'mesajul cu clipul nu mai există în topic (a fost șters)', sesiune: sesiune.save() };
+  if (!msg) return { ok: false, schimbat: true, mesaj: 'mesajul cu clipul nu mai există în topic (a fost șters)', sesiune: sesiune.save(), accessHash: accessHash.toString() };
   const doc = msg.media instanceof Api.MessageMediaDocument && msg.media.document instanceof Api.Document ? msg.media.document : null;
   const autor = msg.fromId instanceof Api.PeerUser ? Number(msg.fromId.userId) : null;
   const motiv = motivSchimbat({ autor, editat: Boolean(msg.editDate), marime: doc ? Number(doc.size) : null }, c.asteptat);
-  if (motiv || !doc) return { ok: false, schimbat: true, mesaj: motiv ?? 'mesajul nu mai conține un clip', sesiune: sesiune.save() };
+  if (motiv || !doc) return { ok: false, schimbat: true, mesaj: motiv ?? 'mesajul nu mai conține un clip', sesiune: sesiune.save(), accessHash: accessHash.toString() };
 
   await mkdir(dirname(c.cale), { recursive: true });
   const f = await open(c.cale, 'w');
@@ -55,8 +100,8 @@ async function descarca(c: CerereDescarcare): Promise<RaspunsDescarcare> {
     await f.close();
   }
   const s = await stat(c.cale);
-  if (s.size !== Number(doc.size)) return { ok: false, schimbat: false, mesaj: `descărcare incompletă: ${s.size} din ${Number(doc.size)} octeți`, sesiune: sesiune.save() };
-  return { ok: true, sesiune: sesiune.save(), dcSesiune: sesiune.dcId, dcClip: doc.dcId };
+  if (s.size !== Number(doc.size)) return { ok: false, schimbat: false, mesaj: `descărcare incompletă: ${s.size} din ${Number(doc.size)} octeți`, sesiune: sesiune.save(), accessHash: accessHash.toString() };
+  return { ok: true, sesiune: sesiune.save(), dcSesiune: sesiune.dcId, dcClip: doc.dcId, accessHash: accessHash.toString() };
 }
 
 function raspunde(r: RaspunsDescarcare): void {

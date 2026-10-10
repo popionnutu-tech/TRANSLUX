@@ -12,8 +12,8 @@ import { laJpeg, scrieStudent } from "@/lib/student-sesiune";
 
 const TXT = {
   ro: {
-    eticheta: "Reducere de student", titlu: "Arată-ne carnetul", sub: "Durează un minut. Apoi alegi cursa.",
-    pas1: "Actele", pas2: "Cursa",
+    eticheta: "Reducere de student", titlu: "Arată-ne carnetul", sub: "Durează un minut. Apoi alegi ziua.",
+    pas1: "Actele", pas2: "Ziua", pas3: "Cursa", gata: "Gata", urmeaza: "Acum alegi ziua călătoriei…",
     telefon: "Telefon", telNota: "Numele îl luăm din act; pe bilet vor fi numele și acest telefon.",
     carnet: "Carnet de student", act: "Buletin sau pașaport", fa: "Fă poza", refa: "Refă",
     sfat: "Universitate sau colegiu din Moldova, cu viza pe anul acesta. Poză reală, la lumină, fără reflexii.",
@@ -27,8 +27,8 @@ const TXT = {
     inchide: "Închide",
   },
   ru: {
-    eticheta: "Студенческая скидка", titlu: "Покажите студенческий", sub: "Займёт минуту. Затем выберете рейс.",
-    pas1: "Документы", pas2: "Рейс",
+    eticheta: "Студенческая скидка", titlu: "Покажите студенческий", sub: "Займёт минуту. Затем выберете день.",
+    pas1: "Документы", pas2: "День", pas3: "Рейс", gata: "Готово", urmeaza: "Теперь выберите день поездки…",
     telefon: "Телефон", telNota: "Имя возьмём из документа; на билете будут имя и этот телефон.",
     carnet: "Студенческий", act: "Удостоверение или паспорт", fa: "Снять фото", refa: "Переснять",
     sfat: "Университет или колледж Молдовы, продлённый на этот год. Реальное фото, при свете, без бликов.",
@@ -77,6 +77,8 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
   React.useEffect(() => opresteCeas, []);
   const [mesaj, setMesaj] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState(false);
+  const viu = React.useRef(true);
+  React.useEffect(() => () => { viu.current = false; }, []);
   const inchide = React.useRef(onClose);
   inchide.current = onClose;
   React.useEffect(() => {
@@ -121,6 +123,8 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
         scrieStudent({ jeton: j.jeton, expiraLa: String(j.expiraLa), nume, prenume, telefon: camp.telefon.trim() });
         setNumeAct(`${nume} ${prenume}`.trim());
         setOk(true);
+        // Ion, 10.10: după verificare se deschide singură «Pe când pleci?»; butonul rămâne doar dacă ceva întârzie.
+        setTimeout(() => { if (viu.current) { onGata(); onClose(); } }, 1200);
       } else {
         setMesaj(j?.verdict === "poza_neclara" ? tx.neclar : j?.verdict === "respins" ? tx.respins : j?.verdict === "refuzat" ? tx.refuzat : tx.eroare);
       }
@@ -151,12 +155,14 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
           <ol className="sv-pasi" aria-hidden="true">
             <li className="on"><b>{ok ? "✓" : "1"}</b>{tx.pas1}</li>
             <li className={ok ? "on" : ""}><b>2</b>{tx.pas2}</li>
+            <li><b>3</b>{tx.pas3}</li>
           </ol>
         </header>
 
         {ok ? (
           <div className="sv-corp">
             <div className="sv-bifa" aria-hidden="true">✓</div>
+            <p className="sv-gata"><b>{numeAct ? `${tx.gata}, ${numeAct}` : tx.gata}</b>{tx.urmeaza}</p>
             <button type="button" className="sv-buton" onClick={() => { onGata(); onClose(); }}>{tx.continua}</button>
           </div>
         ) : (
@@ -243,6 +249,7 @@ const CSS = `
 .sv-progres p{margin:8px 0 0;text-align:center;font-size:15px;font-weight:600;color:#6b5a5e}
 .sv-roata{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:sv-roata .8s linear infinite}
 .sv-buton:disabled .sv-roata{border-color:rgba(0,0,0,.15);border-top-color:#7A7276}
+.sv-gata{margin:0;text-align:center;color:var(--sv-gri);font-size:15px}.sv-gata b{display:block;color:var(--sv-text);font-size:20px;font-weight:800;margin-bottom:2px}
 .sv-bifa{align-self:center;width:72px;height:72px;border-radius:50%;background:#E6F3E8;color:#2B6B3A;font-size:38px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:6px 0}
 .sv-x:focus-visible,.sv-buton:focus-visible,.sv-detalii:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .sv-buton:focus-visible,.sv-detalii:focus-visible{outline-color:var(--sv-albastru)}

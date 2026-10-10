@@ -194,6 +194,16 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   };
 
   const openLater = () => { if (direction()) dupaStudent(() => setCalendarOpen((o) => !o)); };
+  // Ion, 10.10.2026: «cum se apasă «Student» se deschide deodată încărcarea actelor, apoi după ce s-au încărcat actele
+  // deodată apare data «pe când»». Cu jeton valabil în filă (30 min) — direct calendarul.
+  const zisStudent = () => {
+    const deschide = () => setCalendarOpen(true);
+    if (citesteStudent()) deschide(); else setVerificaStudent(() => deschide);
+  };
+  const apasaStudent = () => {
+    setCuStudent(true); setCuRetur(false); setDataRetur(null);
+    if (direction()) zisStudent();
+  };
   // Ofertele de pe prima pagină (Ion, 10.10.2026: «separat meniu între destinații populare și căutare, pe prima pagină,
   // deodată cum s-a deschis site-ul pe mobile»): un card pune Chișinău → Bălți în bară; «Tur-retur» comută și pe tur-retur.
   // Ion, 10.10: apăsarea unei promoții deschide întâi fereastra care explică reducerea; butonul ei pune perechea în bară.
@@ -388,7 +398,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   <button type="button" role="radio" aria-checked={cuRetur} className={cuRetur ? 'on' : ''} onClick={() => { setCuRetur(true); setCuStudent(false); setDataRetur(null); }}>
                     {locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'} <span className="tr-badge">−20%</span>
                   </button>
-                  <button type="button" role="radio" aria-checked={cuStudent} className={cuStudent ? 'on' : ''} onClick={() => { setCuStudent(true); setCuRetur(false); setDataRetur(null); }}>
+                  <button type="button" role="radio" aria-checked={cuStudent} className={cuStudent ? 'on' : ''} onClick={apasaStudent}>
                     {locale === 'ru' ? 'Студент' : 'Student'} <span className="tr-badge st">−20%</span>
                   </button>
                 </div>
@@ -754,7 +764,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 
       {explicaPromo && (
         <PromoExplicatie tip={explicaPromo} locale={locale} inainteDe1310={inainteDe1310}
-          onAlege={() => { alegeOferta(explicaPromo); if (explicaPromo === 'student' && !citesteStudent()) setVerificaStudent(() => () => {}); }}
+          onAlege={() => { alegeOferta(explicaPromo); if (explicaPromo === 'student') zisStudent(); }}
           onClose={() => setExplicaPromo(null)} />
       )}
       {verificaStudent && (
@@ -805,7 +815,12 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
         <div className="later-overlay" onClick={() => { setCalendarOpen(false); setCalPentru(null); }}>
           <div className="later-box" role="dialog" aria-modal="true" aria-label={i.when} onClick={(e) => e.stopPropagation()}>
             <div className="later-head">
-              <span>{calPentru === 'intoarcere' ? (locale === 'ru' ? 'Когда возвращаетесь?' : 'Când te întorci?') : i.when}</span>
+              <span>
+                {!calPentru && esteBalti && cuStudent && citesteStudent() && (
+                  <em className="later-st">✓ {locale === 'ru' ? 'Студент' : 'Student'} −20% · {fromRef.current?.selectedOptions[0]?.text} → {toRef.current?.selectedOptions[0]?.text}</em>
+                )}
+                {calPentru === 'intoarcere' ? (locale === 'ru' ? 'Когда возвращаетесь?' : 'Când te întorci?') : i.when}
+              </span>
               <button type="button" className="later-close" aria-label="✕" onClick={() => { setCalendarOpen(false); setCalPentru(null); }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
@@ -828,6 +843,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .later-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-opensans),Open Sans,sans-serif}
 .later-box{width:100%;max-width:340px;background:#fff;border-radius:24px;padding:18px;box-shadow:0 30px 80px rgba(40,10,18,.3);display:flex;flex-direction:column;gap:14px}
 .later-head{display:flex;align-items:center;justify-content:space-between;font-size:18px;font-weight:700;color:#231A1C}
+.later-st{display:table;margin:0 0 8px;font-style:normal;font-size:12.5px;font-weight:800;color:#2E7D4F;background:#E8F3EC;border-radius:999px;padding:4px 10px}
 .later-close{width:36px;height:36px;border-radius:50%;border:none;background:#F6ECEE;color:#9B1B30;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .later-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .later-quick button{height:44px;border-radius:12px;border:1.5px solid #9B1B30;background:#fff;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}

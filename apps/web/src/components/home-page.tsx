@@ -516,7 +516,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .tr-cauta{width:100%;max-width:520px;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 8px 20px rgba(155,27,48,.22);transition:filter .15s}
 .tr-cauta:hover{filter:brightness(1.06)}
 .tr-cauta span{font-size:12px;font-weight:600;opacity:.85}
-@media (max-width:420px){.tr-seg button{padding:9px 13px;font-size:13.5px}.tr-zi{padding:10px 12px}.tr-data b{font-size:26px}.tr-luna{font-size:14px}}
+@media (max-width:520px){.tr-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;box-sizing:border-box;border-radius:18px}.tr-seg button{flex-direction:column;justify-content:center;gap:3px;padding:7px 4px;font-size:13.5px;border-radius:14px;white-space:nowrap}}
+@media (max-width:420px){.tr-zi{padding:10px 12px}.tr-data b{font-size:26px}.tr-luna{font-size:14px}}
 `}</style>
               </div>
             )}

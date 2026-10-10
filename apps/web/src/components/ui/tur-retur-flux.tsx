@@ -177,11 +177,12 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   const blocat = lipsaTur > 0 || lipsaRetur > 0 || !rezumat || rezumat.pretRetur == null;
   const motiv = lipsaTur > 0 ? { t: tx.mai(lipsaTur, tx.tur), ref: refHartaTur } : lipsaRetur > 0 ? { t: tx.mai(lipsaRetur, tx.retur), ref: refHartaRetur } : null;
 
-  const titluPas = pas === 1
-    ? <><b>{tx.tur}</b><span>{from} → {to}</span><em>{tripsTur[0] ? ziLunga(tripsTur[0].trip_date, locale) : ""}</em></>
-    : pas === 2
-      ? <><b>{tx.retur}</b><span>{to} → {from}</span><em>{ziLunga(ziRetur, locale)}</em></>
-      : <><b>{tx.locPlata}</b><span>{pasageriText(pasageri, locale)}</span></>;
+  // Antet modern, un singur bloc (Ion, 10.10: «foarte arhaic»): sus sensul pasului, dedesubt ziua și pasagerii, apoi o
+  // bară subțire de progres în 3 segmente.
+  const ziTur = tripsTur[0]?.trip_date ?? tur?.trip_date ?? "";
+  const titlu = pas === 1 ? { eticheta: tx.tur, ruta: `${from} → ${to}`, sub: `${ziLunga(ziTur, locale)} · ${pasageriText(pasageri, locale)}` }
+    : pas === 2 ? { eticheta: tx.retur, ruta: `${to} → ${from}`, sub: `${ziLunga(ziRetur, locale)} · −${pct ?? 20}%` }
+    : { eticheta: tx.locPlata, ruta: `${from} ⇄ ${to}`, sub: pasageriText(pasageri, locale) };
 
   return (
     <div className="trf" role="dialog" aria-modal="true" aria-label={`${tx.titlu} · ${from} ⇄ ${to}`}>
@@ -191,16 +192,13 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
         <header className="trf-antet">
           <button type="button" className="trf-rotund" onClick={inapoi} aria-label="←">&larr;</button>
           <div className="trf-antet-text">
-            <div className="trf-titlu">{tx.titlu} · {from} ⇄ {to}</div>
-            <ol className="trf-pasi" aria-label="pași">
-              {[1, 2, 3].map((n) => <li key={n} className={n === pas ? "on" : n < pas ? "gata" : ""}>{n < pas ? "✓" : n}</li>)}
-            </ol>
+            <div className="trf-sus"><span className={`trf-eticheta ${pas === 2 ? "ret" : ""}`}>{titlu.eticheta}</span><span className="trf-ruta">{titlu.ruta}</span></div>
+            <div className="trf-sub">{titlu.sub}</div>
           </div>
           <button type="button" className="trf-rotund" onClick={onClose} aria-label="×">&times;</button>
         </header>
-        <div className={`trf-banda ${pas === 2 ? "ret" : ""}`}>
-          <small>{tx.pas(pas)}</small>{titluPas}
-          {pas < 3 && <span className="trf-pas-pax">{pasageriText(pasageri, locale)}</span>}
+        <div className="trf-progres" aria-label={tx.pas(pas)}>
+          {[1, 2, 3].map((n) => <span key={n} className={n <= pas ? "on" : ""} />)}
         </div>
 
         <div className="trf-corp">
@@ -357,21 +355,17 @@ const CSS = `
   position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:var(--trf-text)}
 .trf-fundal{position:absolute;inset:0;background:rgba(35,20,24,.38);backdrop-filter:blur(6px)}
 .trf-fereastra{position:relative;width:min(94vw,860px);max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 70px rgba(60,20,30,.2)}
-.trf-antet{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--trf-linie)}
-.trf-antet-text{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
-.trf-titlu{font-size:17px;font-weight:800;letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trf-antet{display:flex;align-items:center;gap:12px;padding:14px 16px 12px}
+.trf-antet-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.trf-sus{display:flex;align-items:center;gap:8px;min-width:0}
+.trf-eticheta{flex:none;font-size:11px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#fff;background:${RED};border-radius:6px;padding:3px 8px}
+.trf-eticheta.ret{background:#C47A1C}
+.trf-ruta{font-size:19px;font-weight:800;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trf-sub{font-size:14px;color:#6B5B5F;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trf-progres{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 16px 10px;border-bottom:1px solid var(--trf-linie)}
+.trf-progres span{height:4px;border-radius:4px;background:#EFE4E6;transition:background .25s}
+.trf-progres span.on{background:${RED}}
 .trf-rotund{width:40px;height:40px;flex:none;border-radius:50%;border:none;background:#F4EEEF;color:#6B5B5F;font-size:19px;cursor:pointer}
-.trf-pasi{display:flex;gap:6px;list-style:none;margin:0;padding:0}
-.trf-pasi li{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--trf-gri);border:1.5px solid var(--trf-linie)}
-.trf-pasi li.on{background:${RED};border-color:${RED};color:#fff}
-.trf-pasi li.gata{background:#F6ECEE;border-color:#F6ECEE;color:${RED}}
-.trf-banda{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:12px 18px;background:#F7F1F2;border-bottom:1px solid var(--trf-linie)}
-.trf-banda.ret{background:var(--trf-cald);border-bottom-color:var(--trf-calda-linie)}
-.trf-banda small{font-size:11px;font-weight:800;letter-spacing:1px;color:${RED}}
-.trf-banda b{font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:${RED}}
-.trf-banda span{font-size:17px;font-weight:800}
-.trf-banda em{font-style:normal;font-size:15px;color:#4A3E41;text-transform:capitalize}
-.trf-pas-pax{margin-left:auto;font-size:13px!important;font-weight:700!important;color:var(--trf-gri)}
 .trf-corp{flex:1;min-height:0;overflow-y:auto;background:var(--trf-fond)}
 .trf-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px 14px 22px}
 .trf-ales{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 14px 0;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie);font-size:14px;cursor:pointer}
@@ -431,9 +425,7 @@ const CSS = `
   .trf-calatorie{border-right:none;padding:14px}
   .trf-date{padding:16px 14px 12px}
   .trf-lista{grid-template-columns:1fr;padding:14px 12px 22px}
-  .trf-banda{padding:10px 14px}
-  .trf-banda span{font-size:16px}
-  .trf-titlu{font-size:15px}
+  .trf-ruta{font-size:17px}
 }
 @media (prefers-reduced-motion:reduce){.trf *{scroll-behavior:auto!important}}
 `;

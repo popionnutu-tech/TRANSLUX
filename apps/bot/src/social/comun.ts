@@ -44,7 +44,7 @@ export interface Topic {
   activ: boolean;
 }
 
-export type StarePostare = 'planificat' | 'se_publica' | 'trimis' | 'publicat' | 'esuat' | 'anulat' | 'proba';
+export type StarePostare = 'neconfirmat' | 'planificat' | 'se_publica' | 'trimis' | 'publicat' | 'esuat' | 'anulat' | 'proba';
 
 export interface Postare {
   id: string;
@@ -66,6 +66,13 @@ export interface Postare {
   luat_la: string | null;
   upload_request_id: string | null;
   mesaj_confirmare_id: number | null;
+  /** Destinația și modul fixate la primire (migr. 545). */
+  upload_post_user: string;
+  platforme: Platforma[];
+  facebook_page_id: string | null;
+  in_proba: boolean;
+  /** C7: fișierul a plecat spre Upload-Post fără confirmare (migr. 546). */
+  trimis_posibil: boolean;
 }
 
 export const db = () => getSupabase();
@@ -76,20 +83,24 @@ export async function topicDupaLoc(chatId: number, threadId: number): Promise<To
   return (data as Topic | null) ?? null;
 }
 
+/** null = topicul nu există; o citire căzută ARUNCĂ (C4: nu se confundă cu «șters»). */
 export async function topicDupaId(id: string): Promise<Topic | null> {
-  const { data } = await db().from('social_topics').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await db().from('social_topics').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(`social_topics: ${error.message}`);
   return (data as Topic | null) ?? null;
 }
 
-/** Adminii sunt cei din `users` cu rolul ADMIN (aceiași oameni în ambele grupuri). */
+/** Adminii sunt cei din `users` cu rolul ADMIN (aceiași oameni în ambele grupuri). Citirea căzută aruncă. */
 export async function esteAdmin(telegramId: number | undefined): Promise<boolean> {
   if (!telegramId) return false;
-  const { data } = await db().from('users').select('id').eq('telegram_id', telegramId).eq('role', 'ADMIN').eq('active', true).limit(1);
+  const { data, error } = await db().from('users').select('id').eq('telegram_id', telegramId).eq('role', 'ADMIN').eq('active', true).limit(1);
+  if (error) throw new Error(`users: ${error.message}`);
   return Boolean(data?.length);
 }
 
 export async function esteBlogger(topicId: string, telegramId: number): Promise<boolean> {
-  const { data } = await db().from('social_bloggers').select('telegram_id').eq('topic_id', topicId).eq('telegram_id', telegramId).limit(1);
+  const { data, error } = await db().from('social_bloggers').select('telegram_id').eq('topic_id', topicId).eq('telegram_id', telegramId).limit(1);
+  if (error) throw new Error(`social_bloggers: ${error.message}`);
   return Boolean(data?.length);
 }
 

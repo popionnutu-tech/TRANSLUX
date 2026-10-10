@@ -7,6 +7,7 @@ import {
 import { formatLoc, minuteDinOra, urmatorulLoc } from './calendar.js';
 import { PLATFORME, PLATFORME_STORY, type Platforma } from './uploadPost.js';
 import { scrieText } from './texte.js';
+import { sendAdminAlert } from '../services/adminAlert.js';
 
 // Ce se întâmplă în topicuri (plan 09.10, «Publicarea video» p. 1–6). Aceeași logică pentru ambii boți: botul
 // Translux o cheamă din grammY, botul TLX prin releu (POST /social/v1/tlx). Mesajele care nu țin de un topic legat
@@ -37,7 +38,7 @@ export function comanda(text: string | undefined): { cmd: string; arg: string } 
   return m ? { cmd: m[1].toLowerCase(), arg: (m[2] ?? '').trim() } : null;
 }
 
-const COMENZI = new Set(['lega_social', 'social', 'social_descriere', 'social_ore', 'social_hashtag', 'social_comentariu', 'social_oprit', 'blogger', 'blogger_scoate']);
+const COMENZI = new Set(['lega_social', 'social', 'social_descriere', 'social_ore', 'social_hashtag', 'social_comentariu', 'social_pagina', 'social_oprit', 'social_porneste', 'blogger', 'blogger_scoate']);
 
 /** Platformele din «tiktok,facebook» (sau «tiktok facebook instagram»). Pur, testat. */
 export function parseazaPlatforme(s: string): Platforma[] | null {
@@ -74,11 +75,11 @@ export function butoane(postId: string): InlineKeyboardMarkup {
   };
 }
 
-export function textConfirmare(p: Pick<Postare, 'tip' | 'planificat_la' | 'text_final' | 'text_ai'>, topic: Topic): string {
-  const unde = platformePostare(topic, p.tip).map((x) => NUME_PLATFORMA[x]).join(', ');
+export function textConfirmare(p: Pick<Postare, 'tip' | 'planificat_la' | 'text_final' | 'text_ai' | 'platforme' | 'in_proba'>, _topic?: Topic): string {
+  const unde = p.platforme.map((x) => NUME_PLATFORMA[x]).join(', ');
   return [
     `🗓 <b>${p.tip === 'story' ? 'Story planificat' : 'Planificat'}:</b> ${formatLoc(new Date(p.planificat_la))} · ${unde}`,
-    publicareReala() ? null : '🧪 <i>În probă: publicarea reală pornește după ce sunt puse cheile Upload-Post și Telegram API.</i>',
+    p.in_proba ? '🧪 <i>Probă: clipul NU se publică (a intrat înainte de cheile Upload-Post și Telegram API). Postați-l din nou după ce sunt puse.</i>' : null,
     '',
     p.text_ai ? '<b>Textul (scris de AI):</b>' : '<b>Textul:</b>',
     escapeHtml(p.text_final),
@@ -133,6 +134,10 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
     return true;
   }
   const topic = await topicDupaLoc(msg.chat.id, thread);
+  if (topic && topic.bot !== bot) {
+    await r('Topicul e legat de celălalt bot; comenzile se dau acolo.');
+    return true;
+  }
 
   if (cmd === 'lega_social') {
     const [profil, ...rest] = arg.split(/\s+/).filter(Boolean);
@@ -153,7 +158,7 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
       bot, chat_id: msg.chat.id, thread_id: thread, nume, upload_post_user: profil, platforme, decalaj_min: decalaj,
       activ: true, updated_at: new Date().toISOString(),
     }, { onConflict: 'chat_id,thread_id' });
-    if (error) { await r(`Nu am putut lega topicul: ${escapeHtml(error.message)}`); return true; }
+    if (error) { console.error('social lega:', error.message); await r('Nu am putut lega topicul. Încercați din nou peste un minut.'); return true; }
     await r(`✓ Topicul «${escapeHtml(nume)}» e legat de profilul Upload-Post <b>${escapeHtml(profil)}</b>: `
       + `${platforme.map((p) => NUME_PLATFORMA[p]).join(', ')}.\n`
       + `Ore: ${(topic?.ore ?? ['12:30', '19:30']).join(', ')} (+${decalaj} min), cel mult ${topic?.max_pe_zi ?? 1} clip pe zi.\n\n`
@@ -172,7 +177,8 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
 
   const actualizeaza = async (camp: Record<string, unknown>, ok: string) => {
     const { error } = await db().from('social_topics').update({ ...camp, updated_at: new Date().toISOString() }).eq('id', topic.id);
-    await r(error ? `Nu am putut salva: ${escapeHtml(error.message)}` : ok);
+    if (error) console.error('social salvare:', error.message);
+    await r(error ? 'Nu am putut salva. Încercați din nou peste un minut.' : ok);
   };
 
   switch (cmd) {
@@ -200,10 +206,24 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
       await actualizeaza({ primul_comentariu: arg && arg !== '-' ? arg.slice(0, 500) : null },
         arg && arg !== '-' ? '✓ Primul comentariu sub clipuri e salvat.' : '✓ Fără prim comentariu.');
       return true;
+    case 'social_pagina': {
+      // C3: profilul cu mai multe pagini Facebook cere id-ul paginii la fiecare publicare (docs upload-video, «Facebook»).
+      const id = arg === '-' ? null : arg;
+      if (id !== null && !/^\d{5,20}$/.test(id)) {
+        await r('Scrieți: <code>/social_pagina &lt;id-ul paginii Facebook&gt;</code> (doar cifre; din Upload-Post → Facebook pages), sau <code>/social_pagina -</code>.');
+        return true;
+      }
+      await actualizeaza({ facebook_page_id: id }, id ? `✓ Pagina Facebook ${id} pentru clipurile următoare.` : '✓ Fără pagină fixată: Upload-Post o folosește pe singura conectată.');
+      return true;
+    }
+    // C10: două comenzi explicite, nu un comutator — aceeași comandă primită de două ori (releul o retrimite când
+    // răspunsul se pierde) lasă topicul în aceeași stare.
     case 'social_oprit':
-      await actualizeaza({ activ: !topic.activ }, topic.activ
-        ? '⏸ Topicul e oprit: clipurile noi nu se mai primesc (cele planificate rămân, se anulează din butoane).'
-        : '▶ Topicul e pornit din nou.');
+      await actualizeaza({ activ: false },
+        '⏸ Topicul e oprit: clipurile noi nu se mai primesc, iar cele planificate nu pleacă cât e oprit (la ora lor se anulează). Pornire: /social_porneste');
+      return true;
+    case 'social_porneste':
+      await actualizeaza({ activ: true }, '▶ Topicul e pornit.');
       return true;
     case 'blogger':
     case 'blogger_scoate': {
@@ -216,10 +236,17 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
       const nume = [tinta.first_name, tinta.last_name].filter(Boolean).join(' ') + (tinta.username ? ` (@${tinta.username})` : '');
       if (cmd === 'blogger') {
         const { error } = await db().from('social_bloggers').upsert({ topic_id: topic.id, telegram_id: tinta.id, nume, adaugat_de: msg.from?.id ?? null }, { onConflict: 'topic_id,telegram_id' });
-        await r(error ? `Nu am putut salva: ${escapeHtml(error.message)}` : `✓ ${escapeHtml(nume)} poate posta clipuri în «${escapeHtml(topic.nume)}». Clipurile lui pleacă singure, fără aprobare.`);
+        if (error) console.error('social blogger:', error.message);
+        await r(error ? 'Nu am putut salva. Încercați din nou peste un minut.' : `✓ ${escapeHtml(nume)} poate posta clipuri în «${escapeHtml(topic.nume)}». Clipurile lui pleacă singure, fără aprobare.`);
       } else {
-        await db().from('social_bloggers').delete().eq('topic_id', topic.id).eq('telegram_id', tinta.id);
-        await r(`✓ ${escapeHtml(nume)} nu mai e pe lista topicului. Clipurile lui deja planificate rămân (se anulează din butoane).`);
+        // C11: confirmarea către admin doar dacă ștergerea chiar a mers.
+        const { error } = await db().from('social_bloggers').delete().eq('topic_id', topic.id).eq('telegram_id', tinta.id);
+        if (error) {
+          console.error('social blogger_scoate:', error.message);
+          await r(`❌ ${escapeHtml(nume)} NU a fost scos de pe listă (eroare la bază). Încercați din nou peste un minut.`);
+          return true;
+        }
+        await r(`✓ ${escapeHtml(nume)} nu mai e pe lista topicului. Clipurile lui deja planificate nu mai pleacă (la ora lor se anulează).`);
       }
       return true;
     }
@@ -245,7 +272,7 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
 
 // ── Clipul de la blogger ─────────────────────────────────────────────────────
 
-async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic: Topic): Promise<void> {
+export async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic: Topic): Promise<void> {
   const r = raspunde(api, msg);
   const autor = msg.from;
   if (!autor) return;
@@ -257,10 +284,15 @@ async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic: Topic
   const v = msg.video ?? msg.document;
   if (!v) return;
   const durata = msg.video?.duration ?? null;
-  const { tip, nota } = citesteCaption(msg.caption);
+  const citit = citesteCaption(msg.caption);
+  const tip = citit.tip;
+  // SEC-4: un clip trimis mai departe (forward) are caption-ul altcuiva — nu intră ca notă pentru AI.
+  const nota = msg.forward_origin ? null : citit.nota;
   const platforme = platformePostare(topic, tip);
   if (!platforme.length) { await r('Story-urile pleacă doar pe Facebook și Instagram, iar acest cont n-are niciuna. Postați clipul fără #story.'); return; }
-  if (v.file_size && v.file_size > MARIME_MAX) { await r('Clipul are peste 2 GB: Telegram nu-l dă botului. Exportați-l mai mic (1080p).'); return; }
+  // Mărimea e amprenta clipului la ora publicării (descarcare.ts, SEC-2): fără ea nu intră în calendar.
+  if (!v.file_size) { await r('Nu văd mărimea clipului. Trimiteți-l din nou ca fișier (agrafă → Fișier).'); return; }
+  if (v.file_size > MARIME_MAX) { await r('Clipul are peste 2 GB: Telegram nu-l dă botului. Exportați-l mai mic (1080p).'); return; }
   if (tip === 'story' && durata !== null && durata > DURATA_MAX_STORY_S) {
     await r(`Story-ul poate avea cel mult ${DURATA_MAX_STORY_S} s, clipul are ${durata} s. Tăiați-l sau postați-l fără #story, ca clip obișnuit.`);
     return;
@@ -271,14 +303,13 @@ async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic: Topic
   }
 
   await peRand(topic.id, async () => {
-    const { data: dublura } = await db().from('social_posts').select('id, planificat_la, stare').eq('topic_id', topic.id)
+    const { data: dublura } = await db().from('social_posts').select('id, planificat_la, stare, trimis_posibil').eq('topic_id', topic.id)
       .eq('file_unique_id', v.file_unique_id).eq('tip', tip).maybeSingle();
-    if (dublura && !['esuat', 'anulat', 'proba'].includes(dublura.stare as string)) {
+    // «neconfirmat» în bază = primirea de dinainte a murit la mijloc (coada topicului e pe rând în proces): se reia.
+    if (dublura && !['esuat', 'anulat', 'proba', 'neconfirmat'].includes(dublura.stare as string)) {
       await r(`Clipul acesta e deja în calendar (${formatLoc(new Date(dublura.planificat_la as string))}, ${dublura.stare}).`);
       return;
     }
-    // Anulat, eșuat sau trecut doar prin probă → clipul se poate posta din nou; rândul vechi face loc celui nou.
-    if (dublura) await db().from('social_posts').delete().eq('id', dublura.id);
     const loc = urmatorulLoc({ ore: topic.ore, decalajMin: topic.decalaj_min, maxPeZi: tip === 'story' ? Math.max(3, topic.max_pe_zi) : topic.max_pe_zi },
       await ocupate(topic.id, tip), new Date());
     if (!loc) { await r('Nu găsesc loc în calendar în următoarele 90 de zile. Verificați orele cu /social.'); return; }
@@ -288,15 +319,64 @@ async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic: Topic
       bot, numeCont: topic.nume, descriere: topic.descriere, hashtags: topic.hashtags, notaAutor: nota, tip,
       miniatura: await miniatura(bot, api, thumb),
     });
-    const { data: post, error } = await db().from('social_posts').insert({
+    const rand = {
       topic_id: topic.id, tip, chat_id: msg.chat.id, thread_id: msg.message_thread_id, message_id: msg.message_id,
-      file_unique_id: v.file_unique_id, file_size: v.file_size ?? null, durata_s: durata, mime: v.mime_type ?? null,
+      file_unique_id: v.file_unique_id, file_size: v.file_size, durata_s: durata, mime: v.mime_type ?? null,
       autor_telegram_id: autor.id, autor_nume: [autor.first_name, autor.last_name].filter(Boolean).join(' '),
       nota_autor: nota, text_final: text, text_ai: ai, planificat_la: loc.toISOString(),
-    }).select('*').single();
-    if (error || !post) { await r(`Nu am putut pune clipul în calendar: ${escapeHtml(error?.message ?? '?')}`); return; }
-    const conf = await r(textConfirmare(post as Postare, topic), { butoane: butoane((post as Postare).id) });
-    if (conf) await db().from('social_posts').update({ mesaj_confirmare_id: conf.message_id }).eq('id', (post as Postare).id);
+      // Destinația și modul se fixează acum (migr. 545): relegarea topicului sau cheile puse mai târziu nu le schimbă.
+      upload_post_user: topic.upload_post_user, platforme, facebook_page_id: platforme.includes('facebook') ? topic.facebook_page_id : null,
+      in_proba: !publicareReala(),
+      // C8: «neconfirmat» = nepublicabil până când mesajul cu butoane a ajuns și e salvat (mai jos).
+      stare: 'neconfirmat', incercari: 0, luat_la: null, upload_request_id: null, rezultate: null, eroare: null,
+      mesaj_confirmare_id: null, anulat_de: null, publicat_la: null, updated_at: new Date().toISOString(),
+    };
+    // Repostarea aceluiași clip: dacă trimiterea de dinainte e INCERTĂ (a plecat spre Upload-Post fără confirmare),
+    // rândul se refolosește — același id = aceeași cheie de idempotență, deci un clip care de fapt plecase nu se
+    // publică a doua oară (BL-4). Altfel (anulat, probă, eșec raportat sigur de Upload-Post) rândul vechi se șterge și
+    // clipul primește id nou = cheie nouă, ca Upload-Post să nu întoarcă jobul vechi eșuat (runda 2, BL2-1).
+    // C7: `trimis_posibil` nu se atinge la refolosire — rămâne pus până îl lămurește Upload-Post.
+    const incert = Boolean(dublura?.trimis_posibil);
+    if (dublura && !incert) await db().from('social_posts').delete().eq('id', dublura.id);
+    const { data: post, error } = dublura && incert
+      ? await db().from('social_posts').update(rand).eq('id', dublura.id).select('*').single()
+      : await db().from('social_posts').insert(rand).select('*').single();
+    if (error || !post) {
+      console.error('social clip:', error?.message);
+      await r('Nu am putut pune clipul în calendar. Trimiteți-l din nou peste un minut.');
+      return;
+    }
+    const id = (post as Postare).id;
+    const conf = await r(textConfirmare(post as Postare, topic), { butoane: butoane(id) });
+    // C5 / C8: fără mesajul cu butoane adminul n-ar avea cum anula — rândul rămâne «neconfirmat» (nepublicabil);
+    // publicatorul îl închide ca «anulat» după 10 minute, iar bloggerul poate retrimite clipul.
+    if (!conf) {
+      await db().from('social_posts').update({ stare: 'anulat', eroare: 'confirmarea din topic nu a ajuns' }).eq('id', id).eq('stare', 'neconfirmat');
+      return;
+    }
+    const { data: confirmat, error: eConf } = await db().from('social_posts')
+      .update({ stare: 'planificat', mesaj_confirmare_id: conf.message_id, updated_at: new Date().toISOString() })
+      .eq('id', id).eq('stare', 'neconfirmat').select('id');
+    if (eConf || !confirmat?.length) {
+      if (eConf) console.error('social confirmare:', eConf.message);
+      // R3-3: dacă UPDATE-ul a trecut totuși (răspunsul s-a pierdut), rândul nu rămâne publicabil fără butoane.
+      let anulat = false;
+      for (let i = 0; i < 3 && !anulat; i++) {
+        const { error: eAn } = await db().from('social_posts').update({ stare: 'anulat', eroare: 'confirmarea nu s-a salvat' })
+          .eq('id', id).in('stare', ['neconfirmat', 'planificat']);
+        if (!eAn) anulat = true;
+      }
+      // Runda 3 Codex, C13: «NU a intrat» doar când baza a confirmat anularea; altfel starea e incertă — butoanele
+      // rămân, iar mesajul spune exact asta.
+      if (anulat) {
+        await api.editMessageText(msg.chat.id, conf.message_id,
+          '❌ Clipul NU a intrat în calendar (nu am putut salva confirmarea). Trimiteți-l din nou peste un minut.').catch(() => {});
+      } else {
+        await r('⚠️ Nu pot confirma acum dacă clipul e în calendar (baza nu răspunde). Butoanele de mai sus rămân valabile: '
+          + 'un admin poate apăsa «Anulează»; verificați cu /social peste câteva minute.');
+        await sendAdminAlert(`⚠️ <b>Clip cu stare incertă</b> · ${escapeHtml(topic.nume)} — confirmarea și anularea n-au putut fi salvate (postarea ${id}).`);
+      }
+    }
   });
 }
 
@@ -314,7 +394,9 @@ export async function trateazaMesajSocial(bot: BotSocial, msg: Message): Promise
   if (!esteClip(msg) || !msg.is_topic_message || !msg.message_thread_id) return false;
   const topic = await topicDupaLoc(msg.chat.id, msg.message_thread_id);
   if (!topic || topic.bot !== bot) return false;
-  await primesteClip(bot, api, msg, topic);
+  // BL-3: botul Translux primește actualizările pe rând (polling); miniatura + AI durează până la ~1 min, deci
+  // clipul se lucrează în fundal, pe coada topicului, iar botul trece imediat la următorul mesaj.
+  void primesteClip(bot, api, msg, topic).catch((err) => console.error('social clip:', err));
   return true;
 }
 

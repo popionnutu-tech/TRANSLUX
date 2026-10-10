@@ -53,6 +53,26 @@ export function mesajText(c: CerereText): string {
   ].filter(Boolean).join('\n');
 }
 
+/** Site-urile care pot apărea în textul public; orice alt link e respins (SEC-4). */
+const SITE_PERMISE = /^(?:https?:\/\/)?(?:www\.)?(?:translux\.md|tlx\.md)(?:[\/?#]\S*)?$/i;
+
+/**
+ * Textul public nu poartă ce n-a cerut nimeni (dezbaterea 10.10, SEC-4): o instrucțiune ascunsă în nota sau în
+ * miniatura unui clip (forward dintr-un canal străin) nu poate pune în el un link străin, un @cont sau un telefon.
+ * Pur, testat. true = textul e curat.
+ */
+export function textCurat(s: string): boolean {
+  // Orice domeniu (cu sau fără http/www), nu doar o listă de terminații (runda 2, N1); o potrivire greșită doar trece
+  // textul pe rezervă.
+  for (const m of s.matchAll(/(?:https?:\/\/|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,24}\b(?:\/\S*)?/gi)) {
+    if (!SITE_PERMISE.test(m[0].replace(/[.,;:!?)]+$/, ''))) return false;
+  }
+  if (/(^|[^\w])@[\w.]{3,}/.test(s)) return false;
+  // Telefon = 9+ cifre la rând, cu spații/liniuțe (069123456, +373 69 123 456); anii și prețurile («2026-2027», «1 200 lei») trec.
+  for (const m of s.matchAll(/\+?\d[\d\s().-]*\d/g)) if ((m[0].match(/\d/g) ?? []).length >= 9) return false;
+  return true;
+}
+
 /** Validarea răspunsului modelului. Pur, testat. */
 export function parseazaText(text: string | null | undefined): TextClip | null {
   if (typeof text !== 'string') return null;
@@ -63,6 +83,7 @@ export function parseazaText(text: string | null | undefined): TextClip | null {
   const { ro, ru, hashtags } = o as Record<string, unknown>;
   if (typeof ro !== 'string' || typeof ru !== 'string' || !ro.trim() || !ru.trim()) return null;
   if (ro.length > 700 || ru.length > 700) return null;
+  if (!textCurat(ro) || !textCurat(ru)) return null;
   if (!Array.isArray(hashtags)) return null;
   const tags = [...new Set(hashtags
     .filter((h): h is string => typeof h === 'string')
@@ -77,11 +98,13 @@ export function compuneText(t: TextClip, ceruteDeCont: string[]): string {
   return [t.ro, t.ru, tags.join(' ')].filter((x) => x.trim()).join('\n\n').slice(0, TEXT_MAX);
 }
 
-/** Fără AI (cheie lipsă, model căzut, răspuns stricat): nota autorului + hashtag-urile contului. */
+/**
+ * Fără AI (cheie lipsă, model căzut, răspuns respins): numele contului + hashtag-urile lui. Nota bloggerului NU intră
+ * (SEC-4): e o notă pentru AI, poate avea lucruri care nu sunt de publicat.
+ */
 export function textRezerva(c: CerereText): string {
-  const nota = (c.notaAutor ?? '').trim();
   const tags = c.hashtags.map((h) => h.trim().replace(/^#*/, '#')).filter((h) => h.length > 1);
-  return [nota, tags.join(' ')].filter(Boolean).join('\n\n').slice(0, TEXT_MAX) || c.numeCont;
+  return [c.numeCont, tags.join(' ')].filter(Boolean).join('\n\n').slice(0, TEXT_MAX);
 }
 
 let client: Anthropic | null = null;

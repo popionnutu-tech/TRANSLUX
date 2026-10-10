@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { decalajFus, formatLoc, momentLocal, urmatorulLoc, ziLocala } from './calendar.js';
 import { campuriPublicare, interpreteazaStarea } from './uploadPost.js';
-import { compuneText, parseazaText, textRezerva, mesajText } from './texte.js';
+import { compuneText, parseazaText, textRezerva, mesajText, textCurat } from './texte.js';
 import { citesteCaption, comanda, parseazaPlatforme } from './primire.js';
-import { idCanal } from './descarcare.js';
+import { idCanal, motivSchimbat } from './descarcare.js';
+import { cheieCorecta } from './index.js';
 
 describe('calendar', () => {
   it('ora Chișinăului: +3 vara, +2 iarna', () => {
@@ -117,10 +118,22 @@ describe('texte', () => {
     expect(m).toContain('benzinării');
   });
 
-  it('rezerva fără AI', () => {
-    expect(textRezerva({ bot: 'translux', numeCont: 'Translux 1', descriere: null, hashtags: ['translux'], notaAutor: 'Gara Bălți', tip: 'video' }))
-      .toBe('Gara Bălți\n\n#translux');
+  it('rezerva fără AI nu publică nota bloggerului (SEC-4)', () => {
+    expect(textRezerva({ bot: 'translux', numeCont: 'Translux 1', descriere: null, hashtags: ['translux'], notaAutor: 'nu spune de X, sună-mă', tip: 'video' }))
+      .toBe('Translux 1\n\n#translux');
     expect(textRezerva({ bot: 'translux', numeCont: 'Translux 1', descriere: null, hashtags: [], notaAutor: null, tip: 'video' })).toBe('Translux 1');
+  });
+
+  it('textul public: fără link-uri străine, @conturi sau telefoane (SEC-4)', () => {
+    expect(textCurat('Bilete pe translux.md, curse zilnice 2026-2027, 1 200 lei')).toBe(true);
+    expect(textCurat('Vezi https://tlx.md/preturi')).toBe(true);
+    expect(textCurat('Câștigă pe bit.ly/abc')).toBe(false);
+    expect(textCurat('Reduceri pe promo-translux.co azi')).toBe(false);
+    expect(textCurat('Intră pe https://evil.example.com')).toBe(false);
+    expect(textCurat('Scrie-i lui @alt_cont')).toBe(false);
+    expect(textCurat('Sună la 069123456')).toBe(false);
+    expect(textCurat('Sună la +373 69 123 456')).toBe(false);
+    expect(parseazaText('{"ro":"Vezi bit.ly/x","ru":"Б","hashtags":[]}')).toBeNull();
   });
 });
 
@@ -142,6 +155,26 @@ describe('primire', () => {
     expect(citesteCaption('#Story')).toEqual({ tip: 'story', nota: null });
     expect(citesteCaption('Gara #storytelling')).toEqual({ tip: 'video', nota: 'Gara #storytelling' });
     expect(citesteCaption(undefined)).toEqual({ tip: 'video', nota: null });
+  });
+
+  it('cheia releului: lungimea pe octeți, nu pe caractere — un antet non-ASCII nu oprește procesul (SEC-1)', () => {
+    const cheie = 'a'.repeat(32);
+    expect(cheieCorecta(cheie, cheie)).toBe(true);
+    expect(cheieCorecta('b'.repeat(32), cheie)).toBe(false);
+    expect(() => cheieCorecta('é' + 'a'.repeat(31), cheie)).not.toThrow();
+    expect(cheieCorecta('é' + 'a'.repeat(31), cheie)).toBe(false);
+    expect(cheieCorecta(undefined, cheie)).toBe(false);
+    expect(cheieCorecta('scurt', 'scurt')).toBe(false); // cheie configurată prea scurtă = nimic nu trece
+  });
+
+  it('clipul de la ora publicării e cel planificat (SEC-2)', () => {
+    const asteptat = { autorTelegramId: 7, marime: 1000 };
+    expect(motivSchimbat({ autor: 7, editat: false, marime: 1000 }, asteptat)).toBeNull();
+    expect(motivSchimbat({ autor: 7, editat: true, marime: 1000 }, asteptat)).toMatch(/editat/);
+    expect(motivSchimbat({ autor: 8, editat: false, marime: 1000 }, asteptat)).toMatch(/autorului/);
+    expect(motivSchimbat({ autor: 7, editat: false, marime: 999 }, asteptat)).toMatch(/înlocuit/);
+    expect(motivSchimbat({ autor: 7, editat: false, marime: null }, asteptat)).toMatch(/nu mai conține/);
+    expect(motivSchimbat({ autor: 7, editat: false, marime: 1000 }, { autorTelegramId: 7, marime: null })).toMatch(/mărimea/);
   });
 
   it('id-ul supergrupului în MTProto', () => {

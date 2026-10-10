@@ -3,6 +3,7 @@ import { ComandaError, creeazaComanda, statusPentru, type ComandaInput } from '@
 import { cheieSiteValida } from '@/lib/bilete/site-auth';
 import { telegramDinInitData } from '@/lib/bilete/client-bilete';
 import { getSupabase } from '@/lib/supabase';
+import { leagaComandaDeTelegram, type DbLegare } from '@/lib/bilete/leaga-telegram';
 
 // POST /api/bilete/comanda — site-ul (translux.md, server action) creează comanda și primește adresa de plată.
 // Public în middleware (cale EXACTĂ), apărat prin BILETE_API_KEY (≥ 256 biți, doar pe server, separată de
@@ -78,11 +79,11 @@ export async function POST(req: NextRequest) {
     const r = await creeazaComanda(input, { mod: 'public', bazaAdmin: bazaAdmin(req), bazaSite: siteUrl, createdBy: 'site' });
     // ION-249: cumpărat din mini app-ul Telegram → comanda se leagă de cont acum (biletul apare în «Biletele mele» și
     // în bot fără alt pas). Contul vine DOAR din initData verificat cu tokenul botului; doar o comandă încă nelegată.
+    // N4 (10.10): și returul din tur-retur (in_pachet), altfel botul nu-l livrează și lista nu-l arată.
     const tg = telegramDinInitData(req.headers.get('x-telegram-init-data'), process.env.TELEGRAM_BOT_TOKEN, Date.now());
     if (tg) {
-      const { error: eL } = await getSupabase().from('bilete_comenzi')
-        .update({ telegram_id: tg, telegram_verificat_pentru: tg }).eq('id', r.comanda.id).is('telegram_id', null);
-      if (eL) console.warn('[bilete/comanda] legarea Telegram:', eL.message);
+      const eL = await leagaComandaDeTelegram(getSupabase() as unknown as DbLegare, r.comanda.id, tg);
+      if (eL) console.warn('[bilete/comanda] legarea Telegram:', eL);
     }
     return NextResponse.json({ ok: true, checkoutUrl: r.checkoutUrl, cod: r.comanda.cod, total: r.comanda.total }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {

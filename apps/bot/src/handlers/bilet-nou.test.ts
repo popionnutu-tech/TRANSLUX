@@ -108,6 +108,22 @@ describe('ION-266/274: biletul din mini app pleacă singur după plată', () => 
     expect(a.trimise + (b === 'livrat' ? 1 : 0)).toBe(1);
     expect(mesaje.marcheazaLivrat).toHaveBeenCalledTimes(1);
   });
+  it('N4: tur-retur din mini app — turul și returul din pachet (ambele legate) pleacă câte O dată, chiar cu job + livreaza simultan', async () => {
+    const { api, trimise } = apiFals();
+    const RETUR = '12'.repeat(16);
+    const mesaje = mesajeFalse([{ cod: COD, telegram_id: 555, departure_at: '2099-10-06T14:20:00+03:00' }, { cod: RETUR, telegram_id: 555, departure_at: '2099-10-07T18:00:00+03:00' }]);
+    const lista = [comanda(COD, 555, 1), comanda(RETUR, 555, 1, 'ro', { departure_at: '2099-10-07T18:00:00+03:00', going_north: true })];
+    const deps = { repo: repoFals(lista, [bilet(1)]) as never, mesaje: mesaje as never, api: api as never, nowMs: ACUM };
+    const [a, b] = await Promise.all([trimiteBileteleNoi(deps), trimiteBileteleNoi(deps)]);
+    expect(a.trimise + b.trimise).toBe(2);
+    expect(mesaje.marcheazaLivrat).toHaveBeenCalledTimes(2);
+    expect(mesaje.stare.map((c) => c.telegram_livrat_la)).toEqual(['acum', 'acum']);
+    expect(trimise).toHaveLength(2);
+    // a treia trecere (tickul următor): nimic de retrimis
+    const c = await trimiteBileteleNoi({ ...deps, repo: repoFals(lista.map((x, i) => ({ ...x, telegram_livrat_la: mesaje.stare[i].telegram_livrat_la })), [bilet(1)]) as never });
+    expect(c.trimise).toBe(0);
+    expect(trimise).toHaveLength(2);
+  });
   it('biletul livrat apoi șters de client (mesaj uitat) → jobul NU îl retrimite', async () => {
     const { api, trimise } = apiFals();
     const mesaje = mesajeFalse([{ cod: COD, telegram_id: 555, departure_at: '2099-10-06T14:20:00+03:00' }]);

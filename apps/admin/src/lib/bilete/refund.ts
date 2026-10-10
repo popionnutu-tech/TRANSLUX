@@ -158,7 +158,12 @@ export async function anuleazaSiReturneaza(
     // Refuz clar al băncii chiar la prima încercare: comanda revine (biletele redevin valabile) și intenția devine
     // «anulata» — atomic, în bilete_reactiveaza (558). Dacă nu se poate reveni (ex. al doilea refund pe plata comună a
     // pachetului, D6), intenția rămâne «refuzata», vizibilă în /bilete și reîncercată automat.
-    const { error: e2 } = await db.rpc('bilete_reactiveaza', { p_id: comandaId });
+    const { data: re, error: e2 } = await db.rpc('bilete_reactiveaza', { p_id: comandaId });
+    // 564: comanda care nu mai e eligibilă (returul pe un tur anulat, limita studentului) rămâne fără bilet, iar banii ei
+    // pleacă integral, automat (intenția nouă scrisă de bilete_reactiveaza) — fără dispecer.
+    if (!e2 && (re as { status?: string } | null)?.status === 'platita_fara_bilet') {
+      throw new ComandaError('maib', `banca a refuzat returnarea (${r.motiv ?? 'refuz'}); comanda nu mai e eligibilă, deci banii se întorc integral, automat`);
+    }
     if (!e2) throw new ComandaError('maib', `banca a refuzat returnarea: ${r.motiv ?? 'refuz'}; biletele rămân valabile`);
     throw new ComandaError('maib', `banca a refuzat returnarea (${r.motiv ?? 'refuz'}); comanda a rămas anulată — returnarea se reîncearcă automat`);
   }

@@ -1032,6 +1032,8 @@ export interface BileteComanda {
   bani_inapoi?: boolean;
   /** 560 (M4): cancelCheckout fără efect pe sesiunea comenzii. */
   inchidere_esuata?: number;
+  /** 564 (N3): amprenta alegerii cumpărătorului (lib/bilete/amprenta.ts); aceeași cheie cu altă amprentă = refuz. */
+  amprenta?: string | null;
 }
 
 export interface Bilet {

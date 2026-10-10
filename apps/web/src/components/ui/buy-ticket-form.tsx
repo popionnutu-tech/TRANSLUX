@@ -35,6 +35,7 @@ const TXT = {
     retur: "Returnarea se cere doar prin Telegram: peste 24 h primești tot, sub 4 h nu se returnează.", grila: "Condițiile",
     unde: "Unde urci în autobuz", urcare: "Urci la", harta: "Harta", loc: (n: number) => (n === 1 ? "1 loc" : `${n} locuri`),
     alegeLoc: "Alege locul în autobuz", contor: (a: number, n: number) => `ai ales ${a} din ${n}`,
+    pas1: "Locul", pas2: "Datele și plata", continua: "Continuă", schimba: "schimbă", alegeIar: "Locul ales s-a ocupat — alege altul",
     hartaIncarca: "Se încarcă locurile…", hartaIndisponibila: "Locurile se aleg la urcare.", locurile: "Locurile", locul: "Locul",
     cateBilete: "Câte bilete", maiPutine: "Mai puține bilete", maiMulte: "Mai multe bilete", telNota: "Șoferul te sună pe acest număr dacă e nevoie.",
   },
@@ -46,6 +47,7 @@ const TXT = {
     retur: "Возврат — только через Telegram: более чем за 24 ч — полностью, менее чем за 4 ч — не возвращается.", grila: "Условия",
     unde: "Где вы сядете в автобус", urcare: "Посадка", harta: "Карта", loc: (n: number) => (n === 1 ? "1 место" : `${n} места`),
     alegeLoc: "Выберите место в автобусе", contor: (a: number, n: number) => `выбрано ${a} из ${n}`,
+    pas1: "Место", pas2: "Данные и оплата", continua: "Продолжить", schimba: "изменить", alegeIar: "Выбранное место заняли — выберите другое",
     hartaIncarca: "Загружаем места…", hartaIndisponibila: "Места выбираются при посадке.", locurile: "Места", locul: "Место",
     cateBilete: "Сколько билетов", maiPutine: "Меньше билетов", maiMulte: "Больше билетов", telNota: "Водитель позвонит на этот номер, если нужно.",
   },
@@ -74,7 +76,7 @@ function Trimite({ locale, lei, blocat }: { locale: "ro" | "ru"; lei: number; bl
 }
 
 /** Harta în formular: cât se trimite comanda nu se mai atinge (useFormStatus merge doar în interiorul formularului). */
-function HartaInFormular(p: { ocupate: readonly number[]; alese: readonly number[]; onToggle: (nr: number) => void; locale: "ro" | "ru" }) {
+function HartaInFormular(p: { ocupate: readonly number[]; alese: readonly number[]; onToggle: (nr: number) => void; locale: "ro" | "ru"; mic?: boolean }) {
   const { pending } = useFormStatus();
   return <SeatMap {...p} blocat={pending} />;
 }
@@ -193,6 +195,13 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   }, [alegereRetur]);
 
   const locuriIncomplete = hartaActiva && alese.length !== seats;
+  // Doi pași, ca la tur-retur (Ion, 10.10.2026: «fă fix cum la tur-retur aici, împarte în 2 pași»): întâi locul pe harta
+  // mică, apoi datele și plata. Doar când cursa are hartă (din Chișinău) și nu e tur-retur din formular.
+  const doiPasi = alegeLocuri && !retur;
+  const [locGata, setLocGata] = React.useState(false);
+  const pasLoc = doiPasi && !locGata;
+  const poateContinua = harta.stare === "indisponibila" || (harta.stare === "ok" && alese.length === seats);
+  React.useEffect(() => { if (stare.ocupate?.length) setLocGata(false); }, [stare.nr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const inp: React.CSSProperties = {
     width: "100%", height: 48, padding: "0 12px", borderRadius: 12, border: "1.5px solid #E2D6D9", fontSize: 16, boxSizing: "border-box",
@@ -212,6 +221,18 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         .cump-grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); }
         .cump-stanga { padding: 20px; background: ${FOND_LISTA}; border-right: 1px solid #F0E6E8; display: grid; gap: 16px; align-content: start; min-width: 0; }
         .cump-dreapta { padding: 20px 22px; background: #fff; display: grid; gap: 14px; align-content: start; min-width: 0; }
+        .cump-pasi { grid-column: 1 / -1; display: flex; gap: 18px; padding: 10px 16px; font-size: 13.5px; font-weight: 700; color: #8A7A7D; border-bottom: 1px solid #F0E6E8; background: #fff; }
+        .cump-pasi span { display: flex; align-items: center; gap: 7px; }
+        .cump-pasi span.on { color: #231A1C; }
+        .cump-pasi b { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; background: #F1E8EA; color: #8A7A7D; }
+        .cump-pasi span.on b { background: ${RED}; color: #fff; }
+        .cump-loc { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px 12px; max-width: 560px; width: 100%; margin: 0 auto; box-sizing: border-box; background: ${FOND_LISTA}; }
+        .cump-linie { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 15px; min-height: 36px; }
+        .cump-linie s { color: #8A7A7D; font-size: 13px; }
+        .cump-continua { position: sticky; bottom: 10px; min-height: 54px; border: none; border-radius: 14px; background: ${RED}; color: #fff; font: 800 17px inherit; font-family: inherit; cursor: pointer; box-shadow: 0 10px 22px rgba(155,27,48,.22); }
+        .cump-continua:disabled { background: #E9DFE1; color: #A8979B; box-shadow: none; cursor: default; }
+        .cump-rezumat { display: grid; gap: 2px; padding: 10px 14px; border-radius: 14px; background: #fff; border: 1px solid #EFE3E6; }
+        .cump-schimba { border: none; background: none; padding: 6px 0; color: ${RED}; font: 700 14px inherit; font-family: inherit; cursor: pointer; }
         .cump-plata { position: sticky; bottom: 0; background: #fff; padding: 12px 0 4px; display: grid; gap: 8px; border-top: 1px dashed #E3D3D6; }
         @media (max-width: 760px) {
           .cump-grid { grid-template-columns: 1fr; }
@@ -246,10 +267,41 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
 
+      {doiPasi && (
+        <div className="cump-pasi" aria-label={pasLoc ? tx.pas1 : tx.pas2}>
+          <span className="on"><b>{pasLoc ? 1 : "✓"}</b>{tx.pas1}</span><span className={pasLoc ? "" : "on"}><b>2</b>{tx.pas2}</span>
+        </div>
+      )}
+      {pasLoc && (
+        <div className="cump-loc">
+          <div className="cump-linie">
+            <span><b>{trip.time}</b> → {trip.arrivalTime} · {trip.originalPrice != null && trip.originalPrice > trip.price && <s>{trip.originalPrice}</s>} {trip.price} lei</span>
+          </div>
+          <div className="cump-linie">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button type="button" aria-label={tx.maiPutine} disabled={seats <= 1} onClick={() => schimbaSeats(Math.max(1, seats - 1))} style={{ ...pas(seats <= 1), width: 38, height: 38 }}>&minus;</button>
+              <span aria-live="polite" style={{ fontSize: 15, fontWeight: 800 }}>{tx.loc(seats)}</span>
+              <button type="button" aria-label={tx.maiMulte} disabled={seats >= 4} onClick={() => schimbaSeats(Math.min(4, seats + 1))} style={{ ...pas(seats >= 4), width: 38, height: 38 }}>+</button>
+            </div>
+            {harta.stare === "ok" && <em style={{ fontStyle: "normal", fontSize: 14, fontWeight: 800, color: alese.length === seats ? "#2b6b3a" : RED }} aria-live="polite">{alese.length ? listaLocuri(alese) : tx.contor(0, seats)}</em>}
+          </div>
+          {harta.stare === "incarca" && <div style={{ fontSize: 14, color: "#666" }}>{tx.hartaIncarca}</div>}
+          {harta.stare === "indisponibila" && <div style={{ fontSize: 14, color: "#555", padding: "10px 12px", borderRadius: 12, background: "#fff" }}>{tx.hartaIndisponibila}</div>}
+          {harta.stare === "ok" && <HartaInFormular mic ocupate={harta.ocupate} alese={alese} onToggle={atingeLoc} locale={locale} />}
+          <button type="button" className="cump-continua" disabled={!poateContinua} onClick={() => setLocGata(true)}>{tx.continua} →</button>
+        </div>
+      )}
+      {!pasLoc && <>
       <div className="cump-stanga">
-        <BiletCursa trip={trip} locale={locale} cotor="ales" fond={FOND_LISTA} />
+        {doiPasi ? (
+          <div className="cump-rezumat">
+            <div className="cump-linie"><span><b>{trip.time}</b> → {trip.arrivalTime}</span><b>{pretLoc} lei</b></div>
+            <div className="cump-linie"><span>{tx.loc(seats)}{hartaActiva && alese.length > 0 && <> · {alese.length === 1 ? tx.locul : tx.locurile} <b>{listaLocuri(alese)}</b></>}</span>
+              <button type="button" className="cump-schimba" onClick={() => setLocGata(false)}>{tx.schimba}</button></div>
+          </div>
+        ) : <BiletCursa trip={trip} locale={locale} cotor="ales" fond={FOND_LISTA} />}
         {/* Harta microbuzului (ION-242), doar la plecarea din Chișinău spre nord; pe tur locul se dă automat. */}
-        {alegeLocuri && (
+        {alegeLocuri && !doiPasi && (
           <fieldset style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: 8, minWidth: 0 }}>
             <legend style={{ width: "100%", padding: 0, marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: "#231A1C" }}>{tx.alegeLoc}</span>
@@ -281,14 +333,15 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
       </div>
 
       <div className="cump-dreapta">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        {!doiPasi && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <span style={{ fontSize: 16, fontWeight: 800 }}>{tx.cateBilete}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button type="button" aria-label={tx.maiPutine} disabled={seats <= 1} onClick={() => schimbaSeats(Math.max(1, seats - 1))} style={pas(seats <= 1)}>&minus;</button>
             <span aria-live="polite" style={{ minWidth: 24, textAlign: "center", fontSize: 19, fontWeight: 800 }}>{seats}</span>
             <button type="button" aria-label={tx.maiMulte} disabled={seats >= 4} onClick={() => schimbaSeats(Math.min(4, seats + 1))} style={pas(seats >= 4)}>+</button>
           </div>
-        </div>
+        </div>}
+        {doiPasi && locuriIncomplete && <button type="button" className="cump-schimba" style={{ textAlign: "left", fontSize: 15 }} onClick={() => setLocGata(false)}>{tx.alegeIar} ↑</button>}
         {/* Punctul de urcare (ION-198): 2–3 puncte → alegere obligatorie; unul sau niciunul → nimic. */}
         {(trip.puncte?.length ?? 0) >= 2 && (
           <fieldset style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: 6, minWidth: 0 }}>
@@ -353,6 +406,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
           </div>
         </div>
       </div>
+      </>}
     </form>
   );
 }

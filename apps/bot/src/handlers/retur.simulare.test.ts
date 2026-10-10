@@ -323,7 +323,7 @@ describe('1. oferta: fiecare răspuns al contractului, în RO și RU', () => {
     await client.apasa(m, `retur:cere:${COD}`);
     expect(m.panou.apeluriLa('oferta')).toHaveLength(1);
     expect(client.primite).toEqual([{ text: text('indisponibil', lang), butoane: [] }]);
-    expect(client.ultimul.text).toContain(TELEFON_DISPECERAT);
+    expect(client.ultimul.text).toMatch(/Încearcă din nou|Попробуйте ещё раз|Nu am putut nota|Не удалось записать/);
     expect(client.session.retur?.cifre).toBeUndefined();
   });
 
@@ -548,8 +548,8 @@ describe('2. cele 4 cifre: ce scrie clientul cât botul le așteaptă', () => {
 type FelButoane = 'niciunul' | 'verifica' | 'confirmare';
 interface CazStare { nume: string; stare: string; suma: number | null; motiv?: string; ro: string; ru: string | RegExp; butoane: FelButoane }
 
-const GENERIC_RO = `Returnarea nu s-a putut face automat. Pentru ajutor: ${TELEFON_DISPECERAT}. Biletele rămân valabile.`;
-const GENERIC_RU = `Возврат не удалось выполнить автоматически. Помощь: ${TELEFON_DISPECERAT}. Билеты остаются действительными.`;
+const GENERIC_RO = 'Returnarea nu a mers acum. Încearcă din nou peste câteva minute. Biletele rămân valabile.';
+const GENERIC_RU = 'Возврат сейчас не получился. Попробуйте ещё раз через несколько минут. Билеты остаются действительными.';
 
 const CAZURI_STARE: CazStare[] = [
   {
@@ -572,7 +572,7 @@ const CAZURI_STARE: CazStare[] = [
     ro: 'Biletul e anulat. Banca a primit cererea de returnare; banii ajung pe cardul cu care ai plătit.',
     ru: 'Билет отменён. Банк получил запрос на возврат; деньги придут на карту, которой вы платили.',
   },
-  { nume: 'necunoscut', stare: 'necunoscut', suma: 135, butoane: 'verifica', ro: 'Am trimis cererea; dispecerul verifică rezultatul.', ru: 'Мы отправили запрос; диспетчер проверяет результат.' },
+  { nume: 'necunoscut', stare: 'necunoscut', suma: 135, butoane: 'verifica', ro: 'Am trimis cererea la bancă; rezultatul se verifică automat. Verifică starea peste un minut.', ru: 'Запрос отправлен в банк; результат проверяется автоматически. Проверьте статус через минуту.' },
   { nume: 'refuz inchis', stare: 'refuz', suma: 135, motiv: 'inchis', butoane: 'niciunul', ro: text('faraBani', 'ro'), ru: text('faraBani', 'ru') },
   { nume: 'refuz urcat', stare: 'refuz', suma: 135, motiv: 'urcat', butoane: 'niciunul', ro: text('urcat', 'ro'), ru: text('urcat', 'ru') },
   {
@@ -586,7 +586,7 @@ const CAZURI_STARE: CazStare[] = [
   { nume: 'refuz fără motiv', stare: 'refuz', suma: 135, butoane: 'niciunul', ro: GENERIC_RO, ru: GENERIC_RU },
   {
     nume: 'refuz_banca', stare: 'refuz_banca', suma: 135, butoane: 'niciunul',
-    ro: 'Banca n-a făcut returnarea automat; dispecerul se ocupă și te contactează.', ru: /^Банк не выполнил возврат автоматически/,
+    ro: 'Banca n-a făcut returnarea; biletul rămâne valabil. Încearcă din nou mai târziu cu «Returnează biletul».', ru: /^Банк не выполнил возврат/,
   },
   { nume: 'in_curs', stare: 'in_curs', suma: 135, butoane: 'verifica', ro: 'Returnarea se procesează. Verifică starea peste un minut.', ru: 'Возврат обрабатывается. Проверьте статус через минуту.' },
   { nume: 'nedeterminat', stare: 'nedeterminat', suma: 135, butoane: 'verifica', ro: 'Încă nu am rezultatul. Verifică starea peste un minut.', ru: 'Результата пока нет. Проверьте статус через минуту.' },
@@ -767,8 +767,8 @@ describe('4. «Păstrez biletul» și «Verifică starea»', () => {
     ['creat', stareHttp('creat', 135), 'Biletul e anulat. Banca a primit cererea de returnare a 135 lei; banii ajung pe cardul cu care ai plătit.', 'niciunul', ['stare']],
     ['in_curs', stareHttp('in_curs', 135), 'Returnarea se procesează. Verifică starea peste un minut.', 'verifica', ['stare']],
     ['nedeterminat', stareHttp('nedeterminat', 135), 'Încă nu am rezultatul. Verifică starea peste un minut.', 'verifica', ['stare']],
-    ['necunoscut', stareHttp('necunoscut', 135), 'Am trimis cererea; dispecerul verifică rezultatul.', 'verifica', ['stare']],
-    ['refuz_banca', stareHttp('refuz_banca', 135), 'Banca n-a făcut returnarea automat; dispecerul se ocupă și te contactează.', 'niciunul', ['stare']],
+    ['necunoscut', stareHttp('necunoscut', 135), 'Am trimis cererea la bancă; rezultatul se verifică automat. Verifică starea peste un minut.', 'verifica', ['stare']],
+    ['refuz_banca', stareHttp('refuz_banca', 135), 'Banca n-a făcut returnarea; biletul rămâne valabil. Încearcă din nou mai târziu cu «Returnează biletul».', 'niciunul', ['stare']],
     ['refuz urcat', stareHttp('refuz', 135, 'urcat'), text('urcat', 'ro'), 'niciunul', ['stare']],
     ['neatinsa → butoanele de confirmare din nou', stareHttp('neatinsa', 135), 'Returnarea nu a fost confirmată încă.', 'confirmare', ['stare']],
     ['expirata (oferta reținută) → oferta nouă', stareHttp('expirata', 135), 'Suma s-a schimbat, uite noua sumă.', 'confirmare', ['stare', 'oferta']],
@@ -989,7 +989,7 @@ describe('6. intențiile AI ale clientului cu bilet', () => {
     const client = new Client();
     await client.scrie(m, 'cursa a fost anulată');
     expect(client.ultimul.text).toBe(text('escaladareEsuata', 'ro'));
-    expect(client.ultimul.text).toContain(TELEFON_DISPECERAT);
+    expect(client.ultimul.text).toMatch(/Încearcă din nou|Попробуйте ещё раз|Nu am putut nota|Не удалось записать/);
   });
 
   it('vina_noastra cu un mesaj de 5000 de caractere → textul trimis panoului e tăiat la 1000', async () => {
@@ -1134,7 +1134,7 @@ describe('7. lipsa cheii BILETE_BOT_API_KEY', () => {
     const client = new Client().cuOferta(OFERTA_ID, 'ro');
     await client.apasa(m, `retur:ok:${OFERTA_ID}`);
     expect(m.panou.apeluri).toHaveLength(0);
-    expect(client.ultimul).toEqual({ text: 'Returnarea momentan doar la telefon +373 60 401 010.', butoane: [] });
+    expect(client.ultimul).toEqual({ text: 'Returnarea nu merge acum. Încearcă din nou peste câteva minute.', butoane: [] });
   });
 
   it('«Verifică starea» → «doar la telefon», fără butonul de reverificare', async () => {

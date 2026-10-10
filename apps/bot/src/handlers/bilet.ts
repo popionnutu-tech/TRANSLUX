@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { config } from '../config.js';
 import type { BotContext, Limba } from '../types.js';
 import { repoBileteClienti, STARI_ACTIVE, type BiletQr, type ComandaClient, type RepoBileteClienti } from '../services/bileteClienti.js';
-import { BUTOANE, buton, TELEFON_DISPECERAT } from './retur-texte.js';
+import { BUTOANE, buton } from './retur-texte.js';
 import { repoMesajeBilet, type RepoMesajeBilet } from '../services/bileteTelegram.js';
 import { sincronizeazaFixarea } from '../services/fixareBilet.js';
 
@@ -79,8 +79,8 @@ export function aratReturnare(legare: Legare, status: string): boolean {
 }
 
 const T_ALT_CONT = {
-  ro: `Biletul e legat de alt cont Telegram; returnarea o cere acel cont sau dispeceratul: ${TELEFON_DISPECERAT}.`,
-  ru: `Билет привязан к другому аккаунту Telegram; возврат может запросить этот аккаунт или диспетчер: ${TELEFON_DISPECERAT}.`,
+  ro: 'Biletul e legat de alt cont Telegram; returnarea o poate cere doar acel cont.',
+  ru: 'Билет привязан к другому аккаунту Telegram; вернуть его может только этот аккаунт.',
 };
 
 /** Legenda imaginii unui loc: textul biletului (mesajBilet) + locul + îndemnul pentru urcare. Pur, testat. */

@@ -192,7 +192,7 @@ describe('handlerul mesajelor', () => {
     const f = ctxFals({ text: 'autobuzul n-a venit deloc' });
     await creeazaHandlerMesajClient(d)(f.ctx, vi.fn());
     expect(d.panou.escaladeaza).toHaveBeenCalledWith({ telegramId: ME, cod: COD, text: 'autobuzul n-a venit deloc', motiv: 'vina_noastra' });
-    expect(f.replies[0].text).toMatch(/dispecerului, te contactează/);
+    expect(f.replies[0].text).toMatch(/Am notat ce s-a întâmplat/);
     const session: Record<string, unknown> = {};
     const g = ctxFals({ text: 'șoferul a fost nepoliticos', session });
     await creeazaHandlerMesajClient(deps({ comenzi: [comanda()], intentie: 'plangere' }))(g.ctx, vi.fn());
@@ -267,7 +267,7 @@ describe('callback-urile', () => {
     const panou = panouFals({ oferta: vi.fn(async () => ({ tip: 'eroare', eroare: 'indisponibil' }) as const) });
     const f = ctxFals({ data: `retur:cere:${COD}` });
     await creeazaHandlerCallbackRetur(deps({ panou }))(f.ctx);
-    expect(f.replies[0].text).toBe('Returnarea momentan doar la telefon +373 60 401 010.');
+    expect(f.replies[0].text).toBe('Returnarea nu merge acum. Încearcă din nou peste câteva minute.');
   });
   it('fara_bani sub 4 h → textul cu cursa în aceeași direcție', async () => {
     const panou = panouFals({ oferta: vi.fn(async () => raspuns<RaspunsOferta>({ tip: 'fara_bani', motiv: 'sub_4h' })) });

@@ -1,5 +1,5 @@
 import type { Limba } from '../types.js';
-import { dataOra, TELEFON_DISPECERAT } from './retur-texte.js';
+import { dataOra } from './retur-texte.js';
 
 // ION-252: textele de după cursă și ale plângerii, RO + RU, pure (testate în dupa-cursa.test.ts). Textele vin de la
 // Ion (05.10): «Mulțumim că ai călătorit cu TRANSLUX», «👍 Totul a fost bine» / «👎 Am o plângere».
@@ -14,12 +14,12 @@ export const T_DUPA_CURSA = {
   },
   plangerePrimita: { ro: 'Plângerea ta a ajuns la noi. Mulțumim!', ru: 'Ваша жалоба получена. Спасибо!' },
   plangerePlafon: {
-    ro: `Azi ai trimis deja 3 plângeri. Pentru ceva urgent sună la ${TELEFON_DISPECERAT}.`,
-    ru: `Сегодня вы уже отправили 3 жалобы. Если срочно, звоните по номеру ${TELEFON_DISPECERAT}.`,
+    ro: 'Azi ai trimis deja 3 plângeri; le-am primit pe toate. Mâine poți scrie din nou.',
+    ru: 'Сегодня вы уже отправили 3 жалобы; мы получили все. Завтра можно написать снова.',
   },
   plangereEsuata: {
-    ro: `Nu am putut trimite plângerea acum. Încearcă să o trimiți din nou peste câteva minute sau sună la ${TELEFON_DISPECERAT}.`,
-    ru: `Не удалось отправить жалобу. Попробуйте отправить её ещё раз через несколько минут или позвоните по номеру ${TELEFON_DISPECERAT}.`,
+    ro: 'Nu am putut trimite plângerea acum. Încearcă să o trimiți din nou peste câteva minute.',
+    ru: 'Не удалось отправить жалобу. Попробуйте отправить её ещё раз через несколько минут.',
   },
   cereText: {
     ro: 'Am primit poza. Scrie-ne și în câteva cuvinte ce s-a întâmplat.',

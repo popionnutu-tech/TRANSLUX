@@ -33,8 +33,10 @@ export function telefonAfisat(telefon: string | null | undefined): string | null
   return `+373 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
 }
 
+// Ion, 10.10.2026: «nu apare deloc nicăieri dispecerul, nu este el, doar AI bot» — clientul nu e trimis la oameni sau la
+// telefon: botul spune ce poate face el și ce se întâmplă automat.
 export const T_RETUR = {
-  indisponibil: { ro: `Returnarea momentan doar la telefon ${TELEFON_DISPECERAT}.`, ru: `Возврат сейчас только по телефону ${TELEFON_DISPECERAT}.` },
+  indisponibil: { ro: 'Returnarea nu merge acum. Încearcă din nou peste câteva minute.', ru: 'Возврат сейчас недоступен. Попробуйте ещё раз через несколько минут.' },
   seProceseaza: { ro: 'Se procesează…', ru: 'Обрабатывается…' },
   pastrat: { ro: 'Bine, biletul rămâne valabil.', ru: 'Хорошо, билет остаётся действительным.' },
   cereCifre: {
@@ -54,8 +56,8 @@ export const T_RETUR = {
   },
   urcat: { ro: 'Biletul a fost deja scanat la urcare; nu se mai returnează.', ru: 'Билет уже отсканирован при посадке, вернуть его нельзя.' },
   nelegat: {
-    ro: `Biletul e legat de alt cont Telegram. Returnarea o cere cel care l-a deschis primul în bot sau dispeceratul: ${TELEFON_DISPECERAT}.`,
-    ru: `Билет привязан к другому аккаунту Telegram. Возврат может запросить тот, кто первым открыл его в боте, или диспетчер: ${TELEFON_DISPECERAT}.`,
+    ro: 'Biletul e legat de alt cont Telegram. Returnarea o poate cere doar contul care l-a deschis primul în bot.',
+    ru: 'Билет привязан к другому аккаунту Telegram. Вернуть его может только аккаунт, который первым открыл билет в боте.',
   },
   stareComanda: {
     ro: 'Biletul nu mai poate fi returnat: e deja anulat, returnat sau neplătit.',
@@ -63,26 +65,29 @@ export const T_RETUR = {
   },
   inexistent: { ro: 'Nu găsesc biletul. Deschide-l din nou din pagina biletului.', ru: 'Билет не найден. Откройте его заново со страницы билета.' },
   faraBilete: {
-    ro: `Nu văd bilete active legate de acest cont. Pentru ajutor: ${TELEFON_DISPECERAT}.`,
-    ru: `Не вижу активных билетов, привязанных к этому аккаунту. Помощь: ${TELEFON_DISPECERAT}.`,
+    ro: 'Nu văd bilete active legate de acest cont. Deschide biletul din linkul primit după plată sau din «Găsește biletul meu» pe translux.md.',
+    ru: 'Не вижу активных билетов, привязанных к этому аккаунту. Откройте билет по ссылке после оплаты или через «Найти мой билет» на translux.md.',
   },
   alegeBilet: { ro: 'Biletele tale active. Alege biletul de returnat:', ru: 'Ваши активные билеты. Выберите билет для возврата:' },
   meniu: {
-    ro: `Cu ce te pot ajuta? Poți returna un bilet cu butonul de mai jos. Pentru altceva: ${TELEFON_DISPECERAT}.`,
-    ru: `Чем помочь? Вернуть билет можно кнопкой ниже. По другим вопросам: ${TELEFON_DISPECERAT}.`,
+    ro: 'Cu ce te pot ajuta? Poți returna un bilet cu butonul de mai jos sau mă poți întreba despre cursă.',
+    ru: 'Чем помочь? Вернуть билет можно кнопкой ниже, или спросите меня о рейсе.',
   },
   altceva: {
-    ro: `Pentru asta te ajută dispeceratul: ${TELEFON_DISPECERAT}. Aici în bot poți returna biletul.`,
-    ru: `С этим поможет диспетчер: ${TELEFON_DISPECERAT}. Здесь в боте можно вернуть билет.`,
+    ro: 'Aici în bot îți pot returna biletul și îți pot spune unde e autobuzul. Pentru orar și prețuri: translux.md.',
+    ru: 'Здесь в боте я могу вернуть билет и показать, где автобус. Расписание и цены: translux.md.',
   },
-  dispecerVina: { ro: 'Am transmis dispecerului, te contactează.', ru: 'Мы передали диспетчеру, с вами свяжутся.' },
+  dispecerVina: {
+    ro: 'Am notat ce s-a întâmplat. Dacă biletul n-a fost folosit, apasă «Returnează biletul» și îți întorc banii pe card.',
+    ru: 'Я записал, что случилось. Если билет не использован, нажмите «Вернуть билет» — верну деньги на карту.',
+  },
   escaladareEsuata: {
-    ro: `Nu am putut transmite cererea acum. Sună la ${TELEFON_DISPECERAT}.`,
-    ru: `Не удалось передать заявку. Позвоните по номеру ${TELEFON_DISPECERAT}.`,
+    ro: 'Nu am putut nota acum. Scrie-mi din nou peste câteva minute.',
+    ru: 'Не удалось записать. Напишите мне ещё раз через несколько минут.',
   },
   escaladareDeja: {
-    ro: `Cererea ta e deja la dispecer. Dacă e urgent: ${TELEFON_DISPECERAT}.`,
-    ru: `Ваша заявка уже у диспетчера. Если срочно: ${TELEFON_DISPECERAT}.`,
+    ro: 'Am notat deja. Dacă biletul n-a fost folosit, îl poți returna cu butonul «Returnează biletul».',
+    ru: 'Уже записал. Если билет не использован, его можно вернуть кнопкой «Вернуть билет».',
   },
   verificaNereusit: {
     ro: 'Nu am putut afla rezultatul acum. Apasă «Verifică starea» peste un minut.',
@@ -163,14 +168,14 @@ function textRefuz(motiv: string | undefined, lang: Limba): string {
   const valabil = lang === 'ru' ? ' Билеты остаются действительными.' : ' Biletele rămân valabile.';
   if (/inchis|sub_4h|4h/.test(m)) return text('faraBani', lang);
   if (/maib_anulata/.test(m)) {
-    return lang === 'ru' ? 'Банк отказал в возврате. Диспетчер займётся этим и свяжется с вами.' : 'Banca a refuzat returnarea. Dispecerul se ocupă și te contactează.';
+    return lang === 'ru' ? 'Билет отменён; возврат денег банк завершает автоматически. Проверьте статус позже.' : 'Biletul e anulat; returnarea banilor o finalizează banca automat. Verifică starea mai târziu.';
   }
   if (/maib|banca|bank/.test(m)) {
     return (lang === 'ru' ? 'Банк отказал в возврате.' : 'Banca a refuzat returnarea.') + valabil;
   }
   return (lang === 'ru'
-    ? `Возврат не удалось выполнить автоматически. Помощь: ${TELEFON_DISPECERAT}.`
-    : `Returnarea nu s-a putut face automat. Pentru ajutor: ${TELEFON_DISPECERAT}.`) + valabil;
+    ? 'Возврат сейчас не получился. Попробуйте ещё раз через несколько минут.'
+    : 'Returnarea nu a mers acum. Încearcă din nou peste câteva minute.') + valabil;
 }
 
 /** Ce vede clientul pentru starea returnării și dacă primește butonul «Verifică starea». */
@@ -192,7 +197,7 @@ export function textStare(s: { stare: StareRetur; suma: number | null; motiv?: s
         cuVerificare: false,
       };
     case 'necunoscut':
-      return { text: ru ? 'Мы отправили запрос; диспетчер проверяет результат.' : 'Am trimis cererea; dispecerul verifică rezultatul.', cuVerificare: true };
+      return { text: ru ? 'Запрос отправлен в банк; результат проверяется автоматически. Проверьте статус через минуту.' : 'Am trimis cererea la bancă; rezultatul se verifică automat. Verifică starea peste un minut.', cuVerificare: true };
     case 'in_curs':
       return { text: ru ? 'Возврат обрабатывается. Проверьте статус через минуту.' : 'Returnarea se procesează. Verifică starea peste un minut.', cuVerificare: true };
     case 'nedeterminat':
@@ -201,7 +206,7 @@ export function textStare(s: { stare: StareRetur; suma: number | null; motiv?: s
       return { text: textRefuz(s.motiv, lang), cuVerificare: false };
     case 'refuz_banca':
       return {
-        text: ru ? 'Банк не выполнил возврат автоматически; этим займётся диспетчер и свяжется с вами.' : 'Banca n-a făcut returnarea automat; dispecerul se ocupă și te contactează.',
+        text: ru ? 'Банк не выполнил возврат; билет остаётся действительным. Попробуйте вернуть его ещё раз позже.' : 'Banca n-a făcut returnarea; biletul rămâne valabil. Încearcă din nou mai târziu cu «Returnează biletul».',
         cuVerificare: false,
       };
     case 'expirata':
@@ -210,7 +215,7 @@ export function textStare(s: { stare: StareRetur; suma: number | null; motiv?: s
       return { text: ru ? 'Возврат ещё не подтверждён.' : 'Returnarea nu a fost confirmată încă.', cuVerificare: false };
     case 'inexistent':
       return {
-        text: ru ? `Не нахожу эту заявку. Откройте билет заново или позвоните ${TELEFON_DISPECERAT}.` : `Nu găsesc cererea. Deschide biletul din nou sau sună la ${TELEFON_DISPECERAT}.`,
+        text: ru ? 'Не нахожу эту заявку. Откройте билет заново по ссылке после оплаты.' : 'Nu găsesc cererea. Deschide biletul din nou din linkul primit după plată.',
         cuVerificare: false,
       };
   }

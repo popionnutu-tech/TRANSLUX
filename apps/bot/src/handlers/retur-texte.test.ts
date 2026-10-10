@@ -31,10 +31,10 @@ describe('textStare (ce promite botul pe fiecare stare)', () => {
     const urcat = textStare({ stare: 'refuz', suma: 90, motiv: 'BILET_URCAT' }, 'ro').text;
     expect(urcat).toMatch(/scanat la urcare/);
     expect(urcat).not.toMatch(/rămân valabile/);
-    expect(textStare({ stare: 'refuz', suma: null }, 'ro').text).toContain(TELEFON_DISPECERAT);
+    expect(textStare({ stare: 'refuz', suma: null }, 'ro').text).toContain('Încearcă din nou');
   });
-  it('refuz_banca: dispecerul se ocupă, fără buton', () => {
-    expect(textStare({ stare: 'refuz_banca', suma: 120 }, 'ro')).toEqual({ text: 'Banca n-a făcut returnarea automat; dispecerul se ocupă și te contactează.', cuVerificare: false });
+  it('refuz_banca: biletul rămâne valabil, fără dispecer, fără buton', () => {
+    expect(textStare({ stare: 'refuz_banca', suma: 120 }, 'ro')).toEqual({ text: 'Banca n-a făcut returnarea; biletul rămâne valabil. Încearcă din nou mai târziu cu «Returnează biletul».', cuVerificare: false });
   });
 });
 

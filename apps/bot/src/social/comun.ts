@@ -136,3 +136,6 @@ export const PAGINA_FACEBOOK: Record<BotSocial, string> = {
   tlx: '101326344887435',
   translux: '522481397952192',
 };
+
+/** Numele boților, pentru «/comanda@bot» într-un grup unde sunt amândoi (grupul «UGC&Accounts», 10.10). */
+export const NUME_BOT: Record<BotSocial, string> = { tlx: 'tlxmd_bot', translux: 'TransluxMoldova_bot' };

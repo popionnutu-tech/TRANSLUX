@@ -1,7 +1,7 @@
 import type { Api } from 'grammy';
 import type { CallbackQuery, InlineKeyboardMarkup, Message } from 'grammy/types';
 import {
-  apiBot, db, esteAdmin, PAGINA_FACEBOOK, esteBlogger, escapeHtml, NUME_PLATFORMA, publicareReala, tokenBot, topicDupaId, topicDupaLoc,
+  apiBot, db, esteAdmin, NUME_BOT, PAGINA_FACEBOOK, esteBlogger, escapeHtml, NUME_PLATFORMA, publicareReala, tokenBot, topicDupaId, topicDupaLoc,
   type BotSocial, type Postare, type Topic,
 } from './comun.js';
 import { formatLoc, minuteDinOra, urmatorulLoc } from './calendar.js';
@@ -34,10 +34,24 @@ function raspunde(api: Api, msg: Message): Raspuns {
   }).catch((err) => { console.error('social raspuns:', err?.message ?? err); return null; });
 }
 
-/** «/lega_social@Bot a b» → { cmd: 'lega_social', arg: 'a b' }. */
-export function comanda(text: string | undefined): { cmd: string; arg: string } | null {
-  const m = /^\/([a-z_]+)(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec((text ?? '').trim());
-  return m ? { cmd: m[1].toLowerCase(), arg: (m[2] ?? '').trim() } : null;
+/** «/lega_social@Bot a b» → { cmd: 'lega_social', arg: 'a b', catre: 'bot' }. */
+export function comanda(text: string | undefined): { cmd: string; arg: string; catre: string | null } | null {
+  const m = /^\/([a-z_]+)(?:@(\w+))?(?:\s+([\s\S]*))?$/i.exec((text ?? '').trim());
+  return m ? { cmd: m[1].toLowerCase(), arg: (m[3] ?? '').trim(), catre: m[2]?.toLowerCase() ?? null } : null;
+}
+
+/**
+ * Care bot răspunde la o comandă. Ion (10.10.2026) a pus ambii boți în același grup («UGC&Accounts»), deci fiecare
+ * comandă ajunge la amândoi și doar unul trebuie să răspundă: cel numit după «@»; altfel cel de care e legat topicul;
+ * altfel, la /lega_social, cel al profilului (tlx_… = TLX); în rest botul Translux. Pur, testat.
+ */
+export function botulComenzii(cmd: string, arg: string, catre: string | null, topic: Pick<Topic, 'bot'> | null): BotSocial {
+  if (catre) {
+    for (const b of Object.keys(NUME_BOT) as BotSocial[]) if (NUME_BOT[b].toLowerCase() === catre) return b;
+  }
+  if (topic) return topic.bot;
+  if (cmd === 'lega_social' && /^tlx/i.test(arg)) return 'tlx';
+  return 'translux';
 }
 
 const COMENZI = new Set(['lega_social', 'social', 'social_descriere', 'social_ore', 'social_hashtag', 'social_comentariu', 'social_pagina', 'social_oprit', 'social_porneste', 'blogger', 'blogger_scoate']);
@@ -130,21 +144,22 @@ async function miniatura(bot: BotSocial, api: Api, fileId: string | undefined): 
 
 // ── Comenzile adminilor, scrise în topic ────────────────────────────────────
 
-async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: string, arg: string): Promise<boolean> {
+async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: string, arg: string, catre: string | null): Promise<boolean> {
   if (!COMENZI.has(cmd)) return false;
+  // O comandă numită altui bot (sau altui bot din grup) nu e a noastră.
+  if (catre && !Object.values(NUME_BOT).some((n) => n.toLowerCase() === catre)) return false;
   const r = raspunde(api, msg);
+  const thread = msg.is_topic_message ? msg.message_thread_id : undefined;
+  const topic = thread ? await topicDupaLoc(msg.chat.id, thread) : null;
+  // Celălalt bot din același grup răspunde el; tăcem.
+  if (botulComenzii(cmd, arg, catre, topic) !== bot) return true;
   if (!(await esteAdmin(msg.from?.id))) {
     await r('Doar administratorii pot configura publicarea clipurilor.');
     return true;
   }
-  const thread = msg.is_topic_message ? msg.message_thread_id : undefined;
   if (msg.chat.type !== 'supergroup' || !thread) {
+    console.log(`social: comandă /${cmd} în afara topicului, chat ${msg.chat.id} «${'title' in msg.chat ? msg.chat.title : ''}»`);
     await r('Comanda se scrie în topicul contului (supergrup cu Topics), nu în chatul general.');
-    return true;
-  }
-  const topic = await topicDupaLoc(msg.chat.id, thread);
-  if (topic && topic.bot !== bot) {
-    await r('Topicul e legat de celălalt bot; comenzile se dau acolo.');
     return true;
   }
 
@@ -406,7 +421,7 @@ export async function trateazaMesajSocial(bot: BotSocial, msg: Message): Promise
   const api = apiBot(bot);
   if (!api || msg.chat.type !== 'supergroup') return false;
   const c = comanda(msg.text);
-  if (c) return trateazaComanda(bot, api, msg, c.cmd, c.arg);
+  if (c) return trateazaComanda(bot, api, msg, c.cmd, c.arg, c.catre);
   if (!esteClip(msg) || !msg.is_topic_message || !msg.message_thread_id) return false;
   const topic = await topicDupaLoc(msg.chat.id, msg.message_thread_id);
   if (!topic || topic.bot !== bot) return false;

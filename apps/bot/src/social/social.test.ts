@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { decalajFus, formatLoc, momentLocal, urmatorulLoc, ziLocala } from './calendar.js';
 import { campuriPublicare, interpreteazaStarea, tipFacebook, platformePosibile } from './uploadPost.js';
 import { compuneText, parseazaText, textRezerva, mesajText, textCurat } from './texte.js';
-import { citesteCaption, comanda, parseazaPlatforme } from './primire.js';
+import { botulComenzii, citesteCaption, comanda, parseazaPlatforme } from './primire.js';
 import { idCanal, motivSchimbat } from './descarcare.js';
 import { planConversie, argumenteFfmpeg } from './conversie.js';
 import { cheieCorecta } from './index.js';
@@ -201,9 +201,18 @@ describe('conversia', () => {
 
 describe('primire', () => {
   it('comenzile, cu @bot și argumente', () => {
-    expect(comanda('/lega_social@TransluxBot tlx1 tiktok,facebook')).toEqual({ cmd: 'lega_social', arg: 'tlx1 tiktok,facebook' });
-    expect(comanda('/social')).toEqual({ cmd: 'social', arg: '' });
+    expect(comanda('/lega_social@TransluxBot tlx1 tiktok,facebook')).toEqual({ cmd: 'lega_social', arg: 'tlx1 tiktok,facebook', catre: 'transluxbot' });
+    expect(comanda('/social')).toEqual({ cmd: 'social', arg: '', catre: null });
     expect(comanda('salut')).toBeNull();
+  });
+
+  it('grupul comun: o comandă primește răspuns de la un singur bot', () => {
+    expect(botulComenzii('social', '', 'tlxmd_bot', { bot: 'translux' })).toBe('tlx');
+    expect(botulComenzii('social', '', 'transluxmoldova_bot', null)).toBe('translux');
+    expect(botulComenzii('social', '', null, { bot: 'tlx' })).toBe('tlx');
+    expect(botulComenzii('lega_social', 'tlx_ungheni tiktok,facebook,instagram', null, null)).toBe('tlx');
+    expect(botulComenzii('lega_social', 'translux_balti tiktok', null, null)).toBe('translux');
+    expect(botulComenzii('social', '', null, null)).toBe('translux');
   });
 
   it('platformele', () => {

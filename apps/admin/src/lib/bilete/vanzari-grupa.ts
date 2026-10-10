@@ -4,7 +4,8 @@ import { sendTelegramTextSigur } from '@/lib/telegram-notify';
 import { mesajVanzare, type ComandaVanduta } from './vanzare-mesaj';
 
 // Fiecare bilet vândut în tabul «Bilete online» al grupei (migr. 565; Ion, 10.10.2026: «să îmi vie în grupă ai Translux
-// bilete toate biletele cumpărate»). Aceeași grupă și același tab ca alertele (app_config bilete_alerte_chat/_tab).
+// bilete toate biletele cumpărate»; apoi: «fă de fapt în grupă ugc încă un topic bilete online»). Grupa și topicul vin
+// din app_config bilete_vanzari_chat/_tab (UGC&Accounts, topicul «Bilete online»); fără ele — tabul alertelor.
 // Revendicarea e atomică (UPDATE … WHERE grupa_anuntat_la IS NULL): callback-ul și împăcarea nu trimit de două ori.
 // Mesajul nerefuzat de Telegram → revendicarea se anulează și împăcarea (10 min) reîncearcă. Fără grupă configurată
 // nu pleacă nimic — vânzările nu merg în privatul lui Ion (privatul nu e jurnal).
@@ -16,11 +17,13 @@ const FEREASTRA_MS = 2 * 24 * 3600_000;
 type Rand = ComandaVanduta & { id: string; checkout_id: string };
 
 async function grupa(): Promise<{ chat: string; tab: number | null } | null> {
-  const { data } = await getSupabase().from('app_config').select('key, value').in('key', ['bilete_alerte_chat', 'bilete_alerte_tab']);
+  const { data } = await getSupabase().from('app_config').select('key, value')
+    .in('key', ['bilete_vanzari_chat', 'bilete_vanzari_tab', 'bilete_alerte_chat', 'bilete_alerte_tab']);
   const m = new Map((data || []).map((r: { key: string; value: string }) => [r.key, String(r.value ?? '').trim()]));
-  const chat = m.get('bilete_alerte_chat');
+  const prefix = /^-?\d+$/.test(m.get('bilete_vanzari_chat') ?? '') ? 'bilete_vanzari' : 'bilete_alerte';
+  const chat = m.get(`${prefix}_chat`);
   if (!chat || !/^-?\d+$/.test(chat)) return null;
-  const tab = Number(m.get('bilete_alerte_tab'));
+  const tab = Number(m.get(`${prefix}_tab`));
   return { chat, tab: Number.isInteger(tab) && tab > 0 ? tab : null };
 }
 

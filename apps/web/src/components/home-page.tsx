@@ -33,6 +33,7 @@ const loadCookieConsent = () => import('@/components/CookieConsent');
 const NowResults = dynamic(loadNowResults, { ssr: false });
 const RouteResults = dynamic(loadRouteResults, { ssr: false });
 // Tur-retur (plan 10.10): fluxul în 3 pași, încărcat doar când e nevoie.
+const StudentVerificare = dynamic(() => import('@/components/ui/student-verificare').then((m) => m.StudentVerificare), { ssr: false });
 const PromoExplicatie = dynamic(() => import('@/components/ui/promo-explicatie').then((m) => m.PromoExplicatie), { ssr: false });
 const TurReturFlux = dynamic(() => import('@/components/ui/tur-retur-flux').then((m) => m.TurReturFlux), { ssr: false });
 const MiniCalendar = dynamic(loadMiniCalendar, { ssr: false });
@@ -46,6 +47,7 @@ import { homePath, slugify } from '@/lib/seo-paths';
 import type { HomeOptions, HomePopular } from '@/lib/home-props';
 import { searchTrips, type TripResult } from '@/app/(public)/actions';
 import { perechePromo } from '@translux/db';
+import { citesteStudent } from '@/lib/student-sesiune';
 import type { ContactPrecompletat } from '@/lib/telegram-client';
 import LogoTranslux from './logo-translux';
 
@@ -96,6 +98,10 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   // Chișinău (promoția −20% la retur). Calendarul cere întâi ziua turului, apoi ziua întoarcerii (≤ 30 de zile).
   const [esteBalti, setEsteBalti] = useState(false);
   const [cuRetur, setCuRetur] = useState(false);
+  // Ion, 10.10.2026: «să fie la Bălți–Chișinău student / tur-retur / doar tur; dacă apasă student să se solicite înainte de
+  // căutare cursă verificare acte în regim live». La «Student» Acum / Mai târziu cer întâi verificarea (o dată pe filă).
+  const [cuStudent, setCuStudent] = useState(false);
+  const [verificaStudent, setVerificaStudent] = useState<null | (() => void)>(null);
   const [dataRetur, setDataRetur] = useState<string | null>(null);
   // Ion, 10.10: «la data tur-retur pune același calendar ca la Mai târziu» — fereastra «Când pleci?» pentru ambele câmpuri.
   const [calPentru, setCalPentru] = useState<null | 'plecare' | 'intoarcere'>(null);
@@ -150,7 +156,13 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
     return { from, to };
   };
 
-  const openNow = () => {
+  /** La «Student»: fără jeton valabil în filă, întâi fereastra de verificare; apoi acțiunea cerută. */
+  const dupaStudent = (f: () => void) => {
+    if (esteBalti && cuStudent && !citesteStudent()) { setVerificaStudent(() => f); return; }
+    f();
+  };
+  const openNow = () => dupaStudent(openNowDirect);
+  const openNowDirect = () => {
     const d = direction();
     if (!d) return;
     // O singură dată la deschidere; fereastra se reîmprospătează singură, reîmprospătările nu se numără (ION-102).
@@ -162,9 +174,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
     });
   };
 
-  const openLater = () => {
-    if (direction()) setCalendarOpen(!calendarOpen);
-  };
+  const openLater = () => { if (direction()) dupaStudent(() => setCalendarOpen((o) => !o)); };
   // Ofertele de pe prima pagină (Ion, 10.10.2026: «separat meniu între destinații populare și căutare, pe prima pagină,
   // deodată cum s-a deschis site-ul pe mobile»): un card pune Chișinău → Bălți în bară; «Tur-retur» comută și pe tur-retur.
   // Ion, 10.10: apăsarea unei promoții deschide întâi fereastra care explică reducerea; butonul ei pune perechea în bară.
@@ -179,7 +189,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
       pune(fromRef, 'chisinau'); pune(toRef, 'balti');
     }
     setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
-    setCuRetur(tip === 'tur-retur'); setDataRetur(null);
+    setCuRetur(tip === 'tur-retur'); setCuStudent(tip === 'student'); setDataRetur(null);
     fromRef.current?.closest('.hero-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   const verificaPerechea = () => setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
@@ -332,11 +342,14 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             {esteBalti && (
               <div className="tr-seg-sus">
                 <div className="tr-seg" role="radiogroup" aria-label={locale === 'ru' ? 'Тип поездки' : 'Tipul călătoriei'}>
-                  <button type="button" role="radio" aria-checked={!cuRetur} className={!cuRetur ? 'on' : ''} onClick={() => { setCuRetur(false); setDataRetur(null); }}>
+                  <button type="button" role="radio" aria-checked={!cuRetur && !cuStudent} className={!cuRetur && !cuStudent ? 'on' : ''} onClick={() => { setCuRetur(false); setCuStudent(false); setDataRetur(null); }}>
                     {locale === 'ru' ? 'Только туда' : 'Doar tur'}
                   </button>
-                  <button type="button" role="radio" aria-checked={cuRetur} className={cuRetur ? 'on' : ''} onClick={() => { setCuRetur(true); setDataRetur(null); }}>
+                  <button type="button" role="radio" aria-checked={cuRetur} className={cuRetur ? 'on' : ''} onClick={() => { setCuRetur(true); setCuStudent(false); setDataRetur(null); }}>
                     {locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'} <span className="tr-badge">−20%</span>
+                  </button>
+                  <button type="button" role="radio" aria-checked={cuStudent} className={cuStudent ? 'on' : ''} onClick={() => { setCuStudent(true); setCuRetur(false); setDataRetur(null); }}>
+                    {locale === 'ru' ? 'Студент' : 'Student'} <span className="tr-badge st">−20%</span>
                   </button>
                 </div>
               </div>
@@ -478,6 +491,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .tr-seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(155,27,48,.07);gap:4px}
 .tr-seg button{white-space:nowrap;border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
 .tr-seg button.on{background:#fff;color:#6E0E14;box-shadow:0 2px 8px rgba(155,27,48,.16)}
+.tr-badge.st{background:#2E5A88}
 .tr-badge{font-size:11px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 7px}
 .tr-card{width:100%;max-width:520px;display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;background:#fff;border:1px solid rgba(155,27,48,.14);border-radius:18px;box-shadow:0 6px 22px rgba(155,27,48,.08);overflow:hidden}
 .tr-zi{border:none;background:transparent;padding:12px 16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px;font-family:inherit;transition:background .15s}
@@ -683,7 +697,11 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 
       {explicaPromo && (
         <PromoExplicatie tip={explicaPromo} locale={locale} inainteDe1310={inainteDe1310}
-          onAlege={() => alegeOferta(explicaPromo)} onClose={() => setExplicaPromo(null)} />
+          onAlege={() => { alegeOferta(explicaPromo); if (explicaPromo === 'student' && !citesteStudent()) setVerificaStudent(() => () => {}); }}
+          onClose={() => setExplicaPromo(null)} />
+      )}
+      {verificaStudent && (
+        <StudentVerificare locale={locale} onGata={() => verificaStudent()} onClose={() => setVerificaStudent(null)} />
       )}
 
       {showResults && dataRetur && cuRetur && esteBalti && (

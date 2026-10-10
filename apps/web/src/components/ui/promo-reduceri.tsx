@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { pretBilet } from "@/app/(public)/bilete-actions";
+import { citesteStudent, laJpeg } from "@/lib/student-sesiune";
 
 // Promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026; migr. 546): −20% la retur (cu codul de retur de pe biletul tur)
 // sau −20% pentru student (carnet + pașaport/buletin verificate de AI). Nu se cumulează. Prețul arătat vine din panou
@@ -37,21 +38,6 @@ const TXT = {
   },
 } as const;
 
-/** Poza din cameră → JPEG ≤ 1600 px, ≤ 700 KB, orientată după EXIF (createImageBitmap), în base64 fără prefix. */
-async function laJpeg(f: File): Promise<string> {
-  const bmp = await createImageBitmap(f, { imageOrientation: "from-image" } as ImageBitmapOptions);
-  const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-  const c = document.createElement("canvas");
-  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
-  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
-  for (const q of [0.85, 0.75, 0.65, 0.55]) {
-    const url = c.toDataURL("image/jpeg", q);
-    const b64 = url.slice(url.indexOf(",") + 1);
-    if (b64.length * 0.75 <= 700_000) return b64;
-  }
-  throw new Error("prea_mare");
-}
-
 export interface ReducereAleasa { pret: number | null; codRetur: string | null; studentJeton: string | null; blocheazaPlata: boolean }
 
 export function PromoReduceri(p: {
@@ -80,6 +66,21 @@ export function PromoReduceri(p: {
       if (c && /^[0-9a-f]{64}$/.test(c)) { setCod(c); setMod("retur"); setAreCod(true); }
     } catch { /* stocare blocată */ }
   }, []);
+
+  // Verificarea făcută înainte de căutare (Ion, 10.10: «student» în bară → actele întâi): jetonul din filă intră direct.
+  React.useEffect(() => {
+    if (p.faraStudent) return;
+    const st = citesteStudent();
+    if (st) { setMod("student"); setJeton(st.jeton); }
+  }, [p.faraStudent]);
+  const ceruta = React.useRef("");
+  React.useEffect(() => {
+    if (mod !== "student" || !jeton || p.seats !== 1 || !p.nume || !p.telefon) return;
+    const cheie = `${jeton}|${p.nume}|${p.telefon}|${p.trip.crm_route_id}|${p.trip.trip_date}`;
+    if (ceruta.current === cheie) return;
+    ceruta.current = cheie;
+    void cere({ studentJeton: jeton });
+  }); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { onChange } = p;
   React.useEffect(() => {

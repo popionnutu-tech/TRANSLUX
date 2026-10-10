@@ -9,6 +9,7 @@ import { citesteInitData } from "@/components/telegram/telegram-webapp";
 import { linkHarta } from "@/lib/bilete-reguli";
 import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
 import { phoneText } from "@/lib/phone";
+import { citesteStudent } from "@/lib/student-sesiune";
 import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 import { BiletCursa, FOND_LISTA } from "./bilet-cursa";
@@ -88,7 +89,10 @@ type Harta = { stare: "incarca" | "ok" | "indisponibila"; ocupate: number[] };
 
 /** Câmpurile de la deschidere: goale pe site, precompletate în mini app-ul Telegram (ION-249, telefonul în forma +373). */
 function campuriInitiale(contact: ContactPrecompletat | null) {
-  return { lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" };
+  if (contact) return { lastName: contact.nume ?? "", firstName: contact.prenume ?? "", phone: phoneText(contact.telefon), email: contact.email ?? "" };
+  // Studentul verificat înainte de căutare: numele și telefonul de la verificare (jetonul e legat de ele).
+  const st = typeof window !== "undefined" ? citesteStudent() : null;
+  return { lastName: st?.nume ?? "", firstName: st?.prenume ?? "", phone: st?.telefon ?? "", email: "" };
 }
 
 export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null, returFix = null }: {

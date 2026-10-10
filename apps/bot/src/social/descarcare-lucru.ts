@@ -16,6 +16,7 @@ import { idCanal, motivSchimbat, type CerereDescarcare, type RaspunsDescarcare }
 
 const BUCATA = 512 * 1024;
 const ASTEAPTA_HASH_MS = 30_000;
+const RELUARI_MAX = 20;
 
 /**
  * access_hash-ul supergrupului pentru acest bot. Cu 0, `channels.GetMessages` dă CHANNEL_INVALID (10.10.2026), iar un
@@ -93,8 +94,23 @@ async function descarca(c: CerereDescarcare): Promise<RaspunsDescarcare> {
     // Runda 3, SBE3-1: GramJS deschide la FIECARE descărcare o conexiune exportată (downloads.js:84, :100 →
     // telegramBaseClient.js:328-332), cu `help.GetConfig` neîmpachetat; pe alt DC și Export/ImportAuthorization.
     // `dcId` se dă mereu, explicit — ce face asta cu actualizările botului o spune doar proba (pasul 10).
-    for await (const bucata of tg.iterDownload({ file: loc, requestSize: BUCATA, fileSize: doc.size, dcId: doc.dcId })) {
-      await f.write(bucata as Buffer);
+    // 10.10.2026, clipul de 562 MB: `upload.GetFile` a dat «-503: Timeout» după câteva secunde. Telegram dă asta pe
+    // fișierele mari din alt DC; bucata se cere din nou de unde a rămas, nu de la început.
+    let scris = 0;
+    for (let reluari = 0; ; reluari++) {
+      try {
+        for await (const bucata of tg.iterDownload({
+          file: loc, requestSize: BUCATA, fileSize: doc.size, dcId: doc.dcId, offset: helpers.returnBigInt(scris),
+        })) {
+          await f.write(bucata as Buffer);
+          scris += (bucata as Buffer).length;
+        }
+        break;
+      } catch (err) {
+        const m = (err as Error)?.message ?? String(err);
+        if (reluari >= RELUARI_MAX || !/Timeout|-503|FLOOD|ECONNRESET|Not connected|disconnect/i.test(m)) throw err;
+        await new Promise((r) => setTimeout(r, Math.min(30_000, 2_000 * (reluari + 1))));
+      }
     }
   } finally {
     await f.close();

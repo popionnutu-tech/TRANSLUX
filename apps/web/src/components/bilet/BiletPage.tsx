@@ -76,7 +76,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
   const c = await biletPublic(cod);
   if (c === null) notFound();
   const poze = (k: ComandaPublica): PozaLoc[] => bileteDeAratat(k).map((v) => ({
-    loc: String(v.loc_nr ?? v.nr), eticheta: TXT_CARD[locale].locul.toUpperCase(), cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
+    loc: v.loc_nr != null ? String(v.loc_nr) : '', eticheta: v.loc_nr != null ? TXT_CARD[locale].locul.toUpperCase() : '', cod: v.cod_qr.replace(/(.{4})(?=.)/g, '$1 '), qrSvg: v.qr_svg,
     ora: oraHHMM(k.departure_at), sosire: k.sosire ?? null, ruta: `${k.from_name} → ${k.to_name}`, numeRuta: numeRuta(k, locale), data: dataScurta(k.trip_date, locale),
     jos: `${k.passenger_name} · ${nfPret.format(Number(k.price_per_seat))} MDL · ${v.status === 'urcat' ? TXT_CARD[locale].urcat : TXT_CARD[locale].achitat}`,
     operator: `${OPERATOR.brand} · ${OPERATOR.name} · IDNO ${OPERATOR.idno}`,

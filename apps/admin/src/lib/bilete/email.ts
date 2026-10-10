@@ -42,7 +42,8 @@ export async function trimiteEmailBilet(comandaId: string): Promise<RezultatEmai
       cod: c.cod, lang, from_name: c.from_name, to_name: c.to_name, departure_at: c.departure_at, seats: c.seats,
       total: Number(c.total), passenger_name: c.passenger_name, ruta: numeRuta,
       numar: c.id.slice(0, 8).toUpperCase(), platit_la: c.paid_at, proba: c.test === true,
-      bilete: bilete.map((b: { nr: number; loc_nr: number | null; cod_qr: string }) => ({ nr: b.nr, loc_nr: b.loc_nr, cod_qr: b.cod_qr })),
+      // Ion, 10.10.2026: «de la nord la Chișinău să nu fie numerotarea locurilor în bilete, doar din Chișinău».
+      bilete: bilete.map((b: { nr: number; loc_nr: number | null; cod_qr: string }) => ({ nr: b.nr, loc_nr: c.going_north ? b.loc_nr : null, cod_qr: b.cod_qr })),
     }, {
       bazaSite: process.env.SITE_URL || 'https://translux.md',
       bot: process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot',

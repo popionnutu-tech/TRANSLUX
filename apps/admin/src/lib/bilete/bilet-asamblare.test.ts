@@ -27,7 +27,8 @@ describe('ION-276: asamblarea biletului (pagina biletului și lista clientului)'
     expect(r.sosire).toBe('17:40');
     expect(r.ruta).toEqual({ id: 21, nume_ro: 'Otaci - Chișinău', nume_ru: 'Отаче - Кишинёв' });
     expect(r.punct_urcare).toEqual({ nume_ro: 'Autogara', nume_ru: 'Autogara', lat: 48.1, lon: 27.3 });
-    expect(r.bilete.map((b) => [b.nr, b.loc_nr])).toEqual([[1, null], [2, 5]]);
+    // Ion, 10.10.2026: spre Chișinău (din nord) biletul nu are numărul locului.
+    expect(r.bilete.map((b) => [b.nr, b.loc_nr])).toEqual([[1, null], [2, null]]);
     expect(r.bilete[0].qr_svg).toMatch(/^<svg/);
   });
   it('fără rută și fără punct → null, nu câmpuri goale', async () => {

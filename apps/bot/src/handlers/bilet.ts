@@ -85,18 +85,19 @@ const T_ALT_CONT = {
 
 /** Legenda imaginii unui loc: textul biletului (mesajBilet) + locul + îndemnul pentru urcare. Pur, testat. */
 export function legendaBilet(
-  c: Parameters<typeof mesajBilet>[0],
+  c: Parameters<typeof mesajBilet>[0] & { going_north?: boolean },
   b: Pick<BiletQr, 'nr' | 'loc_nr'> | null,
   total: number,
   lang: Limba,
 ): string {
   const text = mesajBilet(c).text;
   if (!b) return text;
-  const loc = b.loc_nr ?? b.nr;
-  const dinTotal = total > 1 ? (lang === 'ru' ? ` (билет ${b.nr} из ${total})` : ` (biletul ${b.nr} din ${total})`) : '';
-  return lang === 'ru'
-    ? `${text}\nМесто ${loc}${dinTotal}\nПокажите этот код водителю при посадке.`
-    : `${text}\nLocul ${loc}${dinTotal}\nArată acest cod șoferului la urcare.`;
+  // Ion, 10.10.2026: «de la nord la Chișinău să nu fie numerotarea locurilor în bilete, doar din Chișinău».
+  const cuLoc = c.going_north === true && b.loc_nr != null;
+  const dinTotal = total > 1 ? (lang === 'ru' ? `Билет ${b.nr} из ${total}` : `Biletul ${b.nr} din ${total}`) : '';
+  const rand = cuLoc ? (lang === 'ru' ? `Место ${b.loc_nr}` : `Locul ${b.loc_nr}`) + (dinTotal ? ` (${dinTotal.toLowerCase()})` : '') : dinTotal;
+  const jos = lang === 'ru' ? 'Покажите этот код водителю при посадке.' : 'Arată acest cod șoferului la urcare.';
+  return [text, rand || null, jos].filter(Boolean).join('\n');
 }
 
 /** Butoanele biletului propriu, plătit: returnarea și harta autobuzului din mini app (ION-251). */

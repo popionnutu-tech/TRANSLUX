@@ -11,15 +11,16 @@ import { numePotrivit, textConfirmare, textGaseste, type BiletSms } from './sms-
 
 const SITE = () => process.env.SITE_URL || 'https://translux.md';
 
-interface RandComanda { id: string; cod: string; lang: string | null; from_name: string; to_name: string; departure_at: string; phone: string; status: string; in_pachet: boolean; comanda_tur_id: string | null; test: boolean }
+interface RandComanda { id: string; cod: string; lang: string | null; from_name: string; to_name: string; departure_at: string; phone: string; status: string; in_pachet: boolean; comanda_tur_id: string | null; test: boolean; going_north: boolean }
 
 async function biletSms(c: RandComanda): Promise<BiletSms> {
   const { data } = await getSupabase().from('bilete').select('loc_nr').eq('comanda_id', c.id).in('status', ['valid', 'urcat']).order('nr');
-  const locuri = ((data || []) as { loc_nr: number | null }[]).map((b) => b.loc_nr).filter((x): x is number => typeof x === 'number');
+  // Ion, 10.10.2026: «de la nord la Chișinău să nu fie numerotarea locurilor în bilete, doar din Chișinău».
+  const locuri = c.going_north ? ((data || []) as { loc_nr: number | null }[]).map((b) => b.loc_nr).filter((x): x is number => typeof x === 'number') : [];
   return { lang: c.lang === 'ru' ? 'ru' : 'ro', from: c.from_name, to: c.to_name, departure_at: c.departure_at, cod: c.cod, locuri };
 }
 
-const COLOANE = 'id, cod, lang, from_name, to_name, departure_at, phone, status, in_pachet, comanda_tur_id, test';
+const COLOANE = 'id, cod, lang, from_name, to_name, departure_at, phone, status, in_pachet, comanda_tur_id, test, going_north';
 
 export type RezultatSmsBilet = 'trimis' | 'nimic' | 'neconfigurat' | 'esuat';
 

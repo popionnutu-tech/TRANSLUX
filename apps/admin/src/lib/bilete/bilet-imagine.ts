@@ -98,8 +98,11 @@ export async function imagineBilet(c: ComandaPublica, nr: number): Promise<Buffe
   const winH = 84 + qrMarime + 112;
   out.push(`<path d="M${WX} ${wy + 20} a20 20 0 0 1 20 -20 h${WW - 40} a20 20 0 0 1 20 20 v${winH - 20} h${-WW} z" fill="#fff"/>`);
   // LOCUL mare
-  out.push(textPath(bold, lang === 'ru' ? 'МЕСТО' : 'LOCUL', WX + 18, wy + 28, 11, '#8A7A7D'));
-  out.push(textPath(bold, String(b.loc_nr ?? b.nr), WX + 18, wy + 66, 34, RED));
+  // Ion, 10.10.2026: «de la nord la Chișinău să nu fie numerotarea locurilor în bilete, doar din Chișinău». — fără loc (loc_nr gol), fără blocul «LOCUL».
+  if (b.loc_nr != null) {
+    out.push(textPath(bold, lang === 'ru' ? 'МЕСТО' : 'LOCUL', WX + 18, wy + 28, 11, '#8A7A7D'));
+    out.push(textPath(bold, String(b.loc_nr), WX + 18, wy + 66, 34, RED));
+  }
   if (valide.length > 1) out.push(textPath(r, t.din(b.nr, valide.length), WX + 18, wy + 82, 10.5, '#8A7A7D'));
   // echipajul (migr. 538): plăcuța MD + șoferul și telefonul; până la bifă — textul de așteptare
   const e = c.echipaj;

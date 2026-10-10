@@ -86,10 +86,13 @@ export function BiletCard({ comanda: c, bilet: b, locale, jos }: { comanda: Coma
       </div>
       <div style={{ margin: '10px 16px 0', padding: '12px 16px', borderRadius: '20px 20px 0 0', background: '#fff', color: '#231A1C', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9 }}>
         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#8A7A7D', letterSpacing: 0.5 }}>{tx.locul.toUpperCase()}</span>
-            <span style={{ fontSize: 34, fontWeight: 800, color: RED, lineHeight: 1 }}>{b.loc_nr ?? b.nr}</span>
-          </div>
+          {/* Ion, 10.10.2026: «de la nord la Chișinău să nu fie numerotarea locurilor în bilete, doar din Chișinău». Panoul nu trimite locul pe sensul spre Chișinău. */}
+          {b.loc_nr != null ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#8A7A7D', letterSpacing: 0.5 }}>{tx.locul.toUpperCase()}</span>
+              <span style={{ fontSize: 34, fontWeight: 800, color: RED, lineHeight: 1 }}>{b.loc_nr}</span>
+            </div>
+          ) : <span />}
           {/* Echipajul cursei (migr. 538): după bifa dispecerului; până atunci textul de așteptare. */}
           {e?.stare === 'gata' ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 0 }}>

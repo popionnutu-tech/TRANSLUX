@@ -377,7 +377,7 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
           <div className="tg-mini-date">
             {masina && <strong>🚌 {masina}</strong>}
             {notaEchipaj && <span>{notaEchipaj}</span>}
-            {b && <span>{tx.locul} {b.loc_nr ?? b.nr} · {c.passenger_name}</span>}
+            {b && <span>{b.loc_nr != null ? <>{tx.locul} {b.loc_nr} · </> : null}{c.passenger_name}</span>}
             {telefon && <a className="tg-mini-suna" href={phoneTel(telefon)}
               onClick={(ev) => { if (suna(phoneTel(telefon).replace(/\D/g, ''))) ev.preventDefault(); }}>📞 {phoneText(telefon)}</a>}
             {telefon && <a className="tg-mini-suna-nota" href={phoneTel(telefon)}

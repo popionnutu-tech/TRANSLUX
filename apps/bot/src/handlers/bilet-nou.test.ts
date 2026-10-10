@@ -69,8 +69,9 @@ describe('ION-266/274: biletul din mini app pleacă singur după plată', () => 
     const b = await trimiteBileteleNoi({ repo: repoFals([comanda(COD, 555)]) as never, mesaje: mesaje as never, api: api as never, nowMs: ACUM });
     expect(b).toEqual({ trimise: 1, erori: 0, sarite: 0 });
     expect(trimise.map((t) => [t.chat, t.tip, t.butoane])).toEqual([[555, 'poza', true], [555, 'poza', false]]);
-    expect(trimise[0].text).toMatch(/Locul 1/);
-    expect(trimise[1].text).toMatch(/biletul 2 din 2/);
+    // Ion, 10.10.2026: spre Chișinău (din nord) biletul nu are numărul locului.
+    expect(trimise[0].text).not.toMatch(/Locul/);
+    expect(trimise[1].text).toMatch(/Biletul 2 din 2/);
     expect(mesaje.marcheazaLivrat).toHaveBeenCalledWith(COD, 555, trimise[0].id);
     expect(mesaje.stare[0].telegram_livrat_la).toBe('acum');
     expect(api.pinChatMessage).toHaveBeenCalledWith(555, trimise[0].id, { disable_notification: true });
@@ -90,7 +91,7 @@ describe('ION-266/274: biletul din mini app pleacă singur după plată', () => 
     const b = await trimiteBileteleNoi({ repo: repoFals([comanda(COD, 777), comanda('ef'.repeat(16), null), comanda(COD2, 555, 1, 'ru')]) as never, mesaje: mesaje as never, api: api as never, nowMs: ACUM, jurnal: (m) => jurnal.push(m) });
     expect(b).toEqual({ trimise: 1, erori: 1, sarite: 1 });
     expect(trimise.every((t) => t.chat === 555)).toBe(true);
-    expect(trimise[0].text).toMatch(/Место 1/);
+    expect(trimise[0].text).not.toMatch(/Место/);
     expect(jurnal[0]).toMatch(/blocked/);
     expect(mesaje.stare[0].telegram_livrare_la).toBeNull(); // revendicarea anulată → jobul reia
     expect(mesaje.marcheazaLivrat).toHaveBeenCalledTimes(1);

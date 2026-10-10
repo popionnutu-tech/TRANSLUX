@@ -171,7 +171,8 @@ describe('ION-251: biletul într-un singur mesaj, fixat sus', () => {
     expect(trimise[0].text).toMatch(/🎫 Bilet TRANSLUX\nBriceni → Chișinău/);
     expect(trimise[0].text).toMatch(/locuri: 1/);
     expect(trimise[0].text).toMatch(/Plătit/);
-    expect(trimise[0].text).toMatch(/Locul 11/);
+    // Ion, 10.10.2026: spre Chișinău (din nord) biletul nu are numărul locului.
+    expect(trimise[0].text).not.toMatch(/Locul/);
     expect(trimise[0].text).toMatch(/Arată acest cod șoferului/);
     expect(trimise[0].text).not.toMatch(/din 1\)/);
     expect(trimise[0].butoane).toEqual([RETUR, HARTA]);
@@ -182,7 +183,7 @@ describe('ION-251: biletul într-un singur mesaj, fixat sus', () => {
     expect(trimise[0].butoane).toEqual([RETUR, HARTA]);
     expect(trimise[1].butoane).toEqual([]);
     expect(trimise[2].butoane).toEqual([]);
-    expect(trimise[1].text).toMatch(/biletul 2 din 3/);
+    expect(trimise[1].text).toMatch(/Biletul 2 din 3/);
   });
   it('id-ul primului mesaj se ține pe comandă și mesajul se fixează fără notificare', async () => {
     const { trimise, mesaje, pin } = await porneste({ legat: ME, bilete: [bilet(1), bilet(2)] });
@@ -199,7 +200,7 @@ describe('ION-251: biletul într-un singur mesaj, fixat sus', () => {
   });
   it('RU: textul și butoanele în rusă', async () => {
     const { trimise } = await porneste({ legat: ME, lang: 'ru' });
-    expect(trimise[0].text).toMatch(/Место 11/);
+    expect(trimise[0].text).not.toMatch(/Место/);
     expect(trimise[0].butoane).toEqual([RETUR, 'webapp:https://translux.md/ru/telegram']);
   });
   it('fără loc valabil (urcat) → textul biletului cu aceleași butoane, tot un singur mesaj', async () => {
@@ -258,5 +259,14 @@ describe('mesajBilet — biletul de probă (migr. 532)', () => {
     expect(mesajBilet({ ...c, test: true }).text.startsWith('⚠️ BILET DE PROBĂ — NU E VALABIL LA URCARE\n')).toBe(true);
     expect(mesajBilet({ ...c, lang: 'ru', test: true }).text.startsWith('⚠️ ТЕСТОВЫЙ БИЛЕТ')).toBe(true);
     expect(mesajBilet(c).text.startsWith('🎫')).toBe(true);
+  });
+});
+
+describe('Ion, 10.10.2026: locul doar pe cursele din Chișinău', () => {
+  it('din Chișinău (going_north) legenda are «Locul 7»; spre Chișinău nu', async () => {
+    const { legendaBilet } = await import('./bilet.js');
+    const c = { cod: 'a'.repeat(32), status: 'platita', lang: 'ro', from_name: 'Chișinău', to_name: 'Bălți', departure_at: '2099-10-15T05:50:00Z', seats: 1 };
+    expect(legendaBilet({ ...c, going_north: true }, { nr: 1, loc_nr: 7 }, 1, 'ro')).toMatch(/Locul 7/);
+    expect(legendaBilet({ ...c, going_north: false }, { nr: 1, loc_nr: 7 }, 1, 'ro')).not.toMatch(/Locul/);
   });
 });

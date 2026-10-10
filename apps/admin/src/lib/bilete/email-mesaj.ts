@@ -115,7 +115,7 @@ ${d.ruta ? `<div style="font-size:12px;color:#f3d6db;">${esc(d.ruta)}</div>` : '
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px 16px 0 0;">
 <tr><td style="padding:16px 16px 6px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td align="left" style="font-size:11px;font-weight:bold;color:#8A7A7D;">${esc(t.loc.toUpperCase())}<br><span style="font-size:30px;color:${RED};">${b.loc_nr ?? b.nr}</span></td>
+<td align="left" style="font-size:11px;font-weight:bold;color:#8A7A7D;">${b.loc_nr != null ? `${esc(t.loc.toUpperCase())}<br><span style="font-size:30px;color:${RED};">${b.loc_nr}</span>` : ''}</td>
 <td align="right" style="font-size:12px;color:#6B5B5F;">${d.seats > 1 ? `${b.nr} / ${d.seats}` : ''}</td>
 </tr></table>
 </td></tr>

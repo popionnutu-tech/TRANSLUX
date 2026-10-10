@@ -34,7 +34,8 @@ export function oraSosire(c: Pick<ComandaRand, 'going_north'>, o: OprireSosireRa
 export async function asambleazaComanda(c: ComandaRand, bilete: BiletRand[], ruta: RutaRand | null, oprireSosire: OprireSosireRand | null, echipaj: EchipajBilet | null = null): Promise<ComandaPublica> {
   const ordonate = [...bilete].sort((a, b) => a.nr - b.nr);
   const bileteCuQr: BiletPublic[] = await Promise.all(ordonate.map(async (b) => ({
-    nr: b.nr, loc_nr: b.loc_nr ?? null, cod_qr: b.cod_qr, status: b.status, urcat_at: b.urcat_at,
+    // Ion, 10.10.2026: «de la nord la Chișinău să nu fie numerotarea locurilor în bilete, doar din Chișinău».
+    nr: b.nr, loc_nr: c.going_north ? (b.loc_nr ?? null) : null, cod_qr: b.cod_qr, status: b.status, urcat_at: b.urcat_at,
     qr_svg: await QRCode.toString(b.cod_qr, { type: 'svg', errorCorrectionLevel: 'M', margin: 1 }),
   })));
   return {

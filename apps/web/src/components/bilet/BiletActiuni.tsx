@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { slugify } from "@/lib/seo-paths";
+import { cumparaRetur, type PlanRetur } from "@/app/(public)/bilete-actions";
 
 // Partea vie a paginii biletului (ION-197): «Salvează» (tipărire / PDF din browser) și, cât comanda așteaptă plata,
 // re-încărcarea la 15 s, cel mult 3 minute — apoi butonul «Verifică» (callback-ul băncii poate întârzia).
@@ -151,6 +152,51 @@ export function CumparaReturul({ codRetur, de, spre, locale }: { codRetur: strin
       <button type="button" onClick={mergi} style={{ minHeight: 48, borderRadius: 12, border: "none", background: "#9B1B30", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
         {ru ? "Купить обратный со скидкой" : "Cumpără returul cu −20%"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Tur-returul «în același moment» (547): returul ales în formular (sessionStorage) se plătește imediat după tur, cu
+ * −20%. Fără plan, cât turul e plătit de cel mult 30 de minute, rămâne butonul spre căutarea inversă; apoi nimic.
+ */
+export function ReturDupaTur({ codRetur, paidAt, rutaId, tripDate, de, spre, locale }: {
+  codRetur: string; paidAt: string | null; rutaId: number | null; tripDate: string; de: string; spre: string; locale: "ro" | "ru";
+}) {
+  const ru = locale === "ru";
+  const [plan, setPlan] = React.useState<{ plan: PlanRetur; pret: number; ora: string } | null>(null);
+  const [inFereastra, setInFereastra] = React.useState(false);
+  const [lucru, setLucru] = React.useState(false);
+  const [eroare, setEroare] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    setInFereastra(paidAt != null && Date.now() - Date.parse(paidAt) < 30 * 60_000);
+    try {
+      const raw = sessionStorage.getItem("tlx_plan_retur");
+      const j = raw ? JSON.parse(raw) : null;
+      if (j?.tur?.crmRouteId === rutaId && j?.tur?.tripDate === tripDate && j?.plan) setPlan({ plan: j.plan, pret: Number(j.pret), ora: String(j.ora ?? "") });
+    } catch { /* stocare blocată */ }
+  }, [paidAt, rutaId, tripDate]);
+  if (!inFereastra) return null;
+  if (!plan) return <CumparaReturul codRetur={codRetur} de={de} spre={spre} locale={locale} />;
+  const plateste = async () => {
+    setLucru(true); setEroare(null);
+    const r = await cumparaRetur(plan.plan, codRetur).catch(() => ({ eroare: ru ? "Не получилось, попробуйте ещё раз." : "Nu a mers, încearcă din nou." } as { url?: string; eroare?: string }));
+    if (r.url) {
+      try { sessionStorage.removeItem("tlx_plan_retur"); } catch { /* */ }
+      window.location.href = r.url;
+      return;
+    }
+    setEroare(r.eroare ?? null); setLucru(false);
+  };
+  const data = plan.plan.tripDate.split("-").reverse().join(".");
+  return (
+    <div style={{ display: "grid", gap: 8, padding: 14, borderRadius: 16, background: "#fdf3e7", border: "2px solid #d98a2b" }}>
+      <b style={{ fontSize: 16 }}>{ru ? "Шаг 2: оплатите обратный билет −20%" : "Pasul 2: plătește returul −20%"}</b>
+      <span style={{ fontSize: 14, color: "#4A3E41" }}>{plan.plan.fromRo} → {plan.plan.toRo} · {data}, {plan.ora}</span>
+      <button type="button" disabled={lucru} onClick={plateste} style={{ minHeight: 52, borderRadius: 12, border: "none", background: lucru ? "#c9a0a8" : "#9B1B30", color: "#fff", fontWeight: 700, fontSize: 17, cursor: lucru ? "default" : "pointer" }}>
+        {lucru ? (ru ? "Открываем страницу банка…" : "Se deschide pagina băncii…") : (ru ? `Оплатить ${plan.pret} лей` : `Plătește ${plan.pret} lei`)}
+      </button>
+      {eroare && <span role="alert" style={{ fontSize: 14, color: "#9B1B30", fontWeight: 600 }}>{eroare}</span>}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Locale } from '@/lib/i18n';
 import { biletPublic, type ComandaPublica } from '@/lib/bilete-api';
 import { linkHarta } from '@/lib/bilete-reguli';
-import { AsteaptaPlata, CumparaReturul, EcranCompletTelegram, SalveazaBilet } from './BiletActiuni';
+import { AsteaptaPlata, EcranCompletTelegram, ReturDupaTur, SalveazaBilet } from './BiletActiuni';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat, numeRuta } from './BiletCard';
 
@@ -127,7 +127,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                 </div>
               )}
 
-              {!doar && c.status === 'platita' && c.cod_retur && !c.proba && <div className="bilet-no-print" style={{ marginTop: 14 }}><CumparaReturul codRetur={c.cod_retur} de={c.from_name} spre={c.to_name} locale={locale} /></div>}
+              {!doar && c.status === 'platita' && c.cod_retur && !c.proba && <div className="bilet-no-print" style={{ marginTop: 14 }}><ReturDupaTur codRetur={c.cod_retur} paidAt={c.paid_at} rutaId={c.ruta?.id ?? null} tripDate={c.trip_date} de={c.from_name} spre={c.to_name} locale={locale} /></div>}
 
               {c.status === 'noua' && <AsteaptaPlata locale={locale} />}
 

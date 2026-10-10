@@ -13,6 +13,7 @@ import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 import { BiletCursa, FOND_LISTA } from "./bilet-cursa";
 import { PromoReduceri, type ReducereAleasa } from "./promo-reduceri";
+import { AdaugaRetur, CHEIE_PLAN_RETUR, type ReturAles } from "./adauga-retur";
 import { perechePromo } from "@translux/db";
 
 // Formularul «Cumpără bilet» (ION-197): în fereastra rezultatelor, sub cursa aleasă. Cheia de idempotență se
@@ -153,6 +154,20 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const [reducere, setReducere] = React.useState<ReducereAleasa>({ pret: null, codRetur: null, studentJeton: null, blocheazaPlata: false });
   const pretLoc = reducere.pret ?? trip.price;
   const numeComplet = `${camp.lastName.trim()} ${camp.firstName.trim()}`.trim();
+  // 547: returul ales acum se plătește imediat după tur (pagina biletului); planul stă în sessionStorage.
+  const [retur, setRetur] = React.useState<ReturAles | null>(null);
+  const [cheieRetur] = React.useState(uuid);
+  const salveazaPlanul = () => {
+    try {
+      if (!retur) { sessionStorage.removeItem(CHEIE_PLAN_RETUR); return; }
+      sessionStorage.setItem(CHEIE_PLAN_RETUR, JSON.stringify({
+        tur: { crmRouteId: trip.crm_route_id, tripDate: trip.trip_date },
+        plan: { tripDate: retur.trip.trip_date, crmRouteId: retur.trip.crm_route_id, goingNorth: retur.trip.going_north, fromRo: toRo, toRo: fromRo,
+          seats, lastName: camp.lastName, firstName: camp.firstName, phone: camp.phone, email: camp.email, lang: locale, idempotencyKey: cheieRetur },
+        pret: retur.pret * seats, ora: retur.trip.time,
+      }));
+    } catch { /* stocare blocată: returul se cumpără de mână */ }
+  };
   const locuriIncomplete = hartaActiva && alese.length !== seats;
 
   const inp: React.CSSProperties = {
@@ -166,7 +181,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   });
 
   return (
-    <form action={action} className="cump-grid">
+    <form action={action} onSubmit={salveazaPlanul} className="cump-grid">
       {/* Pagina de cumpărare (Ion, 09.10.2026, varianta 1B): stânga — biletul ales și microbuzul; dreapta — datele și
           plata. Pe telefon totul unul sub altul, cu butonul de plată lipit jos. */}
       <style>{`
@@ -257,6 +272,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         <label style={lbl}>{tx.email}
           <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="nume@exemplu.md" value={camp.email} onChange={scrie("email")} style={inp} />
         </label>
+        {arePromo && <AdaugaRetur trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} pct={20} zile={30} onChange={setRetur} />}
         {arePromo && <PromoReduceri locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
         <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
           {tx.retur}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: "#1b6f9a", fontWeight: 600 }}>{tx.grila}</a>
@@ -277,6 +293,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             </span>
             <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats} lei</span>
           </div>
+          {retur && <div style={{ fontSize: 13, color: "#2b6b3a", fontWeight: 700 }}>{locale === "ru" ? `Затем обратный: ${retur.pret * seats} лей (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time})` : `Apoi returul: ${retur.pret * seats} lei (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time})`}</div>}
           <Trimite locale={locale} lei={pretLoc * seats} blocat={locuriIncomplete || reducere.blocheazaPlata} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8A7A7D" }}>{tx.note}</span>

@@ -72,6 +72,8 @@ export interface TurPentruRetur {
   trip_date: string;
   departure_at: string;
   seats: number;
+  /** Momentul plății turului (547: returul se cumpără «în același moment», ≤ 30 min după). */
+  paid_at?: string | null;
 }
 
 export interface ReturCerut {
@@ -93,7 +95,7 @@ export interface ReturCerut {
 
 export type MotivRetur =
   | 'tur_neplatit' | 'tur_test' | 'tur_e_retur' | 'nu_e_pereche' | 'alta_persoana' | 'acelasi_sens' | 'aceeasi_ruta'
-  | 'inainte_de_tur' | 'peste_termen' | 'prea_multe_locuri';
+  | 'inainte_de_tur' | 'peste_termen' | 'prea_multe_locuri' | 'dupa_tur';
 
 /** Normalizarea numelui pentru comparare: fără diacritice, litere mici, cuvintele în ordine alfabetică. */
 export function cheieNume(nume: string): string {
@@ -106,8 +108,13 @@ export function cheieNume(nume: string): string {
  * aceeași persoană (telefon + nume); sensul opus și perechea inversă; NICIODATĂ pe aceeași rută (crm_route_id: aceeași
  * mașină și același șofer fac ambele sensuri — «ca să nu facă fraudă șoferul»); după plecarea turului; ≤ `zile` zile.
  */
-export function returValid(tur: TurPentruRetur, r: ReturCerut, zile: number): { ok: true } | { ok: false; motiv: MotivRetur } {
+export function returValid(tur: TurPentruRetur, r: ReturCerut, zile: number, a: { minuteDupaPlata?: number; nowMs?: number } = {}): { ok: true } | { ok: false; motiv: MotivRetur } {
   if (tur.status !== 'platita') return { ok: false, motiv: 'tur_neplatit' };
+  // 547 (Ion, 10.10: «tur-returul facem doar dacă cumpără în același moment»): returul se cumpără imediat după tur.
+  if (a.minuteDupaPlata != null) {
+    const platit = tur.paid_at ? Date.parse(tur.paid_at) : NaN;
+    if (!(platit >= (a.nowMs ?? Date.now()) - a.minuteDupaPlata * 60_000)) return { ok: false, motiv: 'dupa_tur' };
+  }
   if (tur.test !== r.test || tur.proba_fizica) return { ok: false, motiv: 'tur_test' };
   if (tur.comanda_tur_id || tur.reducere_tip === 'retur') return { ok: false, motiv: 'tur_e_retur' };
   if (!tur.promo_pereche || !perechePromo(r.urcare, r.coborare)) return { ok: false, motiv: 'nu_e_pereche' };

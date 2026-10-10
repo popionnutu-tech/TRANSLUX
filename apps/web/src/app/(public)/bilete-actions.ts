@@ -138,3 +138,45 @@ export async function pretBilet(a: { tripDate: string; crmRouteId: number; going
     studentJeton: typeof a.studentJeton === 'string' ? a.studentJeton.slice(0, 64) : null,
   });
 }
+
+/** Returul ales în formularul turului (547), ținut în sessionStorage până după plata turului. */
+export interface PlanRetur {
+  tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; seats: number;
+  lastName: string; firstName: string; phone: string; email: string; lang: 'ro' | 'ru'; idempotencyKey: string;
+}
+
+/**
+ * Pasul 2 al tur-returului (547, Ion 10.10: «tur-returul facem doar dacă cumpără în același moment»): după plata turului,
+ * pagina biletului cumpără returul ales în formular cu codul de retur al turului. Panoul verifică totul (tur plătit acum
+ * ≤ 30 min, sens opus, altă rută, aceeași persoană) și recalculează prețul. Întoarce adresa băncii sau eroarea.
+ */
+export async function cumparaRetur(plan: PlanRetur, codRetur: string): Promise<{ url?: string; eroare?: string }> {
+  const ru = plan?.lang === 'ru';
+  const locale: 'ro' | 'ru' = ru ? 'ru' : 'ro';
+  const nume = numeComplet(String(plan?.lastName ?? ''), String(plan?.firstName ?? ''));
+  const telefon = normalizeazaTelefon(String(plan?.phone ?? ''));
+  const email = emailOptional(String(plan?.email ?? ''));
+  const seats = Number(plan?.seats);
+  if (!nume || !telefon || email === 'invalid' || !Number.isInteger(seats) || seats < 1 || seats > 4
+      || !UUID_RE.test(String(plan?.idempotencyKey ?? '')) || !Number.isInteger(plan?.crmRouteId) || !DATA_RE.test(String(plan?.tripDate ?? ''))
+      || !/^[0-9a-f]{64}$/.test(String(codRetur ?? ''))) {
+    return { eroare: mesajEroareComanda('necunoscut', 400, locale) };
+  }
+  const sare = process.env.BILETE_IP_SALT;
+  if (!sare) return { eroare: mesajEroareComanda('config', 500, locale) };
+  let ipHash: string | null = null;
+  try {
+    const h = await headers();
+    const ip = h.get('x-forwarded-for')?.split(',')[0].trim() || h.get('x-real-ip') || null;
+    ipHash = ip ? createHash('sha256').update(`${sare}|${ip}`).digest('hex') : null;
+  } catch { ipHash = null; }
+  const r = await comandaBilet({
+    tripDate: plan.tripDate, crmRouteId: plan.crmRouteId, goingNorth: plan.goingNorth === true,
+    fromRo: String(plan.fromRo ?? '').slice(0, 80), toRo: String(plan.toRo ?? '').slice(0, 80), seats,
+    passengerName: nume, phone: telefon, email, lang: locale, idempotencyKey: plan.idempotencyKey, ipHash,
+    punctUrcareId: null, locuriAlese: null, codRetur,
+  });
+  if (!r.ok) return { eroare: mesajEroareComanda(r.cod, r.status, locale, r.eroare) };
+  if (!urlPlataSigur(r.checkoutUrl)) return { eroare: mesajEroareComanda('necunoscut', 500, locale) };
+  return { url: r.checkoutUrl };
+}

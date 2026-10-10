@@ -67,12 +67,15 @@ export function PromoReduceri(p: {
   const [lucru, setLucru] = React.useState(false);
   const [poze, setPoze] = React.useState<{ carnet: File | null; act: File | null }>({ carnet: null, act: null });
   const [acord, setAcord] = React.useState(false);
+  // 547: returul −20% se cumpără «în același moment» (Adaugă retur / pasul 2 de pe bilet); opțiunea manuală apare doar
+  // când pagina biletului tur a lăsat codul (în primele 30 de minute după plată).
+  const [areCod, setAreCod] = React.useState(false);
 
   // Codul pus de butonul «Cumpără returul cu −20%» de pe biletul tur (sessionStorage, nu URL: nu ajunge în referrer).
   React.useEffect(() => {
     try {
       const c = sessionStorage.getItem(CHEIE_COD_RETUR);
-      if (c && /^[0-9a-f]{64}$/.test(c)) { setCod(c); setMod("retur"); }
+      if (c && /^[0-9a-f]{64}$/.test(c)) { setCod(c); setMod("retur"); setAreCod(true); }
     } catch { /* stocare blocată */ }
   }, []);
 
@@ -142,8 +145,8 @@ export function PromoReduceri(p: {
     <fieldset style={{ border: "1.5px solid #E2D6D9", borderRadius: 12, padding: "10px 12px", margin: 0, display: "grid", gap: 4, minWidth: 0 }}>
       <legend style={{ fontSize: 15, fontWeight: 800, padding: "0 6px" }}>{tx.titlu}</legend>
       {opt("nimic", tx.nimic)}
-      {opt("retur", tx.retur)}
-      {mod === "retur" && (
+      {areCod && opt("retur", tx.retur)}
+      {areCod && mod === "retur" && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label style={{ flex: 1, minWidth: 180, fontSize: 13, fontWeight: 700, color: "#6B5B5F" }}>{tx.cod}
             <input value={cod} onChange={(e) => { setCod(e.target.value); setPret(null); }} autoComplete="off" spellCheck={false} maxLength={64}

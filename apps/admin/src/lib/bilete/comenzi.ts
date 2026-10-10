@@ -323,7 +323,7 @@ async function idPromoDinIntrare(input: ComandaInput): Promise<{ turId: string |
 /** Mesajul pentru client când reducerea cerută nu se aplică (același text la cod greșit și la altă persoană). */
 export function mesajFaraReducere(motiv: MotivFaraReducere | undefined): string {
   switch (motiv) {
-    case 'cod_retur': return 'reducerea la retur nu se aplică: codul nu e valabil pentru această cursă (sens opus, altă cursă decât turul, aceeași persoană, în 30 de zile)';
+    case 'cod_retur': return 'reducerea la retur nu se aplică: returul −20% se cumpără imediat după tur (în 30 de minute), în sens invers, pe altă cursă, pe aceeași persoană, cu întoarcerea în 30 de zile';
     case 'student': return 'reducerea de student nu se aplică: verificarea carnetului a expirat sau e pe alt nume/telefon; refă verificarea';
     case 'student_locuri': return 'reducerea de student e pentru un singur loc pe bilet';
     case 'sofer': return 'promoțiile nu se aplică pe acest număr de telefon';
@@ -491,7 +491,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       const r = Number(cotaPlina[1]);
       throw new ComandaError('inchis', r > 0 ? `pe această cursă online mai sunt doar ${r} locuri` : 'locurile online pe această cursă s-au terminat; biletul se ia de la șofer');
     }
-    if (/RETUR_(TUR_NEVALID|TERMEN|FOLOSIT)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('cod_retur'));
+    if (/RETUR_(TUR_NEVALID|TERMEN|FOLOSIT|DUPA_TUR)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('cod_retur'));
     if (/STUDENT_UN_LOC/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student_locuri'));
     if (/STUDENT_(VERIFICARE|JETON_FOLOSIT|PLAFON)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student'));
     if (/PROMO_SOFER/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere(input.studentJeton ? 'student' : 'cod_retur'));

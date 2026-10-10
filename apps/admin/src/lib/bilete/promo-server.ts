@@ -13,13 +13,15 @@ export interface PromoConfig {
   activ: boolean;
   pct: number;
   returZile: number;
+  /** 547: returul −20% se cumpără în cel mult atâtea minute după plata turului. */
+  returMin: number;
   cotaDupaOra: number;
   cotaSeara: number;
   /** Prima zi de cursă care se vinde online pe localitate (bilete_localitati_de_la, ex. {"Bălți":"2026-10-13"}). */
   localitatiDeLa: Map<string, string>;
 }
 
-const CHEI = ['bilete_promo_activ', 'bilete_promo_pct', 'bilete_promo_retur_zile', 'bilete_cota_dupa_ora', 'bilete_cota_seara', 'bilete_localitati_de_la'];
+const CHEI = ['bilete_promo_activ', 'bilete_promo_pct', 'bilete_promo_retur_zile', 'bilete_promo_retur_min', 'bilete_cota_dupa_ora', 'bilete_cota_seara', 'bilete_localitati_de_la'];
 
 export async function citestePromoConfig(): Promise<PromoConfig> {
   const { data, error } = await getSupabase().from('app_config').select('key, value').in('key', CHEI);
@@ -35,6 +37,7 @@ export async function citestePromoConfig(): Promise<PromoConfig> {
     activ: m.get('bilete_promo_activ') === 'true',
     pct: num('bilete_promo_pct', 20),
     returZile: num('bilete_promo_retur_zile', 30),
+    returMin: num('bilete_promo_retur_min', 30),
     cotaDupaOra: num('bilete_cota_dupa_ora', 12),
     cotaSeara: num('bilete_cota_seara', 2),
     localitatiDeLa: deLa,
@@ -121,7 +124,7 @@ export async function calculeazaPromo(x: IntrarePromo, cfg: PromoConfig): Promis
     if (!COD_RETUR_RE.test(x.codRetur)) motiv = 'cod_retur';
     else {
       const { data: t, error: eT } = await db.from('bilete_comenzi')
-        .select('id, status, test, proba_fizica, promo_pereche, comanda_tur_id, reducere_tip, phone, passenger_name, going_north, crm_route_id, trip_date, departure_at, seats, from_name, to_name')
+        .select('id, status, test, proba_fizica, promo_pereche, comanda_tur_id, reducere_tip, phone, passenger_name, going_north, crm_route_id, trip_date, departure_at, seats, from_name, to_name, paid_at')
         .eq('cod_retur', x.codRetur).maybeSingle();
       if (eT) throw new Error(`bilete_comenzi (cod retur): ${eT.message}`);
       const tur = t as (TurPentruRetur & { from_name: string; to_name: string }) | null;
@@ -129,7 +132,7 @@ export async function calculeazaPromo(x: IntrarePromo, cfg: PromoConfig): Promis
         phone: x.phone, passengerName: x.passengerName, goingNorth: x.goingNorth, crmRouteId: x.crmRouteId,
         tripDate: x.tripDate, departureAt: x.departureAt, seats: x.seats, test: x.test,
         urcare: x.urcare, coborare: x.coborare, turUrcare: tur.from_name, turCoborare: tur.to_name,
-      }, cfg.returZile);
+      }, cfg.returZile, { minuteDupaPlata: cfg.returMin });
       // Codul greșit și codul bun cu altă persoană dau același motiv (security L3: fără oracol).
       if (!tur || !ok || !ok.ok) motiv = motiv ?? 'cod_retur';
       else retur = { tip: 'retur', pct: cfg.pct, turId: tur.id };

@@ -156,7 +156,7 @@ export interface ConfigPublica {
   /** 546: prima zi de cursă pe localitate, normalizată (Ion 10.10: Bălți de pe 13.10): {"balti":"2026-10-13"}. */
   localitati_de_la: Record<string, string>;
   /** 546: promoțiile Bălți ⇄ Chișinău (retur și student). */
-  promo: { activ: boolean; pct: number; retur_zile: number };
+  promo: { activ: boolean; pct: number; retur_zile: number; retur_min: number };
 }
 
 export async function configPublica(): Promise<ConfigPublica> {
@@ -176,7 +176,7 @@ export async function configPublica(): Promise<ConfigPublica> {
     destinatii: localitatiPentruPublic(cfg.destinatii),
     curse_de_la: cfg.curseDeLa,
     localitati_de_la: Object.fromEntries(promo.localitatiDeLa),
-    promo: { activ: promo.activ, pct: promo.pct, retur_zile: promo.returZile },
+    promo: { activ: promo.activ, pct: promo.pct, retur_zile: promo.returZile, retur_min: promo.returMin },
   };
 }
 

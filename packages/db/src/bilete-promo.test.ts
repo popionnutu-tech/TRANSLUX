@@ -55,6 +55,12 @@ describe('returValid', () => {
   it('valid pe altă rută, sens opus, aceeași persoană (numele în altă ordine)', () => {
     expect(returValid(tur, r, 30)).toEqual({ ok: true });
   });
+  it('547: doar «în același moment» — ≤ 30 min după plata turului', () => {
+    const acum = Date.parse('2026-10-12T10:00:00Z');
+    expect(returValid({ ...tur, paid_at: '2026-10-12T09:45:00Z' }, r, 30, { minuteDupaPlata: 30, nowMs: acum })).toEqual({ ok: true });
+    expect(returValid({ ...tur, paid_at: '2026-10-12T09:29:00Z' }, r, 30, { minuteDupaPlata: 30, nowMs: acum })).toEqual({ ok: false, motiv: 'dupa_tur' });
+    expect(returValid({ ...tur, paid_at: null }, r, 30, { minuteDupaPlata: 30, nowMs: acum })).toEqual({ ok: false, motiv: 'dupa_tur' });
+  });
   it('refuză aceeași rută (frauda șoferului), același sens, alt om, termenul, turul neplătit, lanțul', () => {
     expect(returValid(tur, { ...r, crmRouteId: 7 }, 30)).toEqual({ ok: false, motiv: 'aceeasi_ruta' });
     expect(returValid(tur, { ...r, goingNorth: false }, 30)).toEqual({ ok: false, motiv: 'acelasi_sens' });

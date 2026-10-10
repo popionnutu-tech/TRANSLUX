@@ -195,6 +195,18 @@ interface CursaGasita {
   pornireRuta: string | null;
 }
 
+/**
+ * Pornește o CITIRE acum și o lasă de așteptat mai târziu (Ion, 10.10.2026: «vezi cum de făcut ultra fast toată
+ * procedura»): drumul la bază se suprapune cu altele, iar eroarea ei apare abia la `await`, deci în aceeași ordine ca
+ * înainte. Doar pentru citiri — nicio scriere nu se pornește așa. Fără `await` (ramura n-o mai cere) nu e respingere
+ * netratată.
+ */
+function porneste<T>(p: PromiseLike<T>): Promise<T> {
+  const x = Promise.resolve(p);
+  x.catch(() => { /* tratată la await */ });
+  return x;
+}
+
 async function gasesteCursa(input: ComandaInput): Promise<CursaGasita | null> {
   const db = getSupabase();
   const d = await incarcaCurse(db, { fromRo: input.fromRo, toRo: input.toRo, date: input.tripDate });
@@ -246,9 +258,12 @@ export async function areSofer(tripDate: string, crmRouteId: number, goingNorth:
  */
 export async function stareSoferCursa(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<'fara_grafic' | 'lipsa' | 'nelegat' | 'legat'> {
   const db = getSupabase();
+  // Graficul zilei se numără deodată cu căutarea șoferului (un drum la bază mai puțin când ruta n-are șofer); erorile
+  // rămân în ordinea de dinainte: întâi ale șoferului, apoi ale numărării.
+  const ziua = porneste(db.from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', tripDate));
   const id = await soferulCursei(tripDate, crmRouteId, goingNorth);
   if (!id) {
-    const { count, error } = await db.from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', tripDate);
+    const { count, error } = await ziua;
     if (error) throw new Error(`daily_assignments: ${error.message}`);
     return (count ?? 0) > 0 ? 'lipsa' : 'fara_grafic';
   }
@@ -287,12 +302,16 @@ async function comenzileCurseiPentruPlafon(input: ComandaInput): Promise<Comanda
  * Verificarea e înaintea INSERT-ului, nu sub lacătul cursei din bilete_creeaza_comanda: două comenzi simultane la
  * ultimul loc pot trece amândouă (depășire de cel mult o comandă, 1–4 locuri). Aruncă ComandaError('inchis').
  */
-async function verificaPlafonulLocalitatii(plafoane: PlafoaneLocalitati | null, cursa: CursaGasita, input: ComandaInput): Promise<void> {
+async function verificaPlafonulLocalitatii(
+  plafoane: PlafoaneLocalitati | null, cursa: CursaGasita, input: ComandaInput,
+  /** Comenzile cursei citite deja (pornite în prima rundă a creeazaRand); lipsă → se citesc acum. */
+  comenziCitite?: Promise<ComandaPentruPlafon[]>,
+): Promise<void> {
   if (!plafoane) throw new ComandaError('inchis', 'vânzarea online e temporar închisă (configurația plafoanelor pe localitate)');
   if (!cursaAreLocalitateCuPlafon(plafoane, cursa.fromNameRo, cursa.toNameRo)) return;
   const verdict = verificaPlafonLocalitati({
     plafoane, urcare: cursa.fromNameRo, coborare: cursa.toNameRo, seats: input.seats,
-    comenziCursa: await comenzileCurseiPentruPlafon(input), nowMs: Date.now(),
+    comenziCursa: await (comenziCitite ?? comenzileCurseiPentruPlafon(input)), nowMs: Date.now(),
   });
   if (verdict.ok) return;
   const rest = verdict.ramase > 0 ? `mai sunt ${verdict.ramase}` : 'nu mai sunt locuri';
@@ -494,6 +513,8 @@ async function sesiuneaAceleiasiAlegeri(cheie: string, input: ComandaInput, phon
 async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: ComandaOptiuni): Promise<BileteComanda> {
   const r = input.retur!;
   const db = getSupabase();
+  // Configurația promoției se citește deodată cu returul existent; eroarea ei apare tot abia după verificările de mai jos.
+  const promoCfgCitit = porneste(citestePromoConfig());
   const { data: exist, error: eX } = await db.from('bilete_comenzi').select('*').eq('comanda_tur_id', tur.id).eq('in_pachet', true)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (eX) throw new Error(`bilete_comenzi (pachet): ${eX.message}`);
@@ -508,7 +529,7 @@ async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: 
   if (tur.checkout_id || !DESCHISE.has(tur.status)) throw new ComandaError('validare', 'turul e deja în plată; returul −20% se adaugă doar la cumpărarea turului');
   if (opt.mod === 'proba') throw new ComandaError('validare', 'tur-returul nu merge pe comanda de probă');
   if (tur.reducere_tip) throw new ComandaError('validare', 'reducerile nu se cumulează: tur-returul e fără reducerea de student');
-  const promoCfg = await citestePromoConfig();
+  const promoCfg = await promoCfgCitit;
   if (!promoCfg.activ) throw new ComandaError('validare', mesajFaraReducere('promo_inchis'));
   if (!perechePromo(tur.from_name, tur.to_name)) throw new ComandaError('validare', mesajFaraReducere('nu_e_pereche'));
   const returInput: ComandaInput = {
@@ -537,6 +558,11 @@ async function creeazaRand(
   pachet: { tur: BileteComanda; pct: number } | null,
 ): Promise<BileteComanda> {
   const db = getSupabase();
+
+  // Citiri pornite acum și așteptate abia unde trebuie (Ion, 10.10.2026: «ultra fast»): comenzile cursei pentru plafonul
+  // pe localitate (doar la public) și punctele de urcare. Erorile lor apar tot acolo unde apăreau.
+  const comenziPlafon = opt.mod === 'public' ? porneste(comenzileCurseiPentruPlafon(input)) : undefined;
+  const puncteCitite = porneste(puncteActive().catch((e: unknown) => { console.warn('[bilete] puncte indisponibile:', e instanceof Error ? e.message : e); return []; }));
 
   // 2. Vânzare nouă: cele patru citiri sunt independente → în paralel; erorile în ordinea de mai jos.
   const [cfg, promoCfg, directie, cursa, sofer] = await Promise.all([
@@ -576,7 +602,7 @@ async function creeazaRand(
   if (opt.mod !== 'proba' && !vanzareDeschisa({ goingNorth: input.goingNorth, departureAt, pornireRutaAt, nowMs: Date.now(), inchidereTurMin: cfg.inchidereTurMin, inchidereReturMin: cfg.inchidereReturMin })) {
     throw new ComandaError('inchis', 'vânzarea pentru această cursă s-a închis');
   }
-  if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input);
+  if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input, comenziPlafon);
 
   // Proba fizică (Ion, 08.10: «pui să fie biletul 10 lei»): prețul forțat; totalul se socotește după, deci amount = total.
   // Promoțiile Bălți ⇄ Chișinău (546): reducerea doar la public / test_admin; cerută dar neaplicabilă → refuz cu motivul
@@ -594,7 +620,7 @@ async function creeazaRand(
 
   // Punctul de urcare (ION-198): din bază, după numele canonic al opririi; copia nume/coordonate o face serverul.
   // Punctele nu sunt o condiție a vânzării: dacă tabelul nu răspunde, comanda merge fără punct (ca înainte de ION-198).
-  const active = await puncteActive().catch((e: unknown) => { console.warn('[bilete] puncte indisponibile:', e instanceof Error ? e.message : e); return []; });
+  const active = await puncteCitite;
   const lista = punctePentru(active, cursa.fromNameRo, input.crmRouteId, input.goingNorth);
   const cerut = input.punctUrcareId ?? null;
   // id ∉ lista cursei → a cui localitate e? Dacă citirea cade, îl tratăm ca dezactivat (primul punct), nu refuzăm comanda.
@@ -711,7 +737,9 @@ async function asiguraSesiunea(comanda: BileteComanda, opt: ComandaOptiuni): Pro
     if (recuperat) return recuperat;
   }
 
-  // O singură sesiune maib pe comandă: revendicăm crearea (2 minute), apoi chemăm banca.
+  // O singură sesiune maib pe comandă: revendicăm crearea (2 minute), apoi chemăm banca. Suma (turul + returul din
+  // pachet) e o citire independentă de revendicare: pornește deodată cu ea, eroarea ei apare tot după a revendicării.
+  const sumaCitita = porneste(sumaDePlata(comanda));
   const acum = new Date().toISOString();
   const { data: revendicat, error: rErr } = await db.from('bilete_comenzi')
     .update({ creare_in_curs_la: acum, updated_at: acum })
@@ -723,7 +751,7 @@ async function asiguraSesiunea(comanda: BileteComanda, opt: ComandaOptiuni): Pro
   if (rErr) throw new Error(`revendicare: ${rErr.message}`);
   if (!revendicat || revendicat.length === 0) throw new ComandaError('in_lucru', 'comanda e deja în curs de plată; reîncearcă într-un minut');
 
-  const sumaComenzii = await sumaDePlata(comanda);
+  const sumaComenzii = await sumaCitita;
   const descr = sumaComenzii > Number(comanda.total) ? `${descriereDin(comanda)} + retur`.slice(0, 125) : descriereDin(comanda);
   const url = opt.urlBilet ?? urlBiletImplicit(opt.bazaSite);
   let checkout: { checkoutId: string; checkoutUrl: string };

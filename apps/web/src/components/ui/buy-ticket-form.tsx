@@ -4,7 +4,8 @@ import * as React from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { TripResult } from "@/app/(public)/actions";
-import { cumparaBilet, locuriCursei, type StareComanda } from "@/app/(public)/bilete-actions";
+import { cumparaBilet, type StareComanda } from "@/app/(public)/bilete-actions";
+import { incarcaLocuri, preconecteazaBanca } from "@/lib/bilete-browser";
 import { citesteInitData } from "@/components/telegram/telegram-webapp";
 import { linkHarta } from "@/lib/bilete-reguli";
 import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
@@ -127,7 +128,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
     return () => window.removeEventListener("pageshow", laIntoarcere);
   }, []);
   const [tgInitData, setTgInitData] = React.useState("");
-  React.useEffect(() => { setTgInitData(citesteInitData()); }, []);
+  React.useEffect(() => { setTgInitData(citesteInitData()); preconecteazaBanca(); }, []);
 
   // ION-242: harta locurilor, doar spre nord. «incarca» la deschidere; «indisponibila» = panoul n-a răspuns → se
   // cumpără fără alegere (nu blocăm vânzarea). Se reîncarcă la schimbarea numărului de bilete, la fiecare 30 s cât
@@ -144,7 +145,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
     let viu = true;
     const incarca = async () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      const r = await locuriCursei(rutaId, ziua, true).catch(() => null);
+      const r = await incarcaLocuri(rutaId, ziua);
       if (!viu) return;
       if (!r) { setHarta((h) => (h.stare === "ok" ? h : { stare: "indisponibila", ocupate: [] })); return; }
       // La «Reia plata» locurile alese înainte le ține chiar comanda veche (deschisă la bancă): pentru acest om nu sunt ocupate.
@@ -189,7 +190,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
     if (!hartaRetur || !returFix) return;
     let viu = true;
     const incarca = async () => {
-      const r = await locuriCursei(returFix.crm_route_id, returFix.trip_date, true).catch(() => null);
+      const r = await incarcaLocuri(returFix.crm_route_id, returFix.trip_date);
       if (!viu) return;
       if (!r) { setHr((h) => (h.stare === "ok" ? h : { stare: "indisponibila", ocupate: [] })); return; }
       setHr({ stare: "ok", ocupate: r.ocupate });

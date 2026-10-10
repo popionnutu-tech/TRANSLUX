@@ -119,3 +119,15 @@ export function mesajLocOcupat(ocupate: readonly number[], locale: 'ro' | 'ru'):
   }
   return n === 1 ? `Locul ${lista} tocmai a fost luat, alege altul.` : `Locurile ${lista} tocmai au fost luate, alege altele.`;
 }
+
+/**
+ * Parametrii hărții cerute de browser — ACEEAȘI validare în acțiunea `locuriCursei` și în GET /api/bilete/locuri
+ * (Ion, 10.10: «vezi cum de făcut ultra fast toată procedura»): doar spre nord, ruta întreg 1…1.000.000, data YYYY-MM-DD.
+ * null = nu se cere nimic (formularul arată «locurile se aleg la urcare»).
+ */
+export function cerereLocuriValida(crmRouteId: unknown, tripDate: unknown, goingNorth: unknown): { crmRouteId: number; tripDate: string } | null {
+  if (goingNorth !== true) return null;
+  if (typeof crmRouteId !== 'number' || !Number.isInteger(crmRouteId) || crmRouteId <= 0 || crmRouteId > 1_000_000) return null;
+  if (typeof tripDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tripDate)) return null;
+  return { crmRouteId, tripDate };
+}

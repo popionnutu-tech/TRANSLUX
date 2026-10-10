@@ -35,7 +35,8 @@ const RouteResults = dynamic(loadRouteResults, { ssr: false });
 // Tur-retur (plan 10.10): fluxul în 3 pași, încărcat doar când e nevoie.
 const StudentVerificare = dynamic(() => import('@/components/ui/student-verificare').then((m) => m.StudentVerificare), { ssr: false });
 const PromoExplicatie = dynamic(() => import('@/components/ui/promo-explicatie').then((m) => m.PromoExplicatie), { ssr: false });
-const TurReturFlux = dynamic(() => import('@/components/ui/tur-retur-flux').then((m) => m.TurReturFlux), { ssr: false });
+const loadTurRetur = () => import('@/components/ui/tur-retur-flux').then((m) => m.TurReturFlux);
+const TurReturFlux = dynamic(loadTurRetur, { ssr: false });
 const MiniCalendar = dynamic(loadMiniCalendar, { ssr: false });
 const AssistantWidget = dynamic(loadAssistant, { ssr: false });
 const CookieConsent = dynamic(loadCookieConsent, { ssr: false });
@@ -138,7 +139,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const warm = useCallback(() => {
     if (warmed.current) return;
     warmed.current = true;
-    void loadNowResults(); void loadMiniCalendar(); void loadRouteResults();
+    // Și fereastra tur-retur (Ion, 10.10: «ultra fast»): bucata ei nu se mai aduce abia la primul clic.
+    void loadNowResults(); void loadMiniCalendar(); void loadRouteResults(); void loadTurRetur();
   }, []);
 
   const openAssistant = () => { setAssistant(true); setAssistantOpen(true); };

@@ -4,7 +4,8 @@ import * as React from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { cautaCurse, type RezultatCautare, type TripResult } from "@/app/(public)/actions";
-import { cumparaBilet, locuriCursei, procentRetur, type StareComanda } from "@/app/(public)/bilete-actions";
+import { cumparaBilet, type StareComanda } from "@/app/(public)/bilete-actions";
+import { incarcaLocuri, preconecteazaBanca, procentReturBrowser } from "@/lib/bilete-browser";
 import { citesteInitData } from "@/components/telegram/telegram-webapp";
 import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
 import { phoneText } from "@/lib/phone";
@@ -87,7 +88,7 @@ function useHarta(trip: TripResult | null, seats: number, setAlese: React.Dispat
     setH({ stare: "incarca", ocupate: [] });
     const incarca = async () => {
       if (document.visibilityState === "hidden") return;
-      const r = await locuriCursei(trip.crm_route_id, trip.trip_date, true).catch(() => null);
+      const r = await incarcaLocuri(trip.crm_route_id, trip.trip_date);
       if (!viu) return;
       if (!r) { setH((x) => (x.stare === "ok" ? x : { stare: "indisponibila", ocupate: [] })); return; }
       const ocupate = r.ocupate.filter((x) => !proprii.includes(x));
@@ -130,7 +131,8 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   const [aleseRetur, setAleseRetur] = React.useState<number[]>(reluare?.aleseRetur ?? []);
   const [tgInitData, setTgInitData] = React.useState("");
   React.useEffect(() => { setTgInitData(citesteInitData()); }, []);
-  React.useEffect(() => { void procentRetur().then(setPct).catch(() => setPct(0)); }, []);
+  // GET-uri din browser, nu acțiuni de server (care merg la coadă înaintea «Plătește»); banca maib preconectată din timp.
+  React.useEffect(() => { preconecteazaBanca(); void procentReturBrowser().then(setPct); }, []);
 
   // Escape: întâi calendarul, apoi un pas înapoi, abia la pasul 1 închide (plan R3).
   // Ion, 10.10.2026: «alegerea locului îndată ce am ales ruta, apoi ruta retur (dacă de la nord — locul automat), apoi

@@ -6,10 +6,13 @@ import { slugify } from "@/lib/seo-paths";
 import { cumparaRetur, type PlanRetur } from "@/app/(public)/bilete-actions";
 
 // Partea vie a paginii biletului (ION-197): «Salvează» (tipărire / PDF din browser) și, cât comanda așteaptă plata,
-// re-încărcarea la 15 s, cel mult 3 minute — apoi butonul «Verifică» (callback-ul băncii poate întârzia).
+// re-încărcarea după 2, 3, 5, 8 s, apoi la fiecare 8 s, cel mult 3 minute — apoi butonul «Verifică» (callback-ul băncii
+// poate întârzia). Ion, 10.10.2026: «vezi cum de făcut ultra fast toată procedura» — biletul apare de obicei în câteva
+// secunde după plată; cu pasul fix de 15 s omul aștepta degeaba.
 
 const RED = "#9B1B30";
-const PAS_MS = 15_000;
+/** Pașii de așteptare între reîncărcări; după ultimul se repetă ultimul. */
+const PASI_MS = [2_000, 3_000, 5_000, 8_000] as const;
 const MAX_MS = 3 * 60_000;
 
 export function SalveazaBilet({ text }: { text: string }) {
@@ -24,13 +27,21 @@ export function AsteaptaPlata({ locale }: { locale: "ro" | "ru" }) {
   const router = useRouter();
   const [gata, setGata] = React.useState(false);
   React.useEffect(() => {
+    if (gata) return;
     const start = Date.now();
-    const t = setInterval(() => {
-      if (Date.now() - start > MAX_MS) { clearInterval(t); setGata(true); return; }
-      router.refresh();
-    }, PAS_MS);
-    return () => clearInterval(t);
-  }, [router]);
+    let pas = 0;
+    let t: ReturnType<typeof setTimeout>;
+    const urmatorul = () => {
+      t = setTimeout(() => {
+        if (Date.now() - start > MAX_MS) { setGata(true); return; }
+        router.refresh();
+        pas = Math.min(pas + 1, PASI_MS.length - 1);
+        urmatorul();
+      }, PASI_MS[pas]);
+    };
+    urmatorul();
+    return () => clearTimeout(t);
+  }, [router, gata]);
   if (!gata) {
     return <p style={{ fontSize: 13, color: "#777" }}>{locale === "ru" ? "Ждём подтверждения банка, страница обновляется сама…" : "Așteptăm confirmarea băncii, pagina se actualizează singură…"}</p>;
   }

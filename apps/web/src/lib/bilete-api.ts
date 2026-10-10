@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHash } from 'crypto';
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { CONFIG_INCHIS, parseazaConfig, parseazaPuncte, type ConfigBilete } from './bilete-reguli';
 import { parseazaLocuri, type LocuriCursa } from './locuri';
 
@@ -11,6 +12,8 @@ import { parseazaLocuri, type LocuriCursa } from './locuri';
 const BAZA = (process.env.CENTRAL_HUB_URL || 'https://central-hub-md.vercel.app').replace(/\/+$/, '');
 const TIMEOUT_MS = 8_000;
 const CACHE_CONFIG_MS = 60_000;
+/** Peste atât, valoarea veche nu se mai servește: cererea așteaptă panoul (și, fără răspuns, vânzarea e ÎNCHISĂ). */
+const CONFIG_VECHI_MAX_MS = 10 * 60_000;
 
 export type { ConfigBilete };
 
@@ -30,19 +33,46 @@ async function anteteClient(): Promise<Record<string, string>> {
 }
 
 let cacheConfig: { la: number; cfg: ConfigBilete } | null = null;
+let configInZbor: Promise<ConfigBilete | null> | null = null;
 
-export async function configBilete(): Promise<ConfigBilete> {
-  if (cacheConfig && Date.now() - cacheConfig.la < CACHE_CONFIG_MS) return cacheConfig.cfg;
-  try {
-    const r = await fetch(`${BAZA}/api/bilete/public/config`, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store' });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const cfg = parseazaConfig(await r.json());
-    cacheConfig = { la: Date.now(), cfg };
-    return cfg;
-  } catch (e) {
-    console.warn('[bilete] config indisponibil → vânzare închisă:', e instanceof Error ? e.message : e);
-    return CONFIG_INCHIS;
+/** Un singur drum la panou o dată (cererile simultane îl așteaptă pe același); null = panoul n-a răspuns. */
+function aduConfig(): Promise<ConfigBilete | null> {
+  if (!configInZbor) {
+    configInZbor = (async () => {
+      try {
+        const r = await fetch(`${BAZA}/api/bilete/public/config`, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const cfg = parseazaConfig(await r.json());
+        cacheConfig = { la: Date.now(), cfg };
+        return cfg;
+      } catch (e) {
+        console.warn('[bilete] config indisponibil:', e instanceof Error ? e.message : e);
+        return null;
+      }
+    })().finally(() => { configInZbor = null; });
   }
+  return configInZbor;
+}
+
+/**
+ * Configurația vânzării (Ion, 10.10.2026: «vezi cum de făcut ultra fast toată procedura»): valoarea din memorie se
+ * servește imediat; mai veche de 60 s → se reîmprospătează în fundal (stale-while-revalidate), fără ca cererea să
+ * aștepte panoul. Fără nicio valoare (prima cerere a instanței) sau mai veche de 10 min → se așteaptă panoul, iar
+ * fără răspuns vânzarea e ÎNCHISĂ (nimic nu se vinde pe orb). Comanda o judecă oricum panoul, cu config-ul lui.
+ */
+export async function configBilete(): Promise<ConfigBilete> {
+  const varsta = cacheConfig ? Date.now() - cacheConfig.la : Infinity;
+  if (cacheConfig && varsta < CONFIG_VECHI_MAX_MS) {
+    if (varsta >= CACHE_CONFIG_MS) {
+      const p = aduConfig();
+      // Pe Vercel funcția poate îngheța după răspuns: `after` o ține vie până termină reîmprospătarea.
+      try { after(() => p.then(() => undefined)); } catch { /* în afara unei cereri: promisiunea merge oricum */ }
+    }
+    return cacheConfig.cfg;
+  }
+  const cfg = await aduConfig();
+  if (!cfg) console.warn('[bilete] config indisponibil → vânzare închisă');
+  return cfg ?? CONFIG_INCHIS;
 }
 
 // Punctele de urcare ale unei localități (ION-198), cu perechile lor (rută, sens). Cache 60 s pe localitate; orice

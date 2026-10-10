@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BazaIndisponibilaError, biletPublic, plafonPublic, ipPentruPlafon } from '@/lib/bilete/public';
+import { BazaIndisponibilaError, biletPublic, citesteComandaPagina, plafonPublic, ipPentruPlafon } from '@/lib/bilete/public';
 import { imagineBilet } from '@/lib/bilete/bilet-imagine';
 import { cheieImagine, creeazaCacheImagini } from '@/lib/bilete/cache-imagini';
 
@@ -19,9 +19,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cod:
   const nr = Number(req.nextUrl.searchParams.get('nr') ?? '1');
   if (!/^[0-9a-f]{32}$/i.test(cod) || !Number.isInteger(nr) || nr < 1 || nr > 10) return NextResponse.json({ ok: false }, { status: 404, headers: ANTETE });
   const ip = ipPentruPlafon(req.headers);
-  if (!(await plafonPublic(ip))) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
+  // Plafonul și rândul comenzii deodată (Ion, 10.10.2026: «ultra fast»); citirea cu eroare se reface în biletPublic.
+  const [voie, citita] = await Promise.all([plafonPublic(ip), citesteComandaPagina(cod).catch(() => null)]);
+  if (!voie) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
   try {
-    const c = await biletPublic(cod);
+    const c = await biletPublic(cod, citita && !citita.error ? citita : undefined);
     const loc = c?.bilete.find((b) => b.nr === nr);
     const cheie = c && loc && c.status === 'platita' ? cheieImagine(cod, nr, loc.status, Date.now()) : null;
     let png = cheie ? imagini.get(cheie) : null;

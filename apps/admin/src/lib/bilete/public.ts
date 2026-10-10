@@ -95,44 +95,77 @@ export async function plafonPublic(ip: string | null, max = 60): Promise<boolean
 export async function sincronizeazaComandaDupaCod(cod: string): Promise<void> {
   if (!COD_RE.test(cod)) return;
   const { data } = await getSupabase().from('bilete_comenzi').select('status, checkout_id').eq('cod', cod).maybeSingle();
-  if (!data || !data.checkout_id || !(data.status === 'noua' || data.status === 'eroare_creare')) return;
-  const r = await sincronizeazaStare(data.checkout_id);
-  if (!r.ok) console.warn('[bilete] sincronizare la întoarcere:', r.eroare);
+  await sincronizeazaDacaEDeschisa(data);
 }
 
-export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
+async function sincronizeazaDacaEDeschisa(data: { status: string; checkout_id: string | null } | null | undefined): Promise<boolean> {
+  if (!data || !data.checkout_id || !(data.status === 'noua' || data.status === 'eroare_creare')) return false;
+  const r = await sincronizeazaStare(data.checkout_id);
+  if (!r.ok) console.warn('[bilete] sincronizare la întoarcere:', r.eroare);
+  return true;
+}
+
+/** Coloanele paginii biletului: asamblarea + sesiunea maib (sincronizarea) + legătura tur-retur (548), într-o citire. */
+const COLOANE_PAGINA = `${COLOANE_COMANDA}, checkout_id, in_pachet, comanda_tur_id`;
+type RandPagina = ComandaRand & { checkout_id: string | null; in_pachet: boolean | null; comanda_tur_id: string | null };
+export type ComandaCitita = { data: RandPagina | null; error: { message: string } | null };
+
+/** Rândul comenzii după codul din link, cu tot ce trebuie paginii biletului (o singură citire). */
+export async function citesteComandaPagina(cod: string): Promise<ComandaCitita> {
+  if (!COD_RE.test(cod)) return { data: null, error: null };
+  const { data, error } = await getSupabase().from('bilete_comenzi').select(COLOANE_PAGINA).eq('cod', cod).maybeSingle();
+  return { data: (data as unknown as RandPagina | null) ?? null, error: error ? { message: error.message } : null };
+}
+
+/**
+ * Pagina biletului (GET /api/bilete/public/<cod>) din rândul deja citit (Ion, 10.10.2026: «vezi cum de făcut ultra fast
+ * toată procedura»): rândul se citește în paralel cu plafonul; comanda deschisă se sincronizează cu maib și se recitește
+ * (starea s-a putut schimba); altfel nu se mai citește încă o dată starea. Același rezultat ca sincronizeazaComandaDupaCod
+ * + biletPublic, cu 3 drumuri la bază în loc de 6. Rândul citit cu eroare → încă o încercare, ca înainte.
+ */
+export async function biletPublicDinCitire(cod: string, citita: ComandaCitita): Promise<ComandaPublica | null> {
+  if (!COD_RE.test(cod)) return null;
+  if (citita.error) {
+    await sincronizeazaComandaDupaCod(cod);
+    return biletPublic(cod);
+  }
+  if (await sincronizeazaDacaEDeschisa(citita.data)) return biletPublic(cod);
+  return biletPublic(cod, citita);
+}
+
+export async function biletPublic(cod: string, citita?: ComandaCitita): Promise<ComandaPublica | null> {
   if (!COD_RE.test(cod)) return null;
   const db = getSupabase();
-  const { data: c, error: cErr } = await db.from('bilete_comenzi').select(COLOANE_COMANDA).eq('cod', cod).maybeSingle();
+  const { data: c, error: cErr } = citita ?? await citesteComandaPagina(cod);
   if (cErr) throw new BazaIndisponibilaError(cErr.message); // «nu există» ≠ «baza nu răspunde» (Codex X11)
   if (!c) return null;
-  const comanda = c as unknown as ComandaRand;
-  const [rB, rR, rS, echipaje] = await Promise.all([
+  const comanda = c;
+  // Toate citirile care depind doar de rând — și biletul pereche din tur-retur (fără a reciti in_pachet) — deodată.
+  const [rB, rR, rS, echipaje, pachet] = await Promise.all([
     db.from('bilete').select(COLOANE_BILET).eq('comanda_id', comanda.id).order('nr'),
     db.from('crm_routes').select('id, dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', comanda.crm_route_id).maybeSingle(),
     // ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii (biletul arată plecare → sosire)
     db.from('crm_stop_fares').select('hour_from_chisinau, hour_from_nord').eq('crm_route_id', comanda.crm_route_id).eq('stop_order', comanda.to_stop_order ?? -1).maybeSingle(),
     echipajPentruComenzi([comanda]),
+    celalaltDinPachet(comanda),
   ]);
   if (rB.error) throw new BazaIndisponibilaError(rB.error.message);
   if (rR.error) throw new BazaIndisponibilaError(rR.error.message);
   // ION-276: aceeași asamblare ca lista clientului din mini app (bilet-asamblare.ts).
   const pub = await asambleazaComanda(comanda, (rB.data ?? []) as BiletRand[], (rR.data as RutaRand | null) ?? null, (rS.data as OprireSosireRand | null) ?? null, echipaje.get(comanda.id) ?? null);
-  return { ...pub, pachet: await celalaltDinPachet(comanda.id) };
+  return { ...pub, pachet };
 }
 
 /** 548: biletul pereche din tur-retur (returul turului, sau turul returului), doar plătit. */
-async function celalaltDinPachet(id: string): Promise<ComandaPublica['pachet']> {
+async function celalaltDinPachet(e: Pick<RandPagina, 'id' | 'in_pachet' | 'comanda_tur_id'>): Promise<ComandaPublica['pachet']> {
   const db = getSupabase();
-  const { data: eu } = await db.from('bilete_comenzi').select('in_pachet, comanda_tur_id').eq('id', id).maybeSingle();
-  const e = eu as { in_pachet?: boolean; comanda_tur_id?: string | null } | null;
   const q = db.from('bilete_comenzi').select('cod, trip_date, departure_at, from_name, to_name, status');
-  const { data } = e?.in_pachet && e.comanda_tur_id
+  const { data } = e.in_pachet && e.comanda_tur_id
     ? await q.eq('id', e.comanda_tur_id).maybeSingle()
-    : await q.eq('comanda_tur_id', id).eq('in_pachet', true).in('status', ['platita', 'platita_fara_bilet']).limit(1).maybeSingle();
+    : await q.eq('comanda_tur_id', e.id).eq('in_pachet', true).in('status', ['platita', 'platita_fara_bilet']).limit(1).maybeSingle();
   const r = data as { cod: string; trip_date: string; departure_at: string; from_name: string; to_name: string; status: string } | null;
   if (!r || !['platita', 'platita_fara_bilet'].includes(r.status)) return null;
-  return { cod: r.cod, sens: e?.in_pachet ? 'tur' : 'retur', trip_date: r.trip_date, departure_at: r.departure_at, from_name: r.from_name, to_name: r.to_name };
+  return { cod: r.cod, sens: e.in_pachet ? 'tur' : 'retur', trip_date: r.trip_date, departure_at: r.departure_at, from_name: r.from_name, to_name: r.to_name };
 }
 
 /** Capacitatea autobuzului (ION-239, migr. 501): 1 față + 5 × 3 + 4 spate. */

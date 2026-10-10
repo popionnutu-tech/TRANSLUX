@@ -325,7 +325,9 @@ export async function cautaCurse(
   // pe site păstrăm lista goală (ca înainte), dar o jurnalizăm; în API-ul biletelor aceeași eroare
   // oprește comanda (nu se vinde pe un tarif gol).
   // Biletele online (ION-197): configurația panoului o dată pe căutare (cache 60 s; fără răspuns = închis).
-  const [blocata, assignmentDate, repere, cfgBilete] = await Promise.all([
+  // Tot în runda 1 (Ion, 10.10.2026: «vezi cum de făcut ultra fast toată procedura»): câte rânduri are graficul pe ZIUA
+  // cursei — nu depinde de nimic din runde, iar cerut abia la urmă adăuga un drum la bază (25–58 ms) fiecărei căutări.
+  const [blocata, assignmentDate, repere, cfgBilete, { count: randuriZi }] = await Promise.all([
     verificaLimitaSiLogheaza(supabase, sursa, { fromRo, toRo, date }),
     resolveAssignmentDate(supabase, date, todayStr),
     repereleCautarii({ fromRo, toRo, date }).catch((e: unknown) => {
@@ -333,6 +335,7 @@ export async function cautaCurse(
       return null;
     }),
     configBilete(),
+    supabase.from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', date),
   ]);
 
   if (blocata) return { stare: 'limita', curse: [] };
@@ -422,7 +425,6 @@ export async function cautaCurse(
   const graficPeZi = assignmentDate === date;
   // Ion, 10.10.2026: «vindem fără grafic» — ziua fără graficul ei se vinde fără verificarea șoferului (ca în panou);
   // ziua cu grafic cere șoferul ei legat de Telegram. «Are grafic» = rânduri pe ZIUA cursei, nu pe ziua de rezervă.
-  const { count: randuriZi } = await supabase.from('daily_assignments').select('id', { count: 'exact', head: true }).eq('assignment_date', date);
   const ziAreGrafic = (randuriZi ?? 0) > 0;
   const deschisPeSite = (trip: { routeId: number; goingNorth: boolean; time: string }, pret: number, legat: boolean) =>
     pretVandabilOnline(pret) && vanzareDeschisaPeSite({

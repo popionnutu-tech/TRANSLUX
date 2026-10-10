@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CAPACITATE_AUTOBUZ, RANDURI_AUTOBUZ, comutaLoc, listaLocuri, mesajLocOcupat, parseazaLocuri, parseazaLocuriAlese, potrivesteAlese, stareLoc } from './locuri';
+import { CAPACITATE_AUTOBUZ, RANDURI_AUTOBUZ, cerereLocuriValida, comutaLoc, listaLocuri, mesajLocOcupat, parseazaLocuri, parseazaLocuriAlese, potrivesteAlese, stareLoc } from './locuri';
 
 describe('RANDURI_AUTOBUZ', () => {
   it('are exact locurile 1–20, fiecare o singură dată: 1 în față, 5 rânduri × 3, 4 în spate', () => {
@@ -93,5 +93,17 @@ describe('listaLocuri / mesajLocOcupat', () => {
     expect(mesajLocOcupat([8, 3], 'ro')).toBe('Locurile 3, 8 tocmai au fost luate, alege altele.');
     expect(mesajLocOcupat([3], 'ru')).toBe('Место 3 только что заняли, выберите другое.');
     expect(mesajLocOcupat([8, 3], 'ru')).toBe('Места 3, 8 только что заняли, выберите другие.');
+  });
+});
+
+describe('cerereLocuriValida (acțiunea și GET /api/bilete/locuri)', () => {
+  it('cere doar spre nord, cu rută și dată valide', () => {
+    expect(cerereLocuriValida(7, '2026-10-13', true)).toEqual({ crmRouteId: 7, tripDate: '2026-10-13' });
+    expect(cerereLocuriValida(7, '2026-10-13', false)).toBeNull();
+    expect(cerereLocuriValida(7, '2026-10-13', 'true')).toBeNull();
+  });
+  it('refuză ruta nevalidă și data în alt format', () => {
+    for (const r of [0, -1, 1.5, 1_000_001, NaN, '7']) expect(cerereLocuriValida(r, '2026-10-13', true)).toBeNull();
+    for (const d of ['13.10.2026', '2026-10-13T00:00', '', 20261013]) expect(cerereLocuriValida(7, d, true)).toBeNull();
   });
 });

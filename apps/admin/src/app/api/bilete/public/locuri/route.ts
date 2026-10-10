@@ -22,10 +22,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, eroare: 'parametri: crm_route_id, trip_date (YYYY-MM-DD), going_north (true|false)' }, { status: 400, headers: ANTETE });
   }
   const ip = ipPentruPlafon(req.headers);
-  if (!(await plafonPublic(ip))) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
+  // Plafonul și harta deodată (Ion, 10.10.2026: «vezi cum de făcut ultra fast toată procedura»): harta e doar o citire,
+  // deci nu costă nimic s-o cerem înainte de verdictul plafonului — un drum la bază în loc de două. Plafonul refuzat →
+  // tot 429, iar harta citită se aruncă (nici eroarea ei nu contează atunci).
+  const harta = locuriOcupate(tripDate, crmRouteId, north === 'true').then(
+    (r) => ({ ok: true as const, r }),
+    (e: unknown) => ({ ok: false as const, e }),
+  );
+  const [voie, citita] = await Promise.all([plafonPublic(ip), harta]);
+  if (!voie) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
   try {
-    const r = await locuriOcupate(tripDate, crmRouteId, north === 'true');
-    return NextResponse.json({ ok: true, ...r }, { headers: ANTETE });
+    if (!citita.ok) throw citita.e;
+    return NextResponse.json({ ok: true, ...citita.r }, { headers: ANTETE });
   } catch (e) {
     if (e instanceof BazaIndisponibilaError) {
       console.error('[bilete/locuri] baza indisponibilă:', e.message);

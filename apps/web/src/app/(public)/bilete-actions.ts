@@ -2,9 +2,9 @@
 
 import { createHash } from 'crypto';
 import { headers } from 'next/headers';
-import { comandaBilet, configBilete, locuriCursa, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
+import { comandaBilet, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
 import { emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, textApiInRusa, urlPlataSigur } from '@/lib/bilete-reguli';
-import { mesajLocOcupat, parseazaLocuriAlese, type LocuriCursa } from '@/lib/locuri';
+import { mesajLocOcupat, parseazaLocuriAlese } from '@/lib/locuri';
 
 // «Cumpără bilet» (ION-197): formularul din fereastra rezultatelor → comanda la panou → pasagerul pleacă la maib.
 // Validarea de aici e doar pentru mesaje bune; adevărul (cursa, prețul, fereastra, plafonul) îl spune API-ul.
@@ -28,11 +28,6 @@ export interface StareComanda {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Harta locurilor cursei (ION-242), chemată din formular la deschidere, la schimbarea numărului de bilete și la
- * fiecare 30 s. Doar spre nord (plecarea din Chișinău); null = indisponibilă → se cumpără fără alegere.
- * Export din 'use server' = acțiune apelabilă de oricine: nu are secret, parametrii se verifică aici.
- */
 /** Mesajul tur-retur: textul panoului (RO), cu un prefix RU când pagina e în rusă și fraza clară pentru cheia refuzată. */
 function textTurRetur(eroareApi: string, cod: string | undefined, ru: boolean): string {
   if (cod === 'idempotenta') return ru ? 'Выбор изменился — нажмите «Оплатить» ещё раз.' : 'Alegerea s-a schimbat — apasă din nou «Plătește».';
@@ -44,12 +39,9 @@ function textTurRetur(eroareApi: string, cod: string | undefined, ru: boolean): 
   return `${t}.`;
 }
 
-export async function locuriCursei(crmRouteId: number, tripDate: string, goingNorth: boolean): Promise<LocuriCursa | null> {
-  if (goingNorth !== true) return null;
-  if (!Number.isInteger(crmRouteId) || crmRouteId <= 0 || crmRouteId > 1_000_000) return null;
-  if (typeof tripDate !== 'string' || !DATA_RE.test(tripDate)) return null;
-  return locuriCursa(crmRouteId, tripDate, true);
-}
+// Harta locurilor (ION-242) și procentul returului NU mai sunt acțiuni de server: browserul le citește prin
+// GET /api/bilete/locuri și GET /api/bilete/promo (Ion, 10.10.2026: «vezi cum de făcut ultra fast toată procedura») —
+// acțiunile merg la coadă, una câte una, iar reîncărcarea hărții la 30 s întârzia «Plătește».
 
 export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<StareComanda> {
   const locale: 'ro' | 'ru' = fd.get('lang') === 'ru' ? 'ru' : 'ro';
@@ -210,10 +202,4 @@ export async function cumparaRetur(plan: PlanRetur, codRetur: string): Promise<{
   if (!r.ok) return { eroare: mesajEroareComanda(r.cod, r.status, locale, r.eroare) };
   if (!urlPlataSigur(r.checkoutUrl)) return { eroare: mesajEroareComanda('necunoscut', 500, locale) };
   return { url: r.checkoutUrl };
-}
-
-/** Procentul reducerii la retur din configurația panoului (546 `bilete_promo_pct`), pentru prețul afișat în tur-retur. */
-export async function procentRetur(): Promise<number> {
-  const c = await configBilete();
-  return c.promo?.activ ? Number(c.promo.pct) || 20 : 0;
 }

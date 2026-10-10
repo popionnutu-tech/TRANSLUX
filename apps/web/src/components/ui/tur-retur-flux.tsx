@@ -405,22 +405,23 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
                     ))}
                   </fieldset>
                 )}
+                {/* Ion, 10.10.2026: «totul să nimerească într-o pagină — telefonul, e-mailul și acordul»: etichetele stau
+                    în câmpuri, telefonul și e-mailul pe un rând, regula tur-returului în textul acordului, totalul pe un rând. */}
                 <div className="trf-doua">
-                  <label>{tx.nume}<input name="lastName" required minLength={2} maxLength={40} autoComplete="family-name" value={camp.lastName} onChange={scrie("lastName")} /></label>
-                  <label>{tx.prenume}<input name="firstName" required minLength={2} maxLength={40} autoComplete="given-name" value={camp.firstName} onChange={scrie("firstName")} /></label>
+                  <label className="trf-camp"><input name="lastName" required minLength={2} maxLength={40} autoComplete="family-name" placeholder=" " value={camp.lastName} onChange={scrie("lastName")} /><span>{tx.nume}</span></label>
+                  <label className="trf-camp"><input name="firstName" required minLength={2} maxLength={40} autoComplete="given-name" placeholder=" " value={camp.firstName} onChange={scrie("firstName")} /><span>{tx.prenume}</span></label>
                 </div>
-                <label>{tx.telefon}<input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="+373 69 123 456" value={camp.phone} onChange={scrie("phone")} /><small>{tx.telNota}</small></label>
-                <label>{tx.email}<input name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} value={camp.email} onChange={scrie("email")} /></label>
-                <p className="trf-regula">{tx.regula}</p>
+                <div className="trf-doua">
+                  <label className="trf-camp"><input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder=" " value={camp.phone} onChange={scrie("phone")} /><span>{tx.telefon}</span></label>
+                  <label className="trf-camp"><input name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder=" " value={camp.email} onChange={scrie("email")} /><span>{tx.email}</span></label>
+                </div>
                 <label className="trf-acord">
                   <input type="checkbox" name="consent" required checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                  <span>{tx.acord} <a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener">{tx.conditii}</a> {tx.si} <a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener">{tx.politica}</a></span>
+                  <span>{tx.acord} <a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener">{tx.conditii}</a> {tx.si} <a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener">{tx.politica}</a>. {tx.regula}</span>
                 </label>
                 {stare.eroare && <p className="trf-eroare" role="alert">{stare.eroare}</p>}
                 <div className="trf-total">
-                  <div className="trf-total-rand"><span>{tx.tur} · {pasageri} × {tur.price}</span><span>{rezumat?.tur ?? "—"} lei</span></div>
-                  <div className="trf-total-rand"><span>{tx.retur} · {pasageri} × {rezumat?.pretRetur ?? "—"} <s>{retur.price}</s> (−{pct ?? 0}%)</span><span>{rezumat?.retur ?? "—"} lei</span></div>
-                  <div className="trf-total-rand mare"><span>{tx.total} · {tx.platesti.toLowerCase()}</span><span>{rezumat?.total ?? "—"} lei</span></div>
+                  <div className="trf-total-rand mare"><span>{tx.total} <small>{tx.tur} {rezumat?.tur ?? "—"} + {tx.retur.toLowerCase()} {rezumat?.retur ?? "—"} (−{pct ?? 0}%)</small></span><span>{rezumat?.total ?? "—"} lei</span></div>
                   {rezumat && rezumat.pretRetur == null && <p className="trf-eroare">{tx.faraRed}</p>}
                   <Trimite text={tx.plateste(rezumat?.total ?? 0)} blocat={blocat} />
                   {motiv && <button type="button" className="trf-motiv" onClick={motiv.du}>{motiv.t}</button>}
@@ -531,12 +532,16 @@ const CSS = `
 .trf-harta-cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px;font-weight:800}
 .trf-harta-cap em{font-style:normal;font-size:13px;color:${RED}}
 .trf-harta-cap em.ok{color:#2B6B3A}
-.trf-date{padding:18px 20px;background:#fff;display:flex;flex-direction:column;gap:14px;min-width:0}
+.trf-date{padding:18px 20px;background:#fff;display:flex;flex-direction:column;gap:10px;min-width:0}
+.trf-camp{position:relative;display:block!important}
+.trf-camp input{width:100%;box-sizing:border-box;padding:16px 12px 4px!important;height:50px!important}
+.trf-camp span{position:absolute;left:13px;top:15px;font-size:15px;font-weight:600;color:var(--trf-gri);pointer-events:none;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 20px)}
+.trf-camp input:focus+span,.trf-camp input:not(:placeholder-shown)+span{top:6px;font-size:11px;font-weight:700;color:${RED}}
 .trf-date label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:#6B5B5F;min-width:0}
 .trf-date input:not([type=checkbox]):not([type=radio]){height:48px;padding:0 12px;border-radius:12px;border:1.5px solid #E6DADC;font-size:16px;font-family:inherit;background:#fff;color:var(--trf-text)}
 .trf-date input:focus-visible{outline:2px solid ${RED};outline-offset:1px}
 .trf-date small{font-weight:400;color:var(--trf-gri);font-size:12px}
-.trf-doua{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.trf-doua{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .trf-pax{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:800}
 .trf-pas-numar{display:flex;align-items:center;gap:10px}
 .trf-pas-numar button{width:42px;height:42px;border-radius:12px;border:1.5px solid #E6DADC;background:#fff;font-size:20px;font-weight:700;color:var(--trf-text);cursor:pointer}
@@ -547,11 +552,12 @@ const CSS = `
 .trf-puncte label{flex-direction:row!important;align-items:center;gap:10px!important;min-height:46px;padding:0 12px;border-radius:12px;border:1.5px solid #E6DADC;font-size:15px!important;color:var(--trf-text)!important;cursor:pointer}
 .trf-puncte label.on{border-color:${RED}}
 .trf-regula{margin:0;font-size:13px;color:#4A3E41;padding:10px 12px;border-radius:12px;background:var(--trf-cald)}
-.trf-acord{flex-direction:row!important;align-items:flex-start;gap:10px!important;font-weight:400!important;color:#4A3E41!important;font-size:14px!important}
+.trf-acord{flex-direction:row!important;align-items:flex-start;gap:10px!important;font-weight:400!important;color:#4A3E41!important;font-size:13px!important;line-height:1.4}
 .trf-acord input{width:22px;height:22px;margin:1px 0 0;accent-color:${RED};flex:none}
 .trf-acord a{color:${RED}}
 .trf-eroare{margin:0;color:${RED};font-weight:700;font-size:15px}
-.trf-total{position:sticky;bottom:0;background:#fff;display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px dashed #E3D3D6;font-variant-numeric:tabular-nums}
+.trf-total{background:#fff;display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px dashed #E3D3D6;font-variant-numeric:tabular-nums}
+.trf-total-rand small{display:block;font-size:12px;font-weight:600;color:var(--trf-gri)}
 .trf-total-rand{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#4A3E41}
 .trf-total-rand s{color:var(--trf-gri)}
 .trf-total-rand.mare{font-size:17px;font-weight:800;color:var(--trf-text);padding-top:4px}
@@ -567,8 +573,9 @@ const CSS = `
   .trf{align-items:stretch}
   .trf-fereastra{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0}
   .trf-plata-grid{grid-template-columns:1fr}
-  .trf-calatorie{border-right:none;padding:12px 14px 4px}
-  .trf-date{padding:16px 14px 12px}
+  .trf-calatorie{border-right:none;padding:10px 12px 2px;gap:6px}
+  .trf-drum{padding:8px 11px}
+  .trf-date{padding:10px 12px 12px}
   .trf-lista{grid-template-columns:1fr;padding:14px 12px 22px}
   .trf-ruta{font-size:17px}
 }

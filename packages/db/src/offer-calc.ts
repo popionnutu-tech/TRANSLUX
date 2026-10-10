@@ -17,8 +17,10 @@ export const BALTI_OFFER_KM = 133;
  * cursei) prețul nu mai urmează rata săptămânală — e `lei`, doar pe sensul
  * Bălți → Chișinău; Chișinău → Bălți rămâne km × rată. Înainte de `from`,
  * formula veche (133 × rată − reducere).
+ * Chișinău → Bălți (Ion, 10.10.2026: «Bălți–Chișinău și Chișinău–Bălți prețul 150 lei pe site»): același preț fix din
+ * ziua `fromRetur` (data cursei); prețul îl citesc toate căile prin rândul activ din `offers` pe acel sens.
  */
-export const BALTI_CHISINAU_FIXED = { lei: 150, from: '2026-10-02' } as const;
+export const BALTI_CHISINAU_FIXED = { lei: 150, from: '2026-10-02', fromRetur: '2026-10-10' } as const;
 
 /** Azi în Chișinău, YYYY-MM-DD. */
 function todayChisinau(): string {
@@ -28,10 +30,13 @@ function todayChisinau(): string {
 const norm = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-/** Prețul fix al zilei pentru sensul Bălți → Chișinău, sau null (alt sens / înainte de data de început). */
+/** Prețul fix al zilei pe Bălți ⇄ Chișinău (fiecare sens cu data lui de început), sau null (altă pereche / înainte). */
 export function baltiChisinauFixedPrice(fromLocality: string, toLocality: string, date?: string | null): number | null {
-  if (norm(fromLocality) !== 'balti' || norm(toLocality) !== 'chisinau') return null;
-  return (date || todayChisinau()) >= BALTI_CHISINAU_FIXED.from ? BALTI_CHISINAU_FIXED.lei : null;
+  const a = norm(fromLocality), b = norm(toLocality);
+  const de = a === 'balti' && b === 'chisinau' ? BALTI_CHISINAU_FIXED.from
+    : a === 'chisinau' && b === 'balti' ? BALTI_CHISINAU_FIXED.fromRetur : null;
+  if (!de) return null;
+  return (date || todayChisinau()) >= de ? BALTI_CHISINAU_FIXED.lei : null;
 }
 
 /** Prețul ofertei pentru o rată interurban-lung dată (lei/km). */

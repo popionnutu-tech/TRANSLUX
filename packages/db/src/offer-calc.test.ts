@@ -84,7 +84,9 @@ describe('prețul fix Bălți → Chișinău din 02.10.2026 (ION-165)', () => {
     expect(resolveOfferForDate(baltiOffer, 1.19, '2026-10-02')).toEqual({ ...baltiOffer, original_price: 158, offer_price: 150 });
   });
   it('doar sensul Bălți → Chișinău; returul și alte perechi neatinse', () => {
-    expect(baltiChisinauFixedPrice('Chișinău', 'Bălți', '2026-10-02')).toBeNull();
+    expect(baltiChisinauFixedPrice('Chișinău', 'Bălți', '2026-10-09')).toBeNull();
+    expect(baltiChisinauFixedPrice('Chișinău', 'Bălți', '2026-10-10')).toBe(150); // Ion 10.10: și returul 150
+    expect(baltiChisinauFixedPrice('Edineț', 'Bălți', '2026-10-10')).toBeNull();
     expect(baltiChisinauFixedPrice('Bălți', 'Chișinău', '2026-10-02')).toBe(150);
     expect(baltiChisinauFixedPrice('Balti', 'chisinau', '2026-10-02')).toBe(150);
     const retur = { from_locality: 'Chișinău', to_locality: 'Bălți', original_price: 158, offer_price: 138 };

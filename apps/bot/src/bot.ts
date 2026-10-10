@@ -22,6 +22,7 @@ import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js'
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
 import { grupaCamioane, intrebareCatreBot, raspundeTraseu } from './services/camioaneTrasee.js';
+import { inregistreazaSocial } from './social/index.js';
 import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup, bindDtGroup, currentDtGroup, bindCamioaneGroup, currentCamioaneGroup } from './services/driversGroup.js';
 
 export function createBot(): Bot<BotContext> {
@@ -81,6 +82,10 @@ export function createBot(): Bot<BotContext> {
   bot.use(createConversation(reportConversation, 'report'));
   bot.use(createConversation(addDriverConversation, 'addDriver'));
   bot.use(createConversation(cleaningPhotosConversation, 'cleaningPhotos'));
+
+  // Clipurile bloggerilor (Ion, 10.10): topicurile legate cu /lega_social, clipurile și butoanele «soc:». Înaintea
+  // comenzilor și a gardului de grup; mesajele care nu țin de un topic legat trec mai departe.
+  inregistreazaSocial(bot);
 
   // /start command
   bot.command('start', handleStart);

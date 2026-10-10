@@ -6,6 +6,7 @@ import { createBot } from './bot.js';
 import { getSupabase } from './supabase.js';
 import { handleAppApi } from './api/server.js';
 import { handleLivrare } from './api/livrare.js';
+import { handleSocialRelay, scheduleSocial } from './social/index.js';
 import { scheduleMondayReports, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep, scheduleVoiceLessonDigest, schedulePeronPhotoRetention, scheduleDriverReferences, scheduleBileteTelegram, ruleazaBileteNoiAcum } from './scheduler.js';
 
 const HEARTBEAT_KEY = 'bot:heartbeat';
@@ -40,6 +41,7 @@ async function main() {
   schedulePeronPhotoRetention();
   scheduleDriverReferences();
   scheduleBileteTelegram(bot.api);
+  scheduleSocial();
 
   const webhookUrl = process.env.WEBHOOK_URL;
   const webhookSecret = process.env.WEBHOOK_SECRET;
@@ -69,6 +71,8 @@ async function main() {
     if (await handleAppApi(req, res)) return;
     // ION-274: panoul anunță o plată → biletul pleacă în chat acum (POST /bilete/v1/livreaza), tot înaintea webhook-ului.
     if (await handleLivrare(req, res, { ruleazaAcum: ruleazaBileteNoiAcum })) return;
+    // Clipurile bloggerilor: releul botului TLX (POST /social/v1/tlx), tot înaintea webhook-ului.
+    if (await handleSocialRelay(req, res)) return;
     // Versiunea desfășurată: sha-ul commit-ului pe care rulează botul. O citește
     // conveierul de sarcini (`tp verify`) ca să închidă tichetul doar după faptul din
     // prod. Railway pune RAILWAY_GIT_COMMIT_SHA doar la deploy-urile pornite din GitHub

@@ -6,6 +6,7 @@ import {
 import { ClipSchimbat, descarcaClip, stergeTemporar } from './descarcare.js';
 import { publica, stareaPublicarii, EroareUploadPost, type Platforma, type RezultatPlatforma } from './uploadPost.js';
 import { formatLoc } from './calendar.js';
+import { analizeaza, converteste, ffmpegDisponibil, planConversie } from './conversie.js';
 import { sendAdminAlert } from '../services/adminAlert.js';
 
 // Publicatorul (plan 09.10, «Publicarea video» p. 7–8): la fiecare minut ia clipurile ajunse la oră, le descarcă din
@@ -19,8 +20,8 @@ import { sendAdminAlert } from '../services/adminAlert.js';
 
 const PE_TREAPTA = 2;
 export const INCERCARI_MAX = 3;
-/** Cât poate sta o postare «se_publica» până o considerăm blocată de o repornire: > descărcare (30) + trimitere (20). */
-export const BLOCAT_DUPA_MS = 60 * 60_000;
+/** Cât poate sta o postare «se_publica» până o considerăm blocată de o repornire. */
+export const BLOCAT_DUPA_MS = 90 * 60_000; // descărcare 30 + conversie 30 + trimitere 20 + marjă
 const NEGASIT_DUPA_MS = 2 * 60 * 60_000;
 const IN_LUCRU_MAX_MS = 6 * 60 * 60_000;
 const REINCERCARE_MS = 15 * 60_000;
@@ -147,6 +148,7 @@ async function publicaUna(p: Postare): Promise<void> {
 
   const token = tokenBot(topic.bot);
   let cale: string | null = null;
+  let caleConv: string | null = null;
   // BL-4 / BL-6: din clipa în care fișierul pleacă spre Upload-Post, o eroare nu mai înseamnă «nepublicat».
   let trimitereInceputa = false;
   try {
@@ -165,7 +167,21 @@ async function publicaUna(p: Postare): Promise<void> {
     p.incercari += 1;
     await seteazaSigur(p.id, { incercari: p.incercari });
     cale = await descarcaClip(token, p.chat_id, p.message_id, p.id, { autorTelegramId: p.autor_telegram_id, marime: p.file_size });
-    const video = await openAsBlob(cale, { type: 'video/mp4' });
+    // Conversia doar când trebuie (HEVC, peste 1080p, Instagram peste limită); altfel originalul pleacă nemodificat.
+    let deTrimis = cale;
+    if (ffmpegDisponibil()) {
+      const plan = planConversie(await analizeaza(cale), platforme, p.tip);
+      if (plan) {
+        caleConv = `${cale}.conv.mp4`;
+        const t0 = Date.now();
+        const marime = await converteste(cale, caleConv, plan);
+        console.log(`social conversie ${p.id}: ${plan.motive.join(', ')} → ${Math.round(marime / 1048576)} MB în ${Math.round((Date.now() - t0) / 1000)} s`);
+        await stergeTemporar(cale); // originalul nu mai trebuie: discul ține un singur clip mare
+        cale = null;
+        deTrimis = caleConv;
+      }
+    }
+    const video = await openAsBlob(deTrimis, { type: 'video/mp4' });
     // C7: marcajul durabil se scrie ÎNAINTEA apelului extern și nu se mai șterge decât de un rezultat explicit de la
     // Upload-Post; fără el, o repostare ulterioară ar primi cheie nouă și ar putea dubla clipul.
     await seteazaSigur(p.id, { trimis_posibil: true });
@@ -211,6 +227,7 @@ async function publicaUna(p: Postare): Promise<void> {
     }
   } finally {
     await stergeTemporar(cale);
+    await stergeTemporar(caleConv);
   }
 }
 

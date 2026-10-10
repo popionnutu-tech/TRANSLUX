@@ -4,6 +4,7 @@ import { campuriPublicare, interpreteazaStarea, tipFacebook, platformePosibile }
 import { compuneText, parseazaText, textRezerva, mesajText, textCurat } from './texte.js';
 import { citesteCaption, comanda, parseazaPlatforme } from './primire.js';
 import { idCanal, motivSchimbat } from './descarcare.js';
+import { planConversie, argumenteFfmpeg } from './conversie.js';
 import { cheieCorecta } from './index.js';
 
 describe('calendar', () => {
@@ -156,6 +157,45 @@ describe('texte', () => {
     expect(textCurat('Sună la 069123456')).toBe(false);
     expect(textCurat('Sună la +373 69 123 456')).toBe(false);
     expect(parseazaText('{"ro":"Vezi bit.ly/x","ru":"Б","hashtags":[]}')).toBeNull();
+  });
+});
+
+describe('conversia', () => {
+  const MB = 1024 * 1024;
+  const clip = { codec: 'h264', latime: 1080, inaltime: 1920, durataS: 180, octeti: 800 * MB };
+
+  it('H.264 1080p fără Instagram → nemodificat', () => {
+    expect(planConversie(clip, ['tiktok', 'facebook'], 'video')).toBeNull();
+    expect(planConversie({ ...clip, octeti: 200 * MB }, ['instagram'], 'video')).toBeNull();
+  });
+
+  it('800 MB / 3 min cu Instagram → bitrate țintă sub 300 MB, rămâne 1080p', () => {
+    const p = planConversie(clip, ['tiktok', 'instagram'], 'video')!;
+    expect(p.maxOcteti).toBe(300 * MB);
+    // (300 MB × 0,9 × 8) / 180 s − 128 = ~12,4 Mbps video
+    expect(p.videoKbps).toBeGreaterThan(12_000);
+    expect(p.videoKbps! * 1000 / 8 * 180 / MB).toBeLessThan(300);
+    expect(p.laturaMax).toBe(1920);
+  });
+
+  it('clip lung pentru Instagram → coboară la 720p ca să nu arate rău', () => {
+    const p = planConversie({ ...clip, durataS: 900, octeti: 1500 * MB }, ['instagram'], 'video')!;
+    expect(p.videoKbps).toBeLessThan(2_500);
+    expect(p.laturaMax).toBe(1280);
+  });
+
+  it('HEVC sau 4K → H.264 1080p la calitate constantă (CRF 18), fără țintă de mărime', () => {
+    const p = planConversie({ ...clip, codec: 'hevc', latime: 2160, inaltime: 3840 }, ['tiktok'], 'video')!;
+    expect(p.motive).toHaveLength(2);
+    expect(p.videoKbps).toBeNull();
+    const a = argumenteFfmpeg('in.mp4', 'out.mp4', p);
+    expect(a).toContain('-crf');
+    expect(a).toContain('libx264');
+    expect(a.join(' ')).toContain('min(1920,ih)');
+  });
+
+  it('story pentru Instagram: limita de 100 MB', () => {
+    expect(planConversie({ ...clip, durataS: 50, octeti: 150 * MB }, ['instagram'], 'story')!.maxOcteti).toBe(100 * MB);
   });
 });
 

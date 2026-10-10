@@ -34,11 +34,12 @@ export interface PlatformaSarita { platforma: Platforma; motiv: string }
  * Platformele pe care clipul chiar poate pleca, după mărime. Instagram peste limită se sare (până la conversia cu
  * ffmpeg); motivul ajunge în topic. Pur, testat.
  */
-export function platformePosibile(cerute: Platforma[], tip: 'video' | 'story', marime: number): { platforme: Platforma[]; sarite: PlatformaSarita[] } {
+export function platformePosibile(cerute: Platforma[], tip: 'video' | 'story', marime: number, conversie = false): { platforme: Platforma[]; sarite: PlatformaSarita[] } {
   const sarite: PlatformaSarita[] = [];
   const mb = (x: number) => `${Math.round(x / 1024 / 1024)} MB`;
   const platforme = cerute.filter((p) => {
-    if (p === 'instagram') {
+    // Cu ffmpeg în imagine clipul se micșorează la ora publicării (conversie.ts), deci Instagram rămâne.
+    if (p === 'instagram' && !conversie) {
       const max = tip === 'story' ? IG_STORY_MAX_OCTETI : IG_REELS_MAX_OCTETI;
       if (marime > max) { sarite.push({ platforma: p, motiv: `clipul are ${mb(marime)}, Instagram ${tip === 'story' ? 'Story' : 'Reels'} primește cel mult ${mb(max)}` }); return false; }
     }

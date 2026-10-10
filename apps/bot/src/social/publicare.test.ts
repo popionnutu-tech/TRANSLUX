@@ -17,6 +17,9 @@ const h = vi.hoisted(() => ({
   /** când e pus, citirea topicului / a listei aruncă (bază căzută) */
   topicCade: false,
   listaCade: false,
+  ffmpeg: false,
+  analiza: vi.fn(),
+  conversie: vi.fn(),
 }));
 
 vi.mock('./descarcare.js', async (orig) => {
@@ -36,6 +39,10 @@ vi.mock('./comun.js', async (orig) => {
     topicDupaId: async (id: string) => { if (h.topicCade) throw new Error('social_topics: timeout'); return real.topicDupaId(id); },
     esteBlogger: async (t: string, u: number) => { if (h.listaCade) throw new Error('social_bloggers: timeout'); return real.esteBlogger(t, u); },
   };
+});
+vi.mock('./conversie.js', async (orig) => {
+  const real = await orig<typeof import('./conversie.js')>();
+  return { ...real, ffmpegDisponibil: () => h.ffmpeg, analizeaza: h.analiza, converteste: h.conversie };
 });
 vi.mock('./texte.js', async (orig) => {
   const real = await orig<typeof import('./texte.js')>();
@@ -101,6 +108,9 @@ function instaleaza(posts: Row[], t: Row = topic()): void {
 
 beforeEach(() => {
   h.topicCade = false;
+  h.ffmpeg = false;
+  h.analiza.mockReset();
+  h.conversie.mockReset().mockResolvedValue(250 * 1024 * 1024);
   h.listaCade = false;
   trimise.length = 0;
   h.descarca.mockReset().mockResolvedValue('/tmp/x.mp4');
@@ -376,6 +386,30 @@ describe('runda 2 Codex', () => {
     expect(fake._tables.social_topics[0].activ).toBe(false);
     await trateazaMesajSocial('translux', { ...cmd, text: '/social_porneste' } as never);
     expect(fake._tables.social_topics[0].activ).toBe(true);
+  });
+});
+
+describe('conversia (Ion, «ce va fi cu fișierele de 800 MB?»)', () => {
+  it('clip de 800 MB cu Instagram → se convertește și pleacă fișierul convertit, la toate platformele', async () => {
+    const p = post({ platforme: ['tiktok', 'instagram'], file_size: 800 * 1024 * 1024, durata_s: 180 });
+    instaleaza([p]);
+    h.ffmpeg = true;
+    h.analiza.mockResolvedValue({ codec: 'h264', latime: 1080, inaltime: 1920, durataS: 180, octeti: 800 * 1024 * 1024 });
+    await trecerePublicare();
+    expect(h.conversie).toHaveBeenCalledTimes(1);
+    expect(h.conversie.mock.calls[0][1]).toMatch(/\.conv\.mp4$/);
+    expect(h.publica).toHaveBeenCalledTimes(1);
+    expect(h.publica.mock.calls[0][1].platforme).toEqual(['tiktok', 'instagram']);
+  });
+
+  it('clip H.264 1080p fără Instagram → pleacă nemodificat', async () => {
+    const p = post({ platforme: ['tiktok', 'facebook'], file_size: 800 * 1024 * 1024 });
+    instaleaza([p]);
+    h.ffmpeg = true;
+    h.analiza.mockResolvedValue({ codec: 'h264', latime: 1080, inaltime: 1920, durataS: 180, octeti: 800 * 1024 * 1024 });
+    await trecerePublicare();
+    expect(h.conversie).not.toHaveBeenCalled();
+    expect(h.publica).toHaveBeenCalledTimes(1);
   });
 });
 

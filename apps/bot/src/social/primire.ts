@@ -7,6 +7,8 @@ import {
 import { formatLoc, minuteDinOra, urmatorulLoc } from './calendar.js';
 import { PLATFORME, PLATFORME_STORY, platformePosibile, type Platforma } from './uploadPost.js';
 import { scrieText } from './texte.js';
+import { ffmpegDisponibil } from './conversie.js';
+import { IG_REELS_MAX_OCTETI, IG_STORY_MAX_OCTETI } from './uploadPost.js';
 import { sendAdminAlert } from '../services/adminAlert.js';
 
 // Ce se întâmplă în topicuri (plan 09.10, «Publicarea video» p. 1–6). Aceeași logică pentru ambii boți: botul
@@ -78,10 +80,14 @@ export function butoane(postId: string): InlineKeyboardMarkup {
 export function textConfirmare(p: Pick<Postare, 'tip' | 'planificat_la' | 'text_final' | 'text_ai' | 'platforme' | 'in_proba' | 'file_size'>, topic?: Topic): string {
   const unde = p.platforme.map((x) => NUME_PLATFORMA[x]).join(', ');
   // Platformele contului pe care clipul nu poate pleca (Instagram peste 300 MB / 100 MB la story) — spuse explicit.
-  const sarite = topic ? platformePosibile(platformePostare(topic, p.tip), p.tip, p.file_size ?? 0).sarite : [];
+  const conversie = ffmpegDisponibil();
+  const sarite = topic ? platformePosibile(platformePostare(topic, p.tip), p.tip, p.file_size ?? 0, conversie).sarite : [];
+  const limitaIg = p.tip === 'story' ? IG_STORY_MAX_OCTETI : IG_REELS_MAX_OCTETI;
+  const micsorat = conversie && p.platforme.includes('instagram') && (p.file_size ?? 0) > limitaIg;
   return [
     `🗓 <b>${p.tip === 'story' ? 'Story planificat' : 'Planificat'}:</b> ${formatLoc(new Date(p.planificat_la))} · ${unde}`,
     ...sarite.map((x) => `⚠️ ${NUME_PLATFORMA[x.platforma]} se sare: ${escapeHtml(x.motiv)}.`),
+    micsorat ? `ℹ️ Clipul are ${Math.round((p.file_size ?? 0) / 1048576)} MB: la ora publicării se micșorează sub ${Math.round(limitaIg / 1048576)} MB pentru Instagram (1080p, H.264); același fișier pleacă peste tot.` : null,
     p.in_proba ? '🧪 <i>Probă: clipul NU se publică (a intrat înainte de cheile Upload-Post și Telegram API). Postați-l din nou după ce sunt puse.</i>' : null,
     '',
     p.text_ai ? '<b>Textul (scris de AI):</b>' : '<b>Textul:</b>',
@@ -293,7 +299,7 @@ export async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic
   const nota = msg.forward_origin ? null : citit.nota;
   const cerute = platformePostare(topic, tip);
   if (!cerute.length) { await r('Story-urile pleacă doar pe Facebook și Instagram, iar acest cont n-are niciuna. Postați clipul fără #story.'); return; }
-  const { platforme, sarite } = platformePosibile(cerute, tip, v.file_size ?? 0);
+  const { platforme, sarite } = platformePosibile(cerute, tip, v.file_size ?? 0, ffmpegDisponibil());
   if (!platforme.length) {
     await r(`Clipul nu poate pleca pe niciun cont: ${sarite.map((x) => escapeHtml(x.motiv)).join('; ')}. Exportați-l mai mic (1080p).`);
     return;

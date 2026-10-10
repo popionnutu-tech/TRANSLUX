@@ -34,6 +34,12 @@ COPY --from=build /app/apps/bot/dist/ ./apps/bot/dist/
 
 ENV NODE_ENV=production
 
+# ffmpeg pentru clipurile bloggerilor (Ion, 10.10.2026: «ce va fi cu fișierele de 800 MB?»): Instagram Reels primește
+# cel mult 300 MB, iar HEVC / 4K se aduc la H.264 1080p (apps/bot/src/social/conversie.ts).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+
 USER node
 
 CMD ["node", "apps/bot/dist/index.js"]

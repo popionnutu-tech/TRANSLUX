@@ -23,7 +23,7 @@ const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot';
 const TXT = {
   ro: {
     titlu: 'Biletul tău', astepta: 'În așteptarea plății', platit: 'Plătit', anulat: 'Anulat', returnat: 'Returnat',
-    expirat: 'Plata nu a fost finalizată', eroare: 'Plata nu a putut fi pornită', fara_bilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
+    expirat: 'Plata nu a fost finalizată', eroare: 'Plata nu a putut fi pornită', fara_bilet: 'Plata a ajuns prea târziu (după plecarea cursei sau după ce locul s-a ocupat), așa că biletul nu s-a emis. Banii se întorc automat, integral, pe cardul cu care ai plătit — de obicei în câteva zile lucrătoare.',
     plataNu: 'Plata nu a trecut. Alegerea ta e păstrată — reia plata dintr-o apăsare.',
     comanda: 'Comanda nr.', platitaPe: 'plătită pe', cursa: 'Cursa', urcare: 'Urcare', harta: 'pe hartă', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
     arata: 'Arată codul QR șoferului la urcare. Un cod pentru toți din comandă — șoferul îl scanează o dată.',
@@ -38,7 +38,7 @@ const TXT = {
   },
   ru: {
     titlu: 'Ваш билет', astepta: 'Ожидает оплаты', platit: 'Оплачен', anulat: 'Отменён', returnat: 'Возвращён',
-    expirat: 'Оплата не завершена', eroare: 'Не удалось начать оплату', fara_bilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
+    expirat: 'Оплата не завершена', eroare: 'Не удалось начать оплату', fara_bilet: 'Оплата пришла слишком поздно (после отправления рейса или когда место уже заняли), поэтому билет не оформлен. Деньги автоматически и полностью вернутся на карту, с которой вы платили, — обычно за несколько рабочих дней.',
     plataNu: 'Оплата не прошла. Ваш выбор сохранён — повторите оплату одним нажатием.',
     comanda: 'Заказ №', platitaPe: 'оплачен', cursa: 'Рейс', urcare: 'Посадка', harta: 'на карте', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
     arata: 'Покажите QR-код водителю при посадке. Один код на весь заказ — водитель сканирует его один раз.',

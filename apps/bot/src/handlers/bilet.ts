@@ -26,7 +26,7 @@ export function codDinPayload(payload: string | undefined | null): string | null
 const STARE: Record<string, { ro: string; ru: string }> = {
   platita: { ro: '✅ Plătit', ru: '✅ Оплачен' },
   noua: { ro: '⏳ În așteptarea plății', ru: '⏳ Ожидает оплаты' },
-  platita_fara_bilet: { ro: '⏳ Plata a sosit, biletul se emite', ru: '⏳ Оплата получена, билет оформляется' },
+  platita_fara_bilet: { ro: '↩️ Plata a ajuns prea târziu: fără bilet, banii se întorc automat integral', ru: '↩️ Оплата пришла слишком поздно: без билета, деньги вернутся автоматически полностью' },
   anulata: { ro: 'Anulat', ru: 'Отменён' },
   returnata: { ro: 'Returnat', ru: 'Возвращён' },
   expirata: { ro: 'Plata nu a fost finalizată', ru: 'Оплата не завершена' },

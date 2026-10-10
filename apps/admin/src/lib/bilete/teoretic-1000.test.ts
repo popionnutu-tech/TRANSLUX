@@ -941,8 +941,8 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(creeaza.text).toMatch(/ip_hash = coalesce\(v_ip, ''\) AND NOT in_pachet/);
     expect(creeaza.text).toMatch(/phone = v_phone AND status = 'noua' AND NOT in_pachet/);
   });
-  it('anularea (559, ultima definiție — copiată din 558/548): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
-    expect(anuleaza.fisier).toBe('559_bilete_anulare_blocheaza_biletele.sql');
+  it('anularea (560, ultima definiție — copiată din 559/558/548): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
+    expect(anuleaza.fisier).toBe('560_bilete_plata_tarzie_bani_inapoi.sql');
     expect(anuleaza.text).toContain("IF c.in_pachet AND NOT (coalesce(p_vina_noastra, false) OR p_sursa = 'sistem') THEN RAISE EXCEPTION 'PACHET_DOAR_IMPREUNA'");
     expect(anuleaza.text).toContain('IF coalesce(p_si_returul, false) OR rt.in_pachet THEN');
     expect(anuleaza.text).toContain('v_suma := greatest(0, p_grila - rt.reducere_lei_loc * rt.seats);');
@@ -951,7 +951,7 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
   });
   it('N1 (559): anularea blochează biletele comenzii și ale returului ÎNAINTE de verificarea «urcat»; intenția în aceeași tranzacție (558)', () => {
     const lacat = anuleaza.text.indexOf('PERFORM 1 FROM bilete WHERE comanda_id IN (c.id, rt.id) ORDER BY id FOR UPDATE;');
-    const retur = anuleaza.text.indexOf('SELECT * INTO rt FROM bilete_comenzi WHERE comanda_tur_id = c.id');
+    const retur = anuleaza.text.indexOf('SELECT * INTO rt FROM bilete_comenzi r WHERE comanda_tur_id = c.id');
     const urcat = anuleaza.text.indexOf("SELECT count(*) INTO n FROM bilete WHERE comanda_id = p_id AND status = 'urcat';");
     const urcatRt = anuleaza.text.indexOf("SELECT EXISTS (SELECT 1 FROM bilete WHERE comanda_id = rt.id AND status = 'urcat')");
     expect(retur).toBeGreaterThan(0);
@@ -961,10 +961,20 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(anuleaza.text).toContain('bilete_refund_intentie_noua(');
   });
   it('plata pachetului (548): suma băncii = tur + retur din pachet; codul de retur NU se dă pe tur-retur (fără a doua reducere)', () => {
-    expect(platita.fisier).toBe('548_bilete_tur_retur_o_plata.sql');
+    expect(platita.fisier).toBe('560_bilete_plata_tarzie_bani_inapoi.sql');
     expect(platita.text).toContain('v_suma := c.total + coalesce((SELECT sum(total) FROM bilete_comenzi WHERE comanda_tur_id = c.id AND in_pachet), 0);');
     expect(platita.text).toContain('AND NOT proba_fizica AND rt.id IS NULL');
     expect(comenziTs).toContain("return Number(comanda.total) + (data || []).reduce(");
+  });
+  it('plata târzie (560, D2): ora execuției la bancă, ordinea clasificării = clasificaPlata din impacare-reguli.ts; intenția de refund în aceeași tranzacție', () => {
+    const t = platita.text;
+    const ordine = ['IF v_exec IS NULL THEN RETURN 0; END IF;', 'IF v_exec >= c.departure_at THEN', "v_tarziu := 'plata_dupa_plecare';",
+      "ELSIF c.status = 'expirata' OR v_exec > c.created_at + bilete_rezervare_durata() THEN", "v_tarziu := 'loc_vandut';",
+      'v_alerta := coalesce(v_tarziu, bilete_revalideaza_plata(c));', 'bilete_refund_intentie_noua(p_checkout_id'];
+    let k = 0;
+    for (const x of ordine) { const j = t.indexOf(x, k); expect(j, x).toBeGreaterThan(-1); k = j; }
+    expect(t).not.toMatch(/coalesce\(m\.executat_la, now\(\)\)/);
+    expect(sursa('apps/admin/src/lib/bilete/impacare-reguli.ts')).toContain('if (exec >= Date.parse(p.departureAt)) return \'plata_dupa_plecare\';');
   });
   it('codul de retur: 64 hex în TS = două UUID fără liniuțe în SQL', () => {
     expect(promoServer).toContain('/^[0-9a-f]{64}$/');

@@ -116,6 +116,8 @@ export async function anuleazaSiReturneaza(
     if (/BILET_URCAT|RETUR_URCAT/.test(e1.message)) throw new ComandaError('inchis', 'un bilet din comandă (sau din returul legat) e deja scanat la urcare; nu se mai returnează');
     if (/STARE_/.test(e1.message)) throw new ComandaError('validare', 'comanda nu e într-o stare care se poate anula');
     if (/GRILA/.test(e1.message)) throw new ComandaError('validare', 'suma returnării nu e validă');
+    // 560: plata fără bilet are deja intenția ei de refund integral (scrisă la plată) — banii sunt pe drum.
+    if (/REFUND_IN_CURS/.test(e1.message)) throw new ComandaError('inchis', 'banii acestei plăți se întorc deja automat, integral; nu e nimic de anulat');
     throw new Error(`bilete_anuleaza: ${e1.message}`);
   }
   // 558: fiecare element poartă intenția de refund scrisă în aceeași tranzacție (null = 0 lei sau fără plată legată).

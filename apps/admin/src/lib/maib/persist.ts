@@ -16,6 +16,8 @@ export interface CheckoutDePersistat {
   paymentId?: string | null;
   paymentStatus?: string | null;
   callback?: Record<string, unknown> | null;
+  /** 560: ora execuției plății la bancă (callback paymentExecutedAt). */
+  executatLa?: string | null;
   createdBy?: string | null;
 }
 
@@ -33,6 +35,7 @@ export async function persistaCheckout(c: CheckoutDePersistat): Promise<{ error:
     payment_status: c.paymentStatus ?? null,
     callback: c.callback ?? null,
     callback_at: c.callback ? new Date().toISOString() : null,
+    executat_la: c.executatLa ?? null,
     created_by: c.createdBy ?? null,
   });
   return { error: error ? error.message : null };

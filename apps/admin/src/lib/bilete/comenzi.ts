@@ -16,7 +16,7 @@ import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
 import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, plafoaneCursei, type MotivFaraReducere } from './promo-server';
 import { hashJeton } from './student-ai';
-import { sesiuneInchisa } from './impacare-reguli';
+import { rezervareExpirata, sesiuneInchisa } from './impacare-reguli';
 
 // Comanda de bilete online (ION-193, pasul 4 din planul ION-190): validare → preț din @translux/db (același ca pe
 // site) → rând în bilete_comenzi (plafoanele sunt în bază) → O SINGURĂ sesiune maib pe comandă → maib_checkouts.
@@ -726,6 +726,10 @@ export async function sumaDePlata(comanda: Pick<BileteComanda, 'id' | 'total'>):
  */
 async function asiguraSesiunea(comanda: BileteComanda, opt: ComandaOptiuni): Promise<Rezultat> {
   const db = getSupabase();
+  // 560: după rezervare (30 min, neprelungită) nu se mai dă adresa de plată — sesiunea veche o închide împăcarea.
+  if (comanda.checkout_id && DESCHISE.has(comanda.status) && rezervareExpirata(comanda.created_at, Date.now())) {
+    throw new ComandaError('idempotenta', 'rezervarea locului a expirat (30 de minute); reia comanda');
+  }
   if (comanda.checkout_id) {
     const { data: ck } = await db.from('maib_checkouts').select('checkout_url').eq('checkout_id', comanda.checkout_id).maybeSingle();
     if (ck?.checkout_url) return { comanda, checkoutUrl: ck.checkout_url };
@@ -737,6 +741,12 @@ async function asiguraSesiunea(comanda: BileteComanda, opt: ComandaOptiuni): Pro
   if (comanda.status === 'eroare_creare' || comanda.creare_incercari > 0 || comanda.creare_in_curs_la) {
     const recuperat = await recupereazaSesiunea(comanda, opt);
     if (recuperat) return recuperat;
+  }
+
+  // 560 (C2 + C4, Ion 10.10): rezervarea ține 30 de minute de la crearea comenzii și NU se prelungește — după ea nu se
+  // deschide o sesiune nouă de plată (cea veche, dacă exista, a fost căutată mai sus și refolosită).
+  if (rezervareExpirata(comanda.created_at, Date.now())) {
+    throw new ComandaError('idempotenta', 'rezervarea locului a expirat (30 de minute); reia comanda');
   }
 
   // O singură sesiune maib pe comandă: revendicăm crearea (2 minute), apoi chemăm banca. Suma (turul + returul din
@@ -847,6 +857,7 @@ async function recupereazaSesiunea(comanda: BileteComanda, opt: ComandaOptiuni):
     await db.from('maib_checkouts').update({
       status: gasit.status, payment_id: gasit.payment?.paymentId ?? null, payment_status: gasit.payment?.status ?? null,
       refunded_amount: Number(gasit.payment?.refundedAmount ?? 0), updated_at: new Date().toISOString(),
+      ...(gasit.payment?.executedAt && Number.isFinite(Date.parse(gasit.payment.executedAt)) ? { executat_la: new Date(Date.parse(gasit.payment.executedAt)).toISOString() } : {}),
     }).eq('checkout_id', gasit.id);
     const { data: emise, error } = await db.rpc('bilete_marcheaza_platita', { p_checkout_id: gasit.id });
     if (error) console.error('[bilete] emiterea la recuperare:', error.message);

@@ -7,6 +7,7 @@ import { persistaCheckout } from '@/lib/maib/persist';
 import { trimiteEmailPentruCheckout } from '@/lib/bilete/email';
 import { trimiteSmsPentruCheckout } from '@/lib/bilete/sms';
 import { anuntaBotul } from '@/lib/bilete/anunta-botul';
+import { proceseazaIntentiilePlatii } from '@/lib/bilete/refund-intentii';
 
 // Callback-ul maib Checkout (ION-188). Public (lib/public-paths.ts) — banca nu are sesiune la noi;
 // autenticitatea e semnătura HMAC din X-Signature peste corpul brut + X-Signature-Timestamp
@@ -43,6 +44,12 @@ interface MaibCallbackBody {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 560: ora execuției din corpul semnat de bancă, doar dacă e o dată validă (altfel necunoscută → împăcarea o citește). */
+function oraExecutarii(b: MaibCallbackBody): string | null {
+  const t = typeof b.paymentExecutedAt === 'string' ? Date.parse(b.paymentExecutedAt) : NaN;
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
 
 function antete(req: NextRequest): Record<string, string | null> {
   return {
@@ -166,6 +173,8 @@ export async function POST(req: NextRequest) {
   if (!dejaCompleta) upd.status = executat ? 'Completed' : 'Failed'; // doar înainte: Completed nu se mai întoarce
   if (body.paymentId && UUID_RE.test(body.paymentId) && !areRefund) upd.payment_id = body.paymentId;
   if (body.paymentStatus && !(areRefund && executat)) upd.payment_status = body.paymentStatus; // după refund nu redevine Executed
+  // 560 (C2): ora execuției la bancă — după ea se judecă plata târzie (nu după ora callback-ului).
+  if (executat && oraExecutarii(body)) upd.executat_la = oraExecutarii(body);
 
   await jurnal(req, checkoutId, true, null, rawBody);
   // Condiția stă în UPDATE, nu în snapshot (Codex X7): un «Failed» întârziat nu rescrie un Completed scris între timp.
@@ -190,6 +199,9 @@ async function marcheazaBiletele(checkoutId: string, executat: boolean) {
     console.error('[maib/callback] bilete_marcheaza_platita:', error.message);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+  // 560: plata fără bilet (după plecare / loc vândut / neeligibilă) are intenția de refund scrisă în aceeași tranzacție;
+  // primul pas pornește aici, după răspunsul către bancă — restul îl face împăcarea (cron), oricine a chemat.
+  if (Number(data ?? 0) === 0) after(() => proceseazaIntentiilePlatii(checkoutId).then(() => undefined).catch((e) => console.error('[maib/callback] refund:', e instanceof Error ? e.message : e)));
   // Biletul pe e-mail (ION-201): după răspunsul către bancă, fără să-l întârzie; eșecul se reia din împăcare.
   // Biletul în chatul Telegram (ION-274): botul e anunțat la secundă; dacă nu răspunde, jobul lui de 1 min livrează.
   if (Number(data ?? 0) > 0) {
@@ -210,7 +222,8 @@ async function leagaComandaOrfana(req: NextRequest, body: MaibCallbackBody, chec
   const { data: c, error: cErr } = await supabase.from('bilete_comenzi').select('id, status, total, checkout_id').eq('id', orderId).maybeSingle();
   if (cErr) return `eroare: citirea comenzii: ${cErr.message}`;
   if (!c) return 'necunoscut';
-  if (!(c.status === 'noua' || c.status === 'eroare_creare')) return `stare ${c.status}`;
+  // 560: și comanda deja «expirata» — bilete_marcheaza_platita decide singură (bilet dacă mai e loc, altfel banii înapoi).
+  if (!(c.status === 'noua' || c.status === 'eroare_creare' || c.status === 'expirata')) return `stare ${c.status}`;
   if (c.checkout_id) return 'are deja checkout';
   if (!stareEgala(body.paymentStatus, 'Executed')) return `plată ${body.paymentStatus}`;
   if (body.currency && body.currency !== 'MDL') return `valută ${body.currency}`;
@@ -224,7 +237,7 @@ async function leagaComandaOrfana(req: NextRequest, body: MaibCallbackBody, chec
   const { error: pErr } = await persistaCheckout({
     checkoutId, orderId, amount: body.amount, status: 'Completed',
     paymentId: body.paymentId && UUID_RE.test(body.paymentId) ? body.paymentId : null,
-    paymentStatus: body.paymentStatus ?? null, callback: faraDatePersonale(body), createdBy: 'callback',
+    paymentStatus: body.paymentStatus ?? null, callback: faraDatePersonale(body), createdBy: 'callback', executatLa: oraExecutarii(body),
   });
   if (pErr) return `eroare: persistare: ${pErr}`;
   const { data: legate, error: lErr } = await supabase.from('bilete_comenzi')

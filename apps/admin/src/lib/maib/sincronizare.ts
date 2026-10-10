@@ -1,7 +1,7 @@
 import 'server-only';
 import { getSupabase } from '@/lib/supabase';
 import { anuntaBotul } from '@/lib/bilete/anunta-botul';
-import { getCheckout, stareEgala, MaibError } from '@/lib/maib/client';
+import { getCheckout, getPayment, stareEgala, MaibError } from '@/lib/maib/client';
 
 // Sincronizarea unei sesiuni maib cu baza, FĂRĂ revalidatePath: o cheamă și pagina /plati la
 // randare (întoarcerea de la maib), unde Next interzice revalidarea («revalidatePath during render»,
@@ -47,6 +47,12 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
       upd.payment_id = p.paymentId;
       upd.payment_status = p.status;
       upd.refunded_amount = Number(p.refundedAmount ?? rand.refunded_amount ?? 0);
+      // 560 (C2): ora execuției la bancă; fără ea plata nu se clasifică (bilete_marcheaza_platita așteaptă).
+      let executat = p.executedAt ?? null;
+      if (!executat && !rand.executat_la && (stareEgala(p.status, 'Executed') || stareEgala(p.status, 'PartiallyRefunded') || stareEgala(p.status, 'Refunded'))) {
+        executat = (await getPayment(p.paymentId).catch(() => null))?.executedAt ?? null;
+      }
+      if (executat && Number.isFinite(Date.parse(executat))) upd.executat_la = new Date(Date.parse(executat)).toISOString();
     }
     // Condiția e în UPDATE (Codex X7, runda 2): dacă NU scriem Completed, nu atingem un rând devenit Completed între
     // timp (callback-ul). Dacă rândul a fost sărit, îl recitim și raportăm starea lui reală.

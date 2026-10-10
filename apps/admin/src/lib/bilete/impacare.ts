@@ -1,7 +1,7 @@
 import 'server-only';
 import type { BileteComanda } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { findCheckoutByOrderId } from '@/lib/maib/client';
+import { cancelCheckout, findCheckoutByOrderId } from '@/lib/maib/client';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { intentiiScadente, proceseazaIntentia } from './refund-intentii';
 import { executaOferta } from './retur-bot';
@@ -11,14 +11,15 @@ import { smsRestante, trimiteSmsConfirmare } from './sms';
 import { alertaBilete } from './alerte-tab';
 import { ruleazaEchipajul, type RaportEchipaj } from './echipaj-job';
 import { mesajAlerte, type AlertaPentruMesaj } from './alerte-mesaj';
-import { INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
+import { deciziaSesiune, INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneDeInchis, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
 
 // Împăcarea comenzilor de bilete cu banca (ION-196, pasul 5), pe cron la 10 minute. Patru treburi, fiecare cu cotă
 // și toate într-un buget de timp; nimic de aici nu creează sesiuni sau refund-uri noi — doar citește starea reală
 // (maib) și o aplică prin funcțiile comune (sincronizeazaStare emite biletele; finalizeazaRefund închide refund-ul).
-//   A. comenzi deschise > 30 min FĂRĂ sesiune: sesiunea există la maib? → se leagă (și se plătește, dacă e cazul);
-//      nu există / e închisă → «expirata»; peste 3 încercări → «expirata» + alertă.
-//   B. comenzi deschise > 30 min CU sesiune: starea de la maib (bilete la Completed/Executed; «expirata» la Expired…).
+//   A. comenzi deschise după rezervare (30 min) sau după plecare FĂRĂ sesiune: căutarea după orderId întâi;
+//      găsită → legată și închisă ca la B; nicio sesiune / închisă → «expirata» (după 3 încercări de creare + alertă).
+//   B. aceleași CU sesiune: verificare → cancel → reverificare → «expirata» doar pe închidere confirmată (560, C2);
+//      B2: comenzile deja «expirata» cu sesiunea încă deschisă la bancă — se închide și sesiunea.
 //   C. intențiile de refund (558): un pas fiecare — trimitere, împăcare cu banca după un rezultat necunoscut, finalizare;
 //      C2: ofertele de returnare din bot consumate și neexecutate se reiau automat.
 //   D. cursă fără șofer la < 3 h de plecare pentru comenzi plătite → alertă (o dată pe comandă).
@@ -66,6 +67,27 @@ async function expira(comandaId: string, dry: boolean): Promise<void> {
     .or(`id.eq.${comandaId},and(comanda_tur_id.eq.${comandaId},in_pachet.eq.true)`).in('status', ['noua', 'eroare_creare']);
 }
 
+/**
+ * 560: o sesiune maib a unei comenzi, după regula verificare → cancel eligibil → reverificare → expirare locală doar pe
+ * închidere confirmată fără plată. O plată găsită (Completed) a trecut deja prin bilete_marcheaza_platita (sincronizarea):
+ * bilet dacă e la timp și mai e loc, altfel banii înapoi automat (558/560).
+ */
+async function inchideSesiunea(comandaId: string, checkoutId: string, deInchis: boolean): Promise<'platita' | 'expira' | 'asteapta'> {
+  const citeste = async (): Promise<string | null> => {
+    const r = await sincronizeazaStare(checkoutId);
+    if (!r.ok) throw new Error(r.eroare);
+    return r.rand?.status ?? (r.mesaj ? 'Expired' : null);
+  };
+  let d = deciziaSesiune(await citeste(), deInchis);
+  if (d === 'anuleaza') {
+    // Cancel-ul e refuzat de bancă pe stările finale; o plată în curs câștigă — de aceea reverificăm, nu presupunem.
+    await cancelCheckout(checkoutId).catch((e) => console.warn('[bilete/impacare] cancel', checkoutId, e instanceof Error ? e.message : e));
+    d = deciziaSesiune(await citeste(), deInchis, true);
+  }
+  if (d === 'expira') await expira(comandaId, false);
+  return d === 'anuleaza' ? 'asteapta' : d;
+}
+
 export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }): Promise<RaportImpacare> {
   const start = Date.now();
   const buget = opt.bugetMs ?? 20_000;
@@ -84,31 +106,45 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
   };
   const maiAmTimp = () => Date.now() - start < buget;
 
-  // A. fără sesiune
-  // M3: fără retururile din pachet — căutarea la bancă după id-ul lor nu găsește nimic și le-ar expira pe nedrept,
-  // eliberând cota cât turul e încă deschis la bancă. Ele urmează turul (expira, mai sus).
+  // 560 (C2, Ion 10.10: «dispecer nu va fi»): o comandă se uită la bancă după ce rezervarea a expirat (30 min, neprelungită)
+  // SAU după plecarea cursei. Ordinea pe sesiune: recuperarea după orderId → verificare → cancel (doar
+  // dacă trebuie închisă) → reverificare → «expirata» la noi doar când banca confirmă închiderea fără plată. Rotația:
+  // cea mai demult verificată întâi (impacare_verificata_la), scrisă și la eroare — nicio comandă nu rămâne în spate.
+  const acumMs = Date.now();
+  const pragPlecare = new Date(acumMs).toISOString();
+  const pragCreare = new Date(acumMs - 2 * 60_000).toISOString();
+  const marcheazaVerificata = async (id: string) => {
+    if (!opt.dry) await db.from('bilete_comenzi').update({ impacare_verificata_la: new Date().toISOString() }).eq('id', id);
+  };
+
+  // A. fără sesiune la noi: căutarea după orderId ÎNTÂI (Codex C2: checkout_id NULL nu dovedește lipsa sesiunii la bancă)
+  // M3: fără retururile din pachet — căutarea la bancă după id-ul lor nu găsește nimic; ele urmează turul (expira).
   const { data: faraCk } = await db.from('bilete_comenzi').select('*')
-    .in('status', ['noua', 'eroare_creare']).is('checkout_id', null).eq('in_pachet', false).lt('created_at', prag)
-    .order('created_at').limit(COTE.fara_checkout);
+    .in('status', ['noua', 'eroare_creare']).is('checkout_id', null).eq('in_pachet', false).lt('created_at', pragCreare)
+    .or(`created_at.lt.${prag},departure_at.lt.${pragPlecare}`)
+    .order('impacare_verificata_la', { ascending: true, nullsFirst: true }).order('created_at').limit(COTE.fara_checkout);
   await inLoturi((faraCk || []) as BileteComanda[], async (c) => {
-    if (c.creare_incercari >= INCERCARI_MAX) {
-      await expira(c.id, opt.dry);
-      await alertaOData(c.id, 'creare_esuata', `după ${c.creare_incercari} încercări fără sesiune maib`, opt.dry);
+    try {
+      const gasit = await findCheckoutByOrderId(c.id);
+      if (!gasit) {
+        // Banca nu are nicio sesiune pentru comandă: se închide (după 3 încercări de creare, și cu alertă).
+        if (c.creare_in_curs_la && Date.parse(c.creare_in_curs_la) > Date.now() - 2 * 60_000) return; // crearea e chiar acum în lucru
+        await expira(c.id, opt.dry);
+        if (c.creare_incercari >= INCERCARI_MAX) await alertaOData(c.id, 'creare_esuata', `după ${c.creare_incercari} încercări fără sesiune maib`, opt.dry);
+        raport.fara_checkout.aplicate += 1;
+        return;
+      }
+      if (sesiuneInchisa(gasit.status)) {
+        await expira(c.id, opt.dry);
+        raport.fara_checkout.aplicate += 1;
+        return;
+      }
+      if (opt.dry) return;
+      if (!(await leagaSesiuneExistenta(c, gasit, 'impacare'))) return;
+      await inchideSesiunea(c.id, gasit.id, sesiuneDeInchis(c, Date.now()));
       raport.fara_checkout.aplicate += 1;
-      return;
-    }
-    const gasit = await findCheckoutByOrderId(c.id);
-    if (!gasit || sesiuneInchisa(gasit.status)) {
-      await expira(c.id, opt.dry);
-      raport.fara_checkout.aplicate += 1;
-      return;
-    }
-    if (opt.dry) return;
-    const legat = await leagaSesiuneExistenta(c, gasit, 'impacare');
-    if (legat) {
-      const r = await sincronizeazaStare(gasit.id); // emite biletele dacă e Completed/Executed
-      if (!r.ok) throw new Error(r.eroare);
-      raport.fara_checkout.aplicate += 1;
+    } finally {
+      await marcheazaVerificata(c.id);
     }
   }, raport.fara_checkout);
   // M3: retururi din pachet rămase deschise după ce turul lor a expirat pe altă cale → expiră și ele.
@@ -125,18 +161,40 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
   }
   if (!maiAmTimp()) { raport.oprit_de_buget = true; raport.durata_ms = Date.now() - start; return raport; }
 
-  // B. cu sesiune
-  const { data: cuCk } = await db.from('bilete_comenzi').select('id, checkout_id')
-    .in('status', ['noua', 'eroare_creare']).not('checkout_id', 'is', null).lt('created_at', prag)
-    .order('created_at').limit(COTE.cu_checkout);
-  await inLoturi((cuCk || []) as { id: string; checkout_id: string }[], async (c) => {
-    if (opt.dry) return;
-    const r = await sincronizeazaStare(c.checkout_id);
-    if (!r.ok) throw new Error(r.eroare);
-    const stare = r.rand?.status ?? (r.mesaj ? 'Expired' : null);
-    if (sesiuneInchisa(stare)) await expira(c.id, false);
-    raport.cu_checkout.aplicate += 1;
+  // B. cu sesiune: rotația echitabilă (cea mai demult verificată întâi), închiderea sesiunilor expirate sau după plecare.
+  const { data: cuCk } = await db.from('bilete_comenzi').select('id, checkout_id, status, created_at, departure_at')
+    .in('status', ['noua', 'eroare_creare']).not('checkout_id', 'is', null)
+    .or(`created_at.lt.${prag},departure_at.lt.${pragPlecare}`)
+    .order('impacare_verificata_la', { ascending: true, nullsFirst: true }).order('created_at').limit(COTE.cu_checkout);
+  await inLoturi((cuCk || []) as { id: string; checkout_id: string; status: string; created_at: string; departure_at: string }[], async (c) => {
+    try {
+      if (opt.dry) return;
+      await inchideSesiunea(c.id, c.checkout_id, sesiuneDeInchis(c, Date.now()));
+      raport.cu_checkout.aplicate += 1;
+    } finally {
+      await marcheazaVerificata(c.id);
+    }
   }, raport.cu_checkout);
+
+  // B2. comenzi deja «expirata» la noi cu sesiunea încă deschisă la bancă (expirate pe altă cale): se închide și sesiunea,
+  // ca omul să nu mai poată plăti. Rotația după maib_checkouts.updated_at (atins și la eroare).
+  if (!opt.dry && maiAmTimp()) {
+    const { data: deschise } = await db.from('maib_checkouts').select('checkout_id')
+      .or('status.ilike.waitingforinit,status.ilike.initialized,status.ilike.paymentmethodselected')
+      .lt('created_at', prag).order('updated_at').limit(COTE.cu_checkout);
+    const ids = ((deschise || []) as { checkout_id: string }[]).map((x) => x.checkout_id);
+    const { data: expirate } = ids.length
+      ? await db.from('bilete_comenzi').select('id, checkout_id').in('checkout_id', ids).eq('status', 'expirata')
+      : { data: [] as { id: string; checkout_id: string }[] };
+    await inLoturi((expirate || []) as { id: string; checkout_id: string }[], async (c) => {
+      try {
+        await inchideSesiunea(c.id, c.checkout_id, true);
+        raport.cu_checkout.aplicate += 1;
+      } finally {
+        await db.from('maib_checkouts').update({ updated_at: new Date().toISOString() }).eq('checkout_id', c.checkout_id);
+      }
+    }, raport.cu_checkout);
+  }
   if (!maiAmTimp()) { raport.oprit_de_buget = true; raport.durata_ms = Date.now() - start; return raport; }
 
   // C. intențiile de refund (558; dezbaterea Claude ⇄ Codex 10.10, N2/C3/C1 — «dispecer nu va fi»): fiecare intenție

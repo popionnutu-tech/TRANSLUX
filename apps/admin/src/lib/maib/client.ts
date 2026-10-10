@@ -117,6 +117,8 @@ export interface MaibCheckout {
 export interface MaibPayment {
   id?: string;
   paymentId?: string;
+  /** «Date and time when the payment was executed» (docs get-payment-by-id); 560: clasificarea plății târzii. */
+  executedAt?: string;
   status: string; // Executed | PartiallyRefunded | Refunded | Failed
   amount: number;
   currency: string;

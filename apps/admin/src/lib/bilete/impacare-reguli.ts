@@ -36,3 +36,64 @@ export function inFereastraFaraSofer(departureAt: string, nowMs: number): boolea
   const t = Date.parse(departureAt);
   return Number.isFinite(t) && t > nowMs && t - nowMs <= CURSA_FARA_SOFER_MS;
 }
+
+// ── 560: sesiunile maib și rezervarea (dezbaterea Claude ⇄ Codex 10.10.2026: C2 + C4; Ion: «dispecer nu va fi») ──────────
+
+/** Rezervarea locului: created_at + 30 min (bilete_rezervare_durata din 501), neprelungită. */
+export function rezervareExpirata(createdAt: string, nowMs: number): boolean {
+  const t = Date.parse(createdAt);
+  return !Number.isFinite(t) || nowMs >= t + VARSTA_MIN_MS;
+}
+
+/**
+ * Sesiunea băncii trebuie închisă: comanda e deja «expirata», rezervarea a expirat (30 min), sau cursa a plecat. Vânzarea
+ * se închide cel târziu la plecare; o sesiune deschisă mai devreme trăiește cel mult cât rezervarea, deci plecarea contează
+ * doar pentru cumpărăturile din ultima jumătate de oră. O plată venită totuși după plecare e clasificată de
+ * bilete_marcheaza_platita (bani înapoi automat, D2).
+ */
+export function sesiuneDeInchis(c: { status: string; created_at: string; departure_at: string }, nowMs: number): boolean {
+  if (c.status === 'expirata') return true;
+  if (rezervareExpirata(c.created_at, nowMs)) return true;
+  const plecare = Date.parse(c.departure_at);
+  return Number.isFinite(plecare) && nowMs >= plecare;
+}
+
+/**
+ * Ce face împăcarea cu o sesiune după starea citită ACUM de la bancă (Codex Î1: verificare → cancel eligibil →
+ * reverificare → expirare locală doar pe închidere confirmată fără plată):
+ *   platita  — Completed: sincronizarea a chemat deja bilete_marcheaza_platita (bilet sau bani înapoi);
+ *   expira   — banca confirmă închiderea fără plată: comanda devine «expirata» la noi;
+ *   anuleaza — încă deschisă și trebuie închisă: cancelCheckout, apoi reverificare;
+ *   asteapta — deschisă și încă în termen (sau cancel-ul n-a închis-o): se reverifică la rândul ei.
+ */
+export function deciziaSesiune(stareBanca: string | null | undefined, deInchis: boolean, dupaCancel = false): 'platita' | 'expira' | 'anuleaza' | 'asteapta' {
+  const s = (stareBanca ?? '').toLowerCase();
+  if (s === 'completed') return 'platita';
+  if (sesiuneInchisa(s)) return 'expira';
+  if (deInchis && !dupaCancel) return 'anuleaza';
+  return 'asteapta';
+}
+
+/**
+ * Rotația pasului B (Codex C2: «rotirea după updated_at nu rezolvă înfometarea când verificările eșuează»): cea mai
+ * demult verificată întâi (niciodată = prima), apoi cea mai veche. Ora verificării se scrie și la eroare.
+ */
+export function ordineRotatie<T extends { impacare_verificata_la: string | null; created_at: string }>(xs: T[]): T[] {
+  const t = (s: string | null) => (s == null ? -Infinity : Date.parse(s));
+  return [...xs].sort((a, b) => t(a.impacare_verificata_la) - t(b.impacare_verificata_la) || Date.parse(a.created_at) - Date.parse(b.created_at));
+}
+
+/**
+ * Portul TS al clasificării din bilete_marcheaza_platita (560) — aceeași ordine ca în SQL, verificată static în
+ * teoretic-1000.test.ts. `necunoscuta` = ora execuției lipsește: nimic nu se schimbă până o citește împăcarea.
+ */
+export function clasificaPlata(p: {
+  status: string; executatLa: string | null; departureAt: string; createdAt: string;
+  locuriLibere: number; seats: number; revalidare: string | null;
+}): 'necunoscuta' | 'emite' | 'plata_dupa_plecare' | 'loc_vandut' | string {
+  if (p.executatLa == null || !Number.isFinite(Date.parse(p.executatLa))) return 'necunoscuta';
+  const exec = Date.parse(p.executatLa);
+  if (exec >= Date.parse(p.departureAt)) return 'plata_dupa_plecare';
+  if ((p.status === 'expirata' || exec > Date.parse(p.createdAt) + VARSTA_MIN_MS) && p.locuriLibere < p.seats) return 'loc_vandut';
+  return p.revalidare ?? 'emite';
+}

@@ -195,6 +195,7 @@ export async function emiteBiletele(id: string): Promise<Rezultat> {
     if (/PLATA_NEELIGIBILA/.test(m)) return { ok: false, eroare: 'plata nu e executată sau are deja refund — nu se pot emite bilete' };
     if (/STARE_/.test(m)) return { ok: false, eroare: 'comanda nu e în starea «plătită fără bilet»' };
     if (/SUMA_NEPOTRIVITA/.test(m)) return { ok: false, eroare: 'suma plătită nu e suma comenzii' };
+    if (/REFUND_IN_CURS/.test(m)) return { ok: false, eroare: 'banii acestei plăți sunt deja în drum înapoi spre client (returnare automată, 560) — nu se mai emit bilete' };
     return { ok: false, eroare: m };
   }
   return { ok: true, mesaj: `${data} bilet(e) emise` };

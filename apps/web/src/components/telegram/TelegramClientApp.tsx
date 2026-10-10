@@ -70,7 +70,7 @@ const TXT = {
     expirat: 'Sesiunea Telegram a expirat. Închide fereastra și apasă din nou «🎫 Bilete».',
     indisponibil: 'Biletele nu se pot afișa acum.', reincearca: 'Încearcă din nou', ajutor: 'Ajutor:',
     istoricTitlu: 'Istoric', istoricGol: 'Încă nu ai călătorii.', locuri: (n: number) => (n === 1 ? '1 loc' : `${n} locuri`),
-    stari: { activ: 'Activ', efectuata: 'Efectuată', anulata: 'Anulată', returnata: 'Returnată', verificare: 'În verificare' },
+    stari: { activ: 'Activ', efectuata: 'Efectuată', anulata: 'Anulată', returnata: 'Returnată', verificare: 'Fără bilet — banii se întorc' },
   },
   ru: {
     file: { bilete: 'Мои билеты', nou: 'Новый билет', istoric: 'История' },
@@ -80,7 +80,7 @@ const TXT = {
     expirat: 'Сессия Telegram истекла. Закройте окно и снова нажмите «🎫 Билеты».',
     indisponibil: 'Билеты сейчас недоступны.', reincearca: 'Повторить', ajutor: 'Помощь:',
     istoricTitlu: 'История', istoricGol: 'Поездок пока нет.', locuri: (n: number) => (n === 1 ? '1 место' : `${n} места`),
-    stari: { activ: 'Активен', efectuata: 'Совершена', anulata: 'Отменена', returnata: 'Возвращена', verificare: 'На проверке' },
+    stari: { activ: 'Активен', efectuata: 'Совершена', anulata: 'Отменена', returnata: 'Возвращена', verificare: 'Без билета — деньги вернутся' },
   },
 } as const;
 

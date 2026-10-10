@@ -73,7 +73,7 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   // 546: turul are un retur −20% plătit → suma depinde de alegere («doar turul» pierde reducerea, «ambele», «vina
   // noastră»). Până la varianta din bot (deploy-bot), decide dispecerul în /bilete, cu bifele «vina noastră» /
   // «anulează și returul»; botul nu promite o sumă pe care banca n-ar primi-o.
-  const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', c.id).eq('status', 'platita');
+  const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', c.id).in('status', ['platita', 'platita_fara_bilet']); // revizia 10.10 (L8)
   if ((retururi ?? 0) > 0) {
     await alerta(c.id, telegramId, 'returnare cerută pe un tur cu retur −20% (în tur-retur plătit o dată: doar ambele, până la plecarea turului; altfel «doar turul» − reducerea sau «anulează și returul»)');
     return { ok: true, tip: 'dispecer', motiv: 'blocat' };

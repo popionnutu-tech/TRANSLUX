@@ -441,7 +441,8 @@ function plafonSql551(randuri: RandPlafon[], cerere: { phone: string; ip: string
     if (randuri.filter((r) => r.ip === cerere.ip && !r.in_pachet && r.minute < 10).length >= 5) return 'PLAFON_IP';
     if (randuri.filter((r) => r.phone === cerere.phone && r.status === 'noua' && !r.in_pachet && r.minute < 30).length >= 3) return 'PLAFON_TELEFON';
   }
-  if (randuri.filter((r) => r.status === 'noua' && r.minute < 30).length >= 50) return 'PLAFON_GLOBAL';
+  // 553: și plafonul global numără pachetul o dată (returul din pachet nu intră).
+  if (randuri.filter((r) => r.status === 'noua' && !r.in_pachet && r.minute < 30).length >= 50) return 'PLAFON_GLOBAL';
   return null;
 }
 
@@ -477,7 +478,8 @@ describe('F2. port SQL 551: un tur-retur e O comandă la plafonul pe telefon și
   // deschise blochează vânzarea pentru toți, deși sunt 25 de comenzi (regula lui Ion: «pachetul contează o singură
   // comandă la plafoane»). Repro: 30 de tur-retururi neplătite de pe telefoane/IP-uri diferite → al 31-lea tur simplu
   // primește PLAFON_GLOBAL; așteptat: trece (31 < 50). Sursa: 551_bilete_plafon_tur_retur.sql:51-52.
-  it.fails('PLAFON_GLOBAL numără un tur-retur ca o comandă (30 de pachete deschise → al 31-lea cumpărător trece)', () => {
+  // Reparat în 553 (revizia 10.10).
+  it('PLAFON_GLOBAL numără un tur-retur ca o comandă (30 de pachete deschise → al 31-lea cumpărător trece)', () => {
     const randuri: RandPlafon[] = [];
     for (let k = 0; k < 30; k++) randuri.push({ phone: `p${k}`, ip: `i${k}`, status: 'noua', in_pachet: false, minute: 3 }, { phone: `p${k}`, ip: `i${k}`, status: 'noua', in_pachet: true, minute: 3 });
     expect(plafonSql551(randuri, { phone: 'nou', ip: 'nou', pachet: false })).toBeNull();
@@ -747,8 +749,9 @@ describe('J1. curseReturPotrivite: se vinde, altă rută, după sosirea turului'
   // turului e propus, deși pleacă înainte ca turul să ajungă (comparația e pe «HH:MM» al aceleiași zile). Pe Bălți ⇄
   // Chișinău nu am găsit cursă care să sosească după 00:00, deci azi nu se întâmplă; serverul cere doar plecarea
   // returului după plecarea turului (548), deci nu l-ar opri. apps/web/src/lib/tur-retur.ts:24-26.
-  it.fails('teoretic: turul care sosește după miezul nopții nu primește un retur care pleacă înainte de sosire', () => {
-    const r = curseReturPotrivite({ crm_route_id: 1, trip_date: '2026-10-14', arrivalTime: '00:30' },
+  // Reparat 10.10: cu ora plecării turului (22:00), sosirea de 00:30 e socotită în ziua următoare.
+  it('teoretic: turul care sosește după miezul nopții nu primește un retur care pleacă înainte de sosire', () => {
+    const r = curseReturPotrivite({ crm_route_id: 1, trip_date: '2026-10-14', arrivalTime: '00:30', time: '22:00' },
       [{ sale_open: true, crm_route_id: 2, trip_date: '2026-10-14', time: '23:00' }]);
     expect(r).toEqual([]);
   });
@@ -896,7 +899,8 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
   // SQL refuză cu COTA_PLINA (mesajul vine din bază, nu cel «mai sunt N»). Banii nu sunt afectați; SQL e autoritatea.
   // Repro: o comandă platita_fara_bilet de 4 locuri Bălți pe cursă → verificaPlafonLocalitati({seats:1}) = ok:true,
   // bilete_cota_ocupata = 4 → COTA_PLINA:0. packages/db/src/bilete-localitati.ts:146 vs 546_bilete_promotii_balti.sql:121.
-  it.fails('stările care țin cota: aceleași în TS și în SQL (platita_fara_bilet)', () => {
+  // Reparat 10.10 (revizia): TS numără și platita_fara_bilet.
+  it('stările care țin cota: aceleași în TS și în SQL (platita_fara_bilet)', () => {
     expect(activa.text).toContain("'platita_fara_bilet'");
     expect(localitatiTs).toMatch(/c\.status === 'platita_fara_bilet'|'platita_fara_bilet'/);
     expect(comenziTs).toMatch(/STARI_PLAFON = \[[^\]]*platita_fara_bilet/);
@@ -912,9 +916,13 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
   // «alta_persoana») și nu verifică că returul ÎNSUȘI e pe perechea Bălți ⇄ Chișinău (TS: perechePromo(r.urcare, r.coborare)
   // + perechea inversă). Singurul apelant e TS-ul, care le verifică, deci azi nu se poate ocoli; o cerere directă la RPC
   // (service_role) ar primi reducerea pe alt nume / altă pereche. 551_bilete_plafon_tur_retur.sql:73-82.
-  it.fails('returul în SQL verifică și numele pasagerului și perechea returului', () => {
-    expect(creeaza.text).toMatch(/passenger_name|nume_pasager_cheie[^;]*t\./);
-    expect(creeaza.text).toMatch(/from_name[^;]*to_name[^;]*RETUR_TUR_NEVALID/);
+  // 553: perechea returului e verificată și în SQL (promo_pereche al rândului nou).
+  it('returul în SQL verifică perechea returului (553)', () => {
+    expect(creeaza.text).toContain("OR NOT t.promo_pereche OR NOT coalesce((p->>'promo_pereche')::boolean, false)");
+  });
+  // Rămâne documentat: numele pasagerului se compară doar în TS (cheieNume); singurul apelant e TS-ul.
+  it.fails('returul în SQL verifică și numele pasagerului', () => {
+    expect(creeaza.text).toMatch(/t\.passenger_name|t\.nume_pasager_cheie/);
   });
   it('pachetul (548): turul neplătit, fără sesiune, creat în 30 min, ACELEAȘI locuri; fără fereastra de 30 min după plată', () => {
     expect(creeaza.text).toContain("WHEN v_pachet THEN t.status NOT IN ('noua', 'eroare_creare') OR t.checkout_id IS NOT NULL");
@@ -922,8 +930,8 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(creeaza.text).toContain('IF NOT v_pachet AND (t.paid_at IS NULL');
     expect(citeste('548_bilete_tur_retur_o_plata.sql')).toContain("CHECK (NOT in_pachet OR (comanda_tur_id IS NOT NULL AND reducere_tip = 'retur' AND checkout_id IS NULL))");
   });
-  it('551 e ultima definiție a bilete_creeaza_comanda și păstrează 546/547/548 (copiere textuală fără pierderi)', () => {
-    expect(creeaza.fisier).toBe('551_bilete_plafon_tur_retur.sql');
+  it('553 e ultima definiție a bilete_creeaza_comanda și păstrează 546/547/548/551 (copiere textuală fără pierderi)', () => {
+    expect(creeaza.fisier).toBe('553_bilete_revizie_tur_retur.sql');
     for (const s of ['PROMO_SOFER', 'RETUR_FOLOSIT', 'RETUR_DUPA_TUR', 'STUDENT_JETON_FOLOSIT', 'STUDENT_PLAFON', 'COTA_PLINA', 'RETUR_TERMEN', 'LOC_OCUPAT', 'in_pachet)']) {
       expect(creeaza.text, s).toContain(s);
     }
@@ -956,7 +964,8 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(m546).toContain('4, sau 2 vineri spre Bălți / duminică spre Chișinău după 12:00');
   });
   // NEPOTRIVIRE (551): vezi F2 — PLAFON_GLOBAL numără și rândul returului din pachet.
-  it.fails('PLAFON_GLOBAL exclude returul din pachet (pachetul = o comandă)', () => {
+  // Reparat în 553.
+  it('PLAFON_GLOBAL exclude returul din pachet (pachetul = o comandă)', () => {
     expect(creeaza.text).toMatch(/status = 'noua' AND NOT in_pachet AND created_at > now\(\) - interval '30 minutes';\s*IF n >= 50/);
   });
 });

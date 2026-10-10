@@ -92,14 +92,14 @@ BEGIN
     IF k = 8 THEN
       -- Biletul urcat nu se mai poate anula.
       BEGIN
-        PERFORM bilete_anuleaza(c.id, 'admin', 'stres');
+        PERFORM bilete_anuleaza(c.id, 'admin', 'stres', c.total, false, false, NULL::numeric); -- 553: varianta cu 3 argumente a fost ștearsă
         esecuri := esecuri + 1; RAISE NOTICE 'ciclul %: anularea a trecut deși un bilet e urcat', i;
       EXCEPTION WHEN OTHERS THEN
         IF SQLERRM = 'BILET_URCAT' THEN cnt_anulare_refuzata := cnt_anulare_refuzata + 1;
         ELSE RAISE EXCEPTION 'ciclul % (anulare): %', i, SQLERRM; END IF;
       END;
     ELSIF k IN (6, 7) THEN
-      PERFORM bilete_anuleaza(c.id, 'admin', 'stres');
+      PERFORM bilete_anuleaza(c.id, 'admin', 'stres', c.total, false, false, NULL::numeric); -- 553: varianta cu 3 argumente a fost ștearsă
       IF (SELECT status FROM bilete_comenzi WHERE id = c.id) <> 'anulata'
          OR EXISTS (SELECT 1 FROM bilete WHERE comanda_id = c.id AND status <> 'anulat') THEN
         esecuri := esecuri + 1; RAISE NOTICE 'ciclul %: anularea n-a închis biletele', i;
@@ -109,7 +109,7 @@ BEGIN
       GET DIAGNOSTICS ok_scan = ROW_COUNT;
       IF ok_scan <> 0 THEN esecuri := esecuri + 1; ELSE cnt_scan_pe_anulat_refuzat := cnt_scan_pe_anulat_refuzat + 1; END IF;
       -- Anularea repetată: idempotentă.
-      PERFORM bilete_anuleaza(c.id, 'admin', 'stres');
+      PERFORM bilete_anuleaza(c.id, 'admin', 'stres', c.total, false, false, NULL::numeric); -- 553: varianta cu 3 argumente a fost ștearsă
     END IF;
   END LOOP;
 

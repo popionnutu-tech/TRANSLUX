@@ -82,8 +82,10 @@ export function eJpegValid(b: Buffer): boolean {
 }
 
 export const hashJeton = (jeton: string) => crypto.createHash('sha256').update(jeton).digest('hex');
-const hashCarnet = (numar: string, institutie: string) =>
-  crypto.createHash('sha256').update(`${numar.replace(/\s+/g, '').toUpperCase()}|${cheieNume(institutie)}`).digest('hex');
+// Revizia 10.10 (L6): amprenta = numărul carnetului + numele din act, fără instituție — AI-ul o scrie când «USM», când
+// numele întreg, și o verificare refăcută ar fi ocolit plafonul de 4 locuri/7 zile și regula «un carnet = un telefon».
+const hashCarnet = (numar: string, numeAct: string) =>
+  crypto.createHash('sha256').update(`${numar.replace(/\s+/g, '').toUpperCase()}|${cheieNume(numeAct)}`).digest('hex');
 
 export type RezultatVerificare =
   | { verdict: 'accept'; jeton: string; expiraLa: string; nume: string; prenume: string }
@@ -117,10 +119,13 @@ export async function verificaCarnet(a: { telefon: string; nume?: string | null;
   const id = s.id;
 
   const pc = `${id}/carnet.jpg`, pa = `${id}/act.jpg`;
+  // Revizia 10.10 (L11): căile întâi, apoi pozele — o funcție oprită între ele nu mai lasă poze pe care curățarea zilnică
+  // nu le găsește (ștergerea unei căi încă neîncărcate nu e eroare).
+  const { error: eCai } = await db.from('bilete_studenti_verificari').update({ poza_carnet: pc, poza_act: pa, model: STUDENT_AI_MODEL }).eq('id', id);
+  if (eCai) throw new Error(`bilete_studenti_verificari: ${eCai.message}`);
   const up1 = await db.storage.from(BUCKET).upload(pc, a.carnet, { contentType: 'image/jpeg', upsert: true });
   const up2 = await db.storage.from(BUCKET).upload(pa, a.act, { contentType: 'image/jpeg', upsert: true });
   if (up1.error || up2.error) throw new Error(`storage: ${up1.error?.message ?? up2.error?.message}`);
-  await db.from('bilete_studenti_verificari').update({ poza_carnet: pc, poza_act: pa, model: STUDENT_AI_MODEL }).eq('id', id);
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   let extras: ExtrasCarnet | null = null;
@@ -157,7 +162,7 @@ export async function verificaCarnet(a: { telefon: string; nume?: string | null;
   const pasager = numeScris || numeAct;
   const numePasager = numeScris ? {} : { nume_pasager: numeAct, nume_pasager_cheie: cheieNume(numeAct) };
   let decizie = decizieCarnet(extras, pasager, chisinauTodayIso(), INSTITUTII_MD);
-  const carnetHash = extras.numar_carnet && extras.institutie ? hashCarnet(extras.numar_carnet, extras.institutie) : null;
+  const carnetHash = extras.numar_carnet && numeAct ? hashCarnet(extras.numar_carnet, numeAct) : null;
   if (decizie.verdict === 'accept' && carnetHash) {
     // Un carnet = un telefon: același carnet văzut acceptat cu alt telefon → respins (nu se împrumută).
     const { data: alt } = await db.from('bilete_studenti_verificari').select('id')

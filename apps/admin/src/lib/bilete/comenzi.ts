@@ -16,6 +16,7 @@ import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
 import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, type MotivFaraReducere } from './promo-server';
 import { hashJeton } from './student-ai';
+import { sesiuneInchisa } from './impacare-reguli';
 
 // Comanda de bilete online (ION-193, pasul 4 din planul ION-190): validare → preț din @translux/db (același ca pe
 // site) → rând în bilete_comenzi (plafoanele sunt în bază) → O SINGURĂ sesiune maib pe comandă → maib_checkouts.
@@ -117,7 +118,7 @@ const ZILE_INAINTE_MAX = 30;
 const REVENDICARE_MS = 2 * 60_000;
 const DESCHISE = new Set(['noua', 'eroare_creare']);
 /** Stările care pot ține un loc din plafonul localității (cele deschise contează doar cât sunt active). */
-const STARI_PLAFON = ['platita', ...DESCHISE];
+const STARI_PLAFON = ['platita', 'platita_fara_bilet', ...DESCHISE];
 
 const CHEI_CONFIG = {
   activ: 'bilete_online_activ',
@@ -443,6 +444,11 @@ async function inlocuiesteIncercarea(cheie: string, input: ComandaInput): Promis
     if (eCk) throw new Error(`maib_checkouts (înlocuire): ${eCk.message}`);
     const st = String(ck?.status ?? '').toLowerCase(), pl = String(ck?.payment_status ?? '').toLowerCase();
     if (['failed', 'expired', 'cancelled', 'declined'].includes(st) && !['executed', 'completed'].includes(pl)) {
+      // Revizia 10.10 (M4): starea locală nu ajunge — banca confirmă că sesiunea e închisă, altfel o a doua încercare pe
+      // aceeași pagină de plată ar putea reuși după ce comanda veche a fost expirată (două plăți).
+      let laBanca: Awaited<ReturnType<typeof findCheckoutByOrderId>>;
+      try { laBanca = await findCheckoutByOrderId(c.id); } catch { throw new ComandaError('in_lucru', MESAJ_LA_BANCA); }
+      if (laBanca && !sesiuneInchisa(laBanca.status) && String(laBanca.status ?? '').toLowerCase() !== 'declined') throw new ComandaError('in_lucru', MESAJ_LA_BANCA);
       const acum = new Date().toISOString();
       const { error: eE } = await db.from('bilete_comenzi').update({ status: 'expirata', creare_in_curs_la: null, updated_at: acum })
         .or(`id.eq.${c.id},and(comanda_tur_id.eq.${c.id},in_pachet.eq.true)`).in('status', ['noua', 'eroare_creare']);
@@ -505,13 +511,21 @@ async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: 
   const promoCfg = await citestePromoConfig();
   if (!promoCfg.activ) throw new ComandaError('validare', mesajFaraReducere('promo_inchis'));
   if (!perechePromo(tur.from_name, tur.to_name)) throw new ComandaError('validare', mesajFaraReducere('nu_e_pereche'));
-  const v = valideaza(input);
   const returInput: ComandaInput = {
     ...input, tripDate: String(r.tripDate), crmRouteId: Number(r.crmRouteId), goingNorth: r.goingNorth === true,
     fromRo: String(r.fromRo ?? '').slice(0, 80), toRo: String(r.toRo ?? '').slice(0, 80), seats: tur.seats,
     idempotencyKey: String(r.idempotencyKey ?? ''), locuriAlese: null, punctUrcareId: null, codRetur: null, studentJeton: null, retur: null,
   };
   if (!/^[0-9a-f-]{36}$/i.test(returInput.idempotencyKey) || returInput.idempotencyKey === input.idempotencyKey) throw new ComandaError('validare', 'cheia returului lipsește');
+  // Revizia 10.10 (L5): data returului — format valid și nu în trecut. Termenul (cel mult 30 de zile după tur) îl ține
+  // funcția din bază (RETUR_TERMEN); limita «30 de zile față de azi» a turului NU se aplică returului (calendarul și
+  // termenii permit turul + 30 de zile).
+  if (!DATE_RE.test(returInput.tripDate) || returInput.tripDate < chisinauTodayIso()) throw new ComandaError('validare', 'data returului nu e validă');
+  const v = valideaza(input);
+  // Revizia 10.10 (H1): returul −20% e tot pe Bălți ⇄ Chișinău, în sens invers turului — nu orice cursă spre Chișinău.
+  if (!perechePromo(returInput.fromRo, returInput.toRo) || returInput.goingNorth === tur.going_north) {
+    throw new ComandaError('validare', mesajFaraReducere('nu_e_pereche'));
+  }
   // Locurile returului pe hartă (doar spre nord, din Chișinău) — Ion, 10.10: «apoi locul din Chișinău».
   const locuriRetur = valideazaLocuriAlese(r.locuriAlese ?? null, tur.seats, returInput.goingNorth);
   return creeazaRand({ ...returInput, locuriAlese: locuriRetur }, opt, v, locuriRetur, { tur, pct: promoCfg.pct });
@@ -659,6 +673,8 @@ async function creeazaRand(
 
 /** Reducerea returului din pachet: −pct pe prețul cursei (sub minimul plății → refuz). */
 function promoPachet(pret: number, pachet: { tur: BileteComanda; pct: number }, urcare: string, coborare: string) {
+  // H1: și pe numele canonice ale opririlor (cele după care se judecă vânzarea), nu doar pe textul din formular.
+  if (!perechePromo(urcare, coborare)) throw new ComandaError('validare', mesajFaraReducere('nu_e_pereche'));
   const redus = aplicaReducere(pret, pachet.pct);
   if (redus == null) throw new ComandaError('validare', mesajFaraReducere('pret_mic'));
   return {

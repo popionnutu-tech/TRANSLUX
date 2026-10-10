@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BazaIndisponibilaError, biletPublic, plafonPublic, sincronizeazaComandaDupaCod } from '@/lib/bilete/public';
+import { BazaIndisponibilaError, biletPublic, plafonPublic, sincronizeazaComandaDupaCod, ipPentruPlafon } from '@/lib/bilete/public';
 
 // GET /api/bilete/public/<cod> — biletul pasagerului, cu codul din link ca secret (128 de biți). Public în
 // middleware (prefix /api/bilete/public/, listat exhaustiv în public-paths.test.ts). Fără cache, fără referrer.
@@ -13,7 +13,7 @@ const ANTETE = { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }
 export async function GET(req: NextRequest, { params }: { params: Promise<{ cod: string }> }) {
   const { cod } = await params;
   if (!/^[0-9a-f]{32}$/i.test(cod)) return NextResponse.json({ ok: false }, { status: 404, headers: ANTETE });
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null;
+  const ip = ipPentruPlafon(req.headers);
   if (!(await plafonPublic(ip))) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
   try {
     // Comanda încă deschisă → un drum la maib (callback-ul poate întârzia); emite și biletele dacă plata e executată.

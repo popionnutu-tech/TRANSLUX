@@ -59,9 +59,10 @@ async function alertaOData(comandaId: string, tip: string, detalii: string, dry:
 
 async function expira(comandaId: string, dry: boolean): Promise<void> {
   if (dry) return;
+  // Revizia 10.10 (M3): returul din pachet (548) n-are sesiune proprie — expiră doar odată cu turul lui, aici.
   await getSupabase().from('bilete_comenzi')
     .update({ status: 'expirata', creare_in_curs_la: null, updated_at: new Date().toISOString() })
-    .eq('id', comandaId).in('status', ['noua', 'eroare_creare']);
+    .or(`id.eq.${comandaId},and(comanda_tur_id.eq.${comandaId},in_pachet.eq.true)`).in('status', ['noua', 'eroare_creare']);
 }
 
 export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }): Promise<RaportImpacare> {
@@ -83,8 +84,10 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
   const maiAmTimp = () => Date.now() - start < buget;
 
   // A. fără sesiune
+  // M3: fără retururile din pachet — căutarea la bancă după id-ul lor nu găsește nimic și le-ar expira pe nedrept,
+  // eliberând cota cât turul e încă deschis la bancă. Ele urmează turul (expira, mai sus).
   const { data: faraCk } = await db.from('bilete_comenzi').select('*')
-    .in('status', ['noua', 'eroare_creare']).is('checkout_id', null).lt('created_at', prag)
+    .in('status', ['noua', 'eroare_creare']).is('checkout_id', null).eq('in_pachet', false).lt('created_at', prag)
     .order('created_at').limit(COTE.fara_checkout);
   await inLoturi((faraCk || []) as BileteComanda[], async (c) => {
     if (c.creare_incercari >= INCERCARI_MAX) {
@@ -107,6 +110,18 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
       raport.fara_checkout.aplicate += 1;
     }
   }, raport.fara_checkout);
+  // M3: retururi din pachet rămase deschise după ce turul lor a expirat pe altă cale → expiră și ele.
+  const { data: orfane } = await db.from('bilete_comenzi').select('id, comanda_tur_id')
+    .in('status', ['noua', 'eroare_creare']).eq('in_pachet', true).lt('created_at', prag).limit(500); // fără ordinea «cele mai vechi N»: retururile cu turul încă deschis n-au voie să le înfometeze pe orfane
+  const turIds = [...new Set(((orfane || []) as { comanda_tur_id: string | null }[]).map((o) => o.comanda_tur_id).filter((x): x is string => !!x))];
+  if (turIds.length > 0 && !opt.dry) {
+    const { data: tururi } = await db.from('bilete_comenzi').select('id, status').in('id', turIds);
+    const expirate = ((tururi || []) as { id: string; status: string }[]).filter((t) => t.status === 'expirata').map((t) => t.id);
+    if (expirate.length > 0) {
+      await db.from('bilete_comenzi').update({ status: 'expirata', creare_in_curs_la: null, updated_at: new Date().toISOString() })
+        .in('comanda_tur_id', expirate).eq('in_pachet', true).in('status', ['noua', 'eroare_creare']);
+    }
+  }
   if (!maiAmTimp()) { raport.oprit_de_buget = true; raport.durata_ms = Date.now() - start; return raport; }
 
   // B. cu sesiune

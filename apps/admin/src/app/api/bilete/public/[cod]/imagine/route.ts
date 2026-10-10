@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BazaIndisponibilaError, biletPublic, plafonPublic } from '@/lib/bilete/public';
+import { BazaIndisponibilaError, biletPublic, plafonPublic, ipPentruPlafon } from '@/lib/bilete/public';
 import { imagineBilet } from '@/lib/bilete/bilet-imagine';
 import { cheieImagine, creeazaCacheImagini } from '@/lib/bilete/cache-imagini';
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cod:
   const { cod } = await params;
   const nr = Number(req.nextUrl.searchParams.get('nr') ?? '1');
   if (!/^[0-9a-f]{32}$/i.test(cod) || !Number.isInteger(nr) || nr < 1 || nr > 10) return NextResponse.json({ ok: false }, { status: 404, headers: ANTETE });
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || null;
+  const ip = ipPentruPlafon(req.headers);
   if (!(await plafonPublic(ip))) return NextResponse.json({ ok: false, eroare: 'prea multe cereri' }, { status: 429, headers: ANTETE });
   try {
     const c = await biletPublic(cod);

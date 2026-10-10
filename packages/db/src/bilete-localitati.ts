@@ -157,7 +157,8 @@ export const DURATA_COMANDA_DESCHISA_MS = 30 * 60_000;
 const STARI_DESCHISE = new Set<string>(['noua', 'eroare_creare']);
 
 function comandaOcupaLoc(c: ComandaPentruPlafon, nowMs: number): boolean {
-  if (c.status === 'platita') return true;
+  // Ca bilete_comanda_activa (546): banii primiți fără bilet emis țin locul (revizia 10.10).
+  if (c.status === 'platita' || c.status === 'platita_fara_bilet') return true;
   if (!STARI_DESCHISE.has(c.status)) return false;
   const creata = Date.parse(c.created_at);
   return Number.isFinite(creata) && nowMs - creata < DURATA_COMANDA_DESCHISA_MS;

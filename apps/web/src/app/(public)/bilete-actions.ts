@@ -3,7 +3,7 @@
 import { createHash } from 'crypto';
 import { headers } from 'next/headers';
 import { comandaBilet, configBilete, locuriCursa, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
-import { emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, urlPlataSigur } from '@/lib/bilete-reguli';
+import { emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, textApiInRusa, urlPlataSigur } from '@/lib/bilete-reguli';
 import { mesajLocOcupat, parseazaLocuriAlese, type LocuriCursa } from '@/lib/locuri';
 
 // «Cumpără bilet» (ION-197): formularul din fereastra rezultatelor → comanda la panou → pasagerul pleacă la maib.
@@ -39,7 +39,9 @@ function textTurRetur(eroareApi: string, cod: string | undefined, ru: boolean): 
   // 551: pagina rusă nu mai arată textul românesc al plafonului (captura lui Ion, 10.10).
   if (cod === 'plafon') return ru ? 'Слишком много неоплаченных заказов на этот номер. Попробуйте через несколько минут.' : 'Prea multe comenzi neplătite pe acest număr. Încearcă peste câteva minute.';
   const t = eroareApi.charAt(0).toUpperCase() + eroareApi.slice(1);
-  return ru ? `Не получилось: ${t}.` : `${t}.`;
+  // Revizia 10.10 (L9): textul panoului tradus; necunoscut → mesajul general rus, nu textul românesc.
+  if (ru) { const tr = textApiInRusa(eroareApi); return tr ? `${tr}.` : 'Не получилось оформить заказ. Попробуйте ещё раз.'; }
+  return `${t}.`;
 }
 
 export async function locuriCursei(crmRouteId: number, tripDate: string, goingNorth: boolean): Promise<LocuriCursa | null> {

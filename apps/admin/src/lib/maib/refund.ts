@@ -91,7 +91,14 @@ export async function finalizeazaRefund(checkoutId: string, stare: StareRefundMa
   if (!c) return { decizie, comandaId: null };
   // 548: returul din pachet (fără sesiune proprie) urmează refund-ul turului — și când doar el a fost anulat (vina noastră).
   const { data: pachet } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', c.id).eq('in_pachet', true).eq('status', 'anulata');
-  const ids = [...(c.status === 'anulata' ? [c.id] : []), ...((pachet || []) as { id: string }[]).map((x) => x.id)];
+  // Revizia 10.10 (H2): pe o sesiune tur-retur, un refund e al unui singur bilet; comanda anulată DUPĂ ce refund-ul a fost
+  // folosit de celălalt bilet (alerta PACHET_REFUND_OCUPAT) nu primește «returnata» de la refund-ul altuia.
+  const candidati = [...(c.status === 'anulata' ? [c.id] : []), ...((pachet || []) as { id: string }[]).map((x) => x.id)];
+  const { data: ocupate } = candidati.length
+    ? await db.from('bilete_alerte').select('comanda_id').in('comanda_id', candidati).like('detalii', 'PACHET_REFUND_OCUPAT%')
+    : { data: [] };
+  const exclus = new Set(((ocupate || []) as { comanda_id: string }[]).map((x) => x.comanda_id));
+  const ids = candidati.filter((id) => !exclus.has(id));
   if (ids.length === 0) return { decizie, comandaId: c.id };
   if (decizie === 'returnata') {
     await db.from('bilete_comenzi').update({ status: 'returnata', refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() })

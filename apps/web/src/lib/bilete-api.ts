@@ -1,4 +1,6 @@
 import 'server-only';
+import { createHash } from 'crypto';
+import { headers } from 'next/headers';
 import { CONFIG_INCHIS, parseazaConfig, parseazaPuncte, type ConfigBilete } from './bilete-reguli';
 import { parseazaLocuri, type LocuriCursa } from './locuri';
 
@@ -11,6 +13,21 @@ const TIMEOUT_MS = 8_000;
 const CACHE_CONFIG_MS = 60_000;
 
 export type { ConfigBilete };
+
+/**
+ * Revizia 10.10 (punctul 5): antetele cu care panoul socotește plafonul public pe OMUL care cere (amprenta IP-ului lui,
+ * cu sarea BILETE_IP_SALT), nu pe IP-ul serverului Vercel comun tuturor. Fără cheie/sare/IP → nimic (plafonul vechi).
+ */
+async function anteteClient(): Promise<Record<string, string>> {
+  const cheie = process.env.BILETE_API_KEY, sare = process.env.BILETE_IP_SALT;
+  if (!cheie || !sare) return {};
+  try {
+    const h = await headers();
+    const ip = h.get('x-forwarded-for')?.split(',')[0].trim() || h.get('x-real-ip') || null;
+    if (!ip) return {};
+    return { Authorization: `Bearer ${cheie}`, 'X-Bilete-Client': createHash('sha256').update(`${sare}|${ip}`).digest('hex') };
+  } catch { return {}; }
+}
 
 let cacheConfig: { la: number; cfg: ConfigBilete } | null = null;
 
@@ -57,7 +74,7 @@ export async function puncteUrcare(nameRo: string): Promise<ReturnType<typeof pa
 export async function locuriCursa(crmRouteId: number, tripDate: string, goingNorth: boolean): Promise<LocuriCursa | null> {
   const q = new URLSearchParams({ crm_route_id: String(crmRouteId), trip_date: tripDate, going_north: String(goingNorth) });
   try {
-    const r = await fetch(`${BAZA}/api/bilete/public/locuri?${q}`, { signal: AbortSignal.timeout(TIMEOUT_MS / 2), cache: 'no-store' });
+    const r = await fetch(`${BAZA}/api/bilete/public/locuri?${q}`, { headers: await anteteClient(), signal: AbortSignal.timeout(TIMEOUT_MS / 2), cache: 'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return parseazaLocuri(await r.json());
   } catch (e) {
@@ -174,7 +191,7 @@ export interface ComandaPublica {
 export async function biletPublic(cod: string): Promise<ComandaPublica | null | 'indisponibil'> {
   if (!/^[0-9a-f]{32}$/i.test(cod)) return null;
   try {
-    const r = await fetch(`${BAZA}/api/bilete/public/${cod}`, { signal: AbortSignal.timeout(TIMEOUT_MS * 2), cache: 'no-store' });
+    const r = await fetch(`${BAZA}/api/bilete/public/${cod}`, { headers: await anteteClient(), signal: AbortSignal.timeout(TIMEOUT_MS * 2), cache: 'no-store' });
     if (r.status === 404) return null;
     if (!r.ok) return 'indisponibil';
     const j = await r.json();

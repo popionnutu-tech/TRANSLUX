@@ -7,6 +7,7 @@ import { citestePromoConfig } from './promo-server';
 import { asambleazaComanda, COLOANE_BILET, COLOANE_COMANDA, type BiletRand, type ComandaRand, type OprireSosireRand, type RutaRand } from './bilet-asamblare';
 import { echipajeZile } from './echipaj';
 import { echipajPentruBilet, type EchipajBilet } from './echipaj-reguli';
+import { cheieSiteValida } from './site-auth';
 
 // Ce vede pasagerul (pagina biletului de pe site, prin API cu codul din link ca secret) și ce vede site-ul
 // (configurația vânzării). Fără alți pasageri, fără ip_hash, fără telegram_id.
@@ -60,6 +61,17 @@ const COD_RE = /^[0-9a-f]{32}$/i;
 
 export class BazaIndisponibilaError extends Error {
   constructor(mesaj: string) { super(mesaj); this.name = 'BazaIndisponibilaError'; }
+}
+
+/**
+ * Cheia plafonului public (revizia 10.10, punctul 5): cererile venite de la serverul translux.md (BILETE_API_KEY) poartă
+ * amprenta IP-ului OMULUI în `X-Bilete-Client` — fără ea, toți cumpărătorii împart IP-ul serverului Vercel și cele
+ * 60/min, iar la vârf harta devine «indisponibilă». Fără cheie validă → IP-ul cererii, ca înainte.
+ */
+export function ipPentruPlafon(h: Headers): string | null {
+  const client = h.get('x-bilete-client');
+  if (client && /^[0-9a-f]{64}$/.test(client) && cheieSiteValida(h.get('authorization'))) return `site:${client}`;
+  return h.get('x-forwarded-for')?.split(',')[0].trim() || h.get('x-real-ip') || null;
 }
 
 /**

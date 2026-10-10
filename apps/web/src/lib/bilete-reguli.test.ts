@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NICIO_LOCALITATE, TOATE_LOCALITATILE } from '@translux/db';
-import { CONFIG_INCHIS, emailOptional, linkHarta, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, parseazaPuncte, puncteCursei, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
+import { CONFIG_INCHIS, emailOptional, linkHarta, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, parseazaPuncte, puncteCursei, textApiInRusa, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
 
 const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }], localitati: TOATE_LOCALITATILE, destinatii: TOATE_LOCALITATILE, curse_de_la: null as string | null };
 // Marți 14.10.2026, 05:00 la Chișinău (ora de vară, +03:00).
@@ -99,7 +99,7 @@ describe('mesajEroareComanda', () => {
     expect(mesajEroareComanda(undefined, 429, 'ru')).toMatch(/попыток/);
     expect(mesajEroareComanda(undefined, 503, 'ro')).toMatch(/Banca/);
     expect(mesajEroareComanda('validare', 400, 'ro', 'telefonul nu e valid')).toBe('telefonul nu e valid');
-    expect(mesajEroareComanda('validare', 400, 'ru', 'telefonul nu e valid')).toMatch(/Проверьте/);
+    expect(mesajEroareComanda('validare', 400, 'ru', 'telefonul nu e valid')).toMatch(/номер телефона/);
   });
 });
 
@@ -169,5 +169,42 @@ describe('normalizeazaTelefon — numere străine (Ion, 10.10)', () => {
     expect(normalizeazaTelefon('+380 67 123 4567')).toBe('380671234567');
     expect(normalizeazaTelefon('069 123 456')).toBe('37369123456');
     expect(normalizeazaTelefon('067 123 45 67')).toBeNull();
+  });
+});
+
+// Revizia 10.10 (L9): pagina rusă nu mai arată textul românesc al panoului.
+describe('textApiInRusa', () => {
+  const mesajeRo = [
+    'reducerea la retur nu se aplică: returul −20% se cumpără imediat după tur (în 30 de minute), în sens invers, pe altă cursă, pe aceeași persoană, cu întoarcerea în 30 de zile',
+    'reducerea de student nu se aplică: verificarea carnetului a expirat sau e pe alt nume/telefon; refă verificarea',
+    'reducerea de student e pentru un singur loc pe bilet',
+    'promoțiile nu se aplică pe acest număr de telefon',
+    'la acest preț reducerea nu se aplică',
+    'promoțiile online nu sunt deschise acum',
+    'promoțiile sunt doar pe Bălți ⇄ Chișinău',
+    'reducerile nu se cumulează: tur-returul e fără reducerea de student',
+    'telefonul nu e valid (069 123 456 sau cu prefixul țării, +380 …)',
+    'biletele se vând cu cel mult 30 de zile înainte',
+    'pe această cursă online mai sunt doar 2 locuri',
+    'pe această cursă biletul se ia deocamdată de la șofer',
+  ];
+  for (const m of mesajeRo) {
+    it(`traduce «${m.slice(0, 40)}…» fără litere românești`, () => {
+      const ru = textApiInRusa(m);
+      expect(ru).not.toBeNull();
+      expect(ru).not.toMatch(/[ăîșțâ]/i);
+      expect(ru).toMatch(/[а-яё]/i);
+    });
+  }
+  it('prefixul tur-retur: «la retur: …» → «Обратно: …»', () => {
+    expect(textApiInRusa('la retur: promoțiile sunt doar pe Bălți ⇄ Chișinău')).toBe('Обратно: акции действуют только на Бельцы ⇄ Кишинёв');
+  });
+  it('cifrele din mesaj se păstrează', () => {
+    expect(textApiInRusa('pe această cursă online mai sunt doar 3 locuri')).toContain('3');
+  });
+  it('necunoscut → null; validarea rusă cade pe mesajul general', () => {
+    expect(textApiInRusa('ceva nou')).toBeNull();
+    expect(mesajEroareComanda('validare', 400, 'ru', 'ceva nou')).toBe('Проверьте имя и номер телефона.');
+    expect(mesajEroareComanda('validare', 400, 'ru', 'reducerea de student e pentru un singur loc pe bilet')).toMatch(/одно место/);
   });
 });

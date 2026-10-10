@@ -15,13 +15,25 @@ export function rezumatTurRetur(a: { pretTur: number; pretRetur: number; pasager
   return { tur, retur, total: tur + retur, pretRetur: loc };
 }
 
-/** Cursele de retur care se pot lua cu turul: se vând online, altă rută decât turul, pleacă după sosirea turului. */
+/** Ziua următoare a unei date ISO (YYYY-MM-DD), în UTC (fără ora locală). */
+function ziuaUrmatoare(d: string): string {
+  const t = new Date(`${d}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + 1);
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * Cursele de retur care se pot lua cu turul: se vând online, altă rută decât turul, pleacă după sosirea turului.
+ * Revizia 10.10: când turul sosește după miezul nopții (sosirea «mai mică» decât plecarea), sosirea e în ziua următoare.
+ */
 export function curseReturPotrivite<T extends { sale_open: boolean; crm_route_id: number; trip_date: string; time: string }>(
-  tur: { crm_route_id: number; trip_date: string; arrivalTime: string },
+  tur: { crm_route_id: number; trip_date: string; arrivalTime: string; time?: string },
   lista: readonly T[],
 ): T[] {
+  const pesteNoapte = !!tur.time && !!tur.arrivalTime && tur.arrivalTime < tur.time;
+  const ziSosire = pesteNoapte ? ziuaUrmatoare(tur.trip_date) : tur.trip_date;
   return lista.filter((t) => t.sale_open && t.crm_route_id !== tur.crm_route_id
-    && (t.trip_date > tur.trip_date || (t.trip_date === tur.trip_date && t.time > tur.arrivalTime)));
+    && (t.trip_date > ziSosire || (t.trip_date === ziSosire && t.time > tur.arrivalTime)));
 }
 
 /** «1 pasager / 2 pasageri», «1 пассажир / 2 пассажира / 5 пассажиров». */

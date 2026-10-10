@@ -152,6 +152,17 @@ export async function anuleazaSiReturneaza(
   return { ...(await returneazaBanii(comanda, motiv, sumaTur)), suma: sumaTur };
 }
 
+/** Marcajul alertei «refund-ul plății comune e deja folosit»: finalizeazaRefund nu marchează «returnata» comanda cu el. */
+export const MARCAJ_PACHET_OCUPAT = 'PACHET_REFUND_OCUPAT';
+
+/** Comanda împarte sesiunea maib cu alt bilet din tur-retur (ea e returul din pachet, sau turul are un retur în pachet). */
+async function sesiuneComunaPachet(comanda: BileteComanda): Promise<boolean> {
+  if (comanda.in_pachet) return true;
+  const { count } = await getSupabase().from('bilete_comenzi').select('id', { count: 'exact', head: true })
+    .eq('comanda_tur_id', comanda.id).eq('in_pachet', true);
+  return (count ?? 0) > 0;
+}
+
 /**
  * Pașii 2–3 pentru o comandă deja anulată: revendicarea refund-ului, banca, iar la refuz reactivarea. `suma` = suma
  * fixată de bilete_anuleaza. 0 lei → nimic de trimis la bancă.
@@ -170,11 +181,33 @@ async function returneazaBanii(comanda: BileteComanda, motiv: string, suma: numb
   }
   const { data: ck } = await db.from('maib_checkouts').select('checkout_id, payment_id, amount, refund_id, refund_status').eq('checkout_id', comanda.checkout_id).maybeSingle();
   if (!ck) throw new Error('sesiunea maib a comenzii lipsește din bază');
-  if (ck.refund_id) return { comanda, refund: 'creat', refundId: ck.refund_id }; // deja cerut (reluare)
+  if (ck.refund_id) {
+    // Revizia 10.10 (H2): sesiunea unui tur-retur (548) e comună celor două bilete și ține un singur refund. Dacă returul
+    // a fost deja returnat singur, refund-ul existent e al LUI — turul nu e «creat», banii lui trebuie trimiși de mână.
+    // (O reluare a aceleiași anulări nu ajunge aici: comanda e deja «anulata» și anuleazaSiReturneaza iese mai devreme.)
+    if (await sesiuneComunaPachet(comanda)) {
+      await db.from('bilete_alerte').insert({
+        comanda_id: comandaId, tip: 'refund_necunoscut',
+        detalii: `${MARCAJ_PACHET_OCUPAT}: plata tur-retur are deja refund-ul ${ck.refund_id} (alt bilet din pachet); de returnat de mână ${suma} lei`,
+      });
+      return { comanda, refund: 'necunoscut' };
+    }
+    return { comanda, refund: 'creat', refundId: ck.refund_id }; // deja cerut (reluare)
+  }
 
   const rev = await revendicaRefund(ck.checkout_id, motiv);
   if (rev.eroare) throw new Error(`revendicare refund: ${rev.eroare}`);
-  if (!rev.ok) return { comanda, refund: 'necunoscut' }; // altcineva îl are în lucru chiar acum
+  if (!rev.ok) {
+    // H2 (revizia, cursa rară): refund-ul plății comune e revendicat chiar acum de celălalt bilet din pachet → marcaj +
+    // alertă, ca finalizarea să nu dea «returnata» acestei comenzi din refund-ul altuia.
+    if (await sesiuneComunaPachet(comanda)) {
+      await db.from('bilete_alerte').insert({
+        comanda_id: comandaId, tip: 'refund_necunoscut',
+        detalii: `${MARCAJ_PACHET_OCUPAT}: refund-ul plății tur-retur e în lucru pentru alt bilet din pachet; de returnat de mână ${suma} lei`,
+      });
+    }
+    return { comanda, refund: 'necunoscut' }; // altcineva îl are în lucru chiar acum
+  }
 
   const r = await executaRefund({ checkout_id: ck.checkout_id, payment_id: ck.payment_id, amount: Number(ck.amount) }, motiv, suma < Number(ck.amount) ? suma : undefined);
   if (r.fel === 'creat') return { comanda, refund: 'creat', refundId: r.refundId };

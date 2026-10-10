@@ -111,6 +111,60 @@ export function normalizeazaTelefon(raw: string): string | null {
   return normalizeazaTelefonPasager(raw);
 }
 
+/**
+ * Revizia 10.10 (L9): textele românești ale panoului pe care pagina rusă le arăta ca atare («Не получилось: » + RO) sau
+ * le înlocuia cu «Проверьте имя и номер телефона». Necunoscut → null (apelantul păstrează mesajul general).
+ */
+const TRADUCERI_RU: Array<[RegExp, string | ((m: RegExpExecArray) => string)]> = [
+  [/^reducerea la retur nu se aplică/i, 'Скидка на обратный билет не применяется: обратный билет −20% покупается сразу после билета туда (в течение 30 минут), в обратном направлении, другим рейсом, на того же человека, с возвращением в течение 30 дней'],
+  [/^reducerea de student e pentru un singur loc/i, 'Студенческая скидка — только на одно место в билете'],
+  [/^reducerea de student nu se aplică/i, 'Студенческая скидка не применяется: проверка студенческого истекла или сделана на другое имя/телефон; пройдите проверку заново'],
+  [/^promoțiile nu se aplică pe acest număr/i, 'Акции не действуют для этого номера телефона'],
+  [/^la acest preț reducerea nu se aplică/i, 'При этой цене скидка не применяется'],
+  [/^promoțiile online nu sunt deschise/i, 'Онлайн-акции сейчас не действуют'],
+  [/^promoțiile sunt doar pe Bălți/i, 'Акции действуют только на Бельцы ⇄ Кишинёв'],
+  [/^reducerile nu se cumulează/i, 'Скидки не суммируются: туда-обратно — без студенческой скидки'],
+  [/^turul e deja în plată/i, 'Билет туда уже оплачивается; обратный билет −20% добавляется только при покупке билета туда'],
+  [/^tur-returul nu merge/i, 'Туда-обратно здесь недоступно'],
+  [/^unul sau mai multe locuri alese sunt deja luate/i, 'Одно или несколько выбранных мест уже заняты — выберите другие'],
+  [/^locurile alese nu sunt valide/i, 'Выбранные места недействительны — выберите заново'],
+  [/^cursa nu există/i, 'Такого рейса между этими остановками нет'],
+  [/^cursa e în trecut/i, 'Рейс уже в прошлом'],
+  [/^biletele se vând cu cel mult (\d+)/i, (m) => `Билеты продаются не более чем за ${m[1]} дней`],
+  [/^telefonul nu e valid/i, 'Неверный номер телефона (069 123 456 или с кодом страны, +380 …)'],
+  [/^numele lipsește/i, 'Укажите имя'],
+  [/^e-mailul nu e valid/i, 'Неверный e-mail'],
+  [/^prețul cursei nu e cunoscut/i, 'Цена рейса пока неизвестна'],
+  [/^biletul costă sub/i, 'Билет дешевле минимальной суммы онлайн-оплаты — покупается у водителя'],
+  [/mai sunt doar (\d+) locuri/i, (m) => `На этом рейсе онлайн осталось только ${m[1]} мест`],
+  [/locurile online pe această cursă s-au terminat/i, 'Онлайн-места на этом рейсе закончились; билет можно взять у водителя'],
+  [/^cursa nu are șofer/i, 'Онлайн-продажа на этот рейс закрыта. Билет можно взять у водителя.'],
+  [/^vânzarea pentru această cursă s-a închis/i, 'Онлайн-продажа на этот рейс закрыта. Билет можно взять у водителя.'],
+  [/^online se vând biletele pentru cursele din ([\d.]+)/i, (m) => `Онлайн продаются билеты на рейсы с ${m[1]}`],
+  [/^pe această direcție online se vând biletele pentru cursele din ([\d.]+)/i, (m) => `На этом направлении онлайн продаются билеты на рейсы с ${m[1]}`],
+  [/^returul ales s-a schimbat/i, 'Выбор обратного рейса изменился — обновите страницу'],
+  [/^comanda are deja un retur/i, 'В заказе уже есть обратный билет — обновите страницу, чтобы купить без него'],
+  [/^plata de dinainte e încă deschisă la bancă/i, 'Предыдущая оплата ещё открыта в банке; попробуйте через несколько минут'],
+  [/^vânzarea online (nu e deschisă|e temporar închisă)/i, 'Онлайн-продажа сейчас закрыта'],
+  [/biletul se ia (deocamdată )?de la șofer/i, 'Онлайн-продажа на этот рейс закрыта. Билет можно взять у водителя.'],
+  [/prea multe comenzi neplătite/i, 'Слишком много неоплаченных заказов на этот номер. Попробуйте через несколько минут.'],
+];
+
+export function textApiInRusa(textApi: string | undefined | null): string | null {
+  const t0 = String(textApi ?? '').trim();
+  if (!t0) return null;
+  const pref = /^la (tur|retur):\s*/i.exec(t0);
+  const t = pref ? t0.slice(pref[0].length) : t0;
+  for (const [re, ru] of TRADUCERI_RU) {
+    const m = re.exec(t);
+    if (m) {
+      const text = typeof ru === 'string' ? ru : ru(m);
+      return pref ? `${pref[1].toLowerCase() === 'tur' ? 'Туда' : 'Обратно'}: ${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
+    }
+  }
+  return null;
+}
+
 export type CodEroareComanda = 'validare' | 'inchis' | 'idempotenta' | 'in_lucru' | 'plafon' | 'maib' | 'config' | 'necunoscut';
 
 /** Mesajul pentru pasager, pe limbă, din codul erorii API-ului (RO primește și textul exact la validare). */
@@ -123,7 +177,7 @@ export function mesajEroareComanda(cod: string | undefined, status: number, loca
     case 'maib': return ru ? 'Банк сейчас не отвечает. Попробуйте ещё раз через минуту.' : 'Banca nu răspunde acum. Încearcă din nou peste un minut.';
     case 'idempotenta':
     case 'in_lucru': return ru ? 'Заказ уже обрабатывается. Подождите несколько секунд и повторите.' : 'Comanda e deja în lucru. Așteaptă câteva secunde și încearcă iar.';
-    case 'validare': return ru ? 'Проверьте имя и номер телефона.' : (textApi || 'Verifică numele și numărul de telefon.');
+    case 'validare': return ru ? (textApiInRusa(textApi) ?? 'Проверьте имя и номер телефона.') : (textApi || 'Verifică numele și numărul de telefon.');
     case 'config': return ru ? 'Онлайн-продажа временно недоступна.' : 'Vânzarea online e temporar indisponibilă.';
     default: return ru ? 'Не удалось создать заказ. Попробуйте ещё раз.' : 'Nu am putut crea comanda. Încearcă din nou.';
   }

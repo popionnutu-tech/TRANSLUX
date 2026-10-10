@@ -48,3 +48,18 @@ describe('politicaChei', () => {
     expect(politicaChei({ alegereSchimbata: false })).toEqual({ chei: 'aceleasi', inlocuieste: false });
   });
 });
+
+describe('curseReturPotrivite peste miezul nopții (revizia 10.10)', () => {
+  const c = (id: number, d: string, t: string) => ({ sale_open: true, crm_route_id: id, trip_date: d, time: t });
+  it('turul 22:00 → 00:30: returul de 23:00 din aceeași zi nu se propune, cel de a doua zi după 00:30 da', () => {
+    const tur = { crm_route_id: 1, trip_date: '2026-10-14', time: '22:00', arrivalTime: '00:30' };
+    expect(curseReturPotrivite(tur, [c(2, '2026-10-14', '23:00'), c(2, '2026-10-15', '00:10'), c(2, '2026-10-15', '06:00')]).map((x) => x.time)).toEqual(['06:00']);
+  });
+  it('fără ora plecării, comportamentul vechi (aceeași zi)', () => {
+    expect(curseReturPotrivite({ crm_route_id: 1, trip_date: '2026-10-14', arrivalTime: '09:00' }, [c(2, '2026-10-14', '10:00')])).toHaveLength(1);
+  });
+  it('trecerea de lună: 31.10 → 01.11', () => {
+    const tur = { crm_route_id: 1, trip_date: '2026-10-31', time: '23:30', arrivalTime: '01:00' };
+    expect(curseReturPotrivite(tur, [c(2, '2026-11-01', '00:30'), c(2, '2026-11-01', '07:00')]).map((x) => x.time)).toEqual(['07:00']);
+  });
+});

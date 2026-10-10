@@ -114,6 +114,15 @@ export function clasificaScanare(bilet: BiletDeClasificat | null, cheieSofer: st
   return { rezultat: 'ok', urcat_de_altul: false };
 }
 
+/**
+ * UPDATE-ul scanării n-a prins biletul «valid» (559, N1): îl recitim. Anulat/returnat între timp (anularea a ținut
+ * lacătul pe bilete și a comis prima) → «anulat», nu «deja urcat»; altfel l-a urcat cineva înaintea noastră.
+ */
+export function reclasificaDupaScriere(re: { status: string; urcat_de: string | null } | null, soferId: string): Clasificare {
+  if (re && (re.status === 'anulat' || re.status === 'returnat')) return { rezultat: 'anulat' };
+  return { rezultat: 'deja_urcat', urcat_de_altul: re?.urcat_de !== soferId };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Validarea corpului POST /scan: lot de cel mult 50 de scanări; codul = 20 de caractere Crockford (fără I, L, O, U),
 // normalizat la majuscule; moment_client = ISO valid, nu din viitor (> 5 min) — altfel se ia ora serverului.

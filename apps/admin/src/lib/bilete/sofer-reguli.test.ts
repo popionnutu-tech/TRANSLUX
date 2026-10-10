@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alegeCurenta, cheieCursa, clasificaScanare, curseDinAtribuiri, hhmm, minute, numeCursei, parseazaCheie, parseazaInterval, parseazaScanari } from './sofer-reguli';
+import { alegeCurenta, cheieCursa, clasificaScanare, curseDinAtribuiri, hhmm, minute, numeCursei, parseazaCheie, parseazaInterval, parseazaScanari, reclasificaDupaScriere } from './sofer-reguli';
 
 describe('cheia cursei', () => {
   it('se construiește și se citește', () => {
@@ -158,5 +158,16 @@ describe('biletPermis — proba fizică (532), fail-closed', async () => {
     expect(biletPermis(true, undefined)).toBe(false);
     expect(biletPermis(false, { test: null, proba_fizica: false })).toBe(false);
     expect(biletPermis(false, {})).toBe(false);
+  });
+});
+
+describe('reclasificaDupaScriere — scanarea pierdută în fața anulării (559, N1)', () => {
+  it('biletul recitit «anulat»/«returnat» → «anulat», nu «deja urcat»', () => {
+    expect(reclasificaDupaScriere({ status: 'anulat', urcat_de: null }, 'S1')).toEqual({ rezultat: 'anulat' });
+    expect(reclasificaDupaScriere({ status: 'returnat', urcat_de: null }, 'S1')).toEqual({ rezultat: 'anulat' });
+  });
+  it('urcat de altul / de mine → «deja urcat» cu urcat_de_altul corect', () => {
+    expect(reclasificaDupaScriere({ status: 'urcat', urcat_de: 'S2' }, 'S1')).toEqual({ rezultat: 'deja_urcat', urcat_de_altul: true });
+    expect(reclasificaDupaScriere({ status: 'urcat', urcat_de: 'S1' }, 'S1')).toEqual({ rezultat: 'deja_urcat', urcat_de_altul: false });
   });
 });

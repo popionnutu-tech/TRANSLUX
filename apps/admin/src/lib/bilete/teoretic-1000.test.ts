@@ -941,13 +941,24 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(creeaza.text).toMatch(/ip_hash = coalesce\(v_ip, ''\) AND NOT in_pachet/);
     expect(creeaza.text).toMatch(/phone = v_phone AND status = 'noua' AND NOT in_pachet/);
   });
-  it('anularea (558, ultima definiție — copiată din 548): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
-    expect(anuleaza.fisier).toBe('558_bilete_refund_intentii.sql');
+  it('anularea (559, ultima definiție — copiată din 558/548): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
+    expect(anuleaza.fisier).toBe('559_bilete_anulare_blocheaza_biletele.sql');
     expect(anuleaza.text).toContain("IF c.in_pachet AND NOT (coalesce(p_vina_noastra, false) OR p_sursa = 'sistem') THEN RAISE EXCEPTION 'PACHET_DOAR_IMPREUNA'");
     expect(anuleaza.text).toContain('IF coalesce(p_si_returul, false) OR rt.in_pachet THEN');
     expect(anuleaza.text).toContain('v_suma := greatest(0, p_grila - rt.reducere_lei_loc * rt.seats);');
     expect(anuleaza.text).toContain('ELSIF NOT coalesce(p_vina_noastra, false) THEN');
     expect(anuleaza.text).toContain("IF p_grila > c.total THEN RAISE EXCEPTION 'GRILA_PESTE_TOTAL'");
+  });
+  it('N1 (559): anularea blochează biletele comenzii și ale returului ÎNAINTE de verificarea «urcat»; intenția în aceeași tranzacție (558)', () => {
+    const lacat = anuleaza.text.indexOf('PERFORM 1 FROM bilete WHERE comanda_id IN (c.id, rt.id) ORDER BY id FOR UPDATE;');
+    const retur = anuleaza.text.indexOf('SELECT * INTO rt FROM bilete_comenzi WHERE comanda_tur_id = c.id');
+    const urcat = anuleaza.text.indexOf("SELECT count(*) INTO n FROM bilete WHERE comanda_id = p_id AND status = 'urcat';");
+    const urcatRt = anuleaza.text.indexOf("SELECT EXISTS (SELECT 1 FROM bilete WHERE comanda_id = rt.id AND status = 'urcat')");
+    expect(retur).toBeGreaterThan(0);
+    expect(lacat).toBeGreaterThan(retur);
+    expect(urcat).toBeGreaterThan(lacat);
+    expect(urcatRt).toBeGreaterThan(lacat);
+    expect(anuleaza.text).toContain('bilete_refund_intentie_noua(');
   });
   it('plata pachetului (548): suma băncii = tur + retur din pachet; codul de retur NU se dă pe tur-retur (fără a doua reducere)', () => {
     expect(platita.fisier).toBe('548_bilete_tur_retur_o_plata.sql');

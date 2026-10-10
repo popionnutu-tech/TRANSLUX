@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { chisinauTimeOf } from '@/lib/chisinau-time';
 import { autentificaSofer } from '@/lib/bilete/sofer-auth';
 import { curseleSoferului } from '@/lib/bilete/sofer';
-import { COD_QR_RE, biletPermis, cheieCursa, clasificaScanare, parseazaCheie, parseazaScanari, type RezultatScanare } from '@/lib/bilete/sofer-reguli';
+import { COD_QR_RE, biletPermis, cheieCursa, clasificaScanare, parseazaCheie, parseazaScanari, reclasificaDupaScriere, type RezultatScanare } from '@/lib/bilete/sofer-reguli';
 
 // POST /api/bilete-sofer/scan — lotul de scanări al șoferului (ION-239, contractul ION-190 pașii 7–8; coada offline
 // trimite mai multe deodată). Corp: { cheie: «2026-10-05|7|false», scanari: [{cod, moment_client, offline}] }.
@@ -103,10 +103,12 @@ export async function POST(req: NextRequest) {
           if (gErr) console.error('[bilete-sofer/scan] grup:', gErr.message);
           urcateAcum = 1 + (grup?.length ?? 0);
         } else {
-          // Între citire și scriere l-a urcat altcineva (a doua mașină, SEC-7): prima scanare a câștigat.
+          // Între citire și scriere l-a urcat altcineva (a doua mașină, SEC-7) — prima scanare a câștigat — sau comanda a
+          // fost anulată: anularea blochează biletele înainte să verifice «urcat» (559, N1), deci UPDATE-ul de mai sus
+          // nu mai găsește biletul «valid» și răspunsul e «anulat», nu «deja urcat».
           const re = await citesteBilet(db, s.cod);
-          cls = { rezultat: 'deja_urcat', urcat_de_altul: re?.urcat_de !== auth.sofer.id };
-          urcatAt = re?.urcat_at ?? null;
+          cls = reclasificaDupaScriere(re, auth.sofer.id);
+          urcatAt = cls.rezultat === 'anulat' ? null : re?.urcat_at ?? null;
         }
       }
 

@@ -2,7 +2,6 @@
 
 import { createHash } from 'crypto';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { comandaBilet, configBilete, locuriCursa, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
 import { emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, urlPlataSigur } from '@/lib/bilete-reguli';
 import { mesajLocOcupat, parseazaLocuriAlese, type LocuriCursa } from '@/lib/locuri';
@@ -18,6 +17,12 @@ export interface StareComanda {
   nr?: number;
   /** 550: codul erorii panoului (politica cheilor tur-retur: «idempotenta», «maib», «in_lucru», …). */
   cod?: string;
+  /**
+   * Pagina de plată maib: formularul o deschide din browser (window.location.assign). Nu `redirect()` din acțiune:
+   * Ion, 10.10.2026 — «la achitare am apăsat înapoi și îmi dă eroare» (Safari readucea pagina cu acțiunea redirecționată
+   * pe jumătate, iar Next arăta «A apărut o eroare»).
+   */
+  url?: string;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -143,7 +148,7 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     console.error("[bilete] checkoutUrl neașteptat de la panou");
     return eroare(mesajEroareComanda("necunoscut", 500, locale));
   }
-  redirect(r.checkoutUrl); // aruncă NEXT_REDIRECT — rămâne în afara oricărui try/catch
+  return { url: r.checkoutUrl, nr };
 }
 
 /**

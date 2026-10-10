@@ -119,6 +119,13 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const [consent, setConsent] = React.useState(false);
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
   const [stare, action] = useActionState<StareComanda, FormData>(cumparaBilet, {});
+  // Spre banca maib din browser (nu redirect din acțiune): «Înapoi» de pe pagina băncii nu mai strică pagina.
+  React.useEffect(() => { if (stare.url) window.location.assign(stare.url); }, [stare.url, stare.nr]);
+  React.useEffect(() => {
+    const laIntoarcere = (e: PageTransitionEvent) => { if (e.persisted) window.location.reload(); };
+    window.addEventListener("pageshow", laIntoarcere);
+    return () => window.removeEventListener("pageshow", laIntoarcere);
+  }, []);
   const [tgInitData, setTgInitData] = React.useState("");
   React.useEffect(() => { setTgInitData(citesteInitData()); }, []);
 
@@ -421,7 +428,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats + (retur ? retur.pret * seats : 0)} lei</span>
           </div>
           {retur && <div style={{ fontSize: 13, color: "#2b6b3a", fontWeight: 700 }}>{locale === "ru" ? `Туда ${pretLoc * seats} + обратно ${retur.pret * seats} лей (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time}) — одна оплата` : `Tur ${pretLoc * seats} + retur ${retur.pret * seats} lei (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time}) — o singură plată`}</div>}
-          <Trimite locale={locale} lei={pretLoc * seats + (retur ? retur.pret * seats : 0)} blocat={locuriIncomplete || locuriReturIncomplete || reducere.blocheazaPlata} />
+          <Trimite locale={locale} lei={pretLoc * seats + (retur ? retur.pret * seats : 0)} blocat={locuriIncomplete || locuriReturIncomplete || reducere.blocheazaPlata || Boolean(stare.url)} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8A7A7D" }}>{tx.note}</span>
             {!doiPasi && <button type="button" onClick={onCancel} style={{ minHeight: 44, padding: "0 6px", border: "none", background: "none", color: "#6B5B5F", fontSize: 14, cursor: "pointer" }}>{tx.cancel}</button>}

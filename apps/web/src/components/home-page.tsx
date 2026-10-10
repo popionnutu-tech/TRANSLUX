@@ -107,6 +107,11 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const [salvata, setSalvata] = useState<CumparareSalvata | null>(null);
   const [reluare, setReluare] = useState<CumparareSalvata | null>(null);
   useEffect(() => {
+    const laIntoarcere = (e: PageTransitionEvent) => { if (e.persisted) window.location.reload(); };
+    window.addEventListener('pageshow', laIntoarcere);
+    return () => window.removeEventListener('pageshow', laIntoarcere);
+  }, []);
+  useEffect(() => {
     const c = citesteCumpararea();
     setSalvata(c);
     if (c && new URLSearchParams(window.location.search).get('reia') === '1') {

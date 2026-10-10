@@ -191,12 +191,19 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
     if (trimisCu && alegere && trimisCu !== alegere && politicaChei({ alegereSchimbata: true }).chei === "noi") roteste();
   }, [alegere, trimisCu, roteste]);
   const [stare, action] = useActionState<StareComanda, FormData>(cumparaBilet, {});
+  // Spre banca maib din browser (nu redirect din acțiune): «Înapoi» de pe pagina băncii nu mai strică pagina.
+  React.useEffect(() => { if (stare.url) window.location.assign(stare.url); }, [stare.url, stare.nr]);
+  React.useEffect(() => {
+    const laIntoarcere = (e: PageTransitionEvent) => { if (e.persisted) window.location.reload(); };
+    window.addEventListener("pageshow", laIntoarcere);
+    return () => window.removeEventListener("pageshow", laIntoarcere);
+  }, []);
   React.useEffect(() => {
     if (stare.nr && politicaChei({ alegereSchimbata: false, codEroare: stare.cod ?? null }).chei === "noi") roteste();
   }, [stare.nr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
-  const blocat = lipsaTur > 0 || lipsaRetur > 0 || !rezumat || rezumat.pretRetur == null;
+  const blocat = lipsaTur > 0 || lipsaRetur > 0 || !rezumat || rezumat.pretRetur == null || Boolean(stare.url);
   const motiv = lipsaTur > 0 ? { t: tx.mai(lipsaTur, tx.tur), du: () => setLocTurGata(false) } : lipsaRetur > 0 ? { t: tx.mai(lipsaRetur, tx.retur), du: () => setLocReturGata(false) } : null;
 
   // Antet modern, un singur bloc (Ion, 10.10: «foarte arhaic»): sus sensul pasului, dedesubt ziua și pasagerii, apoi o

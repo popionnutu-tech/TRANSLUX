@@ -92,7 +92,7 @@ export interface ComandaBiletInput {
   /** 548: returul din tur-retur, plătit în aceeași sesiune cu turul. */
   retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string; locuriAlese?: number[] | null } | null;
   /** 550: cheia turului din încercarea de dinainte a acestui browser (alegerea s-a schimbat). */
-  inlocuieste?: string | null;
+  inlocuieste?: string[] | null;
 }
 
 export type RaspunsComanda =

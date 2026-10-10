@@ -113,7 +113,7 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     punctUrcareId,
     // ION-249: din mini app-ul Telegram vine initData-ul contului (câmp ascuns); panoul îl verifică — aici doar se trimite.
     telegramInitData: String(fd.get('tgInitData') ?? '').slice(0, 4096) || null,
-    inlocuieste: UUID_RE.test(String(fd.get('inlocuieste') ?? '')) ? String(fd.get('inlocuieste')) : null,
+    inlocuieste: fd.getAll('inlocuieste').map(String).filter((k) => UUID_RE.test(k)).slice(0, 4),
     locuriAlese: locuri.locuri,
     // 546: promoțiile Bălți ⇄ Chișinău — panoul le verifică și recalculează prețul; aici doar formatul.
     codRetur: /^[0-9a-f]{64}$/.test(String(fd.get('codRetur') ?? '')) ? String(fd.get('codRetur')) : null,

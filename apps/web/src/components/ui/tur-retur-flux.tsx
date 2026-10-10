@@ -159,11 +159,14 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   // Politica cheilor (Codex r2 C4, Claude r3 S1): orice schimbare după o trimitere → chei noi + înlocuirea încercării vechi.
   const [cheieTur, setCheieTur] = React.useState(uuid);
   const [cheieRetur, setCheieRetur] = React.useState(uuid);
-  const [inlocuieste, setInlocuieste] = React.useState<string | null>(null);
+  // Toate cheile de tur trimise înainte (cel mult 4): serverul le încearcă pe toate (audit #1).
+  const [cheiVechi, setCheiVechi] = React.useState<string[]>([]);
   const [trimisCu, setTrimisCu] = React.useState<string | null>(null);
-  const alegere = tur && retur ? `${tur.crm_route_id}|${tur.trip_date}|${tur.time}|${retur.crm_route_id}|${retur.trip_date}|${retur.time}|${pasageri}` : "";
+  // Alegerea completă, cu locurile și punctul de urcare (audit #3): orice schimbare după o trimitere → chei noi.
+  const alegere = tur && retur ? [tur.crm_route_id, tur.trip_date, tur.time, retur.crm_route_id, retur.trip_date, retur.time, pasageri,
+    [...aleseTur].sort((a, b) => a - b).join(','), [...aleseRetur].sort((a, b) => a - b).join(','), punct ?? ''].join('|') : "";
   const roteste = React.useCallback(() => {
-    setInlocuieste(cheieTur); setCheieTur(uuid()); setCheieRetur(uuid()); setTrimisCu(null);
+    setCheiVechi((v) => [...v.filter((k) => k !== cheieTur), cheieTur].slice(-4)); setCheieTur(uuid()); setCheieRetur(uuid()); setTrimisCu(null);
   }, [cheieTur]);
   React.useEffect(() => {
     if (trimisCu && alegere && trimisCu !== alegere && politicaChei({ alegereSchimbata: true }).chei === "noi") roteste();
@@ -261,7 +264,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
               <input type="hidden" name="returToRo" value={fromRo} />
               <input type="hidden" name="returKey" value={cheieRetur} />
               {hartaRetur?.stare === "ok" && <input type="hidden" name="returLocuri" value={JSON.stringify(aleseRetur)} />}
-              {inlocuieste && <input type="hidden" name="inlocuieste" value={inlocuieste} />}
+              {cheiVechi.map((k) => <input key={k} type="hidden" name="inlocuieste" value={k} />)}
               {tgInitData && <input type="hidden" name="tgInitData" value={tgInitData} />}
               <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="trf-capcana" />
 

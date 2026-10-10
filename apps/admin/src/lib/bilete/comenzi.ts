@@ -359,7 +359,17 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   const locuriAlese = valideazaLocuriAlese(input.locuriAlese, input.seats, input.goingNorth);
   const db = getSupabase();
   // Toate cheile vechi ale browserului (cel mult 4): una pe care serverul n-a văzut-o întoarce «nimic» (audit #1).
-  for (const k of (input.inlocuieste ?? []).slice(0, 4)) await inlocuiesteIncercarea(k, input);
+  for (const k of (input.inlocuieste ?? []).slice(0, 4)) {
+    try { await inlocuiesteIncercarea(k, input); } catch (e) {
+      // «Reia plata» după «Înapoi» de pe pagina băncii (Ion, 10.10.2026): sesiunea veche e încă deschisă la maib. Dacă
+      // alegerea e aceeași (cursă, locuri, telefon, retur), omul e trimis înapoi pe ACEEAȘI pagină a băncii — nicio a
+      // doua plată posibilă. Altă alegere → mesajul de până acum («plata de dinainte e încă deschisă»).
+      if (!(e instanceof ComandaError) || e.message !== MESAJ_LA_BANCA) throw e;
+      const aceeasi = await sesiuneaAceleiasiAlegeri(k, input, v.phone);
+      if (!aceeasi) throw e;
+      return await asiguraSesiunea(aceeasi, opt);
+    }
+  }
 
   // 1. Reluare? Comanda există deja pentru cheia asta → nu re-validăm vânzarea, îi dăm sesiunea ei.
   const { data: existenta, error: eErr } = await db.from('bilete_comenzi').select('*').eq('idempotency_key', input.idempotencyKey).maybeSingle();
@@ -453,6 +463,23 @@ async function inlocuiesteIncercarea(cheie: string, input: ComandaInput): Promis
   if (r === 'la_banca') throw new ComandaError('in_lucru', MESAJ_LA_BANCA);
 }
 const MESAJ_LA_BANCA = 'plata de dinainte e încă deschisă la bancă; încearcă din nou peste câteva minute';
+
+/** Comanda veche (cheia dată spre înlocuire), cu sesiune maib, dacă e exact aceeași alegere ca cererea de acum. */
+async function sesiuneaAceleiasiAlegeri(cheie: string, input: ComandaInput, phone: string): Promise<BileteComanda | null> {
+  const db = getSupabase();
+  const { data } = await db.from('bilete_comenzi').select('*').eq('idempotency_key', cheie).maybeSingle();
+  const c = data as BileteComanda | null;
+  if (!c || !c.checkout_id || !DESCHISE.has(c.status)) return null;
+  if (cheileComenzii(c) !== cheileComenzii({ trip_date: input.tripDate, crm_route_id: input.crmRouteId, going_north: input.goingNorth, seats: input.seats, phone })) return null;
+  const locuri = (x: readonly number[] | null | undefined) => [...(x ?? [])].sort((a, b) => a - b).join(',');
+  if (locuri((c as BileteComanda & { locuri_alese?: number[] | null }).locuri_alese) !== locuri(input.locuriAlese)) return null;
+  const { data: rt } = await db.from('bilete_comenzi').select('trip_date, crm_route_id, going_north')
+    .eq('comanda_tur_id', c.id).eq('in_pachet', true).in('status', [...DESCHISE]).maybeSingle();
+  const r = input.retur;
+  if (Boolean(rt) !== Boolean(r)) return null;
+  if (rt && r && (rt.trip_date !== r.tripDate || rt.crm_route_id !== Number(r.crmRouteId) || rt.going_north !== (r.goingNorth === true))) return null;
+  return c;
+}
 
 /**
  * Returul din pachet (548): aceeași persoană, aceleași locuri, plătit în sesiunea turului. Nu se cumulează cu studentul

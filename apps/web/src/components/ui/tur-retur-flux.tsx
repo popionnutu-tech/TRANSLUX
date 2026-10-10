@@ -448,7 +448,11 @@ const CSS = `
 .trf-cap .trf-rotund{background:rgba(255,255,255,.16);color:#fff}
 .trf-cap .trf-eticheta{background:#fff;color:${RED}}
 .trf-cap .trf-eticheta.ret{background:#fff;color:#9C5E10}
-.trf-cap .trf-ruta{font-size:clamp(18px,5.2vw,22px)}
+/* Ion, 10.10 (captura RU «Бельцы → Ки…»): «nu se vede Bălți–Chișinău, trebuie mare dar să se vadă» — eticheta urcă
+   deasupra, ruta are tot rândul și se rupe pe două rânduri în loc să fie tăiată. */
+.trf-cap .trf-sus{flex-direction:column;align-items:flex-start;gap:4px}
+.trf-cap .trf-eticheta{font-size:10.5px;padding:2px 8px}
+.trf-cap .trf-ruta{font-size:clamp(20px,6vw,24px);line-height:1.15;white-space:normal;overflow:visible;text-overflow:clip;text-wrap:balance}
 .trf-cap .trf-sub{color:rgba(255,255,255,.86)}
 .trf-cap .trf-progres{border-bottom:none;padding-bottom:12px}
 .trf-cap .trf-progres span{background:rgba(255,255,255,.28)}

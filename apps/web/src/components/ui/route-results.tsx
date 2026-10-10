@@ -19,9 +19,11 @@ interface RouteResultsProps {
   onClose: () => void;
   /** ION-249: în mini app-ul Telegram, numele și telefonul din ultima comandă a contului precompletează formularul. */
   contact?: ContactPrecompletat | null;
+  /** Tur-retur ales din bara de căutare: ziua întoarcerii (YYYY-MM-DD); formularul pornește cu returul bifat. */
+  dataRetur?: string | null;
 }
 
-export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null }: RouteResultsProps) {
+export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null, dataRetur = null }: RouteResultsProps) {
   const [cumpara, setCumpara] = React.useState<number | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
@@ -151,7 +153,7 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
         <div style={{ position: "relative" }}>
         <div ref={scrollRef} className="route-results-scroll" style={{ overflowY: "auto", background: "#FAF6F5", padding: ales ? 0 : "16px 14px 20px" }}>
           {ales && fromRo && toRo ? (
-            <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} />
+            <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact} dataRetur={dataRetur} />
           ) : (
             <>
               {trips.length === 0 && (

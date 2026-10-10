@@ -91,8 +91,8 @@ function campuriInitiale(contact: ContactPrecompletat | null) {
   return { lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" };
 }
 
-export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null }: {
-  trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null;
+export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null, dataRetur = null }: {
+  trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null; dataRetur?: string | null;
 }) {
   const tx = TXT[locale];
   const [key] = React.useState(uuid);
@@ -272,7 +272,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         <label style={lbl}>{tx.email}
           <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="nume@exemplu.md" value={camp.email} onChange={scrie("email")} style={inp} />
         </label>
-        {arePromo && <AdaugaRetur trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} pct={20} zile={30} onChange={setRetur} />}
+        {arePromo && <AdaugaRetur trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} pct={20} zile={30} onChange={setRetur} ziInitiala={dataRetur} />}
         {arePromo && <PromoReduceri locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
         <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
           {tx.retur}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: "#1b6f9a", fontWeight: 600 }}>{tx.grila}</a>

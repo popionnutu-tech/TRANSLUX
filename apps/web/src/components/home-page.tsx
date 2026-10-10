@@ -42,6 +42,7 @@ import { type Locale, t } from '@/lib/i18n';
 import { homePath, slugify } from '@/lib/seo-paths';
 import type { HomeOptions, HomePopular } from '@/lib/home-props';
 import { searchTrips, type TripResult } from '@/app/(public)/actions';
+import { perechePromo } from '@translux/db';
 import type { ContactPrecompletat } from '@/lib/telegram-client';
 
 interface HomePageProps {
@@ -84,6 +85,13 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const [assistantOpen, setAssistantOpen] = useState(false);
   // Notificarea cookie: montată doar la prima vizită sau din «Setări cookie».
   const [cookie, setCookie] = useState<null | 'auto' | 'settings'>(null);
+  // Tur-retur din bara de căutare (Ion, 10.10.2026: «am nevoie să fie în bara de căutare returul»): doar pe Bălți ⇄
+  // Chișinău (promoția −20% la retur). Calendarul cere întâi ziua turului, apoi ziua întoarcerii (≤ 30 de zile).
+  const [esteBalti, setEsteBalti] = useState(false);
+  const [cuRetur, setCuRetur] = useState(false);
+  const [pasCal, setPasCal] = useState<'tur' | 'retur'>('tur');
+  const [ziTur, setZiTur] = useState<Date | null>(null);
+  const [dataRetur, setDataRetur] = useState<string | null>(null);
   const fromRef = useRef<HTMLSelectElement>(null);
   const toRef = useRef<HTMLSelectElement>(null);
   const calRef = useRef<HTMLDivElement>(null);
@@ -143,7 +151,19 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   };
 
   const openLater = () => {
-    if (direction()) setCalendarOpen(!calendarOpen);
+    if (direction()) { setPasCal('tur'); setCalendarOpen(!calendarOpen); }
+  };
+  const verificaPerechea = () => setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
+  /** Ziua aleasă în calendar: turul; cu «Tur-retur», a doua alegere e ziua întoarcerii, apoi pornește căutarea. */
+  const alegeZi = (d: Date) => {
+    if (cuRetur && esteBalti && pasCal === 'tur') { setSelectedDate(d); setZiTur(d); setPasCal('retur'); return; }
+    if (cuRetur && esteBalti && pasCal === 'retur' && ziTur) {
+      const max = new Date(ziTur); max.setDate(max.getDate() + 30);
+      const r = d < ziTur ? ziTur : d > max ? max : d;
+      setDataRetur(ymd(r)); setCalendarOpen(false); setPasCal('tur'); runSearch(ziTur);
+      return;
+    }
+    setDataRetur(null); setSelectedDate(d); setCalendarOpen(false); runSearch(d);
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -182,6 +202,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
     };
     pick(fromRef, q.get('dela'));
     pick(toRef, q.get('spre'));
+    setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
   }, []);
 
   const optgroups = (
@@ -277,7 +298,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none', zIndex: 1, color: '#9B1B30', opacity: 0.5 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                 </span>
-                <select ref={fromRef} name="dela" required className="hero-select" style={{
+                <select ref={fromRef} name="dela" required onChange={verificaPerechea} className="hero-select" style={{
                   width: '100%', height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
                   padding: '0 16px 0 34px', fontSize: 15, background: 'rgba(255,255,255,0.85)',
                   outline: 'none', fontStyle: 'italic', appearance: 'none',
@@ -301,6 +322,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   toRef.current.value = tmp;
                 }
                 setSwapTurns((n) => n + 1);
+                verificaPerechea();
               }}>
                 {/* Pe telefon .hero-swap-ico e rotit 90° (câmpurile stau unul sub altul). */}
                 <span className="hero-swap-ico" style={{ display: 'flex' }}>
@@ -317,7 +339,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none', zIndex: 1, color: '#9B1B30', opacity: 0.5 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                 </span>
-                <select ref={toRef} name="spre" required className="hero-select" style={{
+                <select ref={toRef} name="spre" required onChange={verificaPerechea} className="hero-select" style={{
                   width: '100%', height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
                   padding: '0 16px 0 34px', fontSize: 15, background: 'rgba(255,255,255,0.85)',
                   outline: 'none', fontStyle: 'italic', appearance: 'none',
@@ -353,6 +375,12 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 </button>
               </div>
             </form>
+            {esteBalti && (
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, fontSize: 14, fontWeight: 700, color: '#9B1B30', cursor: 'pointer', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
+                <input type="checkbox" checked={cuRetur} onChange={(e) => { setCuRetur(e.target.checked); setDataRetur(null); }} style={{ accentColor: '#9B1B30', width: 20, height: 20, margin: 0 }} />
+                {locale === 'ru' ? 'Туда и обратно — обратный −20%' : 'Tur-retur — returul −20%'}
+              </label>
+            )}
           </div>
 
           {/* Popular routes card — nu în mini app-ul Telegram (Ion: «doar motorul de căutare, nimic altul») */}
@@ -392,18 +420,18 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                       fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
                     }}>
                       {routeName}
-                      {/* Ion, 10.10.2026: «sub Bălți–Chișinău 150 lei scrii la cumpărare online din 13.10, font mic». */}
-                      {href?.endsWith('/chisinau-balti') && (
-                        <span style={{ display: 'block', fontSize: 9, fontWeight: 400, textTransform: 'none', letterSpacing: 0.2, color: '#9B1B30', marginTop: 2 }}>
-                          {locale === 'ru' ? 'онлайн-покупка с 13.10' : 'cumpărare online din 13.10'}
-                        </span>
-                      )}
                     </span>
                     <span style={{
                       fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap',
                       fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
                     }}>
                       {r.price} LEI
+                      {/* Ion, 10.10.2026: «sub prețul 150 la Bălți trebuie să fie indicat — la cumpărare online», font mic. */}
+                      {href?.endsWith('/chisinau-balti') && (
+                        <span style={{ display: 'block', fontSize: 9, fontWeight: 400, letterSpacing: 0.2, textAlign: 'right', marginTop: 2 }}>
+                          {locale === 'ru' ? 'при покупке онлайн' : 'la cumpărare online'}
+                        </span>
+                      )}
                     </span>
                   </Row>
                 );
@@ -507,6 +535,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           locale={locale}
           onClose={() => setShowResults(false)}
           contact={telegram?.contact ?? null}
+          dataRetur={cuRetur && esteBalti ? dataRetur : null}
         />
       )}
 
@@ -517,7 +546,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
         <div className="later-overlay" onClick={() => setCalendarOpen(false)}>
           <div className="later-box" role="dialog" aria-modal="true" aria-label={i.when} onClick={(e) => e.stopPropagation()}>
             <div className="later-head">
-              <span>{i.when}</span>
+              <span>{pasCal === 'retur' ? (locale === 'ru' ? 'Когда возвращаетесь?' : 'Când te întorci?') : i.when}</span>
               <button type="button" className="later-close" aria-label="✕" onClick={() => setCalendarOpen(false)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
@@ -525,15 +554,15 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             <div className="later-quick">
               {[i.today, i.tomorrow, i.afterTomorrow].map((label, k) => (
                 <button key={label} type="button" onClick={() => {
-                  const d = new Date(); d.setDate(d.getDate() + k);
-                  setSelectedDate(d); setCalendarOpen(false); runSearch(d);
+                  const d = new Date(pasCal === 'retur' && ziTur ? ziTur : new Date()); d.setDate(d.getDate() + k);
+                  alegeZi(d);
                 }}>{label}</button>
               ))}
             </div>
             <MiniCalendar
               value={selectedDate}
               locale={locale}
-              onChange={(d) => { setSelectedDate(d); setCalendarOpen(false); runSearch(d); }}
+              onChange={(d) => alegeZi(d)}
             />
           </div>
           <style>{`

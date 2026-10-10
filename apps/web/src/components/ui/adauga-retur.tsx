@@ -23,10 +23,12 @@ function plusZile(iso: string, n: number): string {
   const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
 }
 
-export function AdaugaRetur(p: { trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; pct: number; zile: number; onChange: (r: ReturAles | null) => void }) {
+export function AdaugaRetur(p: { trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; pct: number; zile: number; onChange: (r: ReturAles | null) => void; ziInitiala?: string | null }) {
   const tx = TXT[p.locale];
-  const [activ, setActiv] = React.useState(false);
-  const [zi, setZi] = React.useState(p.trip.trip_date);
+  // Tur-retur ales din bara de căutare → returul pornește bifat, pe ziua aleasă acolo (în fereastra de 30 de zile).
+  const zi0 = p.ziInitiala && p.ziInitiala >= p.trip.trip_date && p.ziInitiala <= plusZile(p.trip.trip_date, p.zile) ? p.ziInitiala : p.trip.trip_date;
+  const [activ, setActiv] = React.useState(Boolean(p.ziInitiala));
+  const [zi, setZi] = React.useState(zi0);
   const [curse, setCurse] = React.useState<TripResult[] | null>(null);
   const [ales, setAles] = React.useState<string | null>(null);
   const { onChange } = p;

@@ -22,9 +22,42 @@ interface RouteResultsProps {
   contact?: ContactPrecompletat | null;
   /** Plată eșuată reluată: formularul cursei se deschide direct, la plată. */
   reluare?: CumparareSalvata | null;
+  /** Ziua căutată (YYYY-MM-DD); fără ea — ziua primei curse. */
+  zi?: string | null;
+  /** Antetul B2 (Ion, 11.10.2026): banda cu ziua dinainte / ziua aleasă / ziua de după caută din nou. */
+  onZi?: (zi: string) => void;
+  /** ⇄ în antet: același drum invers, aceeași zi. */
+  onInverseaza?: () => void;
+  /** Creionul: înapoi la formularul de căutare. */
+  onEditeaza?: () => void;
+  /** Căutarea pentru altă zi / alt sens e în curs — lista se estompează. */
+  seIncarca?: boolean;
 }
 
-export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null, reluare = null }: RouteResultsProps) {
+const ZILE_SCURTE = { ro: ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"], ru: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"] };
+const LUNI_SCURTE = {
+  ro: ["ian", "feb", "mar", "apr", "mai", "iun", "iul", "aug", "sept", "oct", "nov", "dec"],
+  ru: ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"],
+};
+
+function plusZile(zi: string, n: number): string {
+  const d = new Date(`${zi}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** «Mar 13 oct» — formatul datei de la FlixBus (Ion, 11.10.2026). */
+function ziScurta(zi: string, locale: "ro" | "ru"): string {
+  const d = new Date(`${zi}T12:00:00Z`);
+  return `${ZILE_SCURTE[locale][d.getUTCDay()]} ${d.getUTCDate()} ${LUNI_SCURTE[locale][d.getUTCMonth()]}`;
+}
+
+function azi(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose, contact = null, reluare = null, zi = null, onZi, onInverseaza, onEditeaza, seIncarca = false }: RouteResultsProps) {
   const [cumpara, setCumpara] = React.useState<number | null>(reluare ? 0 : null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
@@ -58,11 +91,12 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
 
   // Data cursei în antet (ION-238): omul vede ziua înainte să plătească.
   const dataCursei = React.useMemo(() => {
-    const d = trips[0]?.trip_date;
+    const d = zi ?? trips[0]?.trip_date;
     if (!d) return null;
     const t = new Date(`${d}T12:00:00Z`);
     return t.toLocaleDateString(locale === "ru" ? "ru-RU" : "ro-RO", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
-  }, [trips, locale]);
+  }, [zi, trips, locale]);
+  const ziua = zi ?? trips[0]?.trip_date ?? null;
 
   // Semnul «mai sunt curse dedesubt» (Ion, 09.10.2026: «să fie un semn de scroll în jos pentru mai multe, și rutele de
   // mai jos lângă scroll să fie mai transparente, și desktop și mobile»): val care decolorează jos + butonul «↓».
@@ -90,8 +124,10 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
   const preturi = [...new Set(trips.filter((t) => t.price > 0).map((t) => t.price))];
   const ales = cumpara !== null ? trips[cumpara] : null;
   const tx = locale === "ru"
-    ? { curse: (n: number) => `${n} рейсов`, niciuna: "Рейсы не найдены", fara: "Нет прямых рейсов между этими пунктами", bilet: "Онлайн-билет", inapoi: "Назад к рейсам", maiMulte: "Ещё рейсы ниже" }
-    : { curse: (n: number) => `${n} curse`, niciuna: "Nu s-au găsit curse", fara: "Nu există curse directe între aceste puncte", bilet: "Bilet online", inapoi: "Înapoi la curse", maiMulte: "Mai multe curse mai jos" };
+    ? { curse: (n: number) => `${n} рейсов`, niciuna: "Рейсы не найдены", fara: "Нет прямых рейсов между этими пунктами", bilet: "Онлайн-билет", inapoi: "Назад к рейсам", maiMulte: "Ещё рейсы ниже", inchide: "Закрыть", invers: "Обратное направление", editeaza: "Изменить поиск", zile: "Выбор дня" }
+    : { curse: (n: number) => `${n} curse`, niciuna: "Nu s-au găsit curse", fara: "Nu există curse directe între aceste puncte", bilet: "Bilet online", inapoi: "Înapoi la curse", maiMulte: "Mai multe curse mai jos", inchide: "Închide", invers: "Sensul invers", editeaza: "Schimbă căutarea", zile: "Alege ziua" };
+  // Banda zilelor: ziua dinainte (doar dacă nu e în trecut), ziua aleasă, ziua de după.
+  const zileBanda = ziua && onZi && !ales ? [plusZile(ziua, -1), ziua, plusZile(ziua, 1)] : null;
 
   return (
     <div
@@ -103,10 +139,21 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
       aria-modal="true"
     >
       <style>{`
-        .route-results-scroll { max-height: 72vh; }
+        .route-results-scroll { max-height: 64vh; }
+        .route-results-scroll.cumpara { max-height: 72vh; }
+        .rr-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,0.16); color: #fff; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; padding: 0; }
+        .rr-btn:focus-visible, .rr-zi:focus-visible, .rr-inv:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        .rr-inv { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.55); background: transparent; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; padding: 0; transition: transform .2s ease; }
+        .rr-inv:active { transform: rotate(180deg); }
+        .rr-loc { font-size: 21px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rr-zi { white-space: nowrap; font-family: inherit; font-size: 16px; font-weight: 500; color: #fff; background: transparent; border: 2px solid transparent; border-radius: 999px; padding: 6px 14px; cursor: pointer; opacity: .85; min-height: 40px; }
+        .rr-zi.ales { font-weight: 700; border-color: #fff; opacity: 1; cursor: default; }
         @media (max-width: 768px) {
-          .route-results-scroll { max-height: 80vh; max-height: calc(100dvh - 92px); }
-          .route-antet.cumpara { padding: 8px 12px !important; gap: 10px !important; }
+          .route-results-scroll { max-height: calc(100dvh - 210px); }
+          .route-results-scroll.cumpara { max-height: calc(100dvh - 112px); }
+          .rr-loc { font-size: 18px; }
+          .rr-zi { font-size: 15px; padding: 6px 10px; }
+          .route-antet.cumpara { padding: 8px 12px 28px !important; }
           .route-antet.cumpara button { width: 38px !important; height: 38px !important; }
           .route-antet.cumpara .titlu { font-size: 17px !important; }
           .route-antet.cumpara .sub { font-size: 13px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -119,7 +166,7 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
         @media (max-width: 420px) { .bilete-grid { grid-template-columns: 1fr; gap: 12px; } }
         @keyframes saltaJos { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 4px); } }
         .mai-jos { animation: saltaJos 1.6s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .route-modal-backdrop, .route-modal-content, .mai-jos { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .route-modal-backdrop, .route-modal-content, .mai-jos { animation: none; } .rr-inv { transition: none; } }
       `}</style>
       <div
         className="route-modal-backdrop"
@@ -129,36 +176,73 @@ export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selected
       <div className="route-modal-content" style={{
         position: "relative", zIndex: 1,
         width: ales ? "min(94vw, 900px)" : "min(94vw, 900px)",
-        borderRadius: 22, overflow: "hidden", background: "#fff",
+        borderRadius: 22, overflow: "hidden", background: "#9B1B30",
         boxShadow: "0 24px 60px rgba(60,20,30,0.16), 0 2px 8px rgba(0,0,0,0.05)",
-        fontFamily: "var(--font-opensans), Open Sans, sans-serif", color: "#231A1C",
+        fontFamily: "var(--font-main), Roboto, sans-serif", color: "#231A1C",
       }}>
-        {/* Antetul: ruta, ziua, câte curse și prețul; la cumpărare — «Bilet online» cu întoarcerea la listă. */}
-        <div className={`route-antet${ales ? " cumpara" : ""}`} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #EFE4E6" }}>
-          {ales && (
-            <button type="button" onClick={() => setCumpara(null)} aria-label={tx.inapoi}
-              style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "#F4EEEF", color: "#6B5B5F", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>&larr;</button>
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="titlu" style={{ fontSize: ales ? 19 : 21, fontWeight: 800, lineHeight: 1.2 }}>
-              {ales ? tx.bilet : <>{from} <span style={{ color: "#9B1B30" }}>&rarr;</span> {to}</>}
-            </div>
-            <div className="sub" style={{ fontSize: 14, color: "#6B5B5F", marginTop: 2 }}>
-              {ales ? <>{from} &rarr; {to}{dataCursei ? ` · ${dataCursei}` : ""}</> : (
+        {/* Antetul B2 (Ion, 11.10.2026: «aplică B»; ca la easyBus/FlixBus): bandă vișinie cu ruta și ⇄, ziua dinainte / ziua
+            aleasă / ziua de după în formatul «Mar 13 oct», lista urcă pe sub o foaie albă rotunjită. La cumpărare — «Bilet online»
+            cu întoarcerea la listă. */}
+        <div className={`route-antet${ales ? " cumpara" : ""}`} style={{ background: "#9B1B30", color: "#fff", padding: "12px 16px 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {ales ? (
+              <button type="button" className="rr-btn" onClick={() => setCumpara(null)} aria-label={tx.inapoi} style={{ fontSize: 20 }}>&larr;</button>
+            ) : (
+              <button type="button" className="rr-btn" onClick={onClose} aria-label={tx.inchide} style={{ fontSize: 22 }}>&times;</button>
+            )}
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              {ales ? (
+                <span className="rr-loc titlu">{tx.bilet}</span>
+              ) : (
                 <>
-                  {dataCursei && <span>{dataCursei}</span>}
-                  <span>{dataCursei ? " · " : ""}{trips.length > 0 ? tx.curse(trips.length) : tx.niciuna}</span>
-                  {preturi.length === 1 && <span> · {preturi[0]} lei</span>}
+                  <span className="rr-loc titlu">{from}</span>
+                  {onInverseaza ? (
+                    <button type="button" className="rr-inv" onClick={onInverseaza} disabled={seIncarca} aria-label={tx.invers} title={tx.invers}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h15l-4-4M20 16H5l4 4" /></svg>
+                    </button>
+                  ) : (
+                    <span aria-hidden="true" style={{ fontSize: 20 }}>&rarr;</span>
+                  )}
+                  <span className="rr-loc">{to}</span>
                 </>
               )}
             </div>
+            {ales ? (
+              <button type="button" className="rr-btn" onClick={onClose} aria-label={tx.inchide} style={{ fontSize: 22 }}>&times;</button>
+            ) : onEditeaza ? (
+              <button type="button" className="rr-btn" onClick={onEditeaza} aria-label={tx.editeaza} title={tx.editeaza}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              </button>
+            ) : (
+              <span style={{ width: 40, flexShrink: 0 }} />
+            )}
           </div>
-          <button onClick={onClose} aria-label="Close"
-            style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "#F4EEEF", color: "#6B5B5F", fontSize: 20, cursor: "pointer", flexShrink: 0 }}>&times;</button>
+          {zileBanda && onZi && (
+            <div role="group" aria-label={tx.zile} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 4, marginTop: 12 }}>
+              {zileBanda.map((z, k) => (
+                <div key={z} style={{ display: "flex", justifyContent: k === 0 ? "flex-start" : k === 2 ? "flex-end" : "center" }}>
+                  {k === 0 && z < azi() ? null : (
+                    <button type="button" className={`rr-zi${k === 1 ? " ales" : ""}`} aria-current={k === 1 ? "date" : undefined}
+                      disabled={seIncarca && k !== 1} onClick={k === 1 ? undefined : () => onZi(z)}>{ziScurta(z, locale)}</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="sub" style={{ textAlign: "center", fontSize: 14, opacity: 0.88, marginTop: zileBanda ? 8 : 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {ales ? <>{from} &rarr; {to}{dataCursei ? ` · ${dataCursei}` : ""}</> : (
+              <>
+                {!zileBanda && dataCursei && <span>{dataCursei} · </span>}
+                <span>{trips.length > 0 ? tx.curse(trips.length) : tx.niciuna}</span>
+                {preturi.length === 1 && <span> · {preturi[0]} lei</span>}
+              </>
+            )}
+          </div>
         </div>
 
-        <div style={{ position: "relative" }}>
-        <div ref={scrollRef} className="route-results-scroll" style={{ overflowY: "auto", background: "#FAF6F5", padding: ales ? 0 : "16px 14px 20px" }}>
+        <div style={{ position: "relative", marginTop: -20, borderRadius: "22px 22px 0 0", overflow: "hidden", background: "#FAF6F5" }}>
+        <div ref={scrollRef} className={`route-results-scroll${ales ? " cumpara" : ""}`} aria-busy={seIncarca}
+          style={{ overflowY: "auto", background: "#FAF6F5", padding: ales ? "4px 0 0" : "18px 14px 20px", opacity: seIncarca ? 0.45 : 1, pointerEvents: seIncarca ? "none" : undefined, transition: "opacity .15s" }}>
           {ales && fromRo && toRo ? (
             <BuyTicketForm trip={ales} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} contact={contact}
               reluare={reluare && cumpara === 0 ? reluare : null} from={from} to={to} />

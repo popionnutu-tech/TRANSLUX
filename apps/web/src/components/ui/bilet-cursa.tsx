@@ -63,8 +63,9 @@ export function BiletCursa({ trip, locale, cotor, evidentiat = false, fond = FON
 
   const continut = (
     <>
-      <span style={{ fontSize: cotor === "ales" ? 20 : 21, fontWeight: 800, lineHeight: 1.1 }}>
-        {areOferta && <span style={{ fontSize: 12, fontWeight: 600, textDecoration: "line-through", opacity: 0.75, marginRight: 4 }}>{trip.originalPrice}</span>}
+      <span style={{ fontSize: cotor === "ales" ? 20 : 21, fontWeight: 800, lineHeight: 1.1, whiteSpace: "nowrap" }}>
+        {/* Pe cotorul îngust al cursei alese (96 px) prețul tăiat stă deasupra — lângă «150 lei» nu încape. */}
+        {areOferta && <span style={{ fontSize: 12, fontWeight: 600, textDecoration: "line-through", opacity: 0.75, marginRight: 4, display: cotor === "ales" ? "block" : undefined }}>{trip.originalPrice}</span>}
         {trip.price > 0 ? `${trip.price} lei` : "—"}
       </span>
       {cotor === "ales"

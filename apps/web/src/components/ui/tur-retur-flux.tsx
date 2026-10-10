@@ -463,7 +463,7 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
 
 const CSS = `
 .trf{--trf-fond:#FAF6F5;--trf-linie:rgba(155,27,48,.12);--trf-text:#231A1C;--trf-gri:#857579;--trf-cald:#FDF3E7;--trf-calda-linie:#E6B57B;
-  position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:var(--trf-text)}
+  position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;font-family:var(--font-main),Roboto,system-ui,sans-serif;color:var(--trf-text)}
 .trf-fundal{position:absolute;inset:0;background:rgba(35,20,24,.38);backdrop-filter:blur(6px)}
 .trf-fereastra{position:relative;width:min(94vw,860px);max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 70px rgba(60,20,30,.2)}
 .trf-cap{background:linear-gradient(135deg,#A41F36 0%,${RED} 55%,#74121F 100%);color:#fff;position:relative;z-index:1;box-shadow:0 6px 18px rgba(116,18,31,.18)}

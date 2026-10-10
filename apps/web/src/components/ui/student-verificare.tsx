@@ -203,7 +203,7 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
 
 const CSS = `
 .sv{--sv-albastru:#2E5A88;--sv-adanc:#1E3F63;--sv-red:#9B1B30;--sv-text:#1F1A1C;--sv-gri:#6D6468;--sv-linie:#E3E7EE;
-  position:fixed;inset:0;z-index:101;display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:var(--sv-text)}
+  position:fixed;inset:0;z-index:101;display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-main),Roboto,system-ui,sans-serif;color:var(--sv-text)}
 .sv-fundal{position:absolute;inset:0;background:rgba(20,28,40,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:sv-in .18s ease-out}
 .sv-cutie{position:relative;width:min(100%,460px);max-height:calc(100dvh - 32px);overflow-y:auto;box-sizing:border-box;background:#fff;border-radius:26px;box-shadow:0 30px 70px rgba(20,30,50,.28);animation:sv-sus .24s cubic-bezier(.2,.8,.2,1)}
 .sv-banda{position:relative;padding:20px 20px 16px;color:#fff;background:radial-gradient(120% 140% at 100% 0%,#4F86BF 0%,var(--sv-albastru) 45%,var(--sv-adanc) 100%)}

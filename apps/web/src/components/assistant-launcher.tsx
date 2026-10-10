@@ -21,7 +21,7 @@ const TEXT = {
 
 export const LAUNCHER_CSS = `
 .asst-launcher{position:fixed;right:24px;bottom:24px;z-index:45;height:56px;padding:0 22px 0 18px;border:none;border-radius:999px;cursor:pointer;
-  background:${RED};color:#fff;display:flex;align-items:center;gap:10px;font:700 15px var(--font-opensans),Open Sans,sans-serif;
+  background:${RED};color:#fff;display:flex;align-items:center;gap:10px;font:700 15px var(--font-main),Roboto,sans-serif;
   box-shadow:0 12px 32px rgba(155,27,48,.35);transition:transform .18s ease}
 .asst-launcher:hover{transform:translateY(-2px)}
 @media (max-width:520px){.asst-launcher{right:16px;bottom:16px}}

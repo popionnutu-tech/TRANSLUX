@@ -85,8 +85,8 @@ export function AnuleazaBilet({ cod, locale }: { cod: string; locale: "ro" | "ru
 }
 
 const CSS = `
-.ab-link{border:none;background:none;padding:6px 0;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;text-decoration:underline;cursor:pointer;justify-self:center}
-.ab{display:grid;gap:10px;padding:14px;border-radius:16px;background:#fff;border:1px solid #EEE3E5;font-family:var(--font-opensans),Open Sans,sans-serif}
+.ab-link{border:none;background:none;padding:6px 0;color:#9B1B30;font:700 14px var(--font-main),Roboto,sans-serif;text-decoration:underline;cursor:pointer;justify-self:center}
+.ab{display:grid;gap:10px;padding:14px;border-radius:16px;background:#fff;border:1px solid #EEE3E5;font-family:var(--font-main),Roboto,sans-serif}
 .ab h2{margin:0;font-size:17px;font-weight:800;color:#231A1C}
 .ab-rand{display:grid;gap:8px}
 .ab-rand label{display:grid;gap:5px;font-size:14px;font-weight:700;color:#4A3E41}

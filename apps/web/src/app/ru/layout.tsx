@@ -1,6 +1,6 @@
-import { openSansCyrillic } from '@/lib/font-cyrillic';
+import { robotoCyrillic } from '@/lib/font-cyrillic';
 
-/** Paginile /ru: preîncarcă subsetul chirilic al Open Sans (ION-204); `display: contents` nu schimbă nimic în așezare. */
+/** Paginile /ru: preîncarcă subsetul chirilic al Roboto (ION-204); `display: contents` nu schimbă nimic în așezare. */
 export default function RuLayout({ children }: { children: React.ReactNode }) {
-  return <div className={openSansCyrillic.variable} style={{ display: 'contents' }}>{children}</div>;
+  return <div className={robotoCyrillic.variable} style={{ display: 'contents' }}>{children}</div>;
 }

@@ -8,7 +8,7 @@ export const RainbowButton = ({ label = "Caută cursă" }: { label?: string }) =
       flexShrink: 0, height: 48, borderRadius: 12,
       fontWeight: 700, fontSize: 14, fontStyle: 'italic',
       padding: '0 24px', cursor: 'pointer', whiteSpace: 'nowrap' as const,
-      fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+      fontFamily: 'var(--font-main), Roboto, sans-serif',
       letterSpacing: '0.02em',
       transition: 'all 0.2s ease',
     }}>

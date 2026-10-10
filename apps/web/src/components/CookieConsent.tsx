@@ -63,7 +63,7 @@ export default function CookieConsent({ locale, defaultOpen = false }: { locale:
         border: '1px solid rgba(155,27,48,0.15)', borderRadius: 14,
         boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
         padding: '16px 18px',
-        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+        fontFamily: 'var(--font-main), Roboto, sans-serif',
         color: '#333',
       }}
     >

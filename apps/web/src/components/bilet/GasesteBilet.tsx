@@ -99,7 +99,7 @@ export function GasesteBilet({ locale }: { locale: "ro" | "ru" }) {
 }
 
 const CSS = `
-.gb{min-height:100dvh;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;box-sizing:border-box;background:linear-gradient(180deg,#FBF4F5,#F4ECEE);font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:#231A1C}
+.gb{min-height:100dvh;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;box-sizing:border-box;background:linear-gradient(180deg,#FBF4F5,#F4ECEE);font-family:var(--font-main),Roboto,system-ui,sans-serif;color:#231A1C}
 .gb-cutie{width:100%;max-width:440px;background:#fff;border-radius:24px;padding:26px 22px;box-shadow:0 20px 50px rgba(116,18,31,.10);display:flex;flex-direction:column;gap:12px}
 .gb-ic{font-size:34px}
 .gb h1{margin:0;font-size:24px;font-weight:800;color:#9B1B30}

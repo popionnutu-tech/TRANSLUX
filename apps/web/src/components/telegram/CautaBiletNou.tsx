@@ -114,7 +114,7 @@ export function CautaBiletNou({ locale, options, contact }: {
       {eroare && <p role="alert" style={{ margin: 0, color: RED, fontSize: 14, fontWeight: 600 }}>{tx.eroare}</p>}
       <style>{`
 .tg-select{width:100%;height:48px;border:1px solid #e6d9dc;border-radius:12px;padding:0 12px;font-size:16px;background:#fff;color:#231A1C;font-family:inherit;appearance:none}
-.tg-zi{height:46px;border-radius:12px;border:1.5px solid ${RED};background:${RED};color:#fff;font:700 15px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.tg-zi{height:46px;border-radius:12px;border:1.5px solid ${RED};background:${RED};color:#fff;font:700 15px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .tg-zi:disabled{opacity:.6;cursor:default}
 `}</style>
       {rezultate && (
@@ -122,6 +122,10 @@ export function CautaBiletNou({ locale, options, contact }: {
           from={rezultate.from} to={rezultate.to} fromRo={rezultate.fromRo} toRo={rezultate.toRo}
           trips={rezultate.trips} selectedTime={null} locale={locale} contact={contact}
           onClose={() => setRezultate(null)}
+          zi={ymd(zi)} seIncarca={cauta}
+          onZi={(z) => ruleaza(new Date(`${z}T12:00:00`))}
+          onInverseaza={() => { inverseaza(); ruleaza(zi); }}
+          onEditeaza={() => { setRezultate(null); fromRef.current?.focus(); }}
         />
       )}
     </section>

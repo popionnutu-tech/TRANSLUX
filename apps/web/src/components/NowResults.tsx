@@ -699,7 +699,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
       </div>
 
       <style>{`
-.now-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+.now-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--font-main),Roboto,sans-serif;color:#231A1C}
 .now-overlay.now-incorporat{z-index:40;background:none;padding:0;top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 70px)}
 .now-incorporat .now-box{max-width:none;height:100%;border-radius:0;box-shadow:none}
 .now-incorporat .now-close{display:none}
@@ -745,7 +745,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
 .now-bus .nb-arrow svg{display:block;overflow:visible;fill:${RED};stroke:#fff;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
 .now-bus .nb-dot{position:absolute;left:7px;top:7px;width:30px;height:30px;box-sizing:border-box;border-radius:50%;background:#fff;border:2.5px solid ${RED};color:${RED};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 .now-bus .nb-dot svg{width:15px;height:15px}
-.now-bus b{position:absolute;left:52px;top:50%;transform:translateY(-50%);height:24px;padding:0 10px;display:flex;align-items:center;border-radius:12px;background:#fff;border:1.5px solid #E3D4D7;color:#5A3A40;font:700 12px/1 var(--font-opensans),Open Sans,sans-serif;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.now-bus b{position:absolute;left:52px;top:50%;transform:translateY(-50%);height:24px;padding:0 10px;display:flex;align-items:center;border-radius:12px;background:#fff;border:1.5px solid #E3D4D7;color:#5A3A40;font:700 12px/1 var(--font-main),Roboto,sans-serif;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.12)}
 .now-bus.on::before{content:"";position:absolute;inset:-9px;border-radius:50%;background:rgba(155,27,48,.16)}
 .now-bus.on .nb-dot{left:3px;top:3px;width:38px;height:38px;border:3px solid #fff;background:${RED};color:#fff}
 .now-bus.on .nb-dot svg{width:19px;height:19px}
@@ -759,13 +759,13 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose, inco
 .now-bus b.here i,.now-here-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22A35A;animation:now-here 1.6s infinite}
 .now-here-dot{margin-right:6px;vertical-align:middle}
 @keyframes now-here{0%{box-shadow:0 0 0 0 rgba(34,163,90,.6)}70%{box-shadow:0 0 0 7px rgba(34,163,90,0)}100%{box-shadow:0 0 0 0 rgba(34,163,90,0)}}
-.now-place{position:absolute;left:-6px;top:-7px;display:flex;align-items:center;gap:6px;white-space:nowrap;font:800 14px/1 var(--font-opensans),Open Sans,sans-serif;color:#231A1C;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px #fff,0 0 6px #fff;pointer-events:none}
+.now-place{position:absolute;left:-6px;top:-7px;display:flex;align-items:center;gap:6px;white-space:nowrap;font:800 14px/1 var(--font-main),Roboto,sans-serif;color:#231A1C;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px #fff,0 0 6px #fff;pointer-events:none}
 .now-place i{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:#231A1C;border:2px solid #fff;box-sizing:content-box;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 /* Localitatea omului și destinația au punctul lor pe linie: doar numele, lângă el. */
 .now-place.end{left:12px;top:-8px;color:${RED};font-size:15px}
 .now-place.end i{display:none}
 .now-place>span{display:flex;flex-direction:column;gap:2px}
-.now-place small{font:700 11px/1 var(--font-opensans),Open Sans,sans-serif;color:${RED};text-transform:uppercase;letter-spacing:.04em}
+.now-place small{font:700 11px/1 var(--font-main),Roboto,sans-serif;color:${RED};text-transform:uppercase;letter-spacing:.04em}
 .now-place.mine{left:16px;top:-9px;font-size:16px}
 .now-place.mine.left{left:auto;right:16px;text-align:right}
 .now-place.mine.left>span{align-items:flex-end}

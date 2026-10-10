@@ -668,9 +668,9 @@ const CSS = `
 .asst-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .asst-teaser{position:fixed;right:24px;bottom:96px;z-index:45;width:320px;box-sizing:border-box;padding:16px;background:#fff;border:1px solid #EADFE1;
   border-radius:18px 18px 6px 18px;box-shadow:0 16px 48px rgba(90,20,35,.16);display:flex;flex-direction:column;gap:12px;animation:asst-in .35s ease;
-  font-family:var(--font-opensans),Open Sans,sans-serif}
+  font-family:var(--font-main),Roboto,sans-serif}
 .asst-teaser-text{flex:1;display:flex;flex-direction:column;gap:2px;background:none;border:none;padding:0;text-align:left;cursor:pointer;
-  font:600 15px/1.4 var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+  font:600 15px/1.4 var(--font-main),Roboto,sans-serif;color:#231A1C}
 .asst-x{width:28px;height:28px;border:none;background:transparent;color:#8A7D80;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 @keyframes asst-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .asst-avatar{position:relative;width:40px;height:40px;flex-shrink:0;border-radius:50%;background:${RED};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
@@ -678,7 +678,7 @@ const CSS = `
 .asst-avatar-dot{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:#2E9E62;border:2px solid #fff}
 .asst-panel{position:fixed;right:24px;bottom:24px;z-index:60;width:400px;height:min(680px,calc(100vh - 48px));display:flex;flex-direction:column;
   background:#FBF8F6;border-radius:20px;overflow:hidden;box-shadow:0 20px 60px rgba(90,20,35,.22);animation:asst-in .25s ease;
-  font-family:var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+  font-family:var(--font-main),Roboto,sans-serif;color:#231A1C}
 .asst-head{display:flex;align-items:center;gap:12px;padding:14px 10px 14px 16px;background:#fff;border-bottom:1px solid #EFE6E8}
 .asst-title{font-weight:700;font-size:15px}
 .asst-sub{font-size:12px;color:#5E5255;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -686,9 +686,9 @@ const CSS = `
 .asst-icon:hover{background:#F4E8EA;color:${RED}}
 .asst-list{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
 .asst-home{display:flex;flex-direction:column;gap:14px}
-.asst-back{display:inline-flex;align-items:center;gap:2px;flex-shrink:0;height:40px;padding:0 12px 0 6px;border:none;border-radius:999px;background:#F4E8EA;color:${RED};font:700 14px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;margin-right:-2px}
+.asst-back{display:inline-flex;align-items:center;gap:2px;flex-shrink:0;height:40px;padding:0 12px 0 6px;border:none;border-radius:999px;background:#F4E8EA;color:${RED};font:700 14px var(--font-main),Roboto,sans-serif;cursor:pointer;margin-right:-2px}
 .asst-back:hover{background:#EBD5D9}
-.asst-resume{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:none;background:#F4E8EA;color:${RED};border-radius:999px;padding:8px 12px;font:600 13px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.asst-resume{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:none;background:#F4E8EA;color:${RED};border-radius:999px;padding:8px 12px;font:600 13px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .asst-hello{font-size:20px;font-weight:700;line-height:1.3}
 .asst-hello-sub{font-size:14px;color:#5E5255;margin-top:4px}
 .asst-hero{display:flex;align-items:center;gap:14px;padding:16px;background:${RED};border:none;border-radius:16px;text-align:left;cursor:pointer;
@@ -714,7 +714,7 @@ const CSS = `
 .asst-tile-sub{font-size:12px;color:#6B5E61;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .asst-label{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#6B5E61}
 .asst-faq{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;background:#fff;border:1px solid #EFE6E8;border-radius:12px;
-  font:14px var(--font-opensans),Open Sans,sans-serif;color:#231A1C;cursor:pointer;text-align:left}
+  font:14px var(--font-main),Roboto,sans-serif;color:#231A1C;cursor:pointer;text-align:left}
 .asst-row{display:flex;flex-direction:column;gap:8px}
 .asst-msg{max-width:86%;padding:10px 14px;font-size:14px;line-height:1.45;word-wrap:break-word}
 .asst-bot{align-self:flex-start;background:#fff;border:1px solid #EFE6E8;border-radius:18px 18px 18px 4px}
@@ -722,7 +722,7 @@ const CSS = `
 .asst-me{align-self:flex-end;background:${RED};color:#fff;border-radius:18px 18px 4px 18px;white-space:pre-wrap}
 .asst-card{align-self:stretch;margin-right:24px;background:#fff;border:1px solid #EFE6E8;border-radius:16px;overflow:hidden}
 .asst-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;background:#F7EFF1;font-size:12px;font-weight:700;color:#7A1526}
-.asst-card-foot{display:block;width:100%;padding:11px 14px;border:none;border-top:1px solid #F2EAEC;background:#fff;color:${RED};font:700 13px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.asst-card-foot{display:block;width:100%;padding:11px 14px;border:none;border-top:1px solid #F2EAEC;background:#fff;color:${RED};font:700 13px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .asst-card-hint{padding:0 14px 10px;font-size:11px;color:#6B5E61}
 .asst-trip{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 14px;border-top:1px solid #F2EAEC}
 .asst-trip-time{font-size:18px;font-weight:700;width:58px;flex-shrink:0}
@@ -731,7 +731,7 @@ const CSS = `
 .asst-btn-pill:hover{background:#EBD6DA}
 .asst-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 14px 14px}
 .asst-btn-main,.asst-btn-soft{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;box-sizing:border-box;border-radius:12px;border:none;
-  font:700 14px var(--font-opensans),Open Sans,sans-serif;text-decoration:none;cursor:pointer}
+  font:700 14px var(--font-main),Roboto,sans-serif;text-decoration:none;cursor:pointer}
 .asst-btn-main{background:${RED};color:#fff}
 .asst-btn-main:disabled{opacity:.5;cursor:default}
 .asst-btn-soft{background:#F4E8EA;color:#7A1526}
@@ -758,7 +758,7 @@ const CSS = `
   box-shadow:0 0 0 8px rgba(155,27,48,.18);color:#fff;display:flex;align-items:center;justify-content:center}
 .asst-map-attr{position:absolute;right:4px;bottom:3px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.85);font-size:10px;color:#5E5255}
 .asst-map-wrap{position:relative;height:200px;background:#EFEAE3}
-.asst-map-wrap .asst-lf{position:absolute;inset:0;isolation:isolate;font-family:var(--font-opensans),Open Sans,sans-serif}
+.asst-map-wrap .asst-lf{position:absolute;inset:0;isolation:isolate;font-family:var(--font-main),Roboto,sans-serif}
 .asst-map-wrap.full{position:fixed;inset:0;z-index:90;height:auto;display:flex;flex-direction:column;background:#fff}
 .asst-map-wrap.full .asst-lf{position:relative;inset:auto;flex:1}
 .asst-map-top{display:flex;align-items:center;justify-content:space-between;gap:12px;height:64px;box-sizing:border-box;padding:10px 64px 10px 16px;border-bottom:1px solid #EFE6E8;font-size:15px}
@@ -773,7 +773,7 @@ const CSS = `
 @keyframes asst-dot{0%{box-shadow:0 0 0 0 rgba(46,158,98,.6)}70%{box-shadow:0 0 0 6px rgba(46,158,98,0)}100%{box-shadow:0 0 0 0 rgba(46,158,98,0)}}
 .asst-chips{display:flex;flex-wrap:wrap;gap:6px}
 .asst-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #E3D6D9;background:#fff;color:#7A1526;border-radius:999px;padding:8px 12px;
-  font:600 13px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+  font:600 13px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .asst-chip:hover{background:#F7EFF1}
 .asst-chip.hot{border:none;background:${RED};color:#fff;font-weight:700}
 .asst-typing{display:flex;gap:4px;padding:13px 14px}
@@ -783,12 +783,12 @@ const CSS = `
 .asst-compose{padding:10px 12px;background:#fff;border-top:1px solid #EFE6E8;display:flex;flex-direction:column;gap:6px}
 .asst-input{display:flex;align-items:center;gap:8px;padding:5px 5px 5px 16px;border:1px solid #E3D6D9;border-radius:26px;background:#FBF8F6}
 .asst-input:focus-within{border-color:${RED};box-shadow:0 0 0 3px rgba(155,27,48,.12)}
-.asst-input input{flex:1;min-width:0;border:none;background:transparent;font:15px var(--font-opensans),Open Sans,sans-serif;color:#231A1C;outline:none}
+.asst-input input{flex:1;min-width:0;border:none;background:transparent;font:15px var(--font-main),Roboto,sans-serif;color:#231A1C;outline:none}
 .asst-input button{width:40px;height:40px;flex-shrink:0;border:none;border-radius:50%;background:${RED};color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .asst-input button:disabled{background:#E3D6D9;cursor:default}
 .asst-foot{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#6B5E61}
 .asst-foot a{color:${RED};font-weight:600;text-decoration:none}
-.asst-foot button{background:none;border:none;padding:0;color:${RED};font:600 11px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.asst-foot button{background:none;border:none;padding:0;color:${RED};font:600 11px var(--font-main),Roboto,sans-serif;cursor:pointer}
 @media (max-width:520px){
   .asst-panel{right:0;bottom:0;width:100%;height:100dvh;border-radius:0}
   .asst-teaser{right:16px;bottom:84px;width:calc(100vw - 32px);max-width:320px}

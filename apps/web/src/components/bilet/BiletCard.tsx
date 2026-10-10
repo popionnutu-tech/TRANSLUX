@@ -93,7 +93,7 @@ export function BiletCard({ comanda: c, bilet: b, locale, jos, grup, compact = f
   const pretText = `${multi ? `${locuri.length} × ` : ''}${nfPret.format(Number(c.price_per_seat))} MDL`;
   if (compact) {
     return (
-      <div className="bilet-card" style={{ background: RED, borderRadius: 22, boxShadow: '0 14px 34px rgba(60,20,30,0.2)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#fff' }}>
+      <div className="bilet-card" style={{ background: RED, borderRadius: 22, boxShadow: '0 14px 34px rgba(60,20,30,0.2)', overflow: 'hidden', fontFamily: 'var(--font-main), Roboto, system-ui, sans-serif', color: '#fff' }}>
         {c.proba && <div style={{ background: '#fff', color: '#b91c1c', textAlign: 'center', padding: '4px 10px', fontSize: 11, fontWeight: 800 }}>{tx.proba}</div>}
         {c.reducere && <div style={{ background: '#FFD45C', color: '#231A1C', textAlign: 'center', padding: '4px 10px', fontSize: 11, fontWeight: 800 }}>{c.reducere.tip === 'student' ? tx.student20 : tx.retur20}</div>}
         <div style={{ padding: '10px 16px 8px', display: 'grid', gap: 2 }}>
@@ -127,7 +127,7 @@ export function BiletCard({ comanda: c, bilet: b, locale, jos, grup, compact = f
   const placa = e?.stare === 'gata' ? placaAfisata(e.placa) : null;
   const cod = b.cod_qr.replace(/(.{4})(?=.)/g, '$1 ');
   return (
-    <div className="bilet-card" style={{ background: RED, borderRadius: 26, boxShadow: '0 20px 50px rgba(60,20,30,0.22)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#fff' }}>
+    <div className="bilet-card" style={{ background: RED, borderRadius: 26, boxShadow: '0 20px 50px rgba(60,20,30,0.22)', overflow: 'hidden', fontFamily: 'var(--font-main), Roboto, system-ui, sans-serif', color: '#fff' }}>
       {/* Proba fizică (migr. 532): biletul de probă se vede de departe — nu e valabil pe o cursă reală. */}
       {c.proba && <div style={{ background: '#fff', color: '#b91c1c', textAlign: 'center', padding: '6px 10px', fontSize: 12, fontWeight: 800, letterSpacing: 0.3 }}>{tx.proba}</div>}
       {/* 546: promoția se vede de departe; studentul arată carnetul șoferului la urcare. */}

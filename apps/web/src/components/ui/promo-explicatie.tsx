@@ -106,7 +106,7 @@ export function PromoExplicatie({ tip, locale, inainteDe1310, onAlege, onClose }
 }
 
 const CSS = `
-.pe{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:#231A1C}
+.pe{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-main),Roboto,system-ui,sans-serif;color:#231A1C}
 .pe-fundal{position:absolute;inset:0;background:rgba(35,20,24,.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:pe-in .18s ease-out}
 .pe-cutie{position:relative;width:min(100%,440px);max-height:calc(100dvh - 32px);overflow-y:auto;box-sizing:border-box;background:#fff;border-radius:24px;padding:22px 20px 20px;box-shadow:0 30px 70px rgba(60,20,30,.25);animation:pe-sus .22s cubic-bezier(.2,.8,.2,1)}
 .pe-x{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:50%;border:none;background:#F4EEEF;color:#6B5B5F;font-size:22px;line-height:1;cursor:pointer}

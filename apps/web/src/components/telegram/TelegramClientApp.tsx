@@ -144,18 +144,18 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
   return (
     <div lang={locale} className="tg-app" style={{ ['--bg' as string]: FUNDAL }}>
       <style>{`
-.tg-app{min-height:100vh;font-family:var(--font-opensans),Open Sans,system-ui,sans-serif;color:#231A1C}
+.tg-app{min-height:100vh;font-family:var(--font-main),Roboto,system-ui,sans-serif;color:#231A1C}
 .tg-fila{min-height:100vh;background:var(--bg);box-sizing:border-box;
   padding:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 96px)}
 .tg-cauta{padding-top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));padding-bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
 .tg-col{max-width:520px;margin:0 auto;display:grid;gap:16px}
-.tg-buton{min-height:48px;padding:0 16px;border-radius:12px;border:none;background:${RED};color:#fff;font:700 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.tg-buton{min-height:48px;padding:0 16px;border-radius:12px;border:none;background:${RED};color:#fff;font:700 16px var(--font-main),Roboto,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .tg-nota{margin:0;padding:12px 14px;border-radius:14px;background:#fff;color:#555;font-size:14px;line-height:1.45}
 .tg-bara{position:fixed;left:0;right:0;bottom:0;z-index:50;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(255,255,255,.96);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(155,27,48,.15);box-shadow:0 -4px 20px rgba(155,27,48,.06);
   padding:6px 8px calc(env(safe-area-inset-bottom,0px) + 6px)}
 .tg-tab{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:52px;justify-content:center;border:none;background:none;cursor:pointer;
-  color:rgba(35,26,28,.5);font:700 11.5px var(--font-opensans),Open Sans,sans-serif;border-radius:14px}
+  color:rgba(35,26,28,.5);font:700 11.5px var(--font-main),Roboto,sans-serif;border-radius:14px}
 .tg-tab[aria-selected="true"]{color:${RED};background:rgba(155,27,48,.08)}
 .tg-ist{background:#fff;border-radius:18px;overflow:hidden}
 .tg-ist-rand{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F1E8EA}
@@ -351,7 +351,7 @@ function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: Co
   return (
     <div className="tg-mini">
       <style>{`
-.tg-mini{background:#fff;border-radius:22px;box-shadow:0 12px 32px rgba(40,10,18,.18);overflow:hidden;font-family:var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+.tg-mini{background:#fff;border-radius:22px;box-shadow:0 12px 32px rgba(40,10,18,.18);overflow:hidden;font-family:var(--font-main),Roboto,sans-serif;color:#231A1C}
 .tg-mini-sus{display:flex;align-items:center;gap:12px;padding:14px 14px 12px 18px;background:${RED};color:#fff}
 .tg-mini-ore{flex:1;min-width:0}
 .tg-mini-ore b{font-size:22px;font-weight:800;letter-spacing:-.3px}

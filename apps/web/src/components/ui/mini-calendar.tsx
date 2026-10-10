@@ -34,7 +34,7 @@ export function MiniCalendar({ value, onChange, locale = "ro" }: MiniCalendarPro
   const canGoPrev = offset > 0;
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border bg-white shadow-sm" style={{ fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
+    <div className="w-full overflow-hidden rounded-lg border bg-white shadow-sm" style={{ fontFamily: 'var(--font-main), Roboto, sans-serif' }}>
       <div className="flex items-center justify-between px-3 py-2">
         <button
           type="button"

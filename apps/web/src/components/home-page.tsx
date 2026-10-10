@@ -308,7 +308,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   );
 
   return (
-    <div lang={locale} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
+    <div lang={locale} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'var(--font-main), Roboto, sans-serif' }}>
       <ShaderBackground />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
@@ -329,7 +329,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
               textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
               background: locale === 'ro' ? 'rgba(155,27,48,0.08)' : 'transparent',
-              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              fontFamily: 'var(--font-main), Roboto, sans-serif',
               transition: 'all 0.15s ease',
             }}>RO</Link>
             <Link href="/ru" hrefLang="ru" className="lang-btn" style={{
@@ -337,7 +337,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
               textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
               background: locale === 'ru' ? 'rgba(155,27,48,0.08)' : 'transparent',
-              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              fontFamily: 'var(--font-main), Roboto, sans-serif',
               transition: 'all 0.15s ease',
             }}>RU</Link>
           </div>}
@@ -360,11 +360,11 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 <button type="button" className="reia-buton" onClick={() => setReluare(salvata)}>{locale === 'ru' ? 'Повторить' : 'Reia plata'}</button>
                 <button type="button" className="reia-x" aria-label="×" onClick={() => { stergeCumpararea(); setSalvata(null); }}>&times;</button>
                 <style>{`
-.reia-banda{width:100%;max-width:720px;box-sizing:border-box;margin:0 0 12px;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-radius:18px;background:#fff;border:1.5px solid rgba(155,27,48,.25);box-shadow:0 8px 24px rgba(155,27,48,.12);font-family:var(--font-opensans),Open Sans,sans-serif}
+.reia-banda{width:100%;max-width:720px;box-sizing:border-box;margin:0 0 12px;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-radius:18px;background:#fff;border:1.5px solid rgba(155,27,48,.25);box-shadow:0 8px 24px rgba(155,27,48,.12);font-family:var(--font-main),Roboto,sans-serif}
 .reia-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .reia-text b{font-size:14.5px;color:#9B1B30}
 .reia-text span{font-size:13.5px;color:#4A3E41;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.reia-buton{flex:none;min-height:42px;padding:0 14px;border:none;border-radius:12px;background:#9B1B30;color:#fff;font:800 14.5px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.reia-buton{flex:none;min-height:42px;padding:0 14px;border:none;border-radius:12px;background:#9B1B30;color:#fff;font:800 14.5px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .reia-x{flex:none;width:34px;height:34px;border:none;border-radius:50%;background:#F4EEEF;color:#6B5B5F;font-size:19px;cursor:pointer}
 `}</style>
               </div>
@@ -381,7 +381,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           }}>
             <h1 style={{
               color: '#9B1B30', fontSize: 28, fontStyle: 'italic', textAlign: 'center',
-              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              fontFamily: 'var(--font-main), Roboto, sans-serif',
               margin: '0 0 28px', fontWeight: 400, letterSpacing: 0.5, lineHeight: 1.3,
             }}>
               {i.hero}
@@ -416,7 +416,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   width: '100%', height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
                   padding: '0 16px 0 34px', fontSize: 15, background: 'rgba(255,255,255,0.85)',
                   outline: 'none', fontStyle: 'italic', appearance: 'none',
-                  color: '#6E0E14', fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  color: '#6E0E14', fontFamily: 'var(--font-main), Roboto, sans-serif',
                   transition: 'box-shadow 0.2s ease', cursor: 'pointer',
                 }}>
                   <option value="">{i.from}</option>
@@ -457,7 +457,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   width: '100%', height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
                   padding: '0 16px 0 34px', fontSize: 15, background: 'rgba(255,255,255,0.85)',
                   outline: 'none', fontStyle: 'italic', appearance: 'none',
-                  color: '#6E0E14', fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  color: '#6E0E14', fontFamily: 'var(--font-main), Roboto, sans-serif',
                   transition: 'box-shadow 0.2s ease', cursor: 'pointer',
                 }}>
                   <option value="">{i.to}</option>
@@ -471,7 +471,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 <button type="button" onClick={openNow} className="hero-now search-btn-3d" style={{
                   flex: '1 1 0', height: 48, borderRadius: 12, padding: '0 20px', cursor: 'pointer',
                   fontWeight: 700, fontSize: 14, fontStyle: 'italic', whiteSpace: 'nowrap',
-                  fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  fontFamily: 'var(--font-main), Roboto, sans-serif',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}>
                   <span className="hero-now-dot" />
@@ -481,7 +481,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   flex: '1 1 0', height: 48, borderRadius: 12, padding: '0 18px', cursor: 'pointer',
                   border: '1.5px solid #9B1B30', background: 'rgba(255,255,255,0.85)', color: '#9B1B30',
                   fontWeight: 700, fontSize: 14, fontStyle: 'italic', whiteSpace: 'nowrap',
-                  fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  fontFamily: 'var(--font-main), Roboto, sans-serif',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -536,10 +536,10 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   );
                 })()}
                 <style>{`
-.tr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px;font-family:var(--font-opensans),Open Sans,sans-serif}
+.tr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:14px;font-family:var(--font-main),Roboto,sans-serif}
 .tr-seg-sus{display:flex;justify-content:center;margin:0 0 12px;width:100%;max-width:520px;align-self:center}
 .tr-seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(155,27,48,.07);gap:4px}
-.tr-seg button{white-space:nowrap;border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
+.tr-seg button{white-space:nowrap;border:none;background:transparent;color:#9B1B30;font:700 14px var(--font-main),Roboto,sans-serif;padding:9px 18px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s,box-shadow .15s}
 .tr-seg button.on{background:#fff;color:#6E0E14;box-shadow:0 2px 8px rgba(155,27,48,.16)}
 .tr-badge.st{background:#2E5A88}
 .tr-badge{font-size:11px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 7px}
@@ -560,10 +560,10 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .tr-dur{font-size:11px;font-weight:700;color:#8A7A7D;white-space:nowrap}
 .tr-pax{width:100%;max-width:520px;display:flex;align-items:center;justify-content:space-between;padding:8px 6px 8px 16px;background:#fff;border:1px solid rgba(155,27,48,.14);border-radius:14px;font-size:14px;font-weight:700;color:#6B5B5F}
 .tr-pax-n{display:flex;align-items:center;gap:10px}
-.tr-pax-n button{width:38px;height:38px;border-radius:11px;border:1px solid rgba(155,27,48,.2);background:#fff;color:#9B1B30;font:700 19px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.tr-pax-n button{width:38px;height:38px;border-radius:11px;border:1px solid rgba(155,27,48,.2);background:#fff;color:#9B1B30;font:700 19px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .tr-pax-n button:disabled{color:#D6C8CB;cursor:default}
 .tr-pax-n b{min-width:20px;text-align:center;font-size:18px;color:#231A1C}
-.tr-cauta{width:100%;max-width:520px;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 8px 20px rgba(155,27,48,.22);transition:filter .15s}
+.tr-cauta{width:100%;max-width:520px;min-height:52px;border:none;border-radius:14px;background:#9B1B30;color:#fff;font:800 16px var(--font-main),Roboto,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 8px 20px rgba(155,27,48,.22);transition:filter .15s}
 .tr-cauta:hover{filter:brightness(1.06)}
 .tr-cauta span{font-size:12px;font-weight:600;opacity:.85}
 @media (max-width:520px){.tr-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;box-sizing:border-box;border-radius:18px}.tr-seg button{flex-direction:column;justify-content:center;gap:3px;padding:7px 4px;font-size:13.5px;border-radius:14px;white-space:nowrap}}
@@ -585,7 +585,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               <b>{locale === 'ru' ? 'Найти купленный билет' : 'Găsește biletul cumpărat'}</b>
             </span>
             <svg className="gb-sag" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-            <style>{`.gb-link{margin-top:12px;display:inline-flex;align-items:center;gap:10px;padding:8px 12px 8px 14px;border-radius:14px;background:rgba(255,255,255,.72);border:1px dashed rgba(155,27,48,.35);color:#9B1B30;text-decoration:none;text-align:left;font-family:var(--font-opensans),Open Sans,sans-serif}.gb-link:hover{background:#fff}.gb-ic{flex:none;opacity:.9}.gb-t{display:flex;flex-direction:column;line-height:1.2}.gb-t small{font-size:12.5px;font-weight:600;color:#6b5a5e}.gb-t b{font-size:15px;font-weight:800}.gb-sag{flex:none;opacity:.7}`}</style>
+            <style>{`.gb-link{margin-top:12px;display:inline-flex;align-items:center;gap:10px;padding:8px 12px 8px 14px;border-radius:14px;background:rgba(255,255,255,.72);border:1px dashed rgba(155,27,48,.35);color:#9B1B30;text-decoration:none;text-align:left;font-family:var(--font-main),Roboto,sans-serif}.gb-link:hover{background:#fff}.gb-ic{flex:none;opacity:.9}.gb-t{display:flex;flex-direction:column;line-height:1.2}.gb-t small{font-size:12.5px;font-weight:600;color:#6b5a5e}.gb-t b{font-size:15px;font-weight:800}.gb-sag{flex:none;opacity:.7}`}</style>
           </Link>
 
           {/* Ofertele Bălți ⇄ Chișinău: între căutare și «Destinații populare», compacte ca să se vadă din primul ecran pe telefon. */}
@@ -609,7 +609,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               </div>
 
               <style>{`
-.of-wrap{width:100%;max-width:720px;margin-top:14px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-opensans),Open Sans,sans-serif}
+.of-wrap{width:100%;max-width:720px;margin-top:14px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-main),Roboto,sans-serif}
 .of-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .of-card{all:unset;box-sizing:border-box;cursor:pointer;border-radius:18px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(155,27,48,.12);box-shadow:0 6px 18px rgba(155,27,48,.07);transition:transform .15s,box-shadow .15s}
 .of-card:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(155,27,48,.12)}
@@ -638,7 +638,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           }}>
             <h2 style={{
               color: '#9B1B30', fontSize: 17, fontStyle: 'italic', textAlign: 'center',
-              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              fontFamily: 'var(--font-main), Roboto, sans-serif',
               margin: '0 0 18px', fontWeight: 400, letterSpacing: 0.5,
             }}>
               {i.popular}
@@ -661,13 +661,13 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   }}>
                     <span style={{
                       fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8,
-                      fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                      fontWeight: 600, fontFamily: 'var(--font-main), Roboto, sans-serif',
                     }}>
                       {routeName}
                     </span>
                     <span style={{
                       fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap', textAlign: 'right',
-                      fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                      fontFamily: 'var(--font-main), Roboto, sans-serif',
                     }}>
                       {/* Ion, 10.10.2026: prețul după tarif tăiat, apoi 150 cu «la cumpărare online» dedesubt. */}
                       {r.priceFull ? (
@@ -805,6 +805,20 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           locale={locale}
           onClose={() => setShowResults(false)}
           contact={telegram?.contact ?? null}
+          zi={ymd(selectedDate)}
+          seIncarca={searching}
+          onZi={(z) => { const d = new Date(`${z}T12:00:00`); setSelectedDate(d); runSearch(d); }}
+          onInverseaza={() => {
+            if (fromRef.current && toRef.current) {
+              const tmp = fromRef.current.value;
+              fromRef.current.value = toRef.current.value;
+              toRef.current.value = tmp;
+            }
+            setSwapTurns((n) => n + 1);
+            verificaPerechea();
+            runSearch(selectedDate);
+          }}
+          onEditeaza={() => { setShowResults(false); fromRef.current?.focus(); }}
         />
       )}
 
@@ -840,13 +854,13 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             />
           </div>
           <style>{`
-.later-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-opensans),Open Sans,sans-serif}
+.later-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:16px;font-family:var(--font-main),Roboto,sans-serif}
 .later-box{width:100%;max-width:340px;background:#fff;border-radius:24px;padding:18px;box-shadow:0 30px 80px rgba(40,10,18,.3);display:flex;flex-direction:column;gap:14px}
 .later-head{display:flex;align-items:center;justify-content:space-between;font-size:18px;font-weight:700;color:#231A1C}
 .later-st{display:table;margin:0 0 8px;font-style:normal;font-size:12.5px;font-weight:800;color:#2E7D4F;background:#E8F3EC;border-radius:999px;padding:4px 10px}
 .later-close{width:36px;height:36px;border-radius:50%;border:none;background:#F6ECEE;color:#9B1B30;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .later-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.later-quick button{height:44px;border-radius:12px;border:1.5px solid #9B1B30;background:#fff;color:#9B1B30;font:700 14px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
+.later-quick button{height:44px;border-radius:12px;border:1.5px solid #9B1B30;background:#fff;color:#9B1B30;font:700 14px var(--font-main),Roboto,sans-serif;cursor:pointer}
 .later-quick button:first-child{background:#9B1B30;color:#fff}
 .later-quick button:hover{filter:brightness(.96)}
 `}</style>

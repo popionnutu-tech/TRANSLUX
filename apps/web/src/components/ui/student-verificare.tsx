@@ -29,7 +29,7 @@ const TXT = {
     eticheta: "Студенческая скидка", titlu: "Покажите студенческий", sub: "Займёт минуту. Затем выберете рейс.",
     pas1: "Документы", pas2: "Рейс",
     nume: "Фамилия", prenume: "Имя", telefon: "Телефон", telNota: "Эти же данные будут на билете.",
-    carnet: "Студенческий", act: "Удостоверение или паспорт", fa: "Сделать фото", refa: "Переснять",
+    carnet: "Студенческий", act: "Удостоверение или паспорт", fa: "Снять фото", refa: "Переснять",
     sfat: "Университет или колледж Молдовы, продлённый на этот год. Реальное фото, при свете, без бликов.",
     acordScurt: "Согласен(на) на автоматическую проверку фото.", detalii: "Подробнее",
     acord: "TRANSLUX обрабатывает фото документов для проверки скидки, включая сравнение лиц, через сервис Anthropic. Фото документа удаляется после проверки, остальное — через 90 дней.",
@@ -201,7 +201,7 @@ const CSS = `
 .sv-placa input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .sv-vazut{width:100%;height:64px;object-fit:cover;border-radius:10px}
 .sv-placa-t{font-size:14.5px;font-weight:700;color:var(--sv-text);line-height:1.25}
-.sv-placa-b{display:inline-flex;align-items:center;gap:6px;font-size:14.5px;font-weight:800;color:#fff;background:var(--sv-albastru);border-radius:999px;padding:6px 12px}
+.sv-placa-b{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:14.5px;font-weight:800;color:#fff;background:var(--sv-albastru);border-radius:999px;padding:6px 12px}
 .sv-placa.are .sv-placa-b{background:#2B6B3A}
 .sv-sfat{margin:0;display:flex;gap:8px;font-size:14px;line-height:1.45;color:#3B3438;background:#FFF8E8;border-radius:14px;padding:10px 12px}
 .sv-acord{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}

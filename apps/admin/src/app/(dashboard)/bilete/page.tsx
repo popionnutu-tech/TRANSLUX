@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { alerteDeschise, contorNouaVechi, listaComenzi, scanariPortocalii, type Filtre } from './actions';
+import { alerteDeschise, contorNouaVechi, listaComenzi, returnariDeschise, scanariPortocalii, type Filtre } from './actions';
 import BileteClient from './BileteClient';
 
 interface Props {
@@ -15,6 +15,6 @@ export default async function BiletePage({ searchParams }: Props) {
     stare: sp.stare || undefined,
     test: sp.test === 'da' || sp.test === 'nu' ? sp.test : 'toate',
   };
-  const [comenzi, alerte, nouaVechi, portocalii] = await Promise.all([listaComenzi(filtre), alerteDeschise(), contorNouaVechi(), scanariPortocalii()]);
-  return <BileteClient comenzi={comenzi} alerte={alerte} nouaVechi={nouaVechi} filtre={filtre} portocalii={portocalii} />;
+  const [comenzi, alerte, nouaVechi, portocalii, returnari] = await Promise.all([listaComenzi(filtre), alerteDeschise(), contorNouaVechi(), scanariPortocalii(), returnariDeschise()]);
+  return <BileteClient comenzi={comenzi} alerte={alerte} nouaVechi={nouaVechi} filtre={filtre} portocalii={portocalii} returnari={returnari} />;
 }

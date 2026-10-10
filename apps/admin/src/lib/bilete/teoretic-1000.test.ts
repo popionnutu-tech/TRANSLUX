@@ -941,8 +941,8 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(creeaza.text).toMatch(/ip_hash = coalesce\(v_ip, ''\) AND NOT in_pachet/);
     expect(creeaza.text).toMatch(/phone = v_phone AND status = 'noua' AND NOT in_pachet/);
   });
-  it('anularea (548, ultima definiție): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
-    expect(anuleaza.fisier).toBe('548_bilete_tur_retur_o_plata.sql');
+  it('anularea (558, ultima definiție — copiată din 548): pachetul doar împreună; «doar turul» scade reducere_lei_loc × seats; vina noastră nu scade', () => {
+    expect(anuleaza.fisier).toBe('558_bilete_refund_intentii.sql');
     expect(anuleaza.text).toContain("IF c.in_pachet AND NOT (coalesce(p_vina_noastra, false) OR p_sursa = 'sistem') THEN RAISE EXCEPTION 'PACHET_DOAR_IMPREUNA'");
     expect(anuleaza.text).toContain('IF coalesce(p_si_returul, false) OR rt.in_pachet THEN');
     expect(anuleaza.text).toContain('v_suma := greatest(0, p_grila - rt.reducere_lei_loc * rt.seats);');

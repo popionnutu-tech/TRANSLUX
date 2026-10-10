@@ -1,9 +1,10 @@
 import 'server-only';
 import type { BileteComanda } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { findCheckoutByOrderId, getPayment } from '@/lib/maib/client';
+import { findCheckoutByOrderId } from '@/lib/maib/client';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
-import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
+import { intentiiScadente, proceseazaIntentia } from './refund-intentii';
+import { executaOferta } from './retur-bot';
 import { leagaSesiuneExistenta, stareSoferCursa } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
 import { smsRestante, trimiteSmsConfirmare } from './sms';
@@ -18,8 +19,8 @@ import { INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiu
 //   A. comenzi deschise > 30 min FĂRĂ sesiune: sesiunea există la maib? → se leagă (și se plătește, dacă e cazul);
 //      nu există / e închisă → «expirata»; peste 3 încercări → «expirata» + alertă.
 //   B. comenzi deschise > 30 min CU sesiune: starea de la maib (bilete la Completed/Executed; «expirata» la Expired…).
-//   C. comenzi anulate cu refund nefinalizat: refund_id → finalizare; «Necunoscut» → getPayment.refundedAmount;
-//      fără răspuns > 24 h → alertă (o dată).
+//   C. intențiile de refund (558): un pas fiecare — trimitere, împăcare cu banca după un rezultat necunoscut, finalizare;
+//      C2: ofertele de returnare din bot consumate și neexecutate se reiau automat.
 //   D. cursă fără șofer la < 3 h de plecare pentru comenzi plătite → alertă (o dată pe comandă).
 
 export interface ContorJob { procesate: number; aplicate: number; erori: number }
@@ -37,7 +38,7 @@ export interface RaportImpacare {
   oprit_de_buget: boolean;
 }
 
-const COTE = { fara_checkout: 10, cu_checkout: 10, refund: 5, cursa_fara_sofer: 20, email: 10 };
+const COTE = { fara_checkout: 10, cu_checkout: 10, refund: 10, cursa_fara_sofer: 20, email: 10 };
 const PARALEL = 5;
 
 async function inLoturi<T>(items: T[], fn: (x: T) => Promise<void>, contor: ContorJob): Promise<void> {
@@ -138,43 +139,48 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
   }, raport.cu_checkout);
   if (!maiAmTimp()) { raport.oprit_de_buget = true; raport.durata_ms = Date.now() - start; return raport; }
 
-  // C. refund-uri nefinalizate
-  const { data: anulate } = await db.from('bilete_comenzi').select('id, checkout_id, cancelled_at')
-    .eq('status', 'anulata').is('refund_finalizat_la', null).not('checkout_id', 'is', null)
-    .order('cancelled_at').limit(COTE.refund);
-  await inLoturi((anulate || []) as { id: string; checkout_id: string; cancelled_at: string | null }[], async (c) => {
-    const { data: ck } = await db.from('maib_checkouts').select('checkout_id, refund_id, refund_status, payment_id').eq('checkout_id', c.checkout_id).maybeSingle();
-    if (!ck) return;
-    if (opt.dry) return;
-    if (ck.refund_id) {
-      await verificaSiFinalizeazaRefund(ck);
-      raport.refund.aplicate += 1;
-      return;
+  // C. intențiile de refund (558; dezbaterea Claude ⇄ Codex 10.10, N2/C3/C1 — «dispecer nu va fi»): fiecare intenție
+  // scadentă face un pas (trimitere / împăcare cu banca / finalizare). Revendicarea din SQL lasă un singur worker.
+  if (!opt.dry) {
+    const ids = await intentiiScadente(COTE.refund);
+    await inLoturi(ids, async (id) => {
+      const r = await proceseazaIntentia(id);
+      if (r.stare !== 'ocupata') raport.refund.aplicate += 1;
+    }, raport.refund);
+    // Plasă: o anulare fără intenție n-ar trebui să existe după 558 (bilete_anuleaza o scrie în aceeași tranzacție).
+    const { data: fara } = await db.from('bilete_comenzi').select('id, cancelled_at')
+      .eq('status', 'anulata').is('refund_finalizat_la', null).lt('cancelled_at', new Date(Date.now() - REFUND_NECUNOSCUT_ALERTA_MS).toISOString())
+      .order('cancelled_at').limit(COTE.refund);
+    for (const c of (fara || []) as { id: string }[]) {
+      const { count } = await db.from('bilete_refund_intentii').select('id', { count: 'exact', head: true }).contains('comenzi', [c.id]);
+      if ((count ?? 0) === 0) await alertaOData(c.id, 'refund_necunoscut', 'anulată de peste 24 h fără intenție de refund (558)', false);
     }
-    if (ck.payment_id) {
-      const p = await getPayment(ck.payment_id);
-      if (Number(p.refundedAmount ?? 0) > 0) {
-        await finalizeazaRefund(ck.checkout_id, { status: 'Accepted', refundedAmount: Number(p.refundedAmount), paymentStatus: p.status });
-        raport.refund.aplicate += 1;
-        return;
-      }
-    }
-    const vechime = c.cancelled_at ? Date.now() - Date.parse(c.cancelled_at) : 0;
-    if (vechime > REFUND_NECUNOSCUT_ALERTA_MS) {
-      if (await alertaOData(c.id, 'refund_necunoscut', 'anulată de peste 24 h fără refund confirmat la bancă', false)) raport.refund.aplicate += 1;
-    }
-  }, raport.refund);
+  }
   if (!maiAmTimp()) { raport.oprit_de_buget = true; raport.durata_ms = Date.now() - start; return raport; }
 
-  // C2. Returnări din bot rămase nedeterminate (ION-244, corectura 16′): oferta consumată de peste 2 min, fără rezultat,
-  // iar comanda încă «platita» — funcția a murit între consumare și anulare. Dispecerul decide; alertă o dată pe comandă.
+  // C2. Returnări din bot consumate, dar neexecutate (ION-244, corectura 16′): funcția a murit între consumarea ofertei și
+  // anulare, iar comanda e încă «platita». Codex C1 (10.10): se reiau automat, cu suma și momentul validării ofertei —
+  // aceeași cale ca butonul din bot (executaOferta), fără dispecer.
   if (!opt.dry) {
-    const { data: blocate } = await db.from('bilete_retur_oferte').select('id, comanda_id, suma')
-      .not('folosita_la', 'is', null).is('rezultat', null).lt('folosita_la', new Date(Date.now() - 2 * 60_000).toISOString()).limit(10);
-    for (const o of (blocate || []) as { id: string; comanda_id: string; suma: number }[]) {
+    const { data: blocate } = await db.from('bilete_retur_oferte').select('id, comanda_id, suma, noimi, validata_la')
+      .not('folosita_la', 'is', null).is('rezultat', null).lt('folosita_la', new Date(Date.now() - 2 * 60_000).toISOString()).limit(5);
+    for (const o of (blocate || []) as { id: string; comanda_id: string; suma: number; noimi: number | null; validata_la: string | null }[]) {
+      if (!maiAmTimp()) break;
       const { data: c } = await db.from('bilete_comenzi').select('status').eq('id', o.comanda_id).maybeSingle();
-      if (c?.status !== 'platita') continue;
-      if (await alertaOData(o.comanda_id, 'retur_cerere', `returnare din bot confirmată (oferta ${o.id}, ${Number(o.suma)} lei), dar neexecutată — verifică și returnează din /bilete`, false)) raport.refund.aplicate += 1;
+      if (c?.status !== 'platita' || !o.validata_la) {
+        // Anularea a ajuns în bază (intenția o duce mai departe) sau comanda nu mai e de anulat: se închide oferta.
+        await db.from('bilete_retur_oferte').update({ rezultat: c?.status === 'anulata' || c?.status === 'returnata' ? 'necunoscut' : `refuz:stare_${c?.status ?? 'lipsa'}` })
+          .eq('id', o.id).is('rezultat', null);
+        continue;
+      }
+      try {
+        const rez = await executaOferta({ id: o.id, comanda_id: o.comanda_id, suma: Number(o.suma), noimi: o.noimi, validata_la: o.validata_la });
+        raport.refund.aplicate += 1;
+        if (rez.startsWith('refuz:') || rez === 'eroare') console.warn('[impacare] oferta reluată', o.id, rez);
+      } catch (e) {
+        raport.refund.erori += 1;
+        console.error('[impacare] oferta reluată', o.id, e instanceof Error ? e.message : e);
+      }
     }
   }
 

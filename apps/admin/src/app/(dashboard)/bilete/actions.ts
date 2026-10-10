@@ -6,6 +6,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { anuleazaSiReturneaza } from '@/lib/bilete/refund';
 import { verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
+import { intentiiDeschise, reincearcaIntentia, type IntentieVizibila } from '@/lib/bilete/refund-intentii';
 import { ComandaError } from '@/lib/bilete/comenzi';
 import { chisinauDayOf, chisinauDayStartIso, chisinauTodayIso } from '@/lib/chisinau-time';
 import { clasaScanare, esteDinCoadaOffline, estePortocalie, grupeazaPeZi, type ClasaScanare } from './portocalii-reguli';
@@ -132,14 +133,39 @@ export async function returneazaComanda(id: string, motiv: string, opt: { vinaNo
 export async function verificaRefundComanda(id: string): Promise<Rezultat> {
   requireRole(await verifySession(), 'ADMIN');
   const db = getSupabase();
-  const { data: c } = await db.from('bilete_comenzi').select('checkout_id').eq('id', id).maybeSingle();
-  if (!c?.checkout_id) return { ok: false, eroare: 'comanda n-are sesiune maib' };
-  const { data: ck } = await db.from('maib_checkouts').select('checkout_id, refund_id, payment_id').eq('checkout_id', c.checkout_id).maybeSingle();
-  if (!ck?.refund_id) return { ok: false, eroare: 'nu există refund cerut la bancă' };
+  // 558: refund-ul e al intenției; returul din pachet n-are sesiune proprie — plata e pe tur.
+  const { data: c } = await db.from('bilete_comenzi').select('checkout_id, in_pachet, comanda_tur_id').eq('id', id).maybeSingle();
+  let checkoutId = (c?.checkout_id as string | null) ?? null;
+  if (!checkoutId && c?.in_pachet && c.comanda_tur_id) {
+    const { data: t } = await db.from('bilete_comenzi').select('checkout_id').eq('id', c.comanda_tur_id).maybeSingle();
+    checkoutId = (t?.checkout_id as string | null) ?? null;
+  }
+  if (!checkoutId) return { ok: false, eroare: 'comanda n-are sesiune maib' };
+  const { data: ck } = await db.from('maib_checkouts').select('checkout_id, refund_id, payment_id').eq('checkout_id', checkoutId).maybeSingle();
+  if (!ck) return { ok: false, eroare: 'sesiunea maib lipsește' };
   try {
     const r = await verificaSiFinalizeazaRefund(ck);
     revalidatePath('/bilete');
-    return { ok: true, mesaj: `refund: ${r?.decizie ?? '?'}` };
+    if (!r) return { ok: false, eroare: 'nu există refund cerut la bancă' };
+    return { ok: true, mesaj: `refund: ${r.decizie}` };
+  } catch (e) {
+    return { ok: false, eroare: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** 558: returnările de bani încă nefinalizate (în curs, refuzate de bancă, blocate) — vizibile, nu «gata» în tăcere. */
+export async function returnariDeschise(): Promise<IntentieVizibila[]> {
+  requireRole(await verifySession(), 'ADMIN');
+  return intentiiDeschise();
+}
+
+/** 558: «Reîncearcă acum» pe o returnare refuzată (ex. după răspunsul maib la D6). */
+export async function reincearcaReturnarea(id: string): Promise<Rezultat> {
+  requireRole(await verifySession(), 'ADMIN');
+  try {
+    const r = await reincearcaIntentia(id);
+    revalidatePath('/bilete');
+    return r.stare === 'refuzata' ? { ok: false, eroare: `banca a refuzat din nou: ${r.motiv ?? ''}` } : { ok: true, mesaj: `returnarea: ${r.stare}` };
   } catch (e) {
     return { ok: false, eroare: e instanceof Error ? e.message : String(e) };
   }

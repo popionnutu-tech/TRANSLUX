@@ -166,7 +166,20 @@ export async function confirmaOferta(telegramIdRaw: unknown, ofertaIdRaw: unknow
     if (/OFERTA_(INEXISTENTA|STRAINA)/.test(error.message)) return { ok: false, cod: 'inexistent' };
     throw new Error(`bilete_retur_foloseste: ${error.message}`);
   }
-  const of = o as { id: string; comanda_id: string; suma: number; noimi?: number; validata_la: string };
+  const of = o as OfertaFolosita;
+  await executaOferta(of);
+  return stareOferta(telegramId, of.id);
+}
+
+interface OfertaFolosita { id: string; comanda_id: string; suma: number; noimi?: number | null; validata_la: string }
+
+/**
+ * Returnarea pentru o ofertă deja consumată: anularea + intenția de refund, apoi rezultatul pe ofertă (doar dacă nu are
+ * deja unul). O cheamă confirmarea din bot și împăcarea, pentru oferta consumată de o funcție care a murit înainte de
+ * anulare (Codex C1, 10.10: «recuperarea ofertelor consumate» — fără dispecer).
+ */
+export async function executaOferta(of: OfertaFolosita): Promise<string> {
+  const db = getSupabase();
   let rezultat = 'eroare';
   // Returul legat (pachet sau −20% cumpărat după tur, chiar și după ofertă): se anulează împreună, cu aceeași fracție.
   const leg = await returLegat(of.comanda_id);
@@ -183,9 +196,9 @@ export async function confirmaOferta(telegramIdRaw: unknown, ofertaIdRaw: unknow
       : e.cod === 'maib' && /rămas anulată/.test(e.message) ? 'refuz:maib_anulata' : `refuz:${e.cod}`) : 'eroare';
     if (!(e instanceof ComandaError)) console.error('[retur-bot] confirmare:', e instanceof Error ? e.message : e);
   } finally {
-    await db.from('bilete_retur_oferte').update({ rezultat }).eq('id', of.id);
+    await db.from('bilete_retur_oferte').update({ rezultat }).eq('id', of.id).is('rezultat', null);
   }
-  return stareOferta(telegramId, of.id);
+  return rezultat;
 }
 
 export async function escaladeaza(telegramIdRaw: unknown, codRaw: unknown, textRaw: unknown, motivRaw: unknown): Promise<boolean> {

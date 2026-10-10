@@ -3,8 +3,8 @@ import { getSupabase } from '@/lib/supabase';
 import { getPayment, getRefund, refundPayment, stareEgala, MaibError } from '@/lib/maib/client';
 import { deciziaRefund } from '@/lib/maib/refund-decizie';
 
-// Refund-ul maib — O SINGURĂ cale (ION-194): revendicarea anti-dublu, apelul la bancă, finalizarea. O folosesc
-// /plati (plățile de test), anularea comenzilor de bilete (pasager/admin/sistem) și împăcarea din cron.
+// Refund-ul maib pe plățile de test din /plati (fără comandă de bilete): revendicarea anti-dublu, apelul la bancă,
+// starea. Comenzile de bilete trec prin intenția de refund (558, lib/bilete/refund-intentii.ts).
 // Trei rezultate, care contează pentru bani: «creat» (banca a acceptat cererea), «refuz» (banca a spus clar NU —
 // se poate reveni), «necunoscut» (timeout/5xx — poate că refund-ul EXISTĂ; nu se revine, se împacă).
 
@@ -73,9 +73,9 @@ export type StareRefundMaib = { status: string; amount?: number; refundedAmount?
 export { deciziaRefund };
 
 /**
- * Scrie starea refund-ului pe checkout ȘI pe comanda de bilete legată (dacă există și e «anulata»):
- * Accepted → «returnata» + refund_finalizat_la; Rejected/Manual → alertă refund_respins + refund_finalizat_la.
- * Folosită de «Verifică refund-ul» din /plati și de împăcare (Codex C4: o singură finalizare).
+ * Scrie starea refund-ului pe rândul plății. Comenzile de bilete NU se mai finalizează de aici (558): o comandă devine
+ * «returnata» doar ca membru al intenției ei de refund (bilete_refund_finalizeaza), niciodată din refund-ul altui bilet
+ * de pe aceeași plată — de aceea a dispărut marcajul-alertă PACHET_REFUND_OCUPAT.
  */
 export async function finalizeazaRefund(checkoutId: string, stare: StareRefundMaib): Promise<{ decizie: ReturnType<typeof deciziaRefund>; comandaId: string | null }> {
   const db = getSupabase();
@@ -86,33 +86,25 @@ export async function finalizeazaRefund(checkoutId: string, stare: StareRefundMa
     if (stare.paymentStatus) upd.payment_status = stare.paymentStatus;
   }
   await db.from('maib_checkouts').update(upd).eq('checkout_id', checkoutId);
-
-  const { data: c } = await db.from('bilete_comenzi').select('id, status').eq('checkout_id', checkoutId).maybeSingle();
-  if (!c) return { decizie, comandaId: null };
-  // 548: returul din pachet (fără sesiune proprie) urmează refund-ul turului — și când doar el a fost anulat (vina noastră).
-  const { data: pachet } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', c.id).eq('in_pachet', true).eq('status', 'anulata');
-  // Revizia 10.10 (H2): pe o sesiune tur-retur, un refund e al unui singur bilet; comanda anulată DUPĂ ce refund-ul a fost
-  // folosit de celălalt bilet (alerta PACHET_REFUND_OCUPAT) nu primește «returnata» de la refund-ul altuia.
-  const candidati = [...(c.status === 'anulata' ? [c.id] : []), ...((pachet || []) as { id: string }[]).map((x) => x.id)];
-  const { data: ocupate } = candidati.length
-    ? await db.from('bilete_alerte').select('comanda_id').in('comanda_id', candidati).like('detalii', 'PACHET_REFUND_OCUPAT%')
-    : { data: [] };
-  const exclus = new Set(((ocupate || []) as { comanda_id: string }[]).map((x) => x.comanda_id));
-  const ids = candidati.filter((id) => !exclus.has(id));
-  if (ids.length === 0) return { decizie, comandaId: c.id };
-  if (decizie === 'returnata') {
-    await db.from('bilete_comenzi').update({ status: 'returnata', refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .in('id', ids).eq('status', 'anulata');
-    await db.from('bilete').update({ status: 'returnat' }).in('comanda_id', ids).eq('status', 'anulat');
-  } else if (decizie === 'respins') {
-    await db.from('bilete_comenzi').update({ refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() }).in('id', ids);
-    await db.from('bilete_alerte').insert({ comanda_id: c.id, tip: 'refund_respins', detalii: `maib: ${stare.status}` });
-  }
-  return { decizie, comandaId: c.id };
+  const { data: c } = await db.from('bilete_comenzi').select('id').eq('checkout_id', checkoutId).maybeSingle();
+  return { decizie, comandaId: (c?.id as string | undefined) ?? null };
 }
 
-/** Citește starea refund-ului de la bancă și o finalizează. */
+/**
+ * «Verifică refund-ul» (/plati, /bilete). Plata unei comenzi de bilete: un pas pentru fiecare intenție a ei (refund-intentii.ts),
+ * acum. Plata de test fără comandă: starea refund-ului de la bancă, scrisă pe rând.
+ */
 export async function verificaSiFinalizeazaRefund(checkout: { checkout_id: string; refund_id: string | null; payment_id: string | null }) {
+  const { proceseazaIntentiilePlatii } = await import('@/lib/bilete/refund-intentii');
+  const { count } = await getSupabase().from('bilete_refund_intentii').select('id', { count: 'exact', head: true }).eq('checkout_id', checkout.checkout_id);
+  if ((count ?? 0) > 0) {
+    const rez = await proceseazaIntentiilePlatii(checkout.checkout_id, { grabeste: true });
+    const stari = rez.map((r) => r.stare);
+    const decizie: ReturnType<typeof deciziaRefund> = stari.length && stari.every((s) => s === 'finalizata') ? 'returnata'
+      : stari.some((s) => s === 'refuzata') ? 'respins' : 'in_curs';
+    const { data: c } = await getSupabase().from('bilete_comenzi').select('id').eq('checkout_id', checkout.checkout_id).maybeSingle();
+    return { decizie, comandaId: (c?.id as string | undefined) ?? null };
+  }
   if (!checkout.refund_id) return null;
   const r = await getRefund(checkout.refund_id);
   let paymentStatus: string | null = null;

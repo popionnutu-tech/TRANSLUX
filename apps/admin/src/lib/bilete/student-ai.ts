@@ -31,11 +31,13 @@ const OUTPUT_SCHEMA = {
     'numar_carnet', 'claritate', 'semne_ecran', 'semne_editare', 'fata_compatibila'],
   properties: {
     e_carnet_student: { type: 'boolean' },
-    tip_institutie: { type: ['string', 'null'], enum: ['universitate', 'colegiu', 'altul', null] },
+    // Enum fără null: API-ul refuză `enum` cu null lângă `type: ['string','null']` (400 «Enum value … does not match
+    // declared type», 10.10.2026 — de aceea nicio verificare nu trecea). «necunoscut» → null în parseazaExtras.
+    tip_institutie: { type: 'string', enum: ['universitate', 'colegiu', 'altul', 'necunoscut'] },
     institutie: { type: ['string', 'null'] },
     nume_carnet: { type: ['string', 'null'] },
     nume_act: { type: ['string', 'null'] },
-    tip_act: { type: ['string', 'null'], enum: ['pasaport', 'buletin', 'altul', null] },
+    tip_act: { type: 'string', enum: ['pasaport', 'buletin', 'altul', 'necunoscut'] },
     valabil_pana: { type: ['string', 'null'], description: 'YYYY-MM-DD' },
     an_studii: { type: ['string', 'null'], description: 'ex. 2026-2027' },
     numar_carnet: { type: ['string', 'null'] },
@@ -87,7 +89,7 @@ export type RezultatVerificare =
 async function alertaAi(detalii: string): Promise<void> {
   const db = getSupabase();
   const { count } = await db.from('bilete_alerte').select('id', { count: 'exact', head: true })
-    .eq('tip', 'ai_eroare').gt('created_at', new Date(Date.now() - 3_600_000).toISOString());
+    .eq('tip', 'ai_eroare').gt('moment', new Date(Date.now() - 3_600_000).toISOString());
   if ((count ?? 0) === 0) await db.from('bilete_alerte').insert({ tip: 'ai_eroare', detalii: detalii.slice(0, 500) });
 }
 

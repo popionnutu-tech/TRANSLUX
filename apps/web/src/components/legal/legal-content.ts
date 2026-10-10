@@ -20,7 +20,7 @@ export const OPERATOR = {
   site: 'translux.md',
 } as const;
 
-export const LAST_UPDATED = { ro: '3 octombrie 2026', ru: '3 октября 2026' } as const;
+export const LAST_UPDATED = { ro: '10 octombrie 2026', ru: '10 октября 2026' } as const;
 
 export interface LegalSection {
   title: string;
@@ -63,6 +63,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
             'Портал «Verificare» для партнёров и водителей. Обрабатываются данные входа и cookie сессии (30 дней). Основание — договорные отношения с партнёром.',
             'Ссылки на Facebook и TikTok ведут на внешние сайты. Мы не загружаем на translux.md их скрипты и пиксели; их политики применяются только после перехода.',
             'Покупка онлайн-билета. Обрабатываются: фамилия и имя пассажира, телефон, e-mail (если вы его указали), рейс и места, сумма и статус оплаты, сведения о посадке (сканирование QR-кода водителем) и, если вы открываете билет в Telegram, идентификатор вашего аккаунта Telegram. Данные карты обрабатывает только банк maib; мы их не видим. Цель: продать билет, отправить его вам, допустить вас к посадке, вернуть деньги и разобрать жалобу. Основание: исполнение договора перевозки и требования законодательства о перевозках и бухгалтерском учёте.',
+            'Проверка студенческой скидки (рейсы Бельцы ⇄ Кишинёв). Обрабатываются: фото студенческого билета и документа удостоверения личности (паспорт или удостоверение), имя с документов, учебное заведение, номер и срок действия студенческого, результат сравнения лиц на двух документах, телефон и обезличенный отпечаток IP-адреса (для ограничения числа попыток). Цель: только проверить право на скидку и не допустить её передачи другому лицу. Основание: ваше явное согласие, которое вы даёте нажатием «Проверить документы» (Закон № 195/2024); без него скидку можно не использовать и купить билет по полной цене. Проверка автоматическая; если вы не согласны с отказом, напишите нам — заявку рассмотрит человек.',
           ],
         },
         {
@@ -72,7 +73,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
             '- Vercel Inc. (США/ЕС) — хостинг сайта;',
             '- Supabase Inc. (ЕС) — база данных;',
             '- ElevenLabs Inc. (США) — телефония и голосовой ассистент;',
-            '- поставщики языковых моделей (например, Anthropic PBC, США) — понимание речи ассистентом;',
+            '- поставщики языковых моделей (например, Anthropic PBC, США) — понимание речи ассистентом и автоматическая проверка студенческого;',
             '- Telegram — внутренние группы диспетчеров и водителей.',
             '- BC «Moldova Agroindbank» SA (maib, Республика Молдова) — приём оплаты картой и возврат денег;',
             '- Resend Inc. (США/ЕС) — отправка билета на e-mail;',
@@ -88,6 +89,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
             '- жалобы и сообщения о забытых вещах — до закрытия дела и в течение срока, установленного законодательством о перевозках и бухгалтерском учёте;',
             '- данные партнёров — на срок действия договора.',
             '- заказы онлайн-билетов и данные о посадке — в течение срока, установленного законодательством о бухгалтерском учёте, и до разрешения возможных жалоб.',
+            '- проверка студенческого — фото документа удостоверения личности удаляется сразу после успешной проверки; остальные фото и данные проверки — через 90 дней.',
           ],
         },
         {
@@ -136,6 +138,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
           'Portalul «Verificare» pentru parteneri și șoferi. Se prelucrează datele de autentificare și un cookie de sesiune (30 de zile). Temei: relația contractuală cu partenerul.',
           'Linkurile către Facebook și TikTok duc pe site-uri externe. Nu încărcăm pe translux.md scripturile sau pixelii acestora; politicile lor se aplică doar după ce le accesați.',
           'Cumpărarea biletului online. Se prelucrează: numele și prenumele pasagerului, telefonul, e-mailul (dacă l-ați lăsat), cursa și locurile, suma și starea plății, datele urcării (scanarea codului QR de către șofer) și, dacă deschideți biletul în Telegram, identificatorul contului dumneavoastră de Telegram. Datele cardului le prelucrează doar banca maib; noi nu le vedem. Scopul: să vindem biletul, să vi-l trimitem, să vă admitem la urcare, să restituim banii și să soluționăm reclamațiile. Temei: executarea contractului de transport și obligațiile din legislația transporturilor și din cea contabilă.',
+          'Verificarea reducerii de student (cursele Bălți ⇄ Chișinău). Se prelucrează: pozele carnetului de student și ale actului de identitate (pașaport sau buletin), numele de pe acte, instituția, numărul și valabilitatea carnetului, rezultatul comparării fețelor de pe cele două acte, telefonul și o amprentă anonimizată a adresei IP (pentru limita de încercări). Scopul: doar să verificăm dreptul la reducere și să nu fie folosită de altă persoană. Temei: consimțământul dumneavoastră explicit, dat prin apăsarea «Verifică actele» (Legea nr. 195/2024); fără el puteți cumpăra biletul la prețul întreg. Verificarea e automată; dacă nu sunteți de acord cu un refuz, ne scrieți și cererea o analizează un om.',
         ],
       },
       {
@@ -145,7 +148,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
           '- Vercel Inc. (SUA/UE) — găzduirea site-ului;',
           '- Supabase Inc. (UE) — baza de date;',
           '- ElevenLabs Inc. (SUA) — telefonia și asistentul vocal;',
-          '- furnizori de modele lingvistice (de ex. Anthropic PBC, SUA) — înțelegerea vorbirii de către asistent;',
+          '- furnizori de modele lingvistice (de ex. Anthropic PBC, SUA) — înțelegerea vorbirii de către asistent și verificarea automată a carnetului de student;',
           '- Telegram — grupurile interne ale dispecerilor și șoferilor.',
           '- B.C. „Moldova Agroindbank” S.A. (maib, Republica Moldova) — încasarea plății cu cardul și restituirea banilor;',
           '- Resend Inc. (SUA/UE) — trimiterea biletului pe e-mail;',
@@ -161,6 +164,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
           '- reclamațiile și obiectele uitate — până la închiderea dosarului și pe termenul cerut de legislația transporturilor și de cea contabilă;',
           '- datele partenerilor — pe durata contractului.',
           '- comenzile de bilete online și datele urcării — pe termenul cerut de legislația contabilă și până la soluționarea eventualelor reclamații.',
+          '- verificarea carnetului de student — poza actului de identitate se șterge imediat după o verificare reușită; celelalte poze și datele verificării — în 90 de zile.',
         ],
       },
       {
@@ -197,6 +201,7 @@ export function cookiesDoc(locale: Locale): LegalDoc {
           body: [
             '- translux_consent — запоминает, что вы видели уведомление о cookie. Срок: 12 месяцев. Ставится сайтом translux.md.',
             '- translux-verificare — cookie сессии портала «Verificare» для партнёров и водителей; ставится только после входа на /verificare. Срок: 30 дней. Недоступен скриптам (httpOnly).',
+            '- tlx_student (хранилище вкладки, sessionStorage) — после проверки студенческого хранит код проверки, имя и телефон, чтобы скидка применилась при оплате. Срок: 30 минут или до закрытия вкладки. Строго необходим для запрошенной вами услуги.',
           ],
         },
         {
@@ -227,6 +232,7 @@ export function cookiesDoc(locale: Locale): LegalDoc {
         body: [
           '- translux_consent — reține că ați văzut notificarea despre cookie-uri. Durată: 12 luni. Setat de translux.md.',
           '- translux-verificare — cookie-ul de sesiune al portalului «Verificare» pentru parteneri și șoferi; se setează doar după autentificarea pe /verificare. Durată: 30 de zile. Inaccesibil scripturilor (httpOnly).',
+          '- tlx_student (stocarea filei, sessionStorage) — după verificarea carnetului păstrează codul verificării, numele și telefonul, ca reducerea să se aplice la plată. Durată: 30 de minute sau până închideți fila. Strict necesar serviciului cerut de dumneavoastră.',
         ],
       },
       {

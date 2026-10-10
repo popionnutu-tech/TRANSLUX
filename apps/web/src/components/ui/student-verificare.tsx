@@ -14,11 +14,12 @@ const TXT = {
   ro: {
     eticheta: "Reducere de student", titlu: "Arată-ne carnetul", sub: "Durează un minut. Apoi alegi cursa.",
     pas1: "Actele", pas2: "Cursa",
-    nume: "Nume", prenume: "Prenume", telefon: "Telefon", telNota: "Aceleași date vor fi pe bilet.",
+    telefon: "Telefon", telNota: "Numele îl luăm din act; pe bilet vor fi numele și acest telefon.",
     carnet: "Carnet de student", act: "Buletin sau pașaport", fa: "Fă poza", refa: "Refă",
     sfat: "Universitate sau colegiu din Moldova, cu viza pe anul acesta. Poză reală, la lumină, fără reflexii.",
-    acordScurt: "Sunt de acord ca pozele să fie verificate automat.", detalii: "Detalii",
-    acord: "TRANSLUX prelucrează pozele actelor pentru verificarea reducerii, inclusiv compararea fețelor, prin serviciul Anthropic. Poza actului se șterge după verificare, restul în 90 de zile.",
+    acordScurt: "Apăsând «Verifică actele» ești de acord cu verificarea automată a pozelor.", detalii: "Detalii",
+    acord: "Operator: S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni” (TRANSLUX). Prelucrăm pozele carnetului și ale actului de identitate (inclusiv compararea fețelor de pe cele două acte), numele, numărul carnetului și telefonul, doar ca să verificăm reducerea, pe baza acordului tău explicit (Legea nr. 195/2024). Verificarea o face automat serviciul Anthropic PBC (SUA), pe bază de contract. După o verificare reușită poza actului se șterge imediat; restul datelor — în 90 de zile. Poți retrage acordul și cere ștergerea la admin@translux.md.",
+    politica: "Politica de confidențialitate",
     verifica: "Verifică actele", seVerifica: "Se verifică…", ok: "Carnet verificat", okSub: "−20% se pune singur la plată, pe numele tău.", continua: "Alege cursa →",
     neclar: "Poza nu se citește bine. Mai încearcă una, la lumină, fără reflexii.",
     respins: "Carnetul nu a trecut verificarea. Poți cumpăra la prețul întreg.", refuzat: "Prea multe încercări azi. Încearcă mâine.",
@@ -28,11 +29,12 @@ const TXT = {
   ru: {
     eticheta: "Студенческая скидка", titlu: "Покажите студенческий", sub: "Займёт минуту. Затем выберете рейс.",
     pas1: "Документы", pas2: "Рейс",
-    nume: "Фамилия", prenume: "Имя", telefon: "Телефон", telNota: "Эти же данные будут на билете.",
+    telefon: "Телефон", telNota: "Имя возьмём из документа; на билете будут имя и этот телефон.",
     carnet: "Студенческий", act: "Удостоверение или паспорт", fa: "Снять фото", refa: "Переснять",
     sfat: "Университет или колледж Молдовы, продлённый на этот год. Реальное фото, при свете, без бликов.",
-    acordScurt: "Согласен(на) на автоматическую проверку фото.", detalii: "Подробнее",
-    acord: "TRANSLUX обрабатывает фото документов для проверки скидки, включая сравнение лиц, через сервис Anthropic. Фото документа удаляется после проверки, остальное — через 90 дней.",
+    acordScurt: "Нажимая «Проверить документы», вы соглашаетесь на автоматическую проверку фото.", detalii: "Подробнее",
+    acord: "Оператор: S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni” (TRANSLUX). Мы обрабатываем фото студенческого и документа удостоверения личности (включая сравнение лиц на двух документах), имя, номер студенческого и телефон только для проверки скидки, на основании вашего явного согласия (Закон № 195/2024). Проверку автоматически выполняет сервис Anthropic PBC (США) по договору. После успешной проверки фото документа удаляется сразу; остальное — через 90 дней. Отозвать согласие и запросить удаление: admin@translux.md.",
+    politica: "Политика конфиденциальности",
     verifica: "Проверить документы", seVerifica: "Проверяем…", ok: "Студенческий проверен", okSub: "−20% применится при оплате, на ваше имя.", continua: "Выбрать рейс →",
     neclar: "Фото плохо читается. Попробуйте ещё раз, при свете, без бликов.",
     respins: "Студенческий не прошёл проверку. Можно купить по полной цене.", refuzat: "Слишком много попыток сегодня. Попробуйте завтра.",
@@ -60,10 +62,10 @@ function IconAparat() {
 
 export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | "ru"; onGata: () => void; onClose: () => void }) {
   const tx = TXT[locale];
-  const [camp, setCamp] = React.useState({ nume: "", prenume: "", telefon: "" });
+  const [camp, setCamp] = React.useState({ telefon: "" });
+  const [numeAct, setNumeAct] = React.useState("");
   const [poze, setPoze] = React.useState<{ carnet: File | null; act: File | null }>({ carnet: null, act: null });
   const [vazut, setVazut] = React.useState<{ carnet: string | null; act: string | null }>({ carnet: null, act: null });
-  const [acord, setAcord] = React.useState(false);
   const [detalii, setDetalii] = React.useState(false);
   const [lucru, setLucru] = React.useState(false);
   const [mesaj, setMesaj] = React.useState<string | null>(null);
@@ -88,23 +90,24 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
   };
 
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
-  const gata = camp.nume.trim().length >= 2 && camp.prenume.trim().length >= 2 && camp.telefon.trim().length >= 6 && poze.carnet && poze.act && acord;
+  const gata = camp.telefon.trim().length >= 6 && poze.carnet && poze.act;
 
   const verifica = async () => {
-    if (!camp.nume.trim() || !camp.prenume.trim() || !camp.telefon.trim()) { setMesaj(tx.completeaza); return; }
-    if (!poze.carnet || !poze.act || !acord) return;
+    if (!camp.telefon.trim()) { setMesaj(tx.completeaza); return; }
+    if (!poze.carnet || !poze.act) return;
     setLucru(true); setMesaj(null);
     try {
       const [carnet, act] = await Promise.all([laJpeg(poze.carnet), laJpeg(poze.act)]);
-      // Numele în aceeași formă ca formularul de cumpărare («Nume Prenume»): jetonul e legat de el.
-      const passengerName = `${camp.nume.trim()} ${camp.prenume.trim()}`;
+      // Fără nume: panoul îl ia din act și leagă jetonul de el. Apăsarea butonului, cu textul acordului alături, e acordul.
       const r = await fetch("/api/bilete/student", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passengerName, phone: camp.telefon, carnet, act, consimtamant: true }),
+        body: JSON.stringify({ phone: camp.telefon, carnet, act, consimtamant: true }),
       });
       const j = await r.json().catch(() => null);
       if (j?.verdict === "accept" && typeof j.jeton === "string") {
-        scrieStudent({ jeton: j.jeton, expiraLa: String(j.expiraLa), nume: camp.nume.trim(), prenume: camp.prenume.trim(), telefon: camp.telefon.trim() });
+        const nume = String(j.nume ?? ""), prenume = String(j.prenume ?? "");
+        scrieStudent({ jeton: j.jeton, expiraLa: String(j.expiraLa), nume, prenume, telefon: camp.telefon.trim() });
+        setNumeAct(`${nume} ${prenume}`.trim());
         setOk(true);
       } else {
         setMesaj(j?.verdict === "poza_neclara" ? tx.neclar : j?.verdict === "respins" ? tx.respins : j?.verdict === "refuzat" ? tx.refuzat : tx.eroare);
@@ -131,7 +134,7 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
           <button type="button" className="sv-x" onClick={onClose} aria-label={tx.inchide}>&times;</button>
           <span className="sv-chip">{tx.eticheta} · −20%</span>
           <h2 id="sv-titlu">{ok ? tx.ok : tx.titlu}</h2>
-          <p>{ok ? tx.okSub : tx.sub}</p>
+          <p>{ok ? (numeAct ? `${numeAct} · ${tx.okSub}` : tx.okSub) : tx.sub}</p>
           <ol className="sv-pasi" aria-hidden="true">
             <li className="on"><b>{ok ? "✓" : "1"}</b>{tx.pas1}</li>
             <li className={ok ? "on" : ""}><b>2</b>{tx.pas2}</li>
@@ -145,26 +148,23 @@ export function StudentVerificare({ locale, onGata, onClose }: { locale: "ro" | 
           </div>
         ) : (
           <div className="sv-corp">
-            <div className="sv-doua">
-              <label className="sv-camp"><input value={camp.nume} onChange={scrie("nume")} autoComplete="family-name" maxLength={40} placeholder=" " /><span>{tx.nume}</span></label>
-              <label className="sv-camp"><input value={camp.prenume} onChange={scrie("prenume")} autoComplete="given-name" maxLength={40} placeholder=" " /><span>{tx.prenume}</span></label>
-            </div>
             <label className="sv-camp"><input type="tel" inputMode="tel" autoComplete="tel" value={camp.telefon} onChange={scrie("telefon")} placeholder=" " /><span>{tx.telefon}</span></label>
             <small className="sv-mic">{tx.telNota}</small>
 
             <div className="sv-doua">{placa("carnet", tx.carnet)}{placa("act", tx.act)}</div>
             <p className="sv-sfat"><span aria-hidden="true">💡</span>{tx.sfat}</p>
 
-            <div className="sv-acord">
-              <label><input type="checkbox" checked={acord} onChange={(e) => setAcord(e.target.checked)} /><span>{tx.acordScurt}</span></label>
-              <button type="button" className="sv-detalii" onClick={() => setDetalii((d) => !d)} aria-expanded={detalii}>{tx.detalii}</button>
-              {detalii && <p>{tx.acord}</p>}
-            </div>
-
             {mesaj && <p className="sv-mesaj" role="status">{mesaj}</p>}
             <button type="button" className="sv-buton" disabled={!gata || lucru} onClick={verifica}>
               {lucru && <span className="sv-roata" aria-hidden="true" />}{lucru ? tx.seVerifica : tx.verifica}
             </button>
+            {/* Ion, 10.10: «acordul GDPR, dacă se poate — ascunde». Pozele cu fața cer acord explicit (Legea 195/2024), deci
+                nu dispare: un rând mic lângă buton (apăsarea e acordul), textul întreg la «Detalii» + politica. */}
+            <div className="sv-acord">
+              <span>{tx.acordScurt}</span>{" "}
+              <button type="button" className="sv-detalii" onClick={() => setDetalii((d) => !d)} aria-expanded={detalii}>{tx.detalii}</button>
+              {detalii && <p>{tx.acord} <a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener">{tx.politica}</a></p>}
+            </div>
           </div>
         )}
       </div>
@@ -204,11 +204,10 @@ const CSS = `
 .sv-placa-b{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:14.5px;font-weight:800;color:#fff;background:var(--sv-albastru);border-radius:999px;padding:6px 12px}
 .sv-placa.are .sv-placa-b{background:#2B6B3A}
 .sv-sfat{margin:0;display:flex;gap:8px;font-size:14px;line-height:1.45;color:#3B3438;background:#FFF8E8;border-radius:14px;padding:10px 12px}
-.sv-acord{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
-.sv-acord label{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--sv-text);cursor:pointer;flex:1 1 220px}
-.sv-acord input{width:24px;height:24px;margin:0;flex:none;accent-color:var(--sv-albastru)}
-.sv-detalii{border:none;background:none;padding:4px 0;color:var(--sv-albastru);font:700 14px inherit;font-family:inherit;text-decoration:underline;cursor:pointer}
-.sv-acord p{flex-basis:100%;margin:0;font-size:13px;line-height:1.45;color:var(--sv-gri)}
+.sv-acord{margin-top:-4px;font-size:12.5px;line-height:1.45;color:var(--sv-gri);text-align:center}
+.sv-detalii{border:none;background:none;padding:0;color:var(--sv-albastru);font:700 12.5px inherit;font-family:inherit;text-decoration:underline;cursor:pointer}
+.sv-acord p{margin:8px 0 0;text-align:left;font-size:12.5px}
+.sv-acord a{color:var(--sv-albastru);font-weight:700}
 .sv-mesaj{margin:0;font-size:15px;font-weight:700;color:var(--sv-red);background:#FBEFF1;border-radius:12px;padding:10px 12px}
 .sv-buton{width:100%;min-height:56px;border:none;border-radius:16px;background:var(--sv-red);color:#fff;font:800 17px inherit;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 24px rgba(155,27,48,.25);transition:filter .15s}
 .sv-buton:hover{filter:brightness(1.06)}

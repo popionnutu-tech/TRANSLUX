@@ -154,6 +154,9 @@ export interface ExtrasCarnet {
   tara_institutie: 'MD' | 'alta' | null;
   nume_carnet: string | null;
   nume_act: string | null;
+  /** Numele de familie și prenumele de pe act, separat (Ion, 10.10: «nume, prenume se pot lua din pașaport și carnet»). */
+  nume_familie_act?: string | null;
+  prenume_act?: string | null;
   tip_act: 'pasaport' | 'buletin' | 'altul' | null;
   /** Valabil până la (YYYY-MM-DD) sau anul de studii al vizei («2026-2027»). */
   valabil_pana: string | null;

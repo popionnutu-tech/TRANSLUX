@@ -247,7 +247,7 @@ export async function pretCuReducere(input: IntrarePret): Promise<RaspunsPret | 
 }
 
 export type RaspunsCarnet =
-  | { verdict: 'accept'; jeton: string; expiraLa: string }
+  | { verdict: 'accept'; jeton: string; expiraLa: string; nume: string; prenume: string }
   | { verdict: 'poza_neclara' | 'respins' | 'refuzat' | 'eroare'; motiv: string };
 
 /** Verificarea carnetului la panou (cele două JPEG-uri în base64). */
@@ -261,7 +261,9 @@ export async function verificaCarnetLaPanou(corp: { passengerName: string; phone
     });
     const j = await r.json().catch(() => null);
     if (!r.ok || !j?.ok) return { verdict: 'eroare', motiv: String(j?.eroare ?? `HTTP ${r.status}`) };
-    if (j.verdict === 'accept' && typeof j.jeton === 'string') return { verdict: 'accept', jeton: j.jeton, expiraLa: String(j.expiraLa) };
+    if (j.verdict === 'accept' && typeof j.jeton === 'string') {
+      return { verdict: 'accept', jeton: j.jeton, expiraLa: String(j.expiraLa), nume: String(j.nume ?? '').slice(0, 40), prenume: String(j.prenume ?? '').slice(0, 40) };
+    }
     return { verdict: ['poza_neclara', 'respins', 'refuzat'].includes(j.verdict) ? j.verdict : 'eroare', motiv: String(j.motiv ?? '') };
   } catch { return { verdict: 'eroare', motiv: 'timeout' }; }
 }

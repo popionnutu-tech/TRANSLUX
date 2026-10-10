@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const nume = String(b?.passengerName ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
   const tel = normalizeazaTelefon(String(b?.phone ?? ''));
   const carnet = String(b?.carnet ?? ''), act = String(b?.act ?? '');
-  if (nume.length < 3 || !tel) return NextResponse.json({ verdict: 'eroare', motiv: 'date' }, { status: 400 });
+  if ((nume && nume.length < 3) || !tel) return NextResponse.json({ verdict: 'eroare', motiv: 'date' }, { status: 400 });
   if (b?.consimtamant !== true) return NextResponse.json({ verdict: 'eroare', motiv: 'consimtamant' }, { status: 400 });
   if (!B64.test(carnet) || !B64.test(act) || carnet.length > 1_000_000 || act.length > 1_000_000) return NextResponse.json({ verdict: 'eroare', motiv: 'poze' }, { status: 400 });
   const sare = process.env.BILETE_IP_SALT;

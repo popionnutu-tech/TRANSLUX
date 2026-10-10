@@ -23,6 +23,8 @@ export interface HomeOptions {
 export interface HomePopular {
   name: string;
   price: number;
+  /** Prețul după tarif, afișat tăiat înaintea lui `price` (doar unde există preț fix mai mic). */
+  priceFull?: number;
   /** Pagina de direcție (ION-153), doar dacă perechea are una. */
   href?: string;
 }
@@ -42,6 +44,7 @@ export function homePopular(prices: PopularRoutePrice[], links: HomeLink[], loca
     // Link doar spre o pagină de direcție care există (perechea e în getRoutePairs).
     const href = r.from_slug && r.to_slug ? hrefs.get(`${r.from_slug}-${r.to_slug}`) : undefined;
     const name = locale === 'ru' ? `${r.from_ru} - ${r.to_ru}` : `${r.from_ro} - ${r.to_ro}`;
-    return href ? { name, price: r.price, href } : { name, price: r.price };
+    const base: HomePopular = r.price_full ? { name, price: r.price, priceFull: r.price_full } : { name, price: r.price };
+    return href ? { ...base, href } : base;
   });
 }

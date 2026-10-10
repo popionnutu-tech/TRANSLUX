@@ -589,6 +589,10 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                       fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap', textAlign: 'right',
                       fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
                     }}>
+                      {/* Ion, 10.10.2026: prețul după tarif tăiat, apoi 150 cu «la cumpărare online» dedesubt. */}
+                      {r.priceFull ? (
+                        <s style={{ fontWeight: 400, color: '#999', marginRight: 6 }}>{r.priceFull} LEI</s>
+                      ) : null}
                       {r.price} LEI
                       {/* Ion, 10.10.2026: «sub prețul 150 la Bălți trebuie să fie indicat — la cumpărare online», font mic. */}
                       {href?.endsWith('/chisinau-balti') && (

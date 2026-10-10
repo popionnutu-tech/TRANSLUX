@@ -90,6 +90,8 @@ export interface PopularRoutePrice {
   from_ru: string;
   to_ru: string;
   price: number;
+  /** Prețul după tarif (automat), tăiat pe site când `price` e un preț fix mai mic (Bălți ⇄ Chișinău). */
+  price_full?: number;
 }
 
 const POPULAR_ROUTES = [
@@ -145,7 +147,9 @@ async function preturiPopulareLa(today: string): Promise<PopularRoutePrice[]> {
       price = Math.round(km * rate);
     }
     // Bălți ⇄ Chișinău are preț fix (ION-165; Ion 10.10.2026: «și Chișinău–Bălți 150 lei pe site»), ca la căutare.
+    // Ion, 10.10.2026: «trebuie să fie tăiat biletul după preț automatizat și lăsat 150 cu scrisul dedesubt».
     const fix = baltiChisinauFixedPrice(r.from_ro, r.to_ro, today);
+    const price_full = fix != null && price > fix ? price : undefined;
     if (fix != null) price = fix;
 
     return {
@@ -156,6 +160,7 @@ async function preturiPopulareLa(today: string): Promise<PopularRoutePrice[]> {
       from_ru: r.from_ru,
       to_ru: r.to_ru,
       price,
+      ...(price_full ? { price_full } : {}),
     };
   });
 }
@@ -180,7 +185,7 @@ export const getCachedLocalities = unstable_cache(
  */
 const preturiPopulareZi = unstable_cache(
   async (today: string) => preturiPopulareLa(today),
-  ['public-popular-prices-v3'],
+  ['public-popular-prices-v4'],
   { revalidate: 3600, tags: ['popular-prices', 'route-pages'] }
 );
 

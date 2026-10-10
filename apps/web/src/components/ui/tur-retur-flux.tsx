@@ -436,7 +436,7 @@ const CSS = `
 .trf-antet{display:flex;align-items:center;gap:12px;padding:14px 16px 12px}
 .trf-cap .trf-rotund{background:rgba(255,255,255,.16);color:#fff}
 .trf-cap .trf-eticheta{background:#fff;color:${RED}}
-.trf-cap.ret .trf-eticheta{color:#9C5E10}
+.trf-cap .trf-eticheta.ret{background:#fff;color:#9C5E10}
 .trf-cap .trf-ruta{font-size:clamp(18px,5.2vw,22px)}
 .trf-cap .trf-sub{color:rgba(255,255,255,.86)}
 .trf-cap .trf-progres{border-bottom:none;padding-bottom:12px}

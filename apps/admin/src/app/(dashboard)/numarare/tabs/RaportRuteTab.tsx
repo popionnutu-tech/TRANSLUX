@@ -18,11 +18,13 @@ const lei = (v: number | null) =>
 type SortKey = 'total' | 'ruta' | 'curse' | 'fara' | 'medie';
 
 const TH: React.CSSProperties = {
-  padding: '8px 6px', fontSize: 12, fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap',
+  padding: '6px 8px', fontSize: 12, fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap',
+  // resetul global al admin-ului pune antetele cu majuscule și spațiere — lățesc coloanele
+  textTransform: 'none', letterSpacing: 'normal',
   borderBottom: '2px solid var(--border)', background: 'var(--bg-subtle, #faf7f7)', position: 'sticky', top: 0,
 };
 const TD: React.CSSProperties = {
-  padding: '6px', fontSize: 13, textAlign: 'right', fontFamily: 'var(--font-mono)',
+  padding: '4px 8px', fontSize: 13, textAlign: 'right', fontFamily: 'var(--font-mono)',
   borderBottom: '1px solid rgba(155,27,48,0.08)', whiteSpace: 'nowrap',
 };
 const TDL: React.CSSProperties = { ...TD, textAlign: 'left', fontFamily: 'inherit' };
@@ -110,7 +112,7 @@ export default function RaportRuteTab() {
     </th>
   );
 
-  const nrCol = descifrare ? 16 : 10;
+  const nrCol = descifrare ? 15 : 9;
 
   const rubriciCells = (x: Subtotal | RutaAgregata, bold = false) => {
     const st = bold ? { ...TD, fontWeight: 700 } : TD;
@@ -179,12 +181,12 @@ export default function RaportRuteTab() {
             Descifrarea totalului pe rubrici
           </label>
 
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {/* Ion, 10.10: «mai restrâns» — tabelul ia lățimea cifrelor, nu tot ecranul. */}
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', width: 'fit-content', maxWidth: '100%' }}>
+            <table style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {sortTh('ruta', 'Rută', undefined, 'left')}
-                  <th style={{ ...TH, textAlign: 'left' }}>Ora</th>
                   {sortTh('curse', 'Curse', 'Curse neanulate în perioadă')}
                   <th style={TH} title="Curse cu Total foaie > 0">Cu bani</th>
                   {sortTh('fara', 'Fără bani', 'Curse fără niciun leu în casă')}
@@ -211,7 +213,7 @@ export default function RaportRuteTab() {
                     rute={g.rute} sub={g.sub} nrCol={nrCol} rubriciCells={rubriciCells} />
                 ))}
                 <tr style={{ background: 'rgba(155,27,48,0.06)' }}>
-                  <td style={{ ...TDL, fontWeight: 700 }} colSpan={2}>TOTAL PE RUTE ({data.totalRute.rute})</td>
+                  <td style={{ ...TDL, fontWeight: 700 }}>TOTAL PE RUTE ({data.totalRute.rute})</td>
                   <SubCells s={data.totalRute} rubriciCells={rubriciCells} />
                 </tr>
               </tbody>
@@ -258,8 +260,9 @@ function GroupRows({ label, rute, sub, nrCol, rubriciCells }: {
           <td style={TDL} title={`ID rută ${r.crm_route_id}`}>
             {r.steag && <span style={{ color: 'var(--danger)', marginRight: 4 }} title="Sub jumătate din curse au bani în casă">⚑</span>}
             {r.route_name}
+            {/* ora stă în denumire: numele se repetă (6 «Chișinău - Lipcani»), ora le deosebește */}
+            {r.time_nord && <span className="text-muted" style={{ fontSize: 12, marginLeft: 6 }}>{r.time_nord}</span>}
           </td>
-          <td style={{ ...TDL, color: 'var(--text-muted)', fontSize: 12 }}>{r.time_nord || '—'}</td>
           <td style={TD}>{r.curse}{r.anulate > 0 && <span className="text-muted" style={{ fontSize: 11 }} title="anulate"> +{r.anulate}⊘</span>}</td>
           <td style={TD}>{r.cuIncasare}</td>
           <td style={{ ...TD, color: r.faraIncasare > 0 ? 'var(--danger)' : undefined }}>{r.faraIncasare || '—'}</td>
@@ -274,7 +277,7 @@ function GroupRows({ label, rute, sub, nrCol, rubriciCells }: {
         </tr>
       ))}
       <tr style={{ background: 'rgba(0,0,0,0.025)' }}>
-        <td style={{ ...TDL, fontWeight: 600 }} colSpan={2}>Subtotal {label.toLowerCase()} ({sub.rute})</td>
+        <td style={{ ...TDL, fontWeight: 600 }}>Subtotal {label.toLowerCase()} ({sub.rute})</td>
         <SubCells s={sub} rubriciCells={rubriciCells} />
       </tr>
     </>

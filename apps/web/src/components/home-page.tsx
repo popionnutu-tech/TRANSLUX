@@ -512,13 +512,9 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           {!telegram && (
             <div className="of-wrap" aria-label={locale === 'ru' ? 'Скидки Бельцы ⇄ Кишинёв' : 'Reduceri Bălți ⇄ Chișinău'}>
               {/* Ion, 10.10: «încercuiește faptul că anume la cursele Bălți–Chișinău; menționează la cumpărare bilet online». */}
-              <div className="of-cap">
-                <span>{locale === 'ru' ? 'Скидки только на рейсах' : 'Reduceri doar pe cursele'}</span>
-                <span className="of-ruta">{locale === 'ru' ? 'Бельцы ⇄ Кишинёв' : 'Bălți ⇄ Chișinău'}</span>
-                <span>{locale === 'ru' ? 'при покупке билета онлайн' : 'la cumpărarea biletului online'}</span>
-                {/* Ion, 10.10: «adaugă că din 13.10; după 13.10 să dispară asta» — doar până la prima zi de vânzare. */}
-                {inainteDe1310 && <span className="of-data">{locale === 'ru' ? 'с 13.10' : 'din 13.10'}</span>}
-              </div>
+              {/* Ion, 10.10: «asta să fie inclus în detaliat de fiecare promoție, și apasă să afli mai mult pui pe deasupra» —
+                  condițiile (doar Bălți ⇄ Chișinău, online, din 13.10) stau acum în fereastra fiecărei promoții. */}
+              <p className="of-mai-mult">{locale === 'ru' ? 'Нажмите на скидку, чтобы узнать больше' : 'Apasă pe o reducere pentru a afla mai mult'}</p>
               <div className="of-grid">
                 <button type="button" className="of-card tr" onClick={() => setExplicaPromo('tur-retur')}>
                   <b>−20%</b>
@@ -531,13 +527,9 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                   <small>{locale === 'ru' ? 'студенческий и паспорт, одно место, не для туда-обратно' : 'carnet și buletin, un loc, fără tur-retur'}</small>
                 </button>
               </div>
-              {/* Ion, 10.10: îndemnul de student trece în fereastra reducerii; aici rămâne «apasă pentru a afla mai mult». */}
-              <p className="of-mai-mult">{locale === 'ru' ? 'Нажмите на скидку, чтобы узнать больше' : 'Apasă pe o reducere pentru a afla mai mult'}</p>
+
               <style>{`
 .of-wrap{width:100%;max-width:720px;margin-top:14px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-opensans),Open Sans,sans-serif}
-.of-cap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 8px;font-size:13px;font-weight:600;color:#6B5B5F;text-align:center}
-.of-data{font-size:13px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 10px}
-.of-ruta{font-size:14px;font-weight:800;color:#9B1B30;border:2px solid #9B1B30;border-radius:999px;padding:2px 12px;background:rgba(255,255,255,.75);white-space:nowrap}
 .of-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .of-card{all:unset;box-sizing:border-box;cursor:pointer;border-radius:18px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(155,27,48,.12);box-shadow:0 6px 18px rgba(155,27,48,.07);transition:transform .15s,box-shadow .15s}
 .of-card:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(155,27,48,.12)}
@@ -547,7 +539,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
 .of-card.st b{background:#EAF1F9;color:#2E5A88}
 .of-card span{font-size:15px;font-weight:800;color:#231A1C;align-self:end}
 .of-card small{font-size:12px;color:#7A6A6E;align-self:start;line-height:1.3}
-.of-mai-mult{margin:0;font-size:12.5px;font-weight:600;color:#8A7A7D;text-align:center}
+.of-mai-mult{margin:0;font-size:13px;font-weight:700;color:#6B5B5F;text-align:center}
 .of-nota{margin:0;font-size:13px;color:#2E5A88;background:rgba(234,241,249,.9);border-radius:12px;padding:9px 12px;text-align:center}
 @media (max-width:420px){.of-card{grid-template-columns:1fr;grid-template-rows:auto;row-gap:2px;padding:11px 12px}.of-card b{grid-row:auto;justify-self:start;font-size:20px;padding:5px 8px;margin-bottom:4px}}
 @media (prefers-reduced-motion:reduce){.of-card{transition:none}}

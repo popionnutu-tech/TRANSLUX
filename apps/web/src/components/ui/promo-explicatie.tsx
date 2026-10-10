@@ -13,7 +13,6 @@ const TXT = {
     "tur-retur": {
       titlu: "Tur-retur −20%", sub: "Returul cu 20% mai ieftin",
       pasi: [
-        "Doar pe cursele Bălți ⇄ Chișinău, la cumpărarea biletului online.",
         "Alegi «Tur-retur», ziua plecării și ziua întoarcerii (în 30 de zile).",
         "Returul costă 120 lei în loc de 150. Plătești totul o singură dată.",
         "Biletele se anulează doar împreună, până pleacă cursa tur.",
@@ -24,7 +23,7 @@ const TXT = {
     student: {
       titlu: "Studenți −20%", sub: "Pentru universitate și colegiu",
       pasi: [
-        "Doar pe cursele Bălți ⇄ Chișinău, la cumpărarea biletului online, pentru un loc.",
+        "Reducerea e pentru un singur loc.",
         "Alege ziua și cursa, iar la cumpărare bifează «Sunt student» și fotografiază carnetul și buletinul.",
         "Verificarea durează câteva secunde. Numele din formular trebuie să fie ca pe carnet.",
         "La urcare arăți carnetul șoferului.",
@@ -32,13 +31,12 @@ const TXT = {
       atentie: "Nu merge dacă alegi tur-retur: atunci reducerea −20% e doar la retur.",
       buton: "Alege cursa",
     },
-    din: "din 13.10", inchide: "Închide",
+    din: "din 13.10", inchide: "Închide", doar: "Doar pe cursele", ruta: "Bălți ⇄ Chișinău", online: "la cumpărarea biletului online",
   },
   ru: {
     "tur-retur": {
       titlu: "Туда-обратно −20%", sub: "Обратный билет на 20% дешевле",
       pasi: [
-        "Только на рейсах Бельцы ⇄ Кишинёв, при покупке билета онлайн.",
         "Выберите «Туда-обратно», день отъезда и день возвращения (в течение 30 дней).",
         "Обратный стоит 120 лей вместо 150. Оплата — одна на оба билета.",
         "Билеты отменяются только вместе, до отправления рейса туда.",
@@ -49,7 +47,7 @@ const TXT = {
     student: {
       titlu: "Студентам −20%", sub: "Университет и колледж",
       pasi: [
-        "Только на рейсах Бельцы ⇄ Кишинёв, при покупке билета онлайн, на одно место.",
+        "Скидка — на одно место.",
         "Выберите день и рейс, а при покупке отметьте «Я студент» и сфотографируйте студенческий и паспорт.",
         "Проверка занимает несколько секунд. Имя в форме — как в студенческом.",
         "При посадке покажите студенческий водителю.",
@@ -57,7 +55,7 @@ const TXT = {
       atentie: "Не действует, если выбрано туда-обратно: тогда скидка −20% только на обратный.",
       buton: "Выбрать рейс",
     },
-    din: "с 13.10", inchide: "Закрыть",
+    din: "с 13.10", inchide: "Закрыть", doar: "Только на рейсах", ruta: "Бельцы ⇄ Кишинёв", online: "при покупке билета онлайн",
   },
 } as const;
 
@@ -88,8 +86,13 @@ export function PromoExplicatie({ tip, locale, inainteDe1310, onAlege, onClose }
           <b className="pe-pct">−20%</b>
           <div>
             <h2 id="pe-titlu">{p.titlu}</h2>
-            <p>{p.sub}{inainteDe1310 && <span className="pe-din">{t.din}</span>}</p>
+            <p>{p.sub}</p>
           </div>
+        </div>
+        {/* Condițiile, mutate aici de pe prima pagină (Ion, 10.10); «din 13.10» doar până la prima zi de vânzare. */}
+        <div className="pe-conditii">
+          <span>{t.doar}</span><span className="pe-ruta">{t.ruta}</span><span>{t.online}</span>
+          {inainteDe1310 && <span className="pe-din">{t.din}</span>}
         </div>
         <ol className="pe-pasi">
           {p.pasi.map((x, i) => <li key={i}><span>{i + 1}</span>{x}</li>)}
@@ -114,8 +117,10 @@ const CSS = `
 .pe-cutie.st .pe-pct{background:#EAF1F9;color:#2E5A88}
 .pe-cap h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.2px}
 .pe-cap p{margin:2px 0 0;font-size:14px;color:#7A6A6E;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.pe-din{font-size:12px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:1px 9px}
-.pe-pasi{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.pe-din{font-size:12.5px;font-weight:800;color:#fff;background:#9B1B30;border-radius:999px;padding:2px 10px}
+.pe-conditii{margin-top:16px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:12px;border-radius:14px;background:#FAF6F5;font-size:14px;font-weight:600;color:#6B5B5F}
+.pe-ruta{font-weight:800;color:#9B1B30;border:2px solid #9B1B30;border-radius:999px;padding:1px 11px;background:#fff;white-space:nowrap}
+.pe-pasi{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
 .pe-pasi li{display:flex;gap:10px;font-size:14.5px;line-height:1.45;color:#3A2F32}
 .pe-pasi li span{flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-top:1px}
 .pe-cutie.tr .pe-pasi li span{background:#FDF3E1;color:#B7791F}

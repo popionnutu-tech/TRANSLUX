@@ -94,6 +94,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const [esteBalti, setEsteBalti] = useState(false);
   const [cuRetur, setCuRetur] = useState(false);
   const [dataRetur, setDataRetur] = useState<string | null>(null);
+  // Ion, 10.10: «la data tur-retur pune același calendar ca la Mai târziu» — fereastra «Când pleci?» pentru ambele câmpuri.
+  const [calPentru, setCalPentru] = useState<null | 'plecare' | 'intoarcere'>(null);
   // Ion, 10.10: «când bifez tur-retur −20% să apară alegerea datei … clientul se va pierde» — două câmpuri vizibile.
   const [ziPlecare, setZiPlecare] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); });
   const [ziIntoarcere, setZiIntoarcere] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 3); return ymd(d); });
@@ -161,8 +163,20 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const verificaPerechea = () => setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
   /** Ziua aleasă în calendar (doar turul; tur-returul are câmpurile lui sub bară). */
   const alegeZi = (d: Date) => {
+    if (calPentru) {
+      const x = ymd(d);
+      if (calPentru === 'plecare') {
+        setZiPlecare(x);
+        if (ziIntoarcere < x || ziIntoarcere > plusZile(x, 30)) setZiIntoarcere(plusZile(x, 2));
+      } else {
+        setZiIntoarcere(x < ziPlecare ? ziPlecare : x > plusZile(ziPlecare, 30) ? plusZile(ziPlecare, 30) : x);
+      }
+      setCalPentru(null);
+      return;
+    }
     setDataRetur(null); setSelectedDate(d); setCalendarOpen(false); runSearch(d);
   };
+  const ziScurta = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { weekday: 'short', day: 'numeric', month: 'long' });
   const plusZile = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return ymd(d); };
   /** «Caută tur-retur»: ziua turului din câmpul «Plecare», ziua întoarcerii merge în formularul de cumpărare. */
   const cautaTurRetur = () => {
@@ -384,13 +398,14 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             )}
             {esteBalti && cuRetur && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', justifyContent: 'center', marginTop: 10, fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
-                {([['plecare', locale === 'ru' ? 'Туда' : 'Plecare', ziPlecare, ymd(new Date()), undefined],
-                   ['intoarcere', locale === 'ru' ? 'Обратно' : 'Întoarcere', ziIntoarcere, ziPlecare, plusZile(ziPlecare, 30)]] as const).map(([k, et, val, min, max]) => (
-                  <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: '#6B5B5F', flex: '1 1 140px', maxWidth: 200 }}>{et}
-                    <input type="date" value={val} min={min} max={max}
-                      onChange={(e) => { const x = e.target.value; if (!x) return; if (k === 'plecare') { setZiPlecare(x); if (ziIntoarcere < x) setZiIntoarcere(x); } else setZiIntoarcere(x); }}
-                      style={{ height: 46, borderRadius: 12, border: '1.5px solid rgba(155,27,48,0.25)', padding: '0 10px', fontSize: 15, color: '#6E0E14', background: '#fff', fontFamily: 'inherit' }} />
-                  </label>
+                {([['plecare', locale === 'ru' ? 'Туда' : 'Plecare', ziPlecare], ['intoarcere', locale === 'ru' ? 'Обратно' : 'Întoarcere', ziIntoarcere]] as const).map(([k, et, val]) => (
+                  <div key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: '#6B5B5F', flex: '1 1 140px', maxWidth: 200 }}>{et}
+                    <button type="button" onClick={() => setCalPentru(k)}
+                      style={{ height: 46, borderRadius: 12, border: '1.5px solid #9B1B30', padding: '0 10px', fontSize: 15, fontWeight: 700, color: '#9B1B30', background: '#fff', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', textTransform: 'capitalize' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                      {ziScurta(val)}
+                    </button>
+                  </div>
                 ))}
                 <button type="button" onClick={cautaTurRetur} style={{ height: 46, flex: '1 1 140px', maxWidth: 220, borderRadius: 12, border: 'none', background: '#9B1B30', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {searching ? '...' : (locale === 'ru' ? 'Найти туда-обратно' : 'Caută tur-retur')}
@@ -547,25 +562,25 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
       {/* «Mai târziu» → «Când pleci?» (ION-43, Ion 23.09: «dacă apasă „Mai târziu", să ceară
           automat data»). Fereastră la rădăcina paginii: sub card, calendarul era acoperit de
           «Destinații populare» (animația fiecărui card îi face strat propriu). */}
-      {calendarOpen && (
-        <div className="later-overlay" onClick={() => setCalendarOpen(false)}>
+      {(calendarOpen || calPentru) && (
+        <div className="later-overlay" onClick={() => { setCalendarOpen(false); setCalPentru(null); }}>
           <div className="later-box" role="dialog" aria-modal="true" aria-label={i.when} onClick={(e) => e.stopPropagation()}>
             <div className="later-head">
-              <span>{i.when}</span>
-              <button type="button" className="later-close" aria-label="✕" onClick={() => setCalendarOpen(false)}>
+              <span>{calPentru === 'intoarcere' ? (locale === 'ru' ? 'Когда возвращаетесь?' : 'Când te întorci?') : i.when}</span>
+              <button type="button" className="later-close" aria-label="✕" onClick={() => { setCalendarOpen(false); setCalPentru(null); }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </div>
             <div className="later-quick">
-              {[i.today, i.tomorrow, i.afterTomorrow].map((label, k) => (
+              {(calPentru === 'intoarcere' ? (locale === 'ru' ? ['В тот же день', '+1 день', '+2 дня'] : ['Aceeași zi', '+1 zi', '+2 zile']) : [i.today, i.tomorrow, i.afterTomorrow]).map((label, k) => (
                 <button key={label} type="button" onClick={() => {
-                  const d = new Date(); d.setDate(d.getDate() + k);
+                  const d = calPentru === 'intoarcere' ? new Date(`${ziPlecare}T12:00:00`) : new Date(); d.setDate(d.getDate() + k);
                   alegeZi(d);
                 }}>{label}</button>
               ))}
             </div>
             <MiniCalendar
-              value={selectedDate}
+              value={calPentru ? new Date(`${calPentru === 'plecare' ? ziPlecare : ziIntoarcere}T12:00:00`) : selectedDate}
               locale={locale}
               onChange={(d) => alegeZi(d)}
             />

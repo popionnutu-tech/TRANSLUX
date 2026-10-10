@@ -63,6 +63,10 @@ export const T_RETUR = {
     ro: 'Biletul nu mai poate fi returnat: e deja anulat, returnat sau neplătit.',
     ru: 'Билет нельзя вернуть: он уже отменён, возвращён или не оплачен.',
   },
+  baniInapoi: {
+    ro: 'Plata a ajuns fără bilet, iar banii se întorc automat, integral, pe cardul cu care ai plătit — nu trebuie să faci nimic.',
+    ru: 'Оплата пришла без билета, деньги вернутся автоматически и полностью на карту, которой вы платили, — ничего делать не нужно.',
+  },
   inexistent: { ro: 'Nu găsesc biletul. Deschide-l din nou din pagina biletului.', ru: 'Билет не найден. Откройте его заново со страницы билета.' },
   faraBilete: {
     ro: 'Nu văd bilete active legate de acest cont. Deschide biletul din linkul primit după plată sau din «Găsește biletul meu» pe translux.md.',
@@ -152,6 +156,7 @@ export function textDispecer(motiv: MotivDispecer, lang: Limba): string {
 export function textRefuzOferta(cod: CodRefuzOferta, lang: Limba): string {
   if (cod === 'nelegat') return text('nelegat', lang);
   if (cod === 'stare') return text('stareComanda', lang);
+  if (cod === 'bani_inapoi') return text('baniInapoi', lang);
   return text('inexistent', lang);
 }
 

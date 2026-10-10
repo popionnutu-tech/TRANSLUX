@@ -146,6 +146,8 @@ export interface ComandaPentruPlafon {
   seats: number;
   status: string;
   created_at: string;
+  /** 558 (revizia 10.10, M2): banii plății se întorc automat (intenție de refund vie) — nu mai ține loc. */
+  bani_inapoi?: boolean | null;
 }
 
 /**
@@ -157,8 +159,10 @@ export const DURATA_COMANDA_DESCHISA_MS = 30 * 60_000;
 const STARI_DESCHISE = new Set<string>(['noua', 'eroare_creare']);
 
 function comandaOcupaLoc(c: ComandaPentruPlafon, nowMs: number): boolean {
-  // Ca bilete_comanda_activa (546): banii primiți fără bilet emis țin locul (revizia 10.10).
-  if (c.status === 'platita' || c.status === 'platita_fara_bilet') return true;
+  // Ca bilete_comanda_activa (558, varianta cu bani_inapoi, fără refund în curs numărat): banii primiți fără bilet emis
+  // țin locul — afară de cei care se întorc deja automat (M2, revizia 10.10).
+  if (c.status === 'platita') return true;
+  if (c.status === 'platita_fara_bilet') return !c.bani_inapoi;
   if (!STARI_DESCHISE.has(c.status)) return false;
   const creata = Date.parse(c.created_at);
   return Number.isFinite(creata) && nowMs - creata < DURATA_COMANDA_DESCHISA_MS;

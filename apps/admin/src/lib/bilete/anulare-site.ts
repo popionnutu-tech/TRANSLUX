@@ -14,15 +14,15 @@ import { sumaRestituire } from './refund-reguli';
 // dacă între timp s-a schimbat (alt prag al grilei), omul o vede și confirmă din nou.
 
 const COD_RE = /^[0-9a-f]{32}$/;
-const COL = 'id, cod, status, phone, total, departure_at, from_name, to_name, lang, in_pachet, comanda_tur_id';
+const COL = 'id, cod, status, phone, total, departure_at, from_name, to_name, lang, in_pachet, comanda_tur_id, bani_inapoi';
 
-type Rand = { id: string; cod: string; status: string; phone: string; total: number; departure_at: string; from_name: string; to_name: string; lang: string | null; in_pachet: boolean; comanda_tur_id: string | null };
+type Rand = { id: string; cod: string; status: string; phone: string; total: number; departure_at: string; from_name: string; to_name: string; lang: string | null; in_pachet: boolean; comanda_tur_id: string | null; bani_inapoi?: boolean };
 
 export type RaspunsAnulare =
   | { ok: true; tip: 'oferta'; suma: number; total: number; cu_retur: boolean; from_name: string; to_name: string; departure_at: string }
   | { ok: true; tip: 'anulat'; suma: number; refund: 'creat' | 'necunoscut' | 'fara_plata' }
   | { ok: true; tip: 'suma_schimbata'; suma: number }
-  | { ok: false; cod: 'inexistent' | 'stare' | 'cifre_gresite' | 'pauza' | 'urcat' | 'plecat' | 'sub_4h' | 'sub_10' | 'indisponibil'; ramase?: number; minute?: number; motiv?: string };
+  | { ok: false; cod: 'inexistent' | 'stare' | 'bani_inapoi' | 'cifre_gresite' | 'pauza' | 'urcat' | 'plecat' | 'sub_4h' | 'sub_10' | 'indisponibil'; ramase?: number; minute?: number; motiv?: string };
 
 const parteRetur = (total: number, noimi: number) => (noimi >= 9 ? Math.round(total * 100) / 100 : sumaRestituire(total, noimi));
 
@@ -41,6 +41,8 @@ async function pregateste(codRaw: unknown, cifreRaw: unknown): Promise<
     if (!t) return { ok: false, r: { ok: false, cod: 'inexistent' } };
     tur = { ...(t as Rand), total: Number((t as Rand).total) };
   }
+  // L4 (revizia 10.10): plata fără bilet cu banii deja în drum înapoi — nimic de anulat; pagina spune că banii se întorc.
+  if (tur.status === 'platita_fara_bilet' && tur.bani_inapoi) return { ok: false, r: { ok: false, cod: 'bani_inapoi' } };
   if (!(tur.status === 'platita' || tur.status === 'platita_fara_bilet')) return { ok: false, r: { ok: false, cod: 'stare' } };
 
   // Cele 4 cifre, pe comanda turului (o singură pauză pentru pachet).
@@ -50,7 +52,7 @@ async function pregateste(codRaw: unknown, cifreRaw: unknown): Promise<
   if (!vc.ok) return { ok: false, r: vc.blocat ? { ok: false, cod: 'pauza', minute: vc.minute ?? 15 } : { ok: false, cod: 'cifre_gresite', ramase: vc.ramase } };
 
   const { data: l } = await db.from('bilete_comenzi').select('id, total').eq('comanda_tur_id', tur.id).in('status', ['platita', 'platita_fara_bilet'])
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    .eq('bani_inapoi', false).order('created_at', { ascending: false }).limit(1).maybeSingle();
   const leg = l ? { id: (l as { id: string }).id, total: Number((l as { total: number }).total) } : null;
   // C6 (10.10): aceeași eligibilitate ca botul (eligibilitateRetur) — urcat, tur-retur până la plecarea turului, grila
   // sau garanția de lansare.

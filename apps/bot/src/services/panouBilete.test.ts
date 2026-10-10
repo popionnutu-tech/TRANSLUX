@@ -22,6 +22,8 @@ describe('citesteOferta (forma contractului)', () => {
     expect(citesteOferta({ ok: true, tip: 'dispecer', motiv: 'blocat' })).toEqual({ tip: 'dispecer', motiv: 'blocat' });
     expect(citesteOferta({ ok: false, cod: 'cifre_gresite', ramase: 3 })).toEqual({ tip: 'cifre_gresite', ramase: 3 });
     expect(citesteOferta({ ok: false, cod: 'nelegat' })).toEqual({ tip: 'refuz', cod: 'nelegat' });
+    // L4 (revizia 10.10): plata fără bilet cu banii deja în drum înapoi
+    expect(citesteOferta({ ok: false, cod: 'bani_inapoi' })).toEqual({ tip: 'refuz', cod: 'bani_inapoi' });
   });
   it('motive și coduri necunoscute → null (nu se ghicește)', () => {
     expect(citesteOferta({ ok: true, tip: 'fara_bani', motiv: 'ploua' })).toBeNull();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BUTOANE, lei, minuteValabile, telefonAfisat, textFaraBani, textIntarziat, textOferta, textStare, TELEFON_DISPECERAT,
+  BUTOANE, lei, minuteValabile, telefonAfisat, textFaraBani, textIntarziat, textOferta, textRefuzOferta, textStare, TELEFON_DISPECERAT,
 } from './retur-texte.js';
 
 const OFERTA = {
@@ -72,5 +72,13 @@ describe('fără bani și întârziat', () => {
     expect(telefonAfisat('12345')).toBeNull();
     expect(textIntarziat('37369123456', 'ro')).toContain('Telefonul șoferului cursei tale: +373 69 123 456');
     expect(textIntarziat(null, 'ro')).not.toContain('Telefonul');
+  });
+});
+
+describe('L4 (revizia 10.10): plata fără bilet cu banii în drum înapoi', () => {
+  it('botul nu oferă anulare, spune că banii se întorc automat (RO/RU)', () => {
+    expect(textRefuzOferta('bani_inapoi', 'ro')).toMatch(/banii se întorc automat, integral/);
+    expect(textRefuzOferta('bani_inapoi', 'ru')).toMatch(/деньги вернутся автоматически/);
+    expect(textRefuzOferta('stare', 'ro')).not.toMatch(/se întorc automat/);
   });
 });

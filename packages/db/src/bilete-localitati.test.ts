@@ -135,6 +135,15 @@ describe('plafonul Bălți', () => {
     expect(locuriLuatePeLocalitate(comenzi, 'Bălți', acum)).toBe(5);
   });
 
+  it('M2 (10.10): plătita fără bilet ține locul doar cât banii NU se întorc automat (ca bilete_comanda_activa din 558)', () => {
+    const comenzi = [
+      comanda({ status: 'platita_fara_bilet', seats: 2 }),                         // bani primiți, fără intenție → ține
+      comanda({ status: 'platita_fara_bilet', seats: 3, bani_inapoi: true }),      // banii se întorc → nu
+      comanda({ status: 'platita', seats: 1, bani_inapoi: true }),                 // plătită: ține oricum
+    ];
+    expect(locuriLuatePeLocalitate(comenzi, 'Bălți', acum)).toBe(3);
+  });
+
   it('încape până la plafon, peste plafon se refuză cu locurile rămase', () => {
     const comenzi = [comanda({ seats: 3 })];
     const baza = { plafoane, urcare: 'Bălți', coborare: 'Chișinău', comenziCursa: comenzi, nowMs: acum };

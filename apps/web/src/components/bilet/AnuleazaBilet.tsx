@@ -15,7 +15,7 @@ const TXT = {
     schimbat: (s: string) => `Suma s-a schimbat între timp: ${s} lei. Confirmă din nou.`,
     erori: {
       cifre_gresite: "Cifrele nu se potrivesc.", pauza: "Prea multe încercări greșite. Încearcă din nou peste 15 minute.", urcat: "Biletul a fost scanat la urcare; nu se mai anulează.",
-      plecat: "Cursa a plecat; biletul nu se mai anulează.", sub_4h: "Cu mai puțin de 4 ore înainte de plecare biletul nu se mai anulează.", stare: "Biletul e deja anulat sau returnat.",
+      plecat: "Cursa a plecat; biletul nu se mai anulează.", sub_4h: "Cu mai puțin de 4 ore înainte de plecare biletul nu se mai anulează.", stare: "Biletul e deja anulat sau returnat.", bani_inapoi: "Plata a ajuns fără bilet; banii se întorc automat, integral, pe card — nu e nimic de anulat.",
       inexistent: "Nu găsesc biletul.", sub_10: "Suma e sub minimul băncii (10 lei).", indisponibil: "Anularea nu merge acum. Încearcă din nou peste câteva minute.",
     } as Record<string, string>,
   },
@@ -27,7 +27,7 @@ const TXT = {
     schimbat: (s: string) => `Сумма изменилась: ${s} лей. Подтвердите ещё раз.`,
     erori: {
       cifre_gresite: "Цифры не совпадают.", pauza: "Слишком много неверных попыток. Попробуйте через 15 минут.", urcat: "Билет уже отсканирован при посадке; отменить нельзя.",
-      plecat: "Рейс уже отправился; отменить нельзя.", sub_4h: "Менее чем за 4 часа до отправления билет не отменяется.", stare: "Билет уже отменён или возвращён.",
+      plecat: "Рейс уже отправился; отменить нельзя.", sub_4h: "Менее чем за 4 часа до отправления билет не отменяется.", stare: "Билет уже отменён или возвращён.", bani_inapoi: "Оплата пришла без билета; деньги вернутся автоматически и полностью на карту — отменять нечего.",
       inexistent: "Билет не найден.", sub_10: "Сумма меньше минимума банка (10 лей).", indisponibil: "Отмена сейчас недоступна. Попробуйте через несколько минут.",
     } as Record<string, string>,
   },

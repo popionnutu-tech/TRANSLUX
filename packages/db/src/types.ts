@@ -1028,6 +1028,10 @@ export interface BileteComanda {
   scazut_la_refund?: number;
   /** 548: returul plătit în aceeași sesiune cu turul (comanda_tur_id). */
   in_pachet?: boolean;
+  /** 558 (revizia 10.10): membru al unei intenții de refund vii — banii se întorc automat, nu ține loc, nu e bilet activ. */
+  bani_inapoi?: boolean;
+  /** 560 (M4): cancelCheckout fără efect pe sesiunea comenzii. */
+  inchidere_esuata?: number;
 }
 
 export interface Bilet {

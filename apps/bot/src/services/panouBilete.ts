@@ -41,7 +41,8 @@ export interface OfertaRetur {
 
 export type MotivFaraBani = 'sub_4h' | 'plecat' | 'urcat';
 export type MotivDispecer = 'sub_10' | 'blocat';
-export type CodRefuzOferta = 'nelegat' | 'stare' | 'inexistent';
+/** `bani_inapoi` (revizia 10.10, L4): plata a ajuns fără bilet și banii se întorc deja automat — nimic de returnat. */
+export type CodRefuzOferta = 'nelegat' | 'stare' | 'inexistent' | 'bani_inapoi';
 
 export type RaspunsOferta =
   | ({ tip: 'oferta' } & OfertaRetur)
@@ -92,7 +93,7 @@ const dinLista = <T extends string>(lista: readonly T[], v: unknown): v is T => 
 
 const MOTIVE_FARA_BANI = ['sub_4h', 'plecat', 'urcat'] as const;
 const MOTIVE_DISPECER = ['sub_10', 'blocat'] as const;
-const CODURI_REFUZ = ['nelegat', 'stare', 'inexistent'] as const;
+const CODURI_REFUZ = ['nelegat', 'stare', 'inexistent', 'bani_inapoi'] as const;
 
 function citesteBilet(v: unknown): BiletLegat | null {
   if (!esteObiect(v)) return null;

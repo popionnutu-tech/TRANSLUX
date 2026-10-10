@@ -16,7 +16,9 @@ const parteRetur = (totalRetur: number, noimi: number) => (noimi >= 9 ? Math.rou
 
 /** Returul plătit legat de tur (în pachet sau cumpărat cu codul de retur), dacă există. */
 async function returLegat(turId: string, stari: string[] = ['platita', 'platita_fara_bilet']): Promise<{ id: string; total: number } | null> {
+  // L4 (revizia 10.10): un retur «platita_fara_bilet» cu banii deja în drum înapoi nu e retur legat (ca în 560).
   const { data } = await getSupabase().from('bilete_comenzi').select('id, total').eq('comanda_tur_id', turId).in('status', stari)
+    .or('bani_inapoi.eq.false,status.in.(anulata,returnata)')
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   return data ? { id: (data as { id: string }).id, total: Number((data as { total: number }).total) } : null;
 }
@@ -44,6 +46,7 @@ export async function bileteleMele(telegramIdRaw: unknown): Promise<BiletBot[]> 
   const { data, error } = await getSupabase().from('bilete_comenzi')
     .select('cod, status, lang, from_name, to_name, departure_at, seats, total')
     .eq('telegram_id', telegramId).in('status', ['platita', 'platita_fara_bilet'])
+    .eq('bani_inapoi', false) // L4: banii care se întorc deja automat nu sunt un bilet de returnat
     .gt('departure_at', new Date().toISOString()).order('departure_at').limit(10);
   if (error) throw new Error(`bilete_comenzi: ${error.message}`);
   return (data || []).map((c) => ({ ...c, total: Number(c.total) })) as BiletBot[];
@@ -55,7 +58,7 @@ export type RaspunsOferta =
   | { ok: true; tip: 'fara_bani'; motiv: 'sub_4h' | 'plecat' | 'urcat' }
   | { ok: true; tip: 'dispecer'; motiv: 'sub_10' | 'blocat' }
   | { ok: false; cod: 'cifre_gresite'; ramase: number }
-  | { ok: false; cod: 'nelegat' | 'stare' | 'inexistent' | 'indisponibil' };
+  | { ok: false; cod: 'nelegat' | 'stare' | 'inexistent' | 'indisponibil' | 'bani_inapoi' };
 
 async function alerta(comandaId: string | null, telegramId: number, detalii: string): Promise<boolean> {
   const { error } = await getSupabase().from('bilete_alerte').insert({ comanda_id: comandaId, telegram_id: telegramId, tip: 'retur_cerere', detalii: detalii.slice(0, 1000) });
@@ -68,18 +71,20 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   const cod = String(codRaw ?? '').trim().toLowerCase();
   if (!telegramId || !COD_RE.test(cod)) return { ok: false, cod: 'inexistent' };
   const db = getSupabase();
-  const COL = 'id, status, telegram_id, telegram_verificat_pentru, retur_cifre_gresite, phone, total, departure_at, from_name, to_name, lang, in_pachet, comanda_tur_id';
+  const COL = 'id, status, telegram_id, telegram_verificat_pentru, retur_cifre_gresite, phone, total, departure_at, from_name, to_name, lang, in_pachet, comanda_tur_id, bani_inapoi';
   const { data: c0, error } = await db.from('bilete_comenzi').select(COL).eq('cod', cod).maybeSingle();
   if (error) throw new Error(`bilete_comenzi: ${error.message}`);
   if (!c0) return { ok: false, cod: 'inexistent' };
   // Butonul de pe biletul-retur din tur-retur: pachetul se anulează din tur, deci oferta e a turului.
-  let c = c0 as typeof c0 & { in_pachet: boolean; comanda_tur_id: string | null };
+  let c = c0 as typeof c0 & { in_pachet: boolean; comanda_tur_id: string | null; bani_inapoi: boolean };
   if (c.in_pachet && c.comanda_tur_id) {
     const { data: t } = await db.from('bilete_comenzi').select(COL).eq('id', c.comanda_tur_id).maybeSingle();
     if (!t) return { ok: false, cod: 'inexistent' };
     c = t as typeof c;
   }
   if (Number(c.telegram_id) !== telegramId) return { ok: false, cod: 'nelegat' };
+  // L4 (revizia 10.10): plata fără bilet cu banii deja în drum înapoi — nu se oferă anulare; botul spune că banii se întorc.
+  if (c.status === 'platita_fara_bilet' && c.bani_inapoi) return { ok: false, cod: 'bani_inapoi' };
   if (!(c.status === 'platita' || c.status === 'platita_fara_bilet')) return { ok: false, cod: 'stare' };
 
   // Cele 4 cifre: o dată pe CONT (17′); 5 greșeli → blocat + dispecerul. Verificarea și contorul stau în bază,

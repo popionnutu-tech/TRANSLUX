@@ -11,6 +11,8 @@ export interface ComandaRand {
   departure_at: string; seats: number; price_per_seat: number | string; total: number | string; passenger_name: string;
   lang: 'ro' | 'ru'; paid_at: string | null; cancelled_at: string | null; crm_route_id: number; going_north: boolean;
   to_stop_order?: number | null;
+  /** 558 (revizia 10.10, L4): banii plății se întorc automat — nu e bilet activ. */
+  bani_inapoi?: boolean | null;
   /** Comandă de probă (test_admin sau pagina de probă, migr. 532) → biletul poartă «BILET DE PROBĂ». */
   test?: boolean | null;
   proba_fizica?: boolean | null;
@@ -22,7 +24,7 @@ export interface RutaRand { id: number; dest_from_ro: string; dest_from_ru: stri
 export interface OprireSosireRand { hour_from_chisinau: string | null; hour_from_nord: string | null }
 
 /** Coloanele de citit din bilete_comenzi pentru asamblare (aceleași la o comandă și pe lot). */
-export const COLOANE_COMANDA = 'cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, to_stop_order, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon, test, proba_fizica, reducere_tip, pret_intreg, cod_retur';
+export const COLOANE_COMANDA = 'cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, to_stop_order, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon, test, proba_fizica, reducere_tip, pret_intreg, cod_retur, bani_inapoi';
 export const COLOANE_BILET = 'nr, loc_nr, cod_qr, status, urcat_at';
 
 /** ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii; «7:05» → «07:05»; altfel null. */

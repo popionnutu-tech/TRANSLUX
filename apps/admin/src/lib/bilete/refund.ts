@@ -74,13 +74,16 @@ export async function anuleazaSiReturneaza(
   if (!(inainte.status === 'platita' || inainte.status === 'platita_fara_bilet')) {
     throw new ComandaError('validare', `comanda e ${inainte.status}, nu se poate anula`);
   }
+  // L4 (revizia 10.10): plata fără bilet cu banii deja în drum înapoi (intenția 558) nu e un bilet de anulat.
+  if (inainte.status === 'platita_fara_bilet' && inainte.bani_inapoi) throw new ComandaError('inchis', 'banii acestei plăți se întorc deja automat, integral; nu e nimic de anulat');
   // 548: tur-returul plătit o dată (Ion, 10.10: «poate să facă returul doar până a începe cursa la tur») — se anulează doar
   // din tur, ambele bilete, într-un singur refund, până la plecarea turului; după, doar dispecerul cu «vina noastră».
   // Excepția (audit H2): cursa de retur anulată de firmă — returul singur, refund parțial pe plata turului.
   const returSingur = inainte.in_pachet === true && (opt.sursa === 'sistem' || (opt.sursa === 'admin' && opt.vinaNoastra === true));
   if (inainte.in_pachet && !returSingur) throw new ComandaError('inchis', 'biletul de retur din tur-retur se anulează doar împreună cu turul, din biletul tur (sau cu «vina noastră»)');
+  // (returul din pachet cu banii deja în drum înapoi nu se mai anulează a doua oară — ca selecția returului în 560)
   const { data: rp } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', comandaId).eq('in_pachet', true)
-    .in('status', ['platita', 'platita_fara_bilet']).limit(1);
+    .in('status', ['platita', 'platita_fara_bilet']).eq('bani_inapoi', false).limit(1);
   const pachet = (rp || []).length > 0;
   if (pachet) {
     // Ion, 10.10.2026: «permite să returnez, pe viitor nu este niciun dispecer» — pachetul se anulează și din bot.

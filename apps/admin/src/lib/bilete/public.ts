@@ -159,12 +159,13 @@ export async function biletPublic(cod: string, citita?: ComandaCitita): Promise<
 /** 548: biletul pereche din tur-retur (returul turului, sau turul returului), doar plătit. */
 async function celalaltDinPachet(e: Pick<RandPagina, 'id' | 'in_pachet' | 'comanda_tur_id'>): Promise<ComandaPublica['pachet']> {
   const db = getSupabase();
-  const q = db.from('bilete_comenzi').select('cod, trip_date, departure_at, from_name, to_name, status');
+  const q = db.from('bilete_comenzi').select('cod, trip_date, departure_at, from_name, to_name, status, bani_inapoi');
   const { data } = e.in_pachet && e.comanda_tur_id
     ? await q.eq('id', e.comanda_tur_id).maybeSingle()
     : await q.eq('comanda_tur_id', e.id).eq('in_pachet', true).in('status', ['platita', 'platita_fara_bilet']).limit(1).maybeSingle();
-  const r = data as { cod: string; trip_date: string; departure_at: string; from_name: string; to_name: string; status: string } | null;
+  const r = data as { cod: string; trip_date: string; departure_at: string; from_name: string; to_name: string; status: string; bani_inapoi?: boolean } | null;
   if (!r || !['platita', 'platita_fara_bilet'].includes(r.status)) return null;
+  if (r.status === 'platita_fara_bilet' && r.bani_inapoi) return null; // L4: banii lui se întorc, nu e bilet pereche
   return { cod: r.cod, sens: e.in_pachet ? 'tur' : 'retur', trip_date: r.trip_date, departure_at: r.departure_at, from_name: r.from_name, to_name: r.to_name };
 }
 
@@ -248,7 +249,8 @@ export async function configPublica(): Promise<ConfigPublica> {
  */
 export async function echipajPentruComenzi<T extends ComandaRand>(comenzi: T[], nowMs = Date.now()): Promise<Map<string, EchipajBilet>> {
   const out = new Map<string, EchipajBilet>();
-  const vii = comenzi.filter((c) => (c.status === 'platita' || c.status === 'platita_fara_bilet') && Date.parse(c.departure_at) + 6 * 3_600_000 > nowMs);
+  // L4 (revizia 10.10): plata fără bilet cu banii în drum înapoi nu e bilet activ — fără echipaj.
+  const vii = comenzi.filter((c) => (c.status === 'platita' || (c.status === 'platita_fara_bilet' && !c.bani_inapoi)) && Date.parse(c.departure_at) + 6 * 3_600_000 > nowMs);
   if (!vii.length) return out;
   try {
     const e = await echipajeZile(getSupabase(), vii.map((c) => c.trip_date));

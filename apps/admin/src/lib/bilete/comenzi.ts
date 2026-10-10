@@ -291,7 +291,7 @@ function localitatiDeAfisat(localitati: LocalitatiVanzare): string {
 /** Comenzile cursei care pot ține locuri din plafon (fără cele de test). */
 async function comenzileCurseiPentruPlafon(input: ComandaInput): Promise<ComandaPentruPlafon[]> {
   const { data, error } = await getSupabase().from('bilete_comenzi')
-    .select('from_name, to_name, seats, status, created_at')
+    .select('from_name, to_name, seats, status, created_at, bani_inapoi')
     .eq('trip_date', input.tripDate).eq('crm_route_id', input.crmRouteId).eq('going_north', input.goingNorth)
     .eq('test', false).in('status', STARI_PLAFON);
   if (error) throw new Error(`bilete_comenzi (plafon localitate): ${error.message}`);

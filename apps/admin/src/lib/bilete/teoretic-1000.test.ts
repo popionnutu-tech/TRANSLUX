@@ -908,6 +908,36 @@ describe('L. SQL (migrațiile 546–551) ↔ TS', () => {
     expect(localitatiTs).toMatch(/c\.status === 'platita_fara_bilet'|'platita_fara_bilet'/);
     expect(comenziTs).toMatch(/STARI_PLAFON = \[[^\]]*platita_fara_bilet/);
   });
+  // Revizia 10.10 (M2): «platita_fara_bilet» cu banii în drum înapoi (intenția 558, bani_inapoi) nu ține loc — în SQL
+  // (ultima bilete_comanda_activa + bilete_cota_ocupata) și în TS (comandaOcupaLoc + coloana citită în comenzi.ts).
+  it('banii care se întorc nu țin cota: aceeași regulă în SQL și în TS (bani_inapoi)', () => {
+    const cota = ultimaDefinitie('bilete_cota_ocupata(');
+    expect(activa.fisier).toBe('558_bilete_refund_intentii.sql');
+    expect(activa.text).toContain("(s = 'platita_fara_bilet' AND (cu_refund_in_curs OR NOT coalesce(bani_inapoi, false)))");
+    expect(cota.fisier).toBe('558_bilete_refund_intentii.sql');
+    expect(cota.text).toContain('bilete_comanda_activa(status, created_at, refund_finalizat_la, false, bani_inapoi)');
+    expect(localitatiTs).toContain("if (c.status === 'platita_fara_bilet') return !c.bani_inapoi;");
+    expect(comenziTs).toMatch(/select\('from_name, to_name, seats, status, created_at, bani_inapoi'\)/);
+  });
+  // Revizia 10.10 (L4): plata fără bilet cu banii în drum înapoi nu e bilet activ și nu se oferă la anulare — botul, site-ul,
+  // asistentul și anularea din panou o recunosc după același câmp (bani_inapoi, ținut de declanșatorul din 558).
+  it('L4: site, bot și anularea nu tratează «platita_fara_bilet» cu banii înapoi ca bilet activ', () => {
+    const bot = sursa('apps/admin/src/lib/bilete/retur-bot.ts');
+    const site = sursa('apps/admin/src/lib/bilete/anulare-site.ts');
+    const pub = sursa('apps/admin/src/lib/bilete/public.ts');
+    const ref = sursa('apps/admin/src/lib/bilete/refund.ts');
+    expect(bot).toContain("if (c.status === 'platita_fara_bilet' && c.bani_inapoi) return { ok: false, cod: 'bani_inapoi' };");
+    expect(bot).toMatch(/\.in\('status', \['platita', 'platita_fara_bilet'\]\)\s*\.eq\('bani_inapoi', false\)/);
+    expect(bot).toContain(".or('bani_inapoi.eq.false,status.in.(anulata,returnata)')");
+    expect(site).toContain("if (tur.status === 'platita_fara_bilet' && tur.bani_inapoi) return { ok: false, r: { ok: false, cod: 'bani_inapoi' } };");
+    expect(site).toMatch(/\.eq\('bani_inapoi', false\)\.order/);
+    expect(pub).toContain("(c.status === 'platita' || (c.status === 'platita_fara_bilet' && !c.bani_inapoi))");
+    expect(pub).toContain("if (r.status === 'platita_fara_bilet' && r.bani_inapoi) return null;");
+    expect(ref).toContain("if (inainte.status === 'platita_fara_bilet' && inainte.bani_inapoi) throw new ComandaError('inchis'");
+    expect(sursa('apps/bot/src/services/panouBilete.ts')).toContain("const CODURI_REFUZ = ['nelegat', 'stare', 'inexistent', 'bani_inapoi'] as const;");
+    expect(sursa('apps/web/src/components/bilet/AnuleazaBilet.tsx')).toMatch(/bani_inapoi: "Plata a ajuns fără bilet; banii se întorc automat/);
+    expect(sursa('apps/web/src/components/bilet/AnuleazaBilet.tsx')).toMatch(/bani_inapoi: "Оплата пришла без билета; деньги вернутся автоматически/);
+  });
   it('returul (calea 547) în ultima definiție SQL: toate condițiile din returValid au pereche', () => {
     for (const s of ["t.status <> 'platita'", 't.proba_fizica', 't.test <> v_test', 't.comanda_tur_id IS NOT NULL', "t.reducere_tip = 'retur'",
       'NOT t.promo_pereche', 't.phone <> v_phone', 't.going_north = v_north', 't.crm_route_id = v_route', 'v_seats > t.seats',

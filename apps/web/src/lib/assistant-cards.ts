@@ -4,7 +4,13 @@
 /** Prenumele șoferului, mașina și numărul lui (ION-39). */
 export interface Crew { driver: string | null; plate: string | null; phone: string | null }
 
+export interface TicketItem {
+  from: string; to: string; departure_at: string; locuri: number[];
+  link: string; qr_svg: string | null; count: number; proba: boolean;
+}
+
 export type Card =
+  | { type: 'tickets'; tickets: TicketItem[] }
   | { type: 'trips'; from: string; to: string; date: string; total: number; buy?: boolean;
       trips: (Crew & { time: string; price: number | null })[] }
   | { type: 'station'; key: 'chisinau' | 'balti' | 'edinet' | 'briceni'; name_ro: string; name_ru: string;

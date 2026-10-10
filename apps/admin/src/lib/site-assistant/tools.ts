@@ -14,7 +14,7 @@ import { getComplaintSummary } from '@/lib/voice/complaints';
 import { driversGroupChatId, formatLostItemForGroup, notifyDriversGroup } from '@/lib/voice/drivers-group';
 import { normalizePhone } from '@/lib/voice/phone';
 import { tripsOnRoad, busLocation } from './bus-location';
-import { busCard, pickCard, stationCard, tripsCard, type Card } from './cards';
+import { busCard, pickCard, stationCard, ticketsCard, tripsCard, type Card } from './cards';
 import { configPublica } from '@/lib/bilete/public';
 import { garantieLansareActiva } from '@/lib/bilete/refund';
 import { GRILA_RESTITUIRE } from '@/lib/bilete/refund-reguli';
@@ -304,9 +304,16 @@ export async function executeSiteTool(ctx: ToolContext, name: string, input: Rec
       case 'gaseste_biletul': {
         const r = await gasesteBileteInChat(str(input.phone), ctx.ipHash ?? ctx.conversationId, str(input.nume));
         const site = (process.env.SITE_URL || 'https://translux.md').replace(/\/+$/, '');
-        return { result: r.ok
-          ? (r.bilete?.length
-            ? { bilete: r.bilete.map((b) => ({ ruta: `${b.from} → ${b.to}`, plecare: b.departure_at, locuri: b.locuri, link: `${site}/${b.lang}/bilet/${b.cod}` })) }
+        const gasite = (r.ok ? r.bilete ?? [] : []).map((b) => ({ ...b, link: `${site}/${b.lang}/bilet/${b.cod}` }));
+        const card = gasite.length ? await ticketsCard(gasite).catch(() => null) : null;
+        return { card, result: r.ok
+          ? (gasite.length
+            ? {
+              bilete: gasite.map((b) => ({ ruta: `${b.from} → ${b.to}`, plecare: b.departure_at, locuri: b.locuri, link: b.link })),
+              afisat_pe_ecran: card
+                ? 'Biletele, fiecare cu codul QR și butonul «Deschide biletul», apar pe ecran sub mesajul tău. Scrie doar o propoziție scurtă (câte bilete ai găsit, codul QR îl arată șoferului); nu le mai înșira și nu scrie linkurile.'
+                : 'Cardurile nu s-au putut face: scrie fiecare bilet cu linkul lui, întreg.',
+            }
             : { bilete: [], result_ro: 'Pe acest telefon cu acest nume nu sunt bilete online viitoare. Verifică numărul și numele scrise la cumpărare.', result_ru: 'На этот телефон с этим именем нет будущих онлайн-билетов. Проверьте номер и имя, указанные при покупке.' })
           : r.motiv === 'nume'
             ? { error: 'Cere-i clientului numele sau prenumele pasagerului, cum e pe bilet.' }

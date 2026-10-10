@@ -9,6 +9,7 @@ import { searchTrips } from '@/lib/trips-search';
 import { localitiesToRo } from '@/lib/voice-locality';
 import { cursaInLocalitatileVanzarii } from '@translux/db';
 import { citesteConfigBilete } from '@/lib/bilete/comenzi';
+import { biletPublic } from '@/lib/bilete/public';
 
 /**
  * Cine duce cursa (Ion, 23.09: «lângă oră să fie datele: șofer, mașină, număr șofer»).
@@ -36,11 +37,38 @@ export type Card =
       /** Direcția se vinde online → butonul «Cumpără bilet online» (căutarea site-ului, direcția gata aleasă). */
       buy?: boolean;
       trips: (Crew & { time: string; price: number | null })[] }
+  | { type: 'tickets'; tickets: TicketItem[] }
   | { type: 'station'; key: Station['key']; name_ro: string; name_ru: string;
       address_ro: string; address_ru: string; maps: string; waze: string }
   | { type: 'pick'; from: string; to: string; trips: OnRoadTrip[] }
   | ({ type: 'bus'; from: string; to: string; departure: string; lat: number; lon: number;
       near: string | null; at: string; maps: string } & Crew);
+
+/**
+ * Biletul găsit în chat (Ion, 10.10.2026: «asistentul trebuie să dea biletele exact» · «de ce din prima nu a venit
+ * linkul»): linkul și codul QR le pune SERVERUL pe card, nu modelul în text — modelul le-a sărit o dată.
+ */
+export interface TicketItem {
+  from: string; to: string; departure_at: string; locuri: number[];
+  link: string;
+  /** SVG-ul codului QR al comenzii (qrcode din cod_qr, ca pe pagina biletului); null dacă pagina nu se poate citi. */
+  qr_svg: string | null;
+  /** Câte bilete ține codul (un QR pentru toată comanda). */
+  count: number;
+  /** Bilet de probă: nu e valabil la urcare. */
+  proba: boolean;
+}
+
+export async function ticketsCard(bilete: { from: string; to: string; departure_at: string; locuri: number[]; link: string; cod: string }[]): Promise<Card | null> {
+  if (!bilete.length) return null;
+  const tickets = await Promise.all(bilete.map(async (b): Promise<TicketItem> => {
+    const c = await biletPublic(b.cod).catch(() => null);
+    const valide = (c?.bilete ?? []).filter((x) => x.status === 'valid' || x.status === 'urcat');
+    const qr = valide.find((x) => x.status === 'valid') ?? valide[0] ?? null; // ca biletulQr de pe pagină
+    return { from: b.from, to: b.to, departure_at: b.departure_at, locuri: b.locuri, link: b.link, qr_svg: qr?.qr_svg ?? null, count: valide.length || 1, proba: Boolean(c?.proba) };
+  }));
+  return { type: 'tickets', tickets };
+}
 
 /** Cât arată cardul din lista curselor; restul le numără «Toate cele N curse». */
 export const TRIPS_SHOWN = 6;

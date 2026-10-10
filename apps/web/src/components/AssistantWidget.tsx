@@ -49,6 +49,8 @@ const TEXT = {
       { key: 'refund', title: 'Returnare', sub: 'banii înapoi', ask: 'Vreau să returnez biletul cumpărat online' },
     ],
     buyOnline: 'Cumpără bilet online',
+    openTicket: 'Deschide biletul', showDriver: 'Arată codul QR șoferului la urcare', seatsL: (s: string) => `Locul ${s}`,
+    onCode: (n: number) => `${n} bilete pe acest cod QR`, test: 'BILET DE PROBĂ — nu e valabil la urcare',
     faqTitle: 'Întrebări frecvente',
     faq: ['De ce a crescut prețul?'],
     teaserChips: ['Unde e autobuzul?', 'Biletul meu', 'Cumpără bilet', 'Curse de azi', 'Reclamație'],
@@ -107,6 +109,8 @@ const TEXT = {
       { key: 'refund', title: 'Возврат', sub: 'деньги на карту', ask: 'Хочу вернуть билет, купленный онлайн' },
     ],
     buyOnline: 'Купить билет онлайн',
+    openTicket: 'Открыть билет', showDriver: 'Покажите QR-код водителю при посадке', seatsL: (s: string) => `Место ${s}`,
+    onCode: (n: number) => `${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'билета' : 'билетов'} на этом QR-коде`, test: 'ТЕСТОВЫЙ БИЛЕТ — недействителен при посадке',
     faqTitle: 'Частые вопросы',
     faq: ['Почему выросла цена?'],
     teaserChips: ['Где автобус?', 'Мой билет', 'Купить билет', 'Рейсы на сегодня', 'Жалоба'],
@@ -254,6 +258,37 @@ function CardView({ card, i, locale, ask, busy, live = false }: { card: Card; i:
         ) : null}
         <div className="asst-card-hint">{i.reserveHint}</div>
       </div>
+    );
+  }
+
+  // Biletele găsite (Ion, 10.10.2026: «asistentul trebuie să dea biletele exact»): codul QR chiar aici + butonul paginii.
+  if (card.type === 'tickets') {
+    return (
+      <>
+        {card.tickets.map((t) => {
+          const d = new Date(t.departure_at);
+          const ora = d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Chisinau' });
+          const zi = d.toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Chisinau' });
+          return (
+            <div key={t.link} className="asst-card">
+              <div className="asst-card-head"><span>{t.from} → {t.to}</span><span>{zi}</span></div>
+              <div className="asst-ticket-body">
+                {/* SVG-ul vine de la panou, generat de biblioteca qrcode din codul biletului (nu din text de la utilizator). */}
+                {t.qr_svg && <div className="asst-qr" dangerouslySetInnerHTML={{ __html: t.qr_svg }} />}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>{ora}</span>
+                  {t.locuri.length > 0 && <span style={{ fontSize: 15, fontWeight: 700, color: RED }}>{i.seatsL(t.locuri.join(', '))}</span>}
+                  {t.count > 1 && <span className="asst-qr-count">🎫 {i.onCode(t.count)}</span>}
+                  <span style={{ fontSize: 12, color: '#6B5E61' }}>{t.proba ? i.test : i.showDriver}</span>
+                </div>
+              </div>
+              <div style={{ padding: '0 14px 14px' }}>
+                <a className="asst-btn-main" style={{ width: '100%' }} href={t.link}><Ticket size={17} /> {i.openTicket}</a>
+              </div>
+            </div>
+          );
+        })}
+      </>
     );
   }
 
@@ -664,6 +699,10 @@ const CSS = `
 .asst-hero-title{font-size:16px;font-weight:700}
 .asst-hero-sub{font-size:13px;line-height:1.4;color:#F6DCE1}
 .asst-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.asst-ticket-body{display:flex;gap:14px;align-items:center;padding:14px}
+.asst-qr{width:132px;height:132px;flex-shrink:0;background:#fff}
+.asst-qr svg{width:100%;height:100%;display:block}
+.asst-qr-count{align-self:flex-start;padding:3px 8px;border-radius:8px;background:#FFF1D6;border:1.5px solid #F2C46D;color:${RED};font-size:12px;font-weight:800}
 .asst-tickets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .asst-ticket{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;background:#fff;border:1.5px solid #E5C9CF;border-radius:14px;text-align:center;cursor:pointer;font-family:inherit;min-width:0}
 .asst-ticket:hover{border-color:${RED}}

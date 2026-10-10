@@ -1,0 +1,26 @@
+name: rutar-monitor
+
+# Monitorul zilnic al rutar.md (Ion, 10.10.2026: «fă parsing zilnic și dacă apare o ofertă nouă față de ce noi propunem —
+# să vină mie pe Telegram»). 02:30 UTC = 05:30 Chișinău vara, 04:30 iarna — înainte de prima lor cursă (06:10), când
+# paginile de pereche arată toate cursele zilei. Mesajul pleacă la ADMIN doar când e ceva nou.
+
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  rutar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rutar
+        run: |
+          code=$(curl -s -m 90 -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://central-hub-md.vercel.app/api/cron/rutar-monitor")
+          echo "rutar-monitor: HTTP $code"
+          cat /tmp/body; echo
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::rutar-monitor returned HTTP $code"
+            exit 1
+          fi

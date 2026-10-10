@@ -59,6 +59,12 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   if (!c) return { ok: false, cod: 'inexistent' };
   if (Number(c.telegram_id) !== telegramId) return { ok: false, cod: 'nelegat' };
   if (!(c.status === 'platita' || c.status === 'platita_fara_bilet')) return { ok: false, cod: 'stare' };
+  // 548: biletul de retur din tur-retur (o plată) se anulează doar cu turul, prin dispecer.
+  const { data: pc } = await db.from('bilete_comenzi').select('in_pachet').eq('id', c.id).maybeSingle();
+  if ((pc as { in_pachet?: boolean } | null)?.in_pachet) {
+    await alerta(c.id, telegramId, 'returnare cerută pe returul unui tur-retur plătit o dată: se anulează doar pachetul întreg (din tur), până la plecarea turului');
+    return { ok: true, tip: 'dispecer', motiv: 'blocat' };
+  }
 
   // Biletul scanat la urcare nu se mai returnează (funcția din bază refuză oricum; spunem din timp).
   const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', c.id).eq('status', 'urcat');

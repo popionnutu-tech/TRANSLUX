@@ -124,7 +124,14 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
                 </div>
               )}
 
-              {!doar && c.status === 'platita' && c.cod_retur && !c.proba && <div className="bilet-no-print" style={{ marginTop: 14 }}><ReturDupaTur codRetur={c.cod_retur} paidAt={c.paid_at} rutaId={c.ruta?.id ?? null} tripDate={c.trip_date} de={c.from_name} spre={c.to_name} locale={locale} /></div>}
+              {/* 548: celălalt bilet din tur-retur (plătit o dată). */}
+              {!doar && c.pachet && (
+                <a href={`/${locale}/bilet/${c.pachet.cod}`} className="bilet-no-print" style={{ display: 'block', marginTop: 14, padding: 14, borderRadius: 16, background: '#fdf3e7', border: '2px solid #d98a2b', color: '#231A1C', textDecoration: 'none' }}>
+                  <b style={{ fontSize: 16 }}>{c.pachet.sens === 'retur' ? (locale === 'ru' ? 'Обратный билет' : 'Biletul de retur') : (locale === 'ru' ? 'Билет туда' : 'Biletul tur')} →</b>
+                  <div style={{ fontSize: 14, marginTop: 4 }}>{c.pachet.from_name} → {c.pachet.to_name} · {dataOra(c.pachet.departure_at, locale)}</div>
+                </a>
+              )}
+              {!doar && !c.pachet && c.status === 'platita' && c.cod_retur && !c.proba && <div className="bilet-no-print" style={{ marginTop: 14 }}><ReturDupaTur codRetur={c.cod_retur} paidAt={c.paid_at} rutaId={c.ruta?.id ?? null} tripDate={c.trip_date} de={c.from_name} spre={c.to_name} locale={locale} /></div>}
 
               {c.status === 'noua' && <AsteaptaPlata locale={locale} />}
 

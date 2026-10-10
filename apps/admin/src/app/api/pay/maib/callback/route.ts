@@ -1,4 +1,5 @@
 import { after, NextRequest, NextResponse } from 'next/server';
+import { sumaDePlata } from '@/lib/bilete/comenzi';
 import { getSupabase } from '@/lib/supabase';
 import { verifyMaibCallback } from '@/lib/maib/signature';
 import { stareEgala } from '@/lib/maib/client';
@@ -210,7 +211,9 @@ async function leagaComandaOrfana(req: NextRequest, body: MaibCallbackBody, chec
   if (c.checkout_id) return 'are deja checkout';
   if (!stareEgala(body.paymentStatus, 'Executed')) return `plată ${body.paymentStatus}`;
   if (body.currency && body.currency !== 'MDL') return `valută ${body.currency}`;
-  if (typeof body.amount !== 'number' || Math.abs(body.amount - Number(c.total)) >= 0.005) return `sumă ${body.amount} ≠ ${c.total}`;
+  // 548: în pachet suma băncii = turul + returul.
+  const dePlata = await sumaDePlata({ id: c.id, total: Number(c.total) });
+  if (typeof body.amount !== 'number' || Math.abs(body.amount - dePlata) >= 0.005) return `sumă ${body.amount} ≠ ${dePlata}`;
   const { data: altul, error: aErr } = await supabase.from('maib_checkouts').select('checkout_id').eq('order_id', orderId).maybeSingle();
   if (aErr) return `eroare: citirea sesiunii: ${aErr.message}`;
   if (altul) return 'alt rând pentru comandă';

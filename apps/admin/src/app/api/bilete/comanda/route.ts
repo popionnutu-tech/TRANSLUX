@@ -19,6 +19,14 @@ function locuriDin(v: unknown): number[] | null {
   return v.slice(0, 8).map((x) => (typeof x === 'number' ? x : (typeof x === 'string' && /^\d{1,2}$/.test(x) ? Number(x) : NaN)));
 }
 
+function returDin(v: unknown): ComandaInput['retur'] {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const zi = String(o.tripDate ?? ''), cheie = String(o.idempotencyKey ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(zi) || !/^[0-9a-f-]{36}$/i.test(cheie) || !Number.isInteger(Number(o.crmRouteId))) return null;
+  return { tripDate: zi, crmRouteId: Number(o.crmRouteId), goingNorth: o.goingNorth === true, fromRo: String(o.fromRo ?? '').slice(0, 80), toRo: String(o.toRo ?? '').slice(0, 80), idempotencyKey: cheie };
+}
+
 function bazaAdmin(req: NextRequest): string {
   const fix = process.env.MAIB_PUBLIC_BASE_URL?.replace(/\/+$/, '');
   if (fix) return fix;
@@ -30,7 +38,7 @@ function bazaAdmin(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   if (!cheieSiteValida(req.headers.get('authorization'))) return NextResponse.json({ ok: false, eroare: 'neautorizat' }, { status: 401 });
 
-  let body: Partial<ComandaInput> & { ip_hash?: string; locuri_alese?: unknown; cod_retur?: unknown; student_jeton?: unknown };
+  let body: Partial<ComandaInput> & { ip_hash?: string; locuri_alese?: unknown; cod_retur?: unknown; student_jeton?: unknown; retur?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, eroare: 'JSON nevalid' }, { status: 400 }); }
   if (!body || typeof body !== 'object') return NextResponse.json({ ok: false, eroare: 'corp lipsă' }, { status: 400 });
 
@@ -56,6 +64,8 @@ export async function POST(req: NextRequest) {
     // 546 (Codex r2 C1): promoțiile — fără ele aici, câmpurile s-ar pierde și s-ar plăti prețul întreg.
     codRetur: typeof body.codRetur === 'string' && /^[0-9a-f]{64}$/.test(body.codRetur) ? body.codRetur
       : (typeof body.cod_retur === 'string' && /^[0-9a-f]{64}$/.test(body.cod_retur) ? body.cod_retur : null),
+    // 548: returul din pachet (o singură plată cu turul); forma se verifică aici, restul în creeazaComanda.
+    retur: returDin(body.retur),
     studentJeton: typeof body.studentJeton === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(body.studentJeton) ? body.studentJeton
       : (typeof body.student_jeton === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(body.student_jeton) ? body.student_jeton : null),
   };

@@ -98,7 +98,12 @@ export async function trimiteEmailBilet(comandaId: string): Promise<RezultatEmai
 export async function trimiteEmailPentruCheckout(checkoutId: string): Promise<RezultatEmail> {
   if (!emailConfigurat()) return 'neconfigurat';
   const { data } = await getSupabase().from('bilete_comenzi').select('id').eq('checkout_id', checkoutId).maybeSingle();
-  return data?.id ? trimiteEmailBilet(data.id) : 'nimic';
+  if (!data?.id) return 'nimic';
+  const r = await trimiteEmailBilet(data.id);
+  // 548: returul din pachet (aceeași plată) primește e-mailul lui; un eșec se reia din împăcare.
+  const { data: rt } = await getSupabase().from('bilete_comenzi').select('id').eq('comanda_tur_id', data.id).eq('in_pachet', true).eq('status', 'platita');
+  for (const x of (rt || []) as { id: string }[]) await trimiteEmailBilet(x.id).catch(() => 'esuat');
+  return r;
 }
 
 /**

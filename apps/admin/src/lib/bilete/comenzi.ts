@@ -4,6 +4,7 @@ import {
   incarcaCurse, normalizeazaTelefonPasager, parseazaDestinatii, parseazaLocalitatiVanzare, parseazaPlafoaneLocalitati, parseTimeLabel,
   pretVandabilOnline, SUMA_MINIMA_PLATA_MDL, verificaPlafonLocalitati, type BileteComanda, type ComandaPentruPlafon,
   type CursaCuPret, type LocalitatiVanzare, type PlafoaneLocalitati,
+  aplicaReducere, perechePromo,
 } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } from '@/lib/maib/client';
@@ -63,6 +64,11 @@ export interface ComandaInput {
   codRetur?: string | null;
   /** Promoția student −20% (migr. 546): jetonul primit după verificarea AI a carnetului. */
   studentJeton?: string | null;
+  /**
+   * 548 (Ion, 10.10.2026: «totul trebuie să fie achitare într-o pagină»): returul Bălți ⇄ Chișinău cumpărat cu turul, plătit
+   * în aceeași sesiune (−20%); aceeași persoană și aceleași locuri ca turul.
+   */
+  retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string } | null;
 }
 
 /** Prețul unui loc pe pagina de probă fizică (Ion, 08.10.2026: «pui să fie biletul 10 lei ieftin»); = minimul plății maib. */
@@ -368,8 +374,48 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if ((comanda.comanda_tur_id ?? null) !== promoIntrare.turId || (comanda.student_verificare_id ?? null) !== promoIntrare.verificareId) {
       throw new ComandaError('idempotenta', 'aceeași cheie, altă reducere');
     }
+    if (input.retur) await asiguraReturPachet(comanda, input, opt);
     return await asiguraSesiunea(comanda, opt);
   }
+
+  const tur = await creeazaRand(input, opt, v, locuriAlese, null);
+  if (input.retur) await asiguraReturPachet(tur, input, opt);
+  return await asiguraSesiunea(tur, opt);
+}
+
+/**
+ * Returul din pachet (548): aceeași persoană, aceleași locuri, plătit în sesiunea turului. Nu se cumulează cu studentul
+ * pe tur. Reluarea (aceeași cheie) întoarce returul existent.
+ */
+async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: ComandaOptiuni): Promise<BileteComanda> {
+  const r = input.retur!;
+  const db = getSupabase();
+  const { data: exist, error: eX } = await db.from('bilete_comenzi').select('*').eq('comanda_tur_id', tur.id).eq('in_pachet', true)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (eX) throw new Error(`bilete_comenzi (pachet): ${eX.message}`);
+  if (exist && DESCHISE.has((exist as BileteComanda).status)) return exist as BileteComanda;
+  if (tur.checkout_id || !DESCHISE.has(tur.status)) throw new ComandaError('validare', 'turul e deja în plată; returul −20% se adaugă doar la cumpărarea turului');
+  if (opt.mod === 'proba') throw new ComandaError('validare', 'tur-returul nu merge pe comanda de probă');
+  if (tur.reducere_tip) throw new ComandaError('validare', 'reducerile nu se cumulează: tur-returul e fără reducerea de student');
+  const promoCfg = await citestePromoConfig();
+  if (!promoCfg.activ) throw new ComandaError('validare', mesajFaraReducere('promo_inchis'));
+  if (!perechePromo(tur.from_name, tur.to_name)) throw new ComandaError('validare', mesajFaraReducere('nu_e_pereche'));
+  const v = valideaza(input);
+  const returInput: ComandaInput = {
+    ...input, tripDate: String(r.tripDate), crmRouteId: Number(r.crmRouteId), goingNorth: r.goingNorth === true,
+    fromRo: String(r.fromRo ?? '').slice(0, 80), toRo: String(r.toRo ?? '').slice(0, 80), seats: tur.seats,
+    idempotencyKey: String(r.idempotencyKey ?? ''), locuriAlese: null, punctUrcareId: null, codRetur: null, studentJeton: null, retur: null,
+  };
+  if (!/^[0-9a-f-]{36}$/i.test(returInput.idempotencyKey) || returInput.idempotencyKey === input.idempotencyKey) throw new ComandaError('validare', 'cheia returului lipsește');
+  return creeazaRand(returInput, opt, v, null, { tur, pct: promoCfg.pct });
+}
+
+/** Rândul unei comenzi noi (tur sau retur din pachet), cu toate verificările vânzării; fără sesiunea de plată. */
+async function creeazaRand(
+  input: ComandaInput, opt: ComandaOptiuni, v: ReturnType<typeof valideaza>, locuriAlese: number[] | null,
+  pachet: { tur: BileteComanda; pct: number } | null,
+): Promise<BileteComanda> {
+  const db = getSupabase();
 
   // 2. Vânzare nouă: cele patru citiri sunt independente → în paralel; erorile în ordinea de mai jos.
   const [cfg, promoCfg, directie, cursa, sofer] = await Promise.all([
@@ -413,7 +459,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   // Proba fizică (Ion, 08.10: «pui să fie biletul 10 lei»): prețul forțat; totalul se socotește după, deci amount = total.
   // Promoțiile Bălți ⇄ Chișinău (546): reducerea doar la public / test_admin; cerută dar neaplicabilă → refuz cu motivul
   // (clientul a văzut cota și nu trebuie să plătească alt preț decât a crezut).
-  const promo = await calculeazaPromo({
+  const promo = pachet ? promoPachet(cursa.trip.price, pachet, cursa.fromNameRo, cursa.toNameRo) : await calculeazaPromo({
     mod: opt.mod, test: opt.mod !== 'public', phone: v.phone, passengerName: v.name, urcare: cursa.fromNameRo, coborare: cursa.toNameRo,
     goingNorth: input.goingNorth, crmRouteId: input.crmRouteId, tripDate: input.tripDate, departureAt, seats: input.seats,
     pret: cursa.trip.price, codRetur: input.codRetur ?? null, studentJeton: input.studentJeton ?? null,
@@ -475,6 +521,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       promo_pereche: promo.promoPereche,
       loc_cheie: cota.chei,
       cota_online: cota.cota,
+      in_pachet: pachet != null,
     },
   });
   if (error) {
@@ -499,7 +546,26 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
   }
-  return await asiguraSesiunea(rand as BileteComanda, opt);
+  return rand as BileteComanda;
+}
+
+/** Reducerea returului din pachet: −pct pe prețul cursei (sub minimul plății → refuz). */
+function promoPachet(pret: number, pachet: { tur: BileteComanda; pct: number }, urcare: string, coborare: string) {
+  const redus = aplicaReducere(pret, pachet.pct);
+  if (redus == null) throw new ComandaError('validare', mesajFaraReducere('pret_mic'));
+  return {
+    pretIntreg: pret, pret: redus, promoPereche: perechePromo(urcare, coborare),
+    reducere: { tip: 'retur' as const, pct: pachet.pct, turId: pachet.tur.id, verificareId: undefined as string | undefined, numeCheie: undefined as string | undefined },
+    motiv: undefined,
+  };
+}
+
+/** Suma de plată a comenzii: turul + returul din pachet (548), fiecare rând cu totalul lui. */
+export async function sumaDePlata(comanda: Pick<BileteComanda, 'id' | 'total'>): Promise<number> {
+  const { data, error } = await getSupabase().from('bilete_comenzi').select('total').eq('comanda_tur_id', comanda.id).eq('in_pachet', true)
+    .in('status', ['noua', 'eroare_creare', 'expirata', 'platita', 'platita_fara_bilet']);
+  if (error) throw new Error(`bilete_comenzi (pachet): ${error.message}`);
+  return Number(comanda.total) + (data || []).reduce((a: number, r: { total: number | string }) => a + Number(r.total), 0);
 }
 
 /**
@@ -533,8 +599,8 @@ async function asiguraSesiunea(comanda: BileteComanda, opt: ComandaOptiuni): Pro
   if (rErr) throw new Error(`revendicare: ${rErr.message}`);
   if (!revendicat || revendicat.length === 0) throw new ComandaError('in_lucru', 'comanda e deja în curs de plată; reîncearcă într-un minut');
 
-  const sumaComenzii = Number(comanda.total);
-  const descr = descriereDin(comanda);
+  const sumaComenzii = await sumaDePlata(comanda);
+  const descr = sumaComenzii > Number(comanda.total) ? `${descriereDin(comanda)} + retur`.slice(0, 125) : descriereDin(comanda);
   const url = opt.urlBilet ?? urlBiletImplicit(opt.bazaSite);
   let checkout: { checkoutId: string; checkoutUrl: string };
   try {

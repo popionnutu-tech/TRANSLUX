@@ -74,6 +74,18 @@ export async function anuleazaSiReturneaza(
   if (!(inainte.status === 'platita' || inainte.status === 'platita_fara_bilet')) {
     throw new ComandaError('validare', `comanda e ${inainte.status}, nu se poate anula`);
   }
+  // 548: tur-returul plătit o dată (Ion, 10.10: «poate să facă returul doar până a începe cursa la tur») — se anulează doar
+  // din tur, ambele bilete, într-un singur refund, până la plecarea turului; după, doar dispecerul cu «vina noastră».
+  if (inainte.in_pachet) throw new ComandaError('inchis', 'biletul de retur din tur-retur se anulează doar împreună cu turul, din biletul tur');
+  const { data: rp } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', comandaId).eq('in_pachet', true)
+    .in('status', ['platita', 'platita_fara_bilet']).limit(1);
+  const pachet = (rp || []).length > 0;
+  if (pachet) {
+    if (opt.sursa === 'ai' || opt.sursa === 'pasager') throw new ComandaError('inchis', 'tur-returul se anulează prin dispecer');
+    if (Date.now() >= Date.parse(inainte.departure_at) && !(opt.sursa === 'admin' && opt.vinaNoastra) && opt.sursa !== 'sistem') {
+      throw new ComandaError('inchis', 'tur-returul se poate anula doar până la plecarea cursei tur (după, doar cu «vina noastră»)');
+    }
+  }
   if (opt.sursa === 'pasager' || opt.sursa === 'ai') {
     const acum = opt.acumMs ?? Date.now();
     // Garanția de lansare (Ion, 07.10): biletul nefolosit se returnează și după plecare, până la plecare + 24 h;
@@ -96,7 +108,7 @@ export async function anuleazaSiReturneaza(
   const grila = opt.suma ?? Number(inainte.total);
   const { data: rez, error: e1 } = await db.rpc('bilete_anuleaza', {
     p_id: comandaId, p_sursa: opt.sursa, p_motiv: motiv, p_grila: grila,
-    p_vina_noastra: opt.vinaNoastra ?? opt.sursa === 'sistem', p_si_returul: opt.siReturul ?? false, p_grila_retur: opt.siReturul ? (opt.sumaRetur ?? null) : null,
+    p_vina_noastra: opt.vinaNoastra ?? opt.sursa === 'sistem', p_si_returul: pachet || (opt.siReturul ?? false), p_grila_retur: opt.siReturul ? (opt.sumaRetur ?? null) : null,
   });
   if (e1) {
     if (/BILET_URCAT|RETUR_URCAT/.test(e1.message)) throw new ComandaError('inchis', 'un bilet din comandă (sau din returul legat) e deja scanat la urcare; nu se mai returnează');
@@ -115,6 +127,11 @@ export async function anuleazaSiReturneaza(
   if (eC) throw new Error(`bilete_comenzi: ${eC.message}`);
   const comanda = c1 as BileteComanda;
   const sumaTur = Number(randuri[0]?.suma ?? grila);
+  // 548: pachetul are o singură plată → un singur refund, cu suma ambelor rânduri, pe sesiunea turului.
+  if (pachet) {
+    const sumaPachet = randuri.reduce((a, r) => a + Number(r.suma ?? 0), 0);
+    return { ...(await returneazaBanii(comanda, motiv, sumaPachet)), suma: sumaPachet };
+  }
   // Returul anulat împreună cu turul: banii lui pe sesiunea lui (fără compensări între sesiuni).
   for (const r of randuri.slice(1)) {
     const { data: cr } = await db.from('bilete_comenzi').select('*').eq('id', r.id).single();

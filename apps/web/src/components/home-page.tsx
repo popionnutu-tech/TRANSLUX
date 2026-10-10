@@ -93,9 +93,10 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   // Chișinău (promoția −20% la retur). Calendarul cere întâi ziua turului, apoi ziua întoarcerii (≤ 30 de zile).
   const [esteBalti, setEsteBalti] = useState(false);
   const [cuRetur, setCuRetur] = useState(false);
-  const [pasCal, setPasCal] = useState<'tur' | 'retur'>('tur');
-  const [ziTur, setZiTur] = useState<Date | null>(null);
   const [dataRetur, setDataRetur] = useState<string | null>(null);
+  // Ion, 10.10: «când bifez tur-retur −20% să apară alegerea datei … clientul se va pierde» — două câmpuri vizibile.
+  const [ziPlecare, setZiPlecare] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); });
+  const [ziIntoarcere, setZiIntoarcere] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 3); return ymd(d); });
   const fromRef = useRef<HTMLSelectElement>(null);
   const toRef = useRef<HTMLSelectElement>(null);
   const calRef = useRef<HTMLDivElement>(null);
@@ -155,20 +156,23 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   };
 
   const openLater = () => {
-    if (direction()) { setPasCal('tur'); setCalendarOpen(!calendarOpen); }
+    if (direction()) setCalendarOpen(!calendarOpen);
   };
   const verificaPerechea = () => setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
-  /** Ziua aleasă în calendar: turul; cu «Tur-retur», a doua alegere e ziua întoarcerii, apoi pornește căutarea. */
+  /** Ziua aleasă în calendar (doar turul; tur-returul are câmpurile lui sub bară). */
   const alegeZi = (d: Date) => {
-    if (cuRetur && esteBalti && pasCal === 'tur') { setSelectedDate(d); setZiTur(d); setPasCal('retur'); return; }
-    if (cuRetur && esteBalti && pasCal === 'retur' && ziTur) {
-      const max = new Date(ziTur); max.setDate(max.getDate() + 30);
-      const r = d < ziTur ? ziTur : d > max ? max : d;
-      setDataRetur(ymd(r)); setCalendarOpen(false); setPasCal('tur'); runSearch(ziTur);
-      return;
-    }
     setDataRetur(null); setSelectedDate(d); setCalendarOpen(false); runSearch(d);
   };
+  const plusZile = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return ymd(d); };
+  /** «Caută tur-retur»: ziua turului din câmpul «Plecare», ziua întoarcerii merge în formularul de cumpărare. */
+  const cautaTurRetur = () => {
+    if (!direction()) return;
+    const ret = ziIntoarcere < ziPlecare ? ziPlecare : ziIntoarcere > plusZile(ziPlecare, 30) ? plusZile(ziPlecare, 30) : ziIntoarcere;
+    setZiIntoarcere(ret); setDataRetur(ret);
+    const d = new Date(`${ziPlecare}T12:00:00`);
+    setSelectedDate(d); runSearch(d);
+  };
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,6 +382,21 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                 {locale === 'ru' ? 'Туда и обратно — обратный −20%' : 'Tur-retur — returul −20%'}
               </label>
             )}
+            {esteBalti && cuRetur && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', justifyContent: 'center', marginTop: 10, fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
+                {([['plecare', locale === 'ru' ? 'Туда' : 'Plecare', ziPlecare, ymd(new Date()), undefined],
+                   ['intoarcere', locale === 'ru' ? 'Обратно' : 'Întoarcere', ziIntoarcere, ziPlecare, plusZile(ziPlecare, 30)]] as const).map(([k, et, val, min, max]) => (
+                  <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 700, color: '#6B5B5F', flex: '1 1 140px', maxWidth: 200 }}>{et}
+                    <input type="date" value={val} min={min} max={max}
+                      onChange={(e) => { const x = e.target.value; if (!x) return; if (k === 'plecare') { setZiPlecare(x); if (ziIntoarcere < x) setZiIntoarcere(x); } else setZiIntoarcere(x); }}
+                      style={{ height: 46, borderRadius: 12, border: '1.5px solid rgba(155,27,48,0.25)', padding: '0 10px', fontSize: 15, color: '#6E0E14', background: '#fff', fontFamily: 'inherit' }} />
+                  </label>
+                ))}
+                <button type="button" onClick={cautaTurRetur} style={{ height: 46, flex: '1 1 140px', maxWidth: 220, borderRadius: 12, border: 'none', background: '#9B1B30', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {searching ? '...' : (locale === 'ru' ? 'Найти туда-обратно' : 'Caută tur-retur')}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Popular routes card — nu în mini app-ul Telegram (Ion: «doar motorul de căutare, nimic altul») */}
@@ -532,7 +551,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
         <div className="later-overlay" onClick={() => setCalendarOpen(false)}>
           <div className="later-box" role="dialog" aria-modal="true" aria-label={i.when} onClick={(e) => e.stopPropagation()}>
             <div className="later-head">
-              <span>{pasCal === 'retur' ? (locale === 'ru' ? 'Когда возвращаетесь?' : 'Când te întorci?') : i.when}</span>
+              <span>{i.when}</span>
               <button type="button" className="later-close" aria-label="✕" onClick={() => setCalendarOpen(false)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
@@ -540,7 +559,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             <div className="later-quick">
               {[i.today, i.tomorrow, i.afterTomorrow].map((label, k) => (
                 <button key={label} type="button" onClick={() => {
-                  const d = new Date(pasCal === 'retur' && ziTur ? ziTur : new Date()); d.setDate(d.getDate() + k);
+                  const d = new Date(); d.setDate(d.getDate() + k);
                   alegeZi(d);
                 }}>{label}</button>
               ))}

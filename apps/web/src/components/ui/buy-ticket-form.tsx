@@ -157,17 +157,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   // 547: returul ales acum se plătește imediat după tur (pagina biletului); planul stă în sessionStorage.
   const [retur, setRetur] = React.useState<ReturAles | null>(null);
   const [cheieRetur] = React.useState(uuid);
-  const salveazaPlanul = () => {
-    try {
-      if (!retur) { sessionStorage.removeItem(CHEIE_PLAN_RETUR); return; }
-      sessionStorage.setItem(CHEIE_PLAN_RETUR, JSON.stringify({
-        tur: { crmRouteId: trip.crm_route_id, tripDate: trip.trip_date },
-        plan: { tripDate: retur.trip.trip_date, crmRouteId: retur.trip.crm_route_id, goingNorth: retur.trip.going_north, fromRo: toRo, toRo: fromRo,
-          seats, lastName: camp.lastName, firstName: camp.firstName, phone: camp.phone, email: camp.email, lang: locale, idempotencyKey: cheieRetur },
-        pret: retur.pret * seats, ora: retur.trip.time,
-      }));
-    } catch { /* stocare blocată: returul se cumpără de mână */ }
-  };
+
   const locuriIncomplete = hartaActiva && alese.length !== seats;
 
   const inp: React.CSSProperties = {
@@ -181,7 +171,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   });
 
   return (
-    <form action={action} onSubmit={salveazaPlanul} className="cump-grid">
+    <form action={action} className="cump-grid">
       {/* Pagina de cumpărare (Ion, 09.10.2026, varianta 1B): stânga — biletul ales și microbuzul; dreapta — datele și
           plata. Pe telefon totul unul sub altul, cu butonul de plată lipit jos. */}
       <style>{`
@@ -209,6 +199,15 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
       {hartaActiva && <input type="hidden" name="locuriAlese" value={JSON.stringify(alese)} />}
       {reducere.codRetur && <input type="hidden" name="codRetur" value={reducere.codRetur} />}
       {reducere.studentJeton && <input type="hidden" name="studentJeton" value={reducere.studentJeton} />}
+      {/* 548: tur-returul se plătește o dată cu turul (aceeași sesiune la bancă). */}
+      {retur && <>
+        <input type="hidden" name="returTripDate" value={retur.trip.trip_date} />
+        <input type="hidden" name="returCrmRouteId" value={retur.trip.crm_route_id} />
+        <input type="hidden" name="returGoingNorth" value={String(retur.trip.going_north)} />
+        <input type="hidden" name="returFromRo" value={toRo} />
+        <input type="hidden" name="returToRo" value={fromRo} />
+        <input type="hidden" name="returKey" value={cheieRetur} />
+      </>}
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
 
@@ -282,6 +281,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
           {/* ION-208: acceptarea condițiilor de vânzare (HG 854/2006) și a politicii, la cumpărare. */}
           <span>{tx.consent}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.terms}</a>{" "}{tx.and}{" "}<a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.policy}</a></span>
         </label>
+        {retur && <div style={{ fontSize: 13, color: "#4A3E41", lineHeight: 1.45, marginTop: -4 }}>{locale === "ru" ? "Туда-обратно отменяется только вместе, до отправления рейса туда." : "Tur-returul se anulează doar împreună, până la plecarea cursei tur."}</div>}
         {stare.eroare && <div role="alert" style={{ fontSize: 15, color: RED, fontWeight: 600 }}>{stare.eroare}</div>}
         <div className="cump-plata">
           {/* Rezumatul dinaintea plății (ION-238): ziua, ora, unde urci, locurile, suma. */}
@@ -291,10 +291,10 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
               {ales && <> · {locale === "ru" ? ales.nume_ru : ales.nume_ro}</>}
               <br />{tx.loc(seats)}{hartaActiva && alese.length > 0 && <> · {alese.length === 1 ? tx.locul : tx.locurile} {listaLocuri(alese)}</>}
             </span>
-            <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats} lei</span>
+            <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats + (retur ? retur.pret * seats : 0)} lei</span>
           </div>
-          {retur && <div style={{ fontSize: 13, color: "#2b6b3a", fontWeight: 700 }}>{locale === "ru" ? `Затем обратный: ${retur.pret * seats} лей (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time})` : `Apoi returul: ${retur.pret * seats} lei (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time})`}</div>}
-          <Trimite locale={locale} lei={pretLoc * seats} blocat={locuriIncomplete || reducere.blocheazaPlata} />
+          {retur && <div style={{ fontSize: 13, color: "#2b6b3a", fontWeight: 700 }}>{locale === "ru" ? `Туда ${pretLoc * seats} + обратно ${retur.pret * seats} лей (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time}) — одна оплата` : `Tur ${pretLoc * seats} + retur ${retur.pret * seats} lei (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time}) — o singură plată`}</div>}
+          <Trimite locale={locale} lei={pretLoc * seats + (retur ? retur.pret * seats : 0)} blocat={locuriIncomplete || reducere.blocheazaPlata} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8A7A7D" }}>{tx.note}</span>
             <button type="button" onClick={onCancel} style={{ minHeight: 44, padding: "0 6px", border: "none", background: "none", color: "#6B5B5F", fontSize: 14, cursor: "pointer" }}>{tx.cancel}</button>

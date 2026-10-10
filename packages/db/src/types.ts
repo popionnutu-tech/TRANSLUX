@@ -1026,6 +1026,8 @@ export interface BileteComanda {
   loc_cheie?: string[] | null;
   cota_online?: number | null;
   scazut_la_refund?: number;
+  /** 548: returul plătit în aceeași sesiune cu turul (comanda_tur_id). */
+  in_pachet?: boolean;
 }
 
 export interface Bilet {

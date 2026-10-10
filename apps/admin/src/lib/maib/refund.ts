@@ -89,12 +89,15 @@ export async function finalizeazaRefund(checkoutId: string, stare: StareRefundMa
 
   const { data: c } = await db.from('bilete_comenzi').select('id, status').eq('checkout_id', checkoutId).maybeSingle();
   if (!c || c.status !== 'anulata') return { decizie, comandaId: c?.id ?? null };
+  // 548: returul din pachet (fără sesiune proprie) urmează refund-ul turului.
+  const { data: pachet } = await db.from('bilete_comenzi').select('id').eq('comanda_tur_id', c.id).eq('in_pachet', true).eq('status', 'anulata');
+  const ids = [c.id, ...((pachet || []) as { id: string }[]).map((x) => x.id)];
   if (decizie === 'returnata') {
     await db.from('bilete_comenzi').update({ status: 'returnata', refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', c.id).eq('status', 'anulata');
-    await db.from('bilete').update({ status: 'returnat' }).eq('comanda_id', c.id).eq('status', 'anulat');
+      .in('id', ids).eq('status', 'anulata');
+    await db.from('bilete').update({ status: 'returnat' }).in('comanda_id', ids).eq('status', 'anulat');
   } else if (decizie === 'respins') {
-    await db.from('bilete_comenzi').update({ refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', c.id);
+    await db.from('bilete_comenzi').update({ refund_finalizat_la: new Date().toISOString(), updated_at: new Date().toISOString() }).in('id', ids);
     await db.from('bilete_alerte').insert({ comanda_id: c.id, tip: 'refund_respins', detalii: `maib: ${stare.status}` });
   }
   return { decizie, comandaId: c.id };

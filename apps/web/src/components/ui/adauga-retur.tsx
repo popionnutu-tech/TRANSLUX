@@ -15,8 +15,8 @@ export const CHEIE_PLAN_RETUR = "tlx_plan_retur";
 export interface ReturAles { trip: TripResult; pret: number }
 
 const TXT = {
-  ro: { adauga: "Adaugă retur −20%", nota: "Returul se plătește imediat după tur, cu −20%. Cursa de întoarcere poate fi în următoarele 30 de zile.", zi: "Ziua întoarcerii", cauta: "Se caută cursele…", niciuna: "În ziua aceasta nu sunt curse de întoarcere cu bilet online.", plata: (p: number, i: number) => `${p} lei în loc de ${i} lei pe loc` },
-  ru: { adauga: "Добавить обратный −20%", nota: "Обратный билет оплачивается сразу после билета туда, со скидкой −20%. Обратный рейс — в течение 30 дней.", zi: "День возвращения", cauta: "Ищем рейсы…", niciuna: "В этот день нет обратных рейсов с онлайн-билетом.", plata: (p: number, i: number) => `${p} лей вместо ${i} лей за место` },
+  ro: { adauga: "Adaugă retur −20%", nota: "Tur și retur într-o singură plată, returul cu −20%. Întoarcerea poate fi în următoarele 30 de zile. Tur-returul se anulează doar împreună, până la plecarea turului.", zi: "Ziua întoarcerii", cauta: "Se caută cursele…", niciuna: "În ziua aceasta nu sunt curse de întoarcere cu bilet online.", plata: (p: number, i: number) => `${p} lei în loc de ${i} lei pe loc` },
+  ru: { adauga: "Добавить обратный −20%", nota: "Туда и обратно — одной оплатой, обратный со скидкой −20%. Обратный рейс — в течение 30 дней. Отменяется только вместе, до отправления рейса туда.", zi: "День возвращения", cauta: "Ищем рейсы…", niciuna: "В этот день нет обратных рейсов с онлайн-билетом.", plata: (p: number, i: number) => `${p} лей вместо ${i} лей за место` },
 } as const;
 
 function plusZile(iso: string, n: number): string {

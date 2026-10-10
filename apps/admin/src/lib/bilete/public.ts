@@ -52,6 +52,8 @@ export interface ComandaPublica {
   reducere?: { tip: 'retur' | 'student'; pret_intreg: number } | null;
   /** 546: codul care dă −20% la retur — doar pe turul plătit al perechii Bălți ⇄ Chișinău. */
   cod_retur?: string | null;
+  /** 548: tur-retur plătit o dată — celălalt bilet al pachetului (codul paginii lui și sensul). */
+  pachet?: { cod: string; sens: 'retur' | 'tur'; trip_date: string; departure_at: string; from_name: string; to_name: string } | null;
 }
 
 const COD_RE = /^[0-9a-f]{32}$/i;
@@ -103,7 +105,22 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (rB.error) throw new BazaIndisponibilaError(rB.error.message);
   if (rR.error) throw new BazaIndisponibilaError(rR.error.message);
   // ION-276: aceeași asamblare ca lista clientului din mini app (bilet-asamblare.ts).
-  return asambleazaComanda(comanda, (rB.data ?? []) as BiletRand[], (rR.data as RutaRand | null) ?? null, (rS.data as OprireSosireRand | null) ?? null, echipaje.get(comanda.id) ?? null);
+  const pub = await asambleazaComanda(comanda, (rB.data ?? []) as BiletRand[], (rR.data as RutaRand | null) ?? null, (rS.data as OprireSosireRand | null) ?? null, echipaje.get(comanda.id) ?? null);
+  return { ...pub, pachet: await celalaltDinPachet(comanda.id) };
+}
+
+/** 548: biletul pereche din tur-retur (returul turului, sau turul returului), doar plătit. */
+async function celalaltDinPachet(id: string): Promise<ComandaPublica['pachet']> {
+  const db = getSupabase();
+  const { data: eu } = await db.from('bilete_comenzi').select('in_pachet, comanda_tur_id').eq('id', id).maybeSingle();
+  const e = eu as { in_pachet?: boolean; comanda_tur_id?: string | null } | null;
+  const q = db.from('bilete_comenzi').select('cod, trip_date, departure_at, from_name, to_name, status');
+  const { data } = e?.in_pachet && e.comanda_tur_id
+    ? await q.eq('id', e.comanda_tur_id).maybeSingle()
+    : await q.eq('comanda_tur_id', id).eq('in_pachet', true).in('status', ['platita', 'platita_fara_bilet']).limit(1).maybeSingle();
+  const r = data as { cod: string; trip_date: string; departure_at: string; from_name: string; to_name: string; status: string } | null;
+  if (!r || !['platita', 'platita_fara_bilet'].includes(r.status)) return null;
+  return { cod: r.cod, sens: e?.in_pachet ? 'tur' : 'retur', trip_date: r.trip_date, departure_at: r.departure_at, from_name: r.from_name, to_name: r.to_name };
 }
 
 /** Capacitatea autobuzului (ION-239, migr. 501): 1 față + 5 × 3 + 4 spate. */

@@ -104,6 +104,11 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     // 546: promoțiile Bălți ⇄ Chișinău — panoul le verifică și recalculează prețul; aici doar formatul.
     codRetur: /^[0-9a-f]{64}$/.test(String(fd.get('codRetur') ?? '')) ? String(fd.get('codRetur')) : null,
     studentJeton: /^[A-Za-z0-9_-]{20,64}$/.test(String(fd.get('studentJeton') ?? '')) ? String(fd.get('studentJeton')) : null,
+    // 548: tur-retur într-o singură plată (Ion, 10.10: «totul trebuie să fie achitare într-o pagină»).
+    retur: DATA_RE.test(String(fd.get('returTripDate') ?? '')) && UUID_RE.test(String(fd.get('returKey') ?? '')) && Number.isInteger(Number(fd.get('returCrmRouteId')))
+      ? { tripDate: String(fd.get('returTripDate')), crmRouteId: Number(fd.get('returCrmRouteId')), goingNorth: fd.get('returGoingNorth') === 'true',
+          fromRo: String(fd.get('returFromRo') ?? '').slice(0, 80), toRo: String(fd.get('returToRo') ?? '').slice(0, 80), idempotencyKey: String(fd.get('returKey')) }
+      : null,
   });
   if (!r.ok) {
     // ION-242: locurile s-au luat între două reîncărcări ale hărții → spunem care și formularul reîncarcă harta.

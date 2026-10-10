@@ -89,6 +89,8 @@ export interface ComandaBiletInput {
   codRetur?: string | null;
   /** 546: promoția student −20% — jetonul primit după verificarea carnetului. */
   studentJeton?: string | null;
+  /** 548: returul din tur-retur, plătit în aceeași sesiune cu turul. */
+  retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string } | null;
 }
 
 export type RaspunsComanda =
@@ -161,6 +163,8 @@ export interface ComandaPublica {
   /** 546: reducerea aplicată și codul de retur (doar pe turul plătit al perechii Bălți ⇄ Chișinău). */
   reducere?: { tip: 'retur' | 'student'; pret_intreg: number } | null;
   cod_retur?: string | null;
+  /** 548: celălalt bilet din tur-retur (plătit o dată). */
+  pachet?: { cod: string; sens: 'retur' | 'tur'; trip_date: string; departure_at: string; from_name: string; to_name: string } | null;
   bilete: BiletPublic[];
 }
 

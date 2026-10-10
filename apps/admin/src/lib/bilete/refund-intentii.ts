@@ -3,8 +3,9 @@ import { getSupabase } from '@/lib/supabase';
 import { getPayment, getRefund, refundPayment, MaibError } from '@/lib/maib/client';
 import { deciziaRefund } from '@/lib/maib/refund-decizie';
 import {
-  baniiAuAjuns, clasificaUrma, LINISTE_DUPA_TRIMITERE_MS, pasul, pauzaDupaRefuz, poateTrimite, RECITIRE_NECLAR_MS,
-  TERMEN_REVENDICARE_S, urmaBanca, VERIFICARE_CREAT_MS, INCERCARI_MAX, type StareIntentie, type UrmaBanca,
+  baniiAuAjuns, clasificaUrma, deciziaVerificare, decizieRefundStrain, dupaRefundStrain, LINISTE_DUPA_TRIMITERE_MS, pasul,
+  pauzaDupaRefuz, poateTrimite, RECITIRE_BLOCATA_MS, RECITIRE_NECLAR_MS, refuzClarMaib, STARI_INCHISE, TERMEN_REVENDICARE_S,
+  urmaBanca, VERIFICARE_CREAT_MS, INCERCARI_MAX, type StareIntentie, type UrmaBanca,
 } from './refund-intentii-reguli';
 
 // Workerul intenției de refund (migr. 558; dezbaterea Claude ⇄ Codex 10.10.2026: N2 + C3 + Codex C1). Ion, 10.10.2026:
@@ -15,7 +16,12 @@ import {
 //   trimisa_necunoscut → după 10 min de liniște, getPayment: urma are suma → «creata»; nicio mișcare → «de_trimis» (abia
 //                        acum se poate retrimite); mișcare parțială → nimic automat, vizibilă și recitită;
 //   creata             → getRefund (sau urma, fără id): Accepted → finalizarea tuturor membrilor în «returnata»;
-//                        Rejected/Manual → «refuzata» (banii n-au plecat; se reîncearcă).
+//                        Rejected → «refuzata» DOAR dacă banca arată zero mișcare (altfel «blocata»);
+//                        Manual → «blocata» (revizia 10.10, H2): nicio retrimitere, recitit la 6 h, o alertă;
+//   blocata (refund_id)→ doar citire: Accepted → finalizare; altfel rămâne blocată.
+// Revizia 10.10 (H1): înaintea POST-ului se caută un refund străin pe plată (codul vechi, în fereastra migrație → deploy,
+// trimite singur): același refund → preluat («creata» cu id-ul lui); bani străini nepotriviți → «blocata»; marcaj vechi
+// fără id → se așteaptă liniștea, apoi zero mișcare la bancă = se poate trimite.
 // Orice scriere de aici e condiționată de revendicarea curentă (revendicare_id): un worker întârziat nu strică nimic.
 
 interface Intentie {
@@ -29,6 +35,7 @@ interface Intentie {
   revendicare_id: string | null;
   incercari: number;
   refund_id: string | null;
+  suma_estimata?: boolean;
   banca_returnat: number | null;
   banca_cerut: number | null;
   banca_returnabil: number | null;
@@ -80,7 +87,8 @@ async function oglindaPlata(checkoutId: string, upd: Record<string, unknown>): P
   if (error) console.error('[refund-intentii] maib_checkouts:', error.message);
 }
 
-const refuzClar = (e: unknown) => e instanceof MaibError && ((e.status >= 400 && e.status < 500) || e.status === 200);
+// L1 (revizia 10.10): 429/408 nu sunt refuzuri clare — rezultat necunoscut, împăcare și pauză; comanda nu se reactivează.
+const refuzClar = (e: unknown) => e instanceof MaibError && refuzClarMaib(e.status);
 const mesaj = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 async function refuza(i: Intentie, motiv: string, incercari: number): Promise<RezultatIntentie> {
@@ -98,9 +106,49 @@ async function refuza(i: Intentie, motiv: string, incercari: number): Promise<Re
   return { stare: 'refuzata', motiv, incercari };
 }
 
+/**
+ * H1/H2 (revizia 10.10): nimic automat — fără retrimitere. Cu refund la bancă (Manual) se recitește rar (doar citire);
+ * fără (refund străin nepotrivit) rămâne până la «Reîncearcă» din /bilete. Vizibilă în «Returnări de bani în curs»,
+ * o alertă pe intenție.
+ */
+async function blocheaza(i: Intentie, motiv: string, refundId: string | null, extra: Record<string, unknown> = {}): Promise<RezultatIntentie> {
+  // Fără refund-ul nostru la bancă: «infinity» = nicio revendicare (SQL) până la «Reîncearcă»; refund_id-ul vechi (al unei
+  // încercări refuzate) rămâne, ca să fie recunoscut în continuare drept al nostru.
+  const ok = await scrie(i, {
+    stare: 'blocata', ...(refundId ? { refund_id: refundId } : {}), revendicare_id: null, revendicata_pana: null,
+    ultima_eroare: motiv.slice(0, 500), urmatoarea_la: refundId ? peste(RECITIRE_BLOCATA_MS) : 'infinity', ...extra,
+  });
+  if (ok) await alertaOData(i, refundId ? 'refund_respins' : 'refund_necunoscut', `${i.suma} lei: ${motiv}; nu se retrimite nimic automat — intenția e blocată în /bilete → «Returnări de bani în curs»`);
+  return { stare: 'blocata', refundId, motiv };
+}
+
+/** Preia refund-ul găsit la bancă (al fluxului vechi): «creata» cu id-ul lui; workerul doar îl urmărește. */
+async function adopta(i: Intentie, refundId: string, baza: UrmaBanca): Promise<RezultatIntentie> {
+  const ok = await scrie(i, {
+    stare: 'creata', refund_id: refundId, revendicare_id: null, revendicata_pana: null, urmatoarea_la: acum(),
+    banca_returnat: baza.returnat, banca_cerut: baza.cerut, banca_returnabil: baza.returnabil,
+    ultima_eroare: `refund-ul ${refundId} există deja la bancă (alt mecanism): preluat, nu se retrimite`,
+  });
+  return ok ? { stare: 'creata', refundId } : { stare: 'ocupata' };
+}
+
+/** Ce știm noi despre plată: refund_id-urile intențiilor, dacă am trimis vreodată, suma pe care banca o poate arăta. */
+async function intentiileNoastre(i: Intentie): Promise<{ noastre: Set<string>; atinsa: boolean; cunoscut: number }> {
+  const { data, error } = await getSupabase().from('bilete_refund_intentii').select('id, stare, suma, refund_id, incercari, trimisa_la')
+    .eq('checkout_id', i.checkout_id);
+  if (error) throw new Error(`bilete_refund_intentii: ${error.message}`);
+  const rows = (data || []) as { id: string; stare: StareIntentie; suma: number; refund_id: string | null; incercari: number; trimisa_la: string | null }[];
+  return {
+    noastre: new Set(rows.map((r) => r.refund_id).filter((x): x is string => Boolean(x))),
+    atinsa: rows.some((r) => r.incercari > 0 || r.trimisa_la != null || r.refund_id != null),
+    cunoscut: rows.filter((r) => r.id !== i.id && ['creata', 'finalizata', 'finalizata_de_altul', 'blocata'].includes(r.stare))
+      .reduce((a, r) => a + Number(r.suma), 0),
+  };
+}
+
 async function trimite(i: Intentie): Promise<RezultatIntentie> {
   const db = getSupabase();
-  const { data: ck } = await db.from('maib_checkouts').select('checkout_id, payment_id').eq('checkout_id', i.checkout_id).maybeSingle();
+  const { data: ck } = await db.from('maib_checkouts').select('checkout_id, payment_id, amount, refund_id, refund_status, updated_at').eq('checkout_id', i.checkout_id).maybeSingle();
   if (!ck?.payment_id) return refuza(i, 'plata nu are paymentId la maib', i.incercari + 1);
   let p;
   try { p = await getPayment(ck.payment_id); } catch (e) {
@@ -108,9 +156,31 @@ async function trimite(i: Intentie): Promise<RezultatIntentie> {
     await scrie(i, { stare: 'de_trimis', revendicare_id: null, revendicata_pana: null, urmatoarea_la: peste(5 * 60_000), ultima_eroare: `getPayment: ${mesaj(e)}`.slice(0, 500) });
     return { stare: 'de_trimis', motiv: mesaj(e) };
   }
+  const baza = urmaBanca(p);
+  // H1: refund străin pe plată (fluxul vechi, în fereastra migrație → deploy)? Niciodată a doua trimitere peste el.
+  const noi = await intentiileNoastre(i);
+  const st = decizieRefundStrain({
+    marcaj: { refundId: (ck.refund_id as string | null) ?? null, refundStatus: (ck.refund_status as string | null) ?? null, actualizatMs: Date.parse(String(ck.updated_at ?? '')) || 0 },
+    noastre: noi.noastre, atinsa: noi.atinsa, cunoscut: noi.cunoscut, urma: baza, sumaPlatii: Number(ck.amount ?? p.amount), suma: i.suma, nowMs: Date.now(),
+  });
+  if (st.fel === 'adopta') return adopta(i, st.refundId, baza);
+  if (st.fel === 'blocheaza') return blocheaza(i, st.motiv, null);
+  if (st.fel === 'asteapta') {
+    await scrie(i, { stare: 'de_trimis', revendicare_id: null, revendicata_pana: null, urmatoarea_la: peste(st.ms), ultima_eroare: 'pe plată e un refund vechi în curs (fără id): se așteaptă liniștea, apoi împăcarea' });
+    return { stare: 'de_trimis' };
+  }
+  if (st.fel === 'verifica_strain') {
+    let r;
+    try { r = await getRefund(st.refundId); } catch (e) {
+      await scrie(i, { stare: 'de_trimis', revendicare_id: null, revendicata_pana: null, urmatoarea_la: peste(5 * 60_000), ultima_eroare: `getRefund (străin): ${mesaj(e)}`.slice(0, 500) });
+      return { stare: 'de_trimis', motiv: mesaj(e) };
+    }
+    const d = dupaRefundStrain({ status: r.status, amount: r.amount == null ? null : Number(r.amount) }, i.suma);
+    if (d === 'adopta') return adopta(i, st.refundId, baza);
+    if (d === 'blocheaza') return blocheaza(i, `pe plată e refund-ul ${st.refundId} (${r.status}, ${r.amount} lei), care nu e al acestei intenții`, null);
+  }
   const v = poateTrimite(p, i.suma);
   if (!v.ok) return refuza(i, v.motiv, i.incercari + 1);
-  const baza = urmaBanca(p);
   const incercari = i.incercari + 1;
   // ÎNAINTE de POST: de aici încolo, orice întrerupere duce la împăcare, nu la retrimitere.
   const marcat = await scrie(i, {
@@ -161,8 +231,9 @@ async function impaca(i: Intentie): Promise<RezultatIntentie> {
   return { stare: 'trimisa_necunoscut', motiv: 'neclar' };
 }
 
-async function finalizeaza(i: Intentie, paymentId: string | null): Promise<RezultatIntentie> {
-  const { error } = await getSupabase().rpc('bilete_refund_finalizeaza', { p_id: i.id, p_revendicare: i.revendicare_id });
+async function finalizeaza(i: Intentie, paymentId: string | null, sumaBanca: number | null = null): Promise<RezultatIntentie> {
+  // Importul din fluxul vechi (558) are suma estimată: se scrie cea confirmată de bancă.
+  const { error } = await getSupabase().rpc('bilete_refund_finalizeaza', { p_id: i.id, p_revendicare: i.revendicare_id, p_suma: i.suma_estimata ? sumaBanca : null });
   if (error) throw new Error(`bilete_refund_finalizeaza: ${error.message}`);
   const upd: Record<string, unknown> = { refund_status: 'Accepted' };
   if (paymentId) {
@@ -180,12 +251,21 @@ async function verifica(i: Intentie): Promise<RezultatIntentie> {
     let r;
     try { r = await getRefund(i.refund_id); } catch (e) { await elibereaza(i, 5 * 60_000, `getRefund: ${mesaj(e)}`); return { stare: 'creata' }; }
     const d = deciziaRefund(r.status);
-    if (d === 'returnata') return finalizeaza(i, paymentId);
-    // Rejected / Manual: banii n-au plecat → aceeași intenție se trimite din nou după pauză (fără dispecer).
-    if (d === 'respins') return refuza(i, `maib: refund ${i.refund_id} ${r.status}`, i.incercari);
-    await elibereaza(i, VERIFICARE_CREAT_MS);
+    const sumaBanca = r.amount == null ? null : Number(r.amount);
+    if (d === 'returnata') return finalizeaza(i, paymentId, sumaBanca);
+    // H2 (revizia 10.10): Manual = banca lucrează de mână, banii pot încă pleca → «blocata», fără retrimitere.
+    // Rejected → retrimitere doar dacă banca arată zero mișcare față de urma de dinaintea POST-ului (ca la împăcare).
+    let urmaAcum: UrmaBanca | null = null;
+    if (d === 'respins' && paymentId) urmaAcum = await getPayment(paymentId).then(urmaBanca).catch(() => null);
+    const v = deciziaVerificare(r.status, bazaIntentiei(i), urmaAcum, i.suma);
+    if (v === 'refuza') return refuza(i, `maib: refund ${i.refund_id} ${r.status}`, i.incercari);
+    if (v === 'blocheaza') {
+      await oglindaPlata(i.checkout_id, { refund_status: r.status });
+      return blocheaza(i, d === 'manual' ? `maib: refund ${i.refund_id} în «Manual» (procesare de mână la bancă)` : `maib: refund ${i.refund_id} ${r.status}, dar banca arată mișcare pe plată`, i.refund_id);
+    }
+    await elibereaza(i, i.stare === 'blocata' ? RECITIRE_BLOCATA_MS : VERIFICARE_CREAT_MS);
     await oglindaPlata(i.checkout_id, { refund_status: r.status });
-    return { stare: 'creata', refundId: i.refund_id };
+    return { stare: i.stare, refundId: i.refund_id };
   }
   if (!paymentId) { await elibereaza(i, RECITIRE_NECLAR_MS); return { stare: 'creata' }; }
   let p;
@@ -225,10 +305,10 @@ export async function proceseazaIntentiilePlatii(checkoutId: string, opt: { grab
   if (opt.grabeste) {
     // Fără cele blocate (pauză «infinity») și fără liniștea de după un POST necunoscut (impaca o respectă oricum).
     await db.from('bilete_refund_intentii').update({ urmatoarea_la: acum() }).eq('checkout_id', checkoutId)
-      .in('stare', ['de_trimis', 'creata', 'trimisa_necunoscut']).neq('urmatoarea_la', 'infinity');
+      .in('stare', ['de_trimis', 'creata', 'trimisa_necunoscut', 'blocata']).neq('urmatoarea_la', 'infinity');
   }
   const { data } = await db.from('bilete_refund_intentii').select('id').eq('checkout_id', checkoutId)
-    .not('stare', 'in', '(finalizata,anulata)').order('creata_la');
+    .not('stare', 'in', `(${STARI_INCHISE.join(',')})`).order('creata_la');
   const rez: RezultatIntentie[] = [];
   for (const r of (data || []) as { id: string }[]) rez.push(await proceseazaIntentia(r.id));
   return rez;
@@ -237,7 +317,7 @@ export async function proceseazaIntentiilePlatii(checkoutId: string, opt: { grab
 /** Coada pentru cron (împăcarea): intențiile scadente, cele mai vechi întâi. */
 export async function intentiiScadente(limita: number): Promise<string[]> {
   const { data, error } = await getSupabase().from('bilete_refund_intentii').select('id')
-    .not('stare', 'in', '(finalizata,anulata)').lte('urmatoarea_la', acum())
+    .not('stare', 'in', `(${STARI_INCHISE.join(',')})`).lte('urmatoarea_la', acum())
     .or(`revendicata_pana.is.null,revendicata_pana.lt.${acum()}`)
     .order('urmatoarea_la').limit(limita);
   if (error) throw new Error(`bilete_refund_intentii: ${error.message}`);
@@ -253,12 +333,19 @@ export interface IntentieVizibila {
 export async function intentiiDeschise(limita = 50): Promise<IntentieVizibila[]> {
   const { data } = await getSupabase().from('bilete_refund_intentii')
     .select('id, checkout_id, comenzi, suma, motiv, origine, stare, incercari, refund_id, ultima_eroare, urmatoarea_la, creata_la')
-    .not('stare', 'in', '(finalizata,anulata)').order('creata_la', { ascending: false }).limit(limita);
+    .not('stare', 'in', `(${STARI_INCHISE.join(',')})`).order('creata_la', { ascending: false }).limit(limita);
   return ((data || []) as IntentieVizibila[]).map((x) => ({ ...x, suma: Number(x.suma) }));
 }
 
-/** Butonul «Reîncearcă acum» (după răspunsul maib la D6 sau după o pauză): doar intențiile refuzate. */
+/**
+ * Butonul «Reîncearcă acum» (după răspunsul maib la D6 sau după o pauză): intențiile refuzate; și cele blocate de un refund
+ * străin (fără refund_id) — trimiterea refăce verificarea H1, deci nu pleacă nimic dacă urma străină e încă acolo. Cele
+ * blocate în «Manual» (cu refund_id) doar se recitesc acum.
+ */
 export async function reincearcaIntentia(id: string): Promise<RezultatIntentie> {
-  await getSupabase().from('bilete_refund_intentii').update({ urmatoarea_la: acum(), actualizata_la: acum() }).eq('id', id).eq('stare', 'refuzata');
+  const db = getSupabase();
+  await db.from('bilete_refund_intentii').update({ urmatoarea_la: acum(), actualizata_la: acum() }).eq('id', id).eq('stare', 'refuzata');
+  await db.from('bilete_refund_intentii').update({ stare: 'de_trimis', urmatoarea_la: acum(), actualizata_la: acum() }).eq('id', id).eq('stare', 'blocata').eq('urmatoarea_la', 'infinity');
+  await db.from('bilete_refund_intentii').update({ urmatoarea_la: acum(), actualizata_la: acum() }).eq('id', id).eq('stare', 'blocata');
   return proceseazaIntentia(id);
 }

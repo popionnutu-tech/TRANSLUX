@@ -21,7 +21,7 @@ describe('deciziaRefund (ce face comanda la fiecare stare maib)', () => {
     expect(deciziaRefund('Accepted')).toBe('returnata');
     expect(deciziaRefund('accepted')).toBe('returnata');
     expect(deciziaRefund('Rejected')).toBe('respins');
-    expect(deciziaRefund('Manual')).toBe('respins');
+    expect(deciziaRefund('Manual')).toBe('manual'); // H2 (10.10): nu e refuz — banii pot încă pleca
     for (const s of ['Created', 'Requested', 'Pending', 'Necunoscut', '']) expect(deciziaRefund(s)).toBe('in_curs');
   });
 });

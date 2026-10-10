@@ -102,6 +102,8 @@ function FilaPortocalii({ p, deschideComanda }: { p: Portocalii; deschideComanda
 const STARE_RETURNARE: Record<string, string> = {
   de_trimis: 'de trimis', revendicata: 'se trimite acum', trimisa_necunoscut: 'trimisă, răspuns neclar — se împacă cu banca',
   creata: 'cerută la bancă, se așteaptă', refuzata: 'refuzată de bancă',
+  // Revizia 10.10 (H2/H1): nimic automat, doar citire (Manual) sau nimic (refund străin pe plată).
+  blocata: 'BLOCATĂ — fără retrimitere automată',
 };
 
 /** 558: returnările de bani nefinalizate. Nimic nu cere dispecer — cron-ul le duce; lista arată unde stau. */
@@ -110,19 +112,19 @@ function Returnari({ r, pending, reincearca, deschideComanda }: { r: IntentieViz
   return (
     <div style={{ padding: 14, background: '#fff', borderRadius: 16, marginBottom: 20, border: '1px solid #eee' }}>
       <b style={{ fontSize: 13 }}>Returnări de bani în curs ({r.length})</b>
-      <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Se duc singure (cron la 10 min); «refuzată» se reîncearcă automat cu pauze, iar după {INCERCARI_MAX} încercări rămâne blocată aici.</div>
+      <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Se duc singure (cron la 10 min); «refuzată» se reîncearcă automat cu pauze, iar după {INCERCARI_MAX} încercări rămâne blocată aici; «blocată» (refund «Manual» la bancă sau alt refund pe plată) nu se retrimite niciodată singură.</div>
       <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
         {r.map((x) => {
-          const blocata = x.stare === 'refuzata' && (x.urmatoarea_la === 'infinity' || Date.parse(x.urmatoarea_la) > Date.now() + 365 * 86_400_000);
+          const blocata = x.stare === 'blocata' || (x.stare === 'refuzata' && (x.urmatoarea_la === 'infinity' || Date.parse(x.urmatoarea_la) > Date.now() + 365 * 86_400_000));
           return (
             <div key={x.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 12, flexWrap: 'wrap' }}>
               <span style={{ color: '#999', minWidth: 90 }}>{dataRo(x.creata_la)}</span>
               <b style={{ minWidth: 70 }}>{x.suma.toFixed(2)} lei</b>
-              <span style={{ color: x.stare === 'refuzata' ? RED : '#555', fontWeight: 600, minWidth: 180 }}>{blocata ? 'BLOCATĂ — refuzată de bancă' : STARE_RETURNARE[x.stare] ?? x.stare}</span>
+              <span style={{ color: x.stare === 'refuzata' || x.stare === 'blocata' ? RED : '#555', fontWeight: 600, minWidth: 180 }}>{x.stare === 'blocata' ? (x.refund_id && x.urmatoarea_la !== 'infinity' ? 'BLOCATĂ — «Manual» la bancă, se recitește' : STARE_RETURNARE.blocata) : blocata ? 'BLOCATĂ — refuzată de bancă' : STARE_RETURNARE[x.stare] ?? x.stare}</span>
               <span style={{ color: '#777' }}>{x.origine.replace(/_/g, ' ')} · încercări {x.incercari}{!blocata && x.stare === 'refuzata' ? ` · următoarea ${dataRo(x.urmatoarea_la)}` : ''}</span>
               <span style={{ flex: 1, color: '#555' }}>{x.ultima_eroare ?? ''}</span>
               {x.comenzi.map((id) => <button key={id} type="button" onClick={() => deschideComanda(id)} style={{ ...btn(), padding: '2px 8px', fontSize: 11 }}>comanda</button>)}
-              {x.stare === 'refuzata' && <button type="button" disabled={pending} onClick={() => reincearca(x.id)} style={btn()}>Reîncearcă acum</button>}
+              {(x.stare === 'refuzata' || x.stare === 'blocata') && <button type="button" disabled={pending} onClick={() => reincearca(x.id)} style={btn()}>Reîncearcă acum</button>}
             </div>
           );
         })}

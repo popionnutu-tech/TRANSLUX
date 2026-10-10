@@ -101,7 +101,7 @@ export async function verificaSiFinalizeazaRefund(checkout: { checkout_id: strin
     const rez = await proceseazaIntentiilePlatii(checkout.checkout_id, { grabeste: true });
     const stari = rez.map((r) => r.stare);
     const decizie: ReturnType<typeof deciziaRefund> = stari.length && stari.every((s) => s === 'finalizata') ? 'returnata'
-      : stari.some((s) => s === 'refuzata') ? 'respins' : 'in_curs';
+      : stari.some((s) => s === 'refuzata') ? 'respins' : stari.some((s) => s === 'blocata') ? 'manual' : 'in_curs';
     const { data: c } = await getSupabase().from('bilete_comenzi').select('id').eq('checkout_id', checkout.checkout_id).maybeSingle();
     return { decizie, comandaId: (c?.id as string | undefined) ?? null };
   }

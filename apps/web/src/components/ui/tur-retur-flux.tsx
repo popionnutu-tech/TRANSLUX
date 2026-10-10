@@ -244,11 +244,33 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
     );
   };
 
+  // Listele lungi se estompează jos cât mai e ceva de derulat (Ion, 10.10: «mai aproape de jos să devină mai transparent
+  // și scroll»). Doar pe liste: pe pasul locului și la plată butonul lipit jos trebuie să rămână plin.
+  const refCorp = React.useRef<HTMLDivElement>(null);
+  const [maiJos, setMaiJos] = React.useState(false);
+  const listaPas = !pasLoc && pas !== 3;
+  const masoara = React.useCallback(() => {
+    const el = refCorp.current;
+    if (el) setMaiJos(el.scrollHeight - el.scrollTop - el.clientHeight > 12);
+  }, []);
+  React.useEffect(() => {
+    masoara();
+    const el = refCorp.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(masoara);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, [masoara, pas, pasLoc, rez, incarca]);
+
   return (
     <div className="trf" role="dialog" aria-modal="true" aria-label={`${tx.titlu} · ${from} ⇄ ${to}`}>
       <style>{CSS}</style>
       <div className="trf-fundal" onClick={onClose} />
       <div className="trf-fereastra">
+        {/* Antetul evidențiat (Ion, 10.10: «să se vadă evidențiat partea de sus tur-retur și direcția»): bandă plină,
+            bordo la tur, chihlimbar la retur, cu ruta mare în alb. */}
+        <div className={`trf-cap ${pas === 2 ? "ret" : ""}`}>
         <header className="trf-antet">
           <button type="button" className="trf-rotund" onClick={inapoi} aria-label="←">&larr;</button>
           <div className="trf-antet-text">
@@ -260,8 +282,9 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
         <div className="trf-progres" aria-label={tx.pas(pas)}>
           {[1, 2, 3].map((n) => <span key={n} className={n <= pas ? "on" : ""} />)}
         </div>
+        </div>
 
-        <div className="trf-corp">
+        <div ref={refCorp} className={`trf-corp ${maiJos && listaPas ? "umbra" : ""}`} onScroll={masoara}>
           {pas === 1 && !pasLoc && (
             <div className="trf-lista">
               {paxRand}
@@ -281,8 +304,8 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
           {pas === 2 && tur && !pasLoc && (
             <>
               <button type="button" className="trf-ales" onClick={() => alegeTur(null)}>
-                <span className="trf-ales-eticheta">✓ {tx.turAles}</span>
-                <span>{ziScurta(tur.trip_date, locale)} · {tur.time} → {tur.arrivalTime} · {tur.price} lei</span>
+                <span className="trf-ales-eticheta">✓ {tx.tur}</span>
+                <span className="trf-ales-text">{ziScurta(tur.trip_date, locale)} · {tur.time} → {tur.arrivalTime} · {tur.price} lei</span>
                 <u>{tx.schimba}</u>
               </button>
               {(!rez || incarca) && <p className="trf-gol">{tx.cautaRetur}</p>}
@@ -408,7 +431,17 @@ const CSS = `
   position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;font-family:var(--font-opensans),"Open Sans",system-ui,sans-serif;color:var(--trf-text)}
 .trf-fundal{position:absolute;inset:0;background:rgba(35,20,24,.38);backdrop-filter:blur(6px)}
 .trf-fereastra{position:relative;width:min(94vw,860px);max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 70px rgba(60,20,30,.2)}
+.trf-cap{background:linear-gradient(135deg,#A41F36 0%,${RED} 55%,#74121F 100%);color:#fff;position:relative;z-index:1;box-shadow:0 6px 18px rgba(116,18,31,.18)}
+.trf-cap.ret{background:linear-gradient(135deg,#D48A2A 0%,#C47A1C 55%,#9C5E10 100%);box-shadow:0 6px 18px rgba(156,94,16,.18)}
 .trf-antet{display:flex;align-items:center;gap:12px;padding:14px 16px 12px}
+.trf-cap .trf-rotund{background:rgba(255,255,255,.16);color:#fff}
+.trf-cap .trf-eticheta{background:#fff;color:${RED}}
+.trf-cap.ret .trf-eticheta{color:#9C5E10}
+.trf-cap .trf-ruta{font-size:clamp(18px,5.2vw,22px)}
+.trf-cap .trf-sub{color:rgba(255,255,255,.86)}
+.trf-cap .trf-progres{border-bottom:none;padding-bottom:12px}
+.trf-cap .trf-progres span{background:rgba(255,255,255,.28)}
+.trf-cap .trf-progres span.on{background:#fff}
 .trf-antet-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .trf-sus{display:flex;align-items:center;gap:8px;min-width:0}
 .trf-eticheta{flex:none;font-size:11px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#fff;background:${RED};border-radius:6px;padding:3px 8px}
@@ -420,9 +453,11 @@ const CSS = `
 .trf-progres span.on{background:${RED}}
 .trf-rotund{width:40px;height:40px;flex:none;border-radius:50%;border:none;background:#F4EEEF;color:#6B5B5F;font-size:19px;cursor:pointer}
 .trf-corp{flex:1;min-height:0;overflow-y:auto;background:var(--trf-fond)}
+.trf-corp.umbra{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.12));mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.12))}
 .trf-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px 14px 22px}
-.trf-ales{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 14px 0;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie);font-size:14px;cursor:pointer}
-.trf-ales-eticheta{font-weight:800;color:#2B6B3A}
+.trf-ales{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin:14px 14px 0;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie);font-size:14px;cursor:pointer}
+.trf-ales-eticheta{flex:none;font-weight:800;color:#2B6B3A}
+.trf-ales-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .trf-ales-plin{margin:0}
 .trf-lista>.trf-pax{grid-column:1/-1;max-width:420px}
 .trf-loc-pas{display:flex;flex-direction:column;gap:10px;padding:10px 16px 12px;max-width:560px;margin:0 auto;width:100%;box-sizing:border-box}
@@ -437,7 +472,7 @@ const CSS = `
 .trf-lipit{position:sticky;bottom:10px;margin-top:0}
 .trf-loc-ales{margin:0;font-size:14px;color:var(--trf-gri)}
 .trf-loc-ales b{color:var(--trf-text)}
-.trf-ales u{margin-left:auto;color:${RED};font-weight:700;text-decoration:none}
+.trf-ales u{flex:none;margin-left:auto;color:${RED};font-weight:700;text-decoration:none}
 .trf-gol{padding:34px 20px;text-align:center;color:var(--trf-gri);display:flex;flex-direction:column;align-items:center;gap:12px;margin:0}
 .trf-gol p{margin:0}
 .trf-secundar{min-height:44px;padding:0 18px;border-radius:12px;border:1.5px solid ${RED};background:#fff;color:${RED};font:700 15px inherit;font-family:inherit;cursor:pointer}

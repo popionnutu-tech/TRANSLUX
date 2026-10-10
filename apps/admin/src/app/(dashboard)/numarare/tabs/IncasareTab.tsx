@@ -13,6 +13,7 @@ import {
 } from './incasareActions';
 import RoutesTable from './RoutesTable';
 import CasierDocumentTab from './CasierDocumentTab';
+import RaportRuteTab from './RaportRuteTab';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -22,7 +23,7 @@ function yesterdayChisinau(): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
-type SubTab = 'casier' | 'numerar' | 'routes';
+type SubTab = 'casier' | 'numerar' | 'routes' | 'raport';
 
 interface Props {
   role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
@@ -153,7 +154,9 @@ export default function IncasareTab({ role }: Props) {
             Toate rutele din /grafic, cu numărarea și încasarea atașate. Cele neasociate — în vederi separate.
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* «Raport pe rute» își are propria perioadă (implicit luna), ca schimbarea ei să nu
+            reîncarce documentul de casier și să nu-i piardă rândurile nesalvate. */}
+        <div style={{ display: subTab === 'raport' ? 'none' : 'flex', alignItems: 'center', gap: 8 }}>
           <span className="text-muted" style={{ fontSize: 13 }}>De la</span>
           <input type="date" value={from} onChange={e => selectFrom(e.target.value)} className="form-control" style={{ width: 150 }} />
           <span className="text-muted" style={{ fontSize: 13 }}>până la</span>
@@ -161,14 +164,15 @@ export default function IncasareTab({ role }: Props) {
         </div>
       </div>
 
-      {error && (
+      {error && subTab !== 'raport' && (
         <div style={{ background: 'var(--danger-dim)', color: 'var(--danger)', padding: '10px 16px', borderRadius: 'var(--radius-xs)', fontSize: 13, marginBottom: 16 }}>
           {error}
         </div>
       )}
 
-      {/* Bara de status zi */}
-      {isSingleDay && (
+      {/* Bara de status zi — nu pe «Raport pe rute»: acolo perioada e alta, iar «Confirmă ziua»
+          ar confirma o zi care nu se vede pe ecran. */}
+      {isSingleDay && subTab !== 'raport' && (
         <div className="card" style={{ padding: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             {confirmation ? (
@@ -215,7 +219,7 @@ export default function IncasareTab({ role }: Props) {
 
       {/* Numerar manual care nu s-a legat de nicio rută: nu intră în totalurile de mai jos,
           deci trebuie spus explicit, altfel banii ar părea pur și simplu inexistenți. */}
-      {orphanManual.length > 0 && (
+      {orphanManual.length > 0 && subTab !== 'raport' && (
         <div style={{
           background: 'var(--warning-dim, #fff3cd)', border: '1px solid #f5c518',
           borderRadius: 'var(--radius-xs)', padding: '10px 14px', marginBottom: 12, fontSize: 13,
@@ -229,9 +233,15 @@ export default function IncasareTab({ role }: Props) {
                 {' · '}{o.driver_name || '—'}{' · '}{o.route_name || '—'}
                 {' · '}<strong>{Math.round(o.total_lei)} lei</strong>
                 {' — '}
+                {/* Nu «șterge rândul»: pe 10.10 singurul caz viu (foaia 1126627) era complementul
+                    plății de la terminal, nu o copie — ștergerea ar fi pierdut bani reali. */}
                 {o.reason === 'dublura_terminal'
-                  ? 'foaia a venit între timp și de pe terminal (șterge rândul manual)'
-                  : o.reason === 'fara_identificare'
+                  ? `foaia a trecut și prin terminal${o.terminal_pe_foaie_lei != null ? ` (${Math.round(o.terminal_pe_foaie_lei)} lei)` : ''} — compară sumele: poate fi dublură, poate fi rest predat în numerar; nu șterge fără verificare`
+                  : o.reason === 'cursa_gresita'
+                    ? `rândul e atașat altei curse decât a foii${o.foaie_cursa ? ` (foaia e a cursei ${[o.foaie_cursa.ruta, o.foaie_cursa.sofer].filter(Boolean).join(', ')})` : ''} — reatașează-l`
+                    : o.reason === 'cursa_cu_terminal'
+                    ? 'cursa a primit deja bani de la terminal — verifică dacă nu e dublură'
+                    : o.reason === 'fara_identificare'
                     ? 'rândul n-are nici cursă, nici număr de foaie'
                     : 'cursa nu e în /grafic pentru ziua foii (verifică data foii)'}
               </li>
@@ -253,13 +263,20 @@ export default function IncasareTab({ role }: Props) {
           title="Doar foile introduse manual la casă (numerar fără terminal)" />
         <SubTabBtn active={subTab === 'routes'} onClick={() => selectSubTab('routes')}
           label="Pe rute (sumar)" badge={routes.length} badgeColor="var(--text-muted)" />
-        <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
-          filtru pe perioadă
-        </span>
+        <SubTabBtn active={subTab === 'raport'} onClick={() => selectSubTab('raport')}
+          label="Raport pe rute"
+          title="Încasările fiecărei rute pe o perioadă, după data foii de parcurs, cu export Excel" />
+        {subTab !== 'raport' && (
+          <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
+            filtru pe perioadă
+          </span>
+        )}
       </div>
 
       {/* Content */}
-      {loading && (
+      {subTab === 'raport' && <RaportRuteTab />}
+
+      {loading && subTab !== 'raport' && (
         <p className="text-muted" style={{ textAlign: 'center', padding: 20, fontSize: 13 }}>
           Se încarcă...
         </p>
@@ -302,8 +319,8 @@ function SubTabBtn({
   active: boolean;
   onClick: () => void;
   label: string;
-  badge: number;
-  badgeColor: string;
+  badge?: number;
+  badgeColor?: string;
   title?: string;
 }) {
   return (
@@ -327,7 +344,7 @@ function SubTabBtn({
       }}
     >
       {label}
-      <span style={{
+      {badge !== undefined && <span style={{
         fontSize: 11,
         padding: '1px 7px',
         borderRadius: 10,
@@ -336,7 +353,7 @@ function SubTabBtn({
         fontWeight: 600,
         minWidth: 18,
         textAlign: 'center',
-      }}>{badge}</span>
+      }}>{badge}</span>}
     </button>
   );
 }

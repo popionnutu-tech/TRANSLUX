@@ -3,6 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { scrieFoaie } from '@/lib/foaie';
+import { agregaPeRute, valideazaPerioada, type RaportPeRute } from './raport-rute';
 
 // ─── Tipuri ───
 
@@ -63,6 +64,8 @@ export interface Anomaly {
   breakdown: AnomalyBreakdown;
   duplicate_candidates: DuplicateCandidate[] | null;
   foaie_history: FoaieHistoryEntry[];
+  /** Ziua foii, când foaia există în /grafic (FOAIE_FARA_CURSA, migr. 549). `ziua` e ziua plății. */
+  ziua_foaie?: string | null;
 }
 
 export interface Confirmation {
@@ -161,7 +164,24 @@ export interface OrphanManual {
   route_name: string | null;
   total_lei: number;
   incasare_numerar: number;
-  reason: 'dublura_terminal' | 'fara_ruta' | 'fara_identificare';
+  /**
+   * Motivele noi din migr. 549:
+   * - `cursa_gresita`: rândul e atașat unei curse, dar foaia lui e în /grafic pe ALTĂ cursă și
+   *   n-a trecut prin terminal — bani reali, puși pe cursa greșită (`foaie_cursa` arată unde);
+   * - `cursa_cu_terminal`: cursa a primit deja bani de la terminal pe altă foaie, deci rândul
+   *   n-a fost adunat pe ea — poate fi dublură, poate fi complement.
+   */
+  reason: 'dublura_terminal' | 'cursa_gresita' | 'cursa_cu_terminal' | 'fara_ruta' | 'fara_identificare';
+  assignment_id?: string | null;
+  /** Ziua după care rândul intră în perioadă: a cursei, altfel data foii, altfel ziua
+   *  introducerii (migr. 549). `ziua` rămâne ziua introducerii. */
+  ziua_apartenenta?: string | null;
+  /** Cursa de care e legată foaia rândului în /grafic (driver_cashin_receipts). */
+  foaie_cursa?: { sofer: string | null; ruta: string | null; ziua: string } | null;
+  /** Dovezi pentru «De verificat»: cât a venit de la terminal pe aceeași foaie și cât s-a
+   *  numărat pe cursa rândului. */
+  terminal_pe_foaie_lei?: number | null;
+  numarare_cursa_lei?: number | null;
 }
 
 export interface GraficReportResult {
@@ -238,6 +258,53 @@ export async function getGraficReport(
       orphan_manual: payload?.orphan_manual || [],
       confirmation: payload?.confirmation || null,
     },
+  };
+}
+
+// ─── Raport pe rute: încasările fiecărei rute pe o perioadă, după data foii ───
+
+/**
+ * Același RPC ca «Pe rute (sumar)», adunat pe rută AICI, pe server: pe 92 de zile RPC-ul
+ * întoarce ~3.500 de rânduri (3,9 MB, măsurat 10.10.2026), iar clientul are nevoie de ~45.
+ */
+export async function getRaportPeRute(
+  fromDate: string,
+  toDate: string,
+): Promise<{ data?: RaportPeRute; error?: string }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (!isViewer(session.role)) return { error: 'Acces interzis' };
+
+  const invalid = valideazaPerioada(fromDate, toDate);
+  if (invalid) return { error: invalid };
+
+  const sb = getSupabase();
+  const [rep, types] = await Promise.all([
+    sb.rpc('get_grafic_report', { p_from: fromDate, p_to: toDate }),
+    sb.from('crm_routes').select('id, route_type'),
+  ]);
+
+  if (rep.error) {
+    // 57014 = statement timeout: spus omenește, nu codul Postgres.
+    if (rep.error.code === '57014' || /timeout/i.test(rep.error.message)) {
+      return { error: 'Perioada e prea lungă pentru o singură încărcare — alege una mai scurtă.' };
+    }
+    return { error: rep.error.message };
+  }
+  if (types.error) return { error: types.error.message };
+
+  const routeTypes = new Map<number, string>(
+    (types.data || []).map(r => [Number(r.id), String(r.route_type)]),
+  );
+  const payload = rep.data as GraficReportResult | null;
+  return {
+    data: agregaPeRute(
+      fromDate, toDate,
+      payload?.routes || [],
+      routeTypes,
+      payload?.orphan_incasare || [],
+      payload?.orphan_manual || [],
+    ),
   };
 }
 

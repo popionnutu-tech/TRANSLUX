@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { GraficRouteRow, RouteStatus } from './incasareActions';
+import { incTotal } from './incasare-total';
 
 interface Props {
   routes: GraficRouteRow[];
@@ -33,26 +34,6 @@ function formatData(iso: string | null): string {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
   return y && m && d ? `${d}.${m}.${y}` : iso;
-}
-
-/**
- * INC = totalul foii: tot ce a adus cursa, pe rubrici.
- *
- * Ion, 07.10: «în INC să fie suma totală pe foaia dată — numerar + ligotnici + ligotnici gară
- * + combustibil + cheltuieli». Până acum `incasare_lei` din raport era doar numerar + diagramă,
- * deci restul rubricilor nu se vedeau nicăieri în total, deși erau pe foaie.
- *
- * Diagrama e inclusă aici: Ion a enumerat cinci rubrici și a sărit-o, dar ea era deja în
- * vechiul `incasare_lei` și e o coloană de bani ca celelalte — scoasă, totalul ar fi SCĂZUT
- * față de ce se vedea până acum. Confirmat de Ion pe 09.10: «cu diagrama, totul e ok».
- */
-function incTotal(r: GraficRouteRow): number {
-  return Number(r.incasare_numerar || 0)
-    + Number(r.incasare_diagrama || 0)
-    + Number(r.ligotniki0_suma || 0)
-    + Number(r.ligotniki_vokzal_suma || 0)
-    + Number(r.dt_suma || 0)
-    + Number(r.dop_rashodi || 0);
 }
 
 function num(v: number) {

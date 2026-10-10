@@ -123,9 +123,11 @@ export function SeatMap({ ocupate, alese, onToggle, locale, blocat = false, mic 
           <div aria-hidden="true" style={{ height: 9, margin: "0 24px 10px", borderRadius: 6, background: "#E9E1E3" }} />
         </div>
       </div>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", fontSize: mic ? 12 : 13, color: "#6B5B5F" }}>
-        <Mostra s="liber" text={tx.liber} /><Mostra s="ales" text={tx.ales} /><Mostra s="ocupat" text={tx.ocupat} />
-      </div>
+      {!mic && (
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", fontSize: 13, color: "#6B5B5F" }}>
+          <Mostra s="liber" text={tx.liber} /><Mostra s="ales" text={tx.ales} /><Mostra s="ocupat" text={tx.ocupat} />
+        </div>
+      )}
     </div>
   );
 }

@@ -197,8 +197,9 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
   // Antet modern, un singur bloc (Ion, 10.10: «foarte arhaic»): sus sensul pasului, dedesubt ziua și pasagerii, apoi o
   // bară subțire de progres în 3 segmente.
   const ziTur = tripsTur[0]?.trip_date ?? tur?.trip_date ?? "";
-  const titlu = pasLoc === "tur" && tur ? { eticheta: tx.locTur, ruta: `${from} → ${to}`, sub: `${ziLunga(tur.trip_date, locale)} · ${tur.time} · ${pasageriText(pasageri, locale)}` }
-    : pasLoc === "retur" && retur ? { eticheta: tx.locRetur, ruta: `${to} → ${from}`, sub: `${ziLunga(retur.trip_date, locale)} · ${retur.time} · ${pasageriText(pasageri, locale)}` }
+  // Pe pasul locului eticheta rămâne scurtă (TUR/RETUR), ca ruta să încapă pe telefon; «Locul la tur» trece dedesubt.
+  const titlu = pasLoc === "tur" && tur ? { eticheta: tx.tur, ruta: `${from} → ${to}`, sub: `${tx.locTur} · ${ziScurta(tur.trip_date, locale)} · ${tur.time}` }
+    : pasLoc === "retur" && retur ? { eticheta: tx.retur, ruta: `${to} → ${from}`, sub: `${tx.locRetur} · ${ziScurta(retur.trip_date, locale)} · ${retur.time}` }
     : pas === 1 ? { eticheta: tx.tur, ruta: `${from} → ${to}`, sub: `${ziLunga(ziTur, locale)} · ${pasageriText(pasageri, locale)}` }
     : pas === 2 ? { eticheta: tx.retur, ruta: `${to} → ${from}`, sub: `${ziLunga(ziRetur, locale)} · −${pct ?? 20}%` }
     : { eticheta: tx.locPlata, ruta: `${from} ⇄ ${to}`, sub: pasageriText(pasageri, locale) };
@@ -409,7 +410,7 @@ const CSS = `
 .trf-sus{display:flex;align-items:center;gap:8px;min-width:0}
 .trf-eticheta{flex:none;font-size:11px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#fff;background:${RED};border-radius:6px;padding:3px 8px}
 .trf-eticheta.ret{background:#C47A1C}
-.trf-ruta{font-size:19px;font-weight:800;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trf-ruta{font-size:clamp(16px,4.6vw,19px);font-weight:800;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .trf-sub{font-size:14px;color:#6B5B5F;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .trf-progres{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 16px 10px;border-bottom:1px solid var(--trf-linie)}
 .trf-progres span{height:4px;border-radius:4px;background:#EFE4E6;transition:background .25s}
@@ -422,7 +423,7 @@ const CSS = `
 .trf-ales-plin{margin:0}
 .trf-lista>.trf-pax{grid-column:1/-1;max-width:420px}
 .trf-loc-pas{display:flex;flex-direction:column;gap:10px;padding:10px 16px 12px;max-width:560px;margin:0 auto;width:100%;box-sizing:border-box}
-.trf-loc-pas .trf-plata:disabled{opacity:.45;cursor:default;box-shadow:none}
+.trf-loc-pas .trf-plata:disabled{background:#E9DFE1;color:#A8979B;cursor:default;box-shadow:none}
 .trf-loc-linie{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:15px;min-height:36px}
 .trf-loc-linie em{font-style:normal;font-size:14px;font-weight:800;color:${RED}}
 .trf-loc-linie em.ok{color:#2B6B3A}

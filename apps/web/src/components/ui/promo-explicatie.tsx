@@ -21,9 +21,9 @@ const TXT = {
       buton: "Alege cursele",
     },
     student: {
-      titlu: "Studenți −20%", sub: "Pentru universitate și colegiu",
+      titlu: "Studenți −20%", sub: "Universități și colegii din Moldova",
       pasi: [
-        "Reducerea e pentru un singur loc.",
+        "Carnetul trebuie să fie vizat pe anul universitar de acum. Reducerea e pentru un singur loc.",
         "Pasul următor: fotografiezi carnetul și buletinul. Verificarea durează câteva secunde.",
         "Apoi alegi ziua și cursa; −20% se pune singur. Numele trebuie să fie ca pe carnet.",
         "La urcare arăți carnetul șoferului.",
@@ -45,9 +45,9 @@ const TXT = {
       buton: "Выбрать рейсы",
     },
     student: {
-      titlu: "Студентам −20%", sub: "Университет и колледж",
+      titlu: "Студентам −20%", sub: "Университеты и колледжи Молдовы",
       pasi: [
-        "Скидка — на одно место.",
+        "Студенческий должен быть продлён на текущий учебный год. Скидка — на одно место.",
         "Следующий шаг: сфотографируйте студенческий и удостоверение. Проверка занимает несколько секунд.",
         "Затем выберите день и рейс; −20% применится сам. Имя — как в студенческом.",
         "При посадке покажите студенческий водителю.",

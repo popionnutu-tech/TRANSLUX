@@ -150,6 +150,8 @@ export interface ExtrasCarnet {
   e_carnet_student: boolean;
   tip_institutie: 'universitate' | 'colegiu' | 'altul' | null;
   institutie: string | null;
+  /** Țara instituției după carnet (denumire, oraș, stemă, «Republica Moldova»): doar 'MD' trece. */
+  tara_institutie: 'MD' | 'alta' | null;
   nume_carnet: string | null;
   nume_act: string | null;
   tip_act: 'pasaport' | 'buletin' | 'altul' | null;
@@ -164,6 +166,26 @@ export interface ExtrasCarnet {
 }
 
 export type VerdictCarnet = { verdict: 'accept' } | { verdict: 'poza_neclara' | 'respins'; motiv: string };
+
+/** Anul universitar al zilei: din 1 septembrie începe cel nou (10.10.2026 → 2026). */
+export function anUniversitarCurent(aziIso: string): number {
+  const [y, m] = aziIso.split('-').map(Number);
+  return m >= 9 ? y : y - 1;
+}
+
+/** Semne că instituția e din Republica Moldova, dacă AI-ul n-a putut spune țara (orașe, «Moldova», abrevierile cunoscute). */
+const SEMNE_MD = [
+  'moldova', 'moldovei', 'молдова', 'молдовы', 'chisinau', 'кишинев', 'кишинэу', 'balti', 'бельцы', 'бэлць', 'cahul', 'кагул',
+  'comrat', 'комрат', 'taraclia', 'тараклия', 'orhei', 'soroca', 'ungheni', 'edinet', 'drochia', 'floresti', 'hincesti',
+  'calarasi', 'straseni', 'causeni', 'briceni', 'ocnita', 'riscani', 'glodeni', 'falesti', 'singerei', 'nisporeni', 'leova',
+  'cimislia', 'stefan voda', 'soldanesti', 'rezina', 'telenesti', 'ialoveni', 'anenii noi', 'criuleni', 'dubasari', 'basarabeasca',
+  'usm', 'utm', 'usmf', 'asem', 'usarb', 'upsc', 'ulim', 'uasm', 'usem', 'usefs', 'amtap', 'usch', 'uccm', 'uspee',
+  'testemitanu', 'alecu russo', 'ion creanga', 'hasdeu',
+];
+function semneMoldova(institutie: string): boolean {
+  const t = ` ${normalizeazaLocalitate(institutie).replace(/[^\p{L}\p{N}]+/gu, ' ')} `;
+  return SEMNE_MD.some((k) => t.includes(` ${normalizeazaLocalitate(k)} `));
+}
 
 /** Sfârșitul anului de studii «2026-2027» → 2027-07-31 (vara se încheie anul universitar). */
 function sfarsitAnStudii(an: string | null): string | null {
@@ -183,6 +205,8 @@ export function decizieCarnet(x: ExtrasCarnet, pasager: string, aziIso: string, 
   if (!x.e_carnet_student || (x.tip_institutie !== 'universitate' && x.tip_institutie !== 'colegiu')) return { verdict: 'respins', motiv: 'nu_e_carnet' };
   if (x.tip_act !== 'pasaport' && x.tip_act !== 'buletin') return { verdict: 'respins', motiv: 'lipsa_act' };
   if (!instituteRecunoscuta(x.institutie ?? '', institutii)) return { verdict: 'respins', motiv: 'institutie_necunoscuta' };
+  // Ion, 10.10.2026: «trebuie să fie universitate / colegiu moldovenesc, valabil pentru anul în care suntem».
+  if (x.tara_institutie === 'alta' || (x.tara_institutie !== 'MD' && !semneMoldova(x.institutie ?? ''))) return { verdict: 'respins', motiv: 'institutie_straina' };
   const p = cheieNume(pasager), c = cheieNume(x.nume_carnet ?? ''), a = cheieNume(x.nume_act ?? '');
   if (!c || !a) return { verdict: 'poza_neclara', motiv: 'nume_ilizibil' };
   if (c !== a) return { verdict: 'respins', motiv: 'nume_carnet_act' };
@@ -190,9 +214,19 @@ export function decizieCarnet(x: ExtrasCarnet, pasager: string, aziIso: string, 
   // Fața trebuie confirmată pe ambele acte (security L4): «nu se vede» nu trece.
   if (x.fata_compatibila === false) return { verdict: 'respins', motiv: 'fata' };
   if (x.fata_compatibila !== true) return { verdict: 'poza_neclara', motiv: 'fata_neclara' };
-  const pana = /^\d{4}-\d{2}-\d{2}$/.test(x.valabil_pana ?? '') ? x.valabil_pana : sfarsitAnStudii(x.an_studii);
-  if (!pana) return { verdict: 'poza_neclara', motiv: 'valabilitate_ilizibila' };
-  if (pana < aziIso) return { verdict: 'respins', motiv: 'expirat' };
+  // Viza anului: dacă pe carnet e un an de studii, trebuie să fie anul universitar de acum (2026-2027 la 10.10.2026);
+  // altfel termenul de valabilitate trebuie să acopere ziua de azi.
+  const an = /^(\d{4})\s*[-/–]\s*(\d{4})$/.exec(String(x.an_studii ?? '').trim());
+  if (an) {
+    if (sfarsitAnStudii(x.an_studii) == null) return { verdict: 'poza_neclara', motiv: 'valabilitate_ilizibila' };
+    const start = Number(an[1]), curent = anUniversitarCurent(aziIso);
+    if (start < curent) return { verdict: 'respins', motiv: 'expirat' };
+    if (start > curent) return { verdict: 'respins', motiv: 'an_studii_nevalid' };
+  } else {
+    const pana = /^\d{4}-\d{2}-\d{2}$/.test(x.valabil_pana ?? '') ? x.valabil_pana : null;
+    if (!pana) return { verdict: 'poza_neclara', motiv: 'valabilitate_ilizibila' };
+    if (pana < aziIso) return { verdict: 'respins', motiv: 'expirat' };
+  }
   if (!x.numar_carnet || x.numar_carnet.trim().length < 3) return { verdict: 'poza_neclara', motiv: 'numar_ilizibil' };
   return { verdict: 'accept' };
 }

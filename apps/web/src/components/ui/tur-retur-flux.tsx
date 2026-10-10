@@ -217,22 +217,28 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
     ref: React.RefObject<HTMLDivElement | null>; schimba: () => void; gata: () => void }) => {
     const gataOk = x.harta?.stare === "indisponibila" || (x.harta?.stare === "ok" && x.alese.length === pasageri);
     return (
+      // Minimalist, tot pe un ecran (Ion, 10.10: «minimalist să apară tot pe o pagină»): o linie cu cursa, o linie cu
+      // pasagerii și numărul de locuri alese, harta mică, butonul lipit jos.
       <div className="trf-loc-pas">
-        <button type="button" className="trf-ales trf-ales-plin" onClick={x.schimba}>
-          <span className="trf-ales-eticheta">✓ {x.ales}</span>
-          <span>{ziScurta(x.trip.trip_date, locale)} · {x.trip.time} → {x.trip.arrivalTime} · {x.pret} lei</span>
-          <u>{tx.schimba}</u>
-        </button>
-        {paxRand}
+        <div className="trf-loc-linie">
+          <span><b>{x.trip.time}</b> → {x.trip.arrivalTime} · {x.pret} lei</span>
+          <button type="button" className="trf-link-mic" onClick={x.schimba}>{tx.schimba}</button>
+        </div>
+        <div className="trf-loc-linie">
+          <div className="trf-pas-numar mic">
+            <button type="button" aria-label="−" disabled={pasageri <= 1} onClick={() => schimbaPasageri(pasageri - 1)}>−</button>
+            <b aria-live="polite">{pasageriText(pasageri, locale)}</b>
+            <button type="button" aria-label="+" disabled={pasageri >= 4} onClick={() => schimbaPasageri(pasageri + 1)}>+</button>
+          </div>
+          {x.harta?.stare === "ok" && <em className={x.alese.length === pasageri ? "ok" : ""} aria-live="polite">{x.alese.length ? listaLocuri(x.alese) : tx.alese(0, pasageri)}</em>}
+        </div>
         <div ref={x.ref} className="trf-harta">
-          <div className="trf-harta-cap"><span>{tx.locLa(x.ales === tx.turAles ? tx.tur : tx.retur)}</span>
-            {x.harta?.stare === "ok" && <em className={x.alese.length === pasageri ? "ok" : ""} aria-live="polite">{tx.alese(x.alese.length, pasageri)}{x.alese.length ? ` · ${listaLocuri(x.alese)}` : ""}</em>}</div>
           {x.harta?.stare === "incarca" && <p className="trf-mic">{tx.hartaInc}</p>}
           {x.harta?.stare === "indisponibila" && <p className="trf-mic">{tx.hartaNu}</p>}
-          {x.harta?.stare === "ok" && <SeatMap ocupate={x.harta.ocupate} alese={x.alese} locale={locale}
+          {x.harta?.stare === "ok" && <SeatMap mic ocupate={x.harta.ocupate} alese={x.alese} locale={locale}
             onToggle={(nr) => x.setAlese((a) => comutaLoc(a, nr, pasageri, x.harta!.ocupate))} />}
         </div>
-        <button type="button" className="trf-plata" disabled={!gataOk} onClick={x.gata}>{tx.continua} →</button>
+        <button type="button" className="trf-plata trf-lipit" disabled={!gataOk} onClick={x.gata}>{tx.continua} →</button>
       </div>
     );
   };
@@ -415,8 +421,16 @@ const CSS = `
 .trf-ales-eticheta{font-weight:800;color:#2B6B3A}
 .trf-ales-plin{margin:0}
 .trf-lista>.trf-pax{grid-column:1/-1;max-width:420px}
-.trf-loc-pas{display:flex;flex-direction:column;gap:16px;padding:16px 16px 22px;max-width:560px;margin:0 auto;width:100%;box-sizing:border-box}
+.trf-loc-pas{display:flex;flex-direction:column;gap:10px;padding:10px 16px 12px;max-width:560px;margin:0 auto;width:100%;box-sizing:border-box}
 .trf-loc-pas .trf-plata:disabled{opacity:.45;cursor:default;box-shadow:none}
+.trf-loc-linie{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:15px;min-height:36px}
+.trf-loc-linie em{font-style:normal;font-size:14px;font-weight:800;color:${RED}}
+.trf-loc-linie em.ok{color:#2B6B3A}
+.trf-link-mic{all:unset;cursor:pointer;color:${RED};font-weight:700;font-size:14px;padding:6px 0}
+.trf-pas-numar.mic{gap:8px}
+.trf-pas-numar.mic button{width:36px;height:36px;border-radius:10px;font-size:18px}
+.trf-pas-numar.mic b{min-width:0;font-size:15px}
+.trf-lipit{position:sticky;bottom:10px;margin-top:0}
 .trf-loc-ales{margin:0;font-size:14px;color:var(--trf-gri)}
 .trf-loc-ales b{color:var(--trf-text)}
 .trf-ales u{margin-left:auto;color:${RED};font-weight:700;text-decoration:none}

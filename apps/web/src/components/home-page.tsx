@@ -392,6 +392,12 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
                       fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
                     }}>
                       {routeName}
+                      {/* Ion, 10.10.2026: «sub Bălți–Chișinău 150 lei scrii la cumpărare online din 13.10, font mic». */}
+                      {href?.endsWith('/chisinau-balti') && (
+                        <span style={{ display: 'block', fontSize: 9, fontWeight: 400, textTransform: 'none', letterSpacing: 0.2, color: '#9B1B30', marginTop: 2 }}>
+                          {locale === 'ru' ? 'онлайн-покупка с 13.10' : 'cumpărare online din 13.10'}
+                        </span>
+                      )}
                     </span>
                     <span style={{
                       fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap',

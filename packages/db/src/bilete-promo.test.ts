@@ -24,8 +24,10 @@ describe('aplicaReducere', () => {
 
 describe('cotaOnline', () => {
   const cfg = { plafon: 4, dupaOra: 12, seara: 2 };
-  it('vineri spre Bălți: 4 dimineața, 2 de la 12:00', () => {
-    expect(cotaOnline(true, '2026-10-16T11:59:00+03:00', cfg)).toBe(4);
+  it('vineri spre Bălți: 4 până la 11:00, 7 între 11 și 12 (Ion 10.10), 2 de la 12:00', () => {
+    expect(cotaOnline(true, '2026-10-16T10:59:00+03:00', cfg)).toBe(4);
+    expect(cotaOnline(true, '2026-10-16T11:00:00+03:00', cfg)).toBe(7);
+    expect(cotaOnline(true, '2026-10-16T11:59:00+03:00', cfg)).toBe(7);
     expect(cotaOnline(true, '2026-10-16T12:00:00+03:00', cfg)).toBe(2);
   });
   it('vineri spre Chișinău nu e limitată', () => {
@@ -140,5 +142,18 @@ describe('decizieCarnet', () => {
     expect(instituteRecunoscuta('ASE din Moldova')).toBe(true);
     expect(instituteRecunoscuta('Basele aeriene')).toBe(false);
     expect(instituteRecunoscuta('Бельцкий государственный университет')).toBe(true);
+  });
+});
+
+describe('fereastra de vineri 11–12 (Ion 10.10.2026: «doar vineri din Chișinău spre Bălți»)', () => {
+  const cfg = { plafon: 4, dupaOra: 12, seara: 2 };
+  it('doar vineri: joi, sâmbătă și duminică la 11:30 spre Bălți rămân 4', () => {
+    for (const zi of ['2026-10-15', '2026-10-17', '2026-10-18']) expect(cotaOnline(true, `${zi}T11:30:00+03:00`, cfg)).toBe(4);
+  });
+  it('doar spre Bălți: vineri 11:30 spre Chișinău rămâne 4', () => {
+    expect(cotaOnline(false, '2026-10-16T11:30:00+03:00', cfg)).toBe(4);
+  });
+  it('și după trecerea la ora de iarnă (vineri 30.10, 11:15 local = 09:15 UTC)', () => {
+    expect(cotaOnline(true, '2026-10-30T09:15:00Z', cfg)).toBe(7);
   });
 });

@@ -32,6 +32,8 @@ export interface CotaConfig {
   dupaOra: number;
   /** Cota de seară (bilete_cota_seara, 2). */
   seara: number;
+  /** Fereastra de vineri spre Bălți (implicit FEREASTRA_VINERI: 11–12 → 7). */
+  fereastraVineri?: { de: number; pana: number; locuri: number };
 }
 
 /** Ora și ziua săptămânii (ISO: 1 luni … 7 duminică) în Europe/Chisinau. */
@@ -52,9 +54,16 @@ export function oraSiZiChisinau(iso: string): { ora: number; minut: number; isod
  */
 export function cotaOnline(goingNorth: boolean, departureAt: string, cfg: CotaConfig): number {
   const { ora, isodow } = oraSiZiChisinau(departureAt);
+  // Ion, 10.10.2026: «doar ca cursele între 11 și 12 să aibă limită de 7 bilete» — doar vineri, din Chișinău spre Bălți.
+  // Excepție în sus: peste plafonul obișnuit al localității.
+  const f = cfg.fereastraVineri ?? FEREASTRA_VINERI;
+  if (isodow === 5 && goingNorth && ora >= f.de && ora < f.pana) return f.locuri;
   const ziAglomerata = (isodow === 5 && goingNorth) || (isodow === 7 && !goingNorth);
   return ziAglomerata && ora >= cfg.dupaOra ? Math.min(cfg.seara, cfg.plafon) : cfg.plafon;
 }
+
+/** Vineri Chișinău → Bălți, plecarea între `de` (inclusiv) și `pana` (exclusiv), ora locală: `locuri` online. */
+export const FEREASTRA_VINERI = { de: 11, pana: 12, locuri: 7 } as const;
 
 /** Comanda-tur, așa cum o vede regula returului. */
 export interface TurPentruRetur {

@@ -373,7 +373,8 @@ describe('E1. cotaOnline pe zi, oră și sens (inclusiv trecerea la ora de iarn�
     const north = bool();
     const dow = isodowDe(zi);
     const aglomerat = (dow === 5 && north) || (dow === 7 && !north);
-    const astept = aglomerat && ora >= 12 ? 2 : 4;
+    // Ion 10.10: vineri spre Bălți, plecarea 11:00–11:59 → 7.
+    const astept = dow === 5 && north && ora === 11 ? 7 : aglomerat && ora >= 12 ? 2 : 4;
     it(`#${i} ${zi} (zi ${dow}) ${pad(ora)}:${pad(min)} ${north ? 'spre Bălți' : 'spre Chișinău'} → ${astept}`, () => {
       expect(cotaOnline(north, isoLocal(zi, ora, min), cfg)).toBe(astept);
     });
@@ -396,7 +397,7 @@ describe('E2. cotaCursei: cheia «balti» doar pe cursele cu Bălți; cota = cot
     const urcare = north ? 'Chișinău' : cuBalti ? pick(VARIANTE_BALTI) : 'Edineț';
     const coborare = north ? (cuBalti ? pick(VARIANTE_BALTI) : 'Briceni') : 'Chișinău';
     const dow = isodowDe(zi);
-    const cota = cuBalti ? ((dow === 5 && north) || (dow === 7 && !north)) && ora >= 12 ? 2 : 4 : null;
+    const cota = cuBalti ? (dow === 5 && north && ora === 11 ? 7 : ((dow === 5 && north) || (dow === 7 && !north)) && ora >= 12 ? 2 : 4) : null;
     it(`#${i} ${urcare.trim()}→${coborare.trim()} ${zi} ${pad(ora)}:00 → ${cota ?? 'fără cotă'}`, () => {
       const r = cotaCursei(plafoane, cfg, { urcare, coborare, goingNorth: north, departureAt: isoLocal(zi, ora, 0) });
       expect(r).toEqual(cuBalti ? { chei: ['balti'], cota } : { chei: null, cota: null });

@@ -14,7 +14,7 @@ import { calculeazaDepartureAt, cursaDupaDataDeStart, vanzareDeschisa } from './
 import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
-import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, type MotivFaraReducere } from './promo-server';
+import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, plafoaneCursei, type MotivFaraReducere } from './promo-server';
 import { hashJeton } from './student-ai';
 import { sesiuneInchisa } from './impacare-reguli';
 
@@ -602,7 +602,8 @@ async function creeazaRand(
   if (opt.mod !== 'proba' && !vanzareDeschisa({ goingNorth: input.goingNorth, departureAt, pornireRutaAt, nowMs: Date.now(), inchidereTurMin: cfg.inchidereTurMin, inchidereReturMin: cfg.inchidereReturMin })) {
     throw new ComandaError('inchis', 'vânzarea pentru această cursă s-a închis');
   }
-  if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input, comenziPlafon);
+  // Plafonul Bălțiului pe cursa asta = cota ei (vineri spre Bălți 11–12 → 7; seara de vineri/duminică → 2), ca în bază.
+  if (opt.mod === 'public') await verificaPlafonulLocalitatii(plafoaneCursei(cfg.plafoaneLocalitati, promoCfg, { goingNorth: input.goingNorth, departureAt }), cursa, input, comenziPlafon);
 
   // Proba fizică (Ion, 08.10: «pui să fie biletul 10 lei»): prețul forțat; totalul se socotește după, deci amount = total.
   // Promoțiile Bălți ⇄ Chișinău (546): reducerea doar la public / test_admin; cerută dar neaplicabilă → refuz cu motivul

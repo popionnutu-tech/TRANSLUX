@@ -53,6 +53,20 @@ export function localitateNeinceputa(cfg: PromoConfig, urcare: string, coborare:
   return null;
 }
 
+/**
+ * Plafoanele pe localitate pentru O cursă: Bălți primește cota zilei/orei (seara de vineri/duminică 2; vineri spre Bălți
+ * 11–12 → 7, Ion 10.10.2026), ca prevalidarea din comenzi.ts să spună același lucru ca baza (cota_online).
+ */
+export function plafoaneCursei(plafoane: PlafoaneLocalitati | null, cfg: PromoConfig, a: { goingNorth: boolean; departureAt: string }): PlafoaneLocalitati | null {
+  if (!plafoane) return null;
+  const k = normalizeazaLocalitate(PROMO_LOCALITATE);
+  const p = plafoane.get(k);
+  if (!p) return plafoane;
+  const m = new Map(plafoane);
+  m.set(k, { ...p, locuri: cotaOnline(a.goingNorth, a.departureAt, { plafon: p.locuri, dupaOra: cfg.cotaDupaOra, seara: cfg.cotaSeara }) });
+  return m;
+}
+
 /** Cheile localităților cu cotă ale cursei și cota (cea mai mică); Bălți are cota de seară vineri/duminică. */
 export function cotaCursei(plafoane: PlafoaneLocalitati | null, cfg: PromoConfig, a: { urcare: string; coborare: string; goingNorth: boolean; departureAt: string }): { chei: string[] | null; cota: number | null } {
   if (!plafoane) return { chei: null, cota: null };

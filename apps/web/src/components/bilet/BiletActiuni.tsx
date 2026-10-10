@@ -302,26 +302,40 @@ export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; loca
   // Pe telefon poza se arată pe ecran și se salvează ținând degetul pe ea (Ion, 10.10.2026: «în galerie nu se salvează
   // automat, dă un fișier care trebuie ceva de făcut»): foaia de partajare lipsește în Chrome pe iPhone, iar descărcarea
   // ajunge în «Fișiere», nu în «Poze». Apăsarea lungă pe imagine merge în orice browser. Pe calculator — descărcare.
-  const [arata, setArata] = React.useState<string[] | null>(null);
+  // Ion, 10.10.2026: «la toate tipurile de telefon, și Android, și iPhone». iPhone: poza pe ecran + apăsare lungă
+  // (descărcarea ajunge în «Fișiere»). Android: descărcarea merge în «Descărcări», pe care Galeria le arată; poza rămâne
+  // pe ecran pentru browserele din aplicații (Telegram, Facebook), unde descărcarea nu pornește.
+  const [arata, setArata] = React.useState<{ urls: string[]; tel: "ios" | "android" | "alt" } | null>(null);
+  const descarca = (files: File[]) => {
+    for (const fl of files) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(fl); a.download = fl.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 30_000);
+    }
+  };
   const salveaza = async () => {
     setLucru(true);
     try {
       const files = await fa();
-      if (window.matchMedia?.("(pointer: coarse)").matches) {
+      const ua = navigator.userAgent;
+      const tel = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios" : /Android/i.test(ua) ? "android" : "alt";
+      if (tel === "alt" && !window.matchMedia?.("(pointer: coarse)").matches) { descarca(files); }
+      else {
+        if (tel === "android") descarca(files);
         const urls = await Promise.all(files.map((fl) => new Promise<string>((ok, nu) => {
           const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = nu; r.readAsDataURL(fl);
         })));
-        setArata(urls);
-      } else {
-        for (const fl of files) {
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(fl); a.download = fl.name; document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-        }
+        setArata({ urls, tel });
       }
     } catch { window.print(); }
     setLucru(false);
   };
+  const indicatie = !arata ? null : arata.tel === "ios"
+    ? (ru ? "👆 Удерживайте палец на фото и выберите «Сохранить в Фото»" : "👆 Ține degetul apăsat pe poză, apoi alege «Salvează în Poze» (sau «Adaugă la Poze»)")
+    : arata.tel === "android"
+      ? (ru ? "✅ Фото билета скачано — оно в Галерее, в папке «Загрузки». Если его там нет: удерживайте палец на фото и выберите «Скачать изображение»."
+        : "✅ Poza biletului s-a descărcat — o găsești în Galerie, la «Descărcări». Dacă nu e acolo: ține degetul pe poză și alege «Descarcă imaginea».")
+      : (ru ? "👆 Удерживайте палец на фото и выберите «Сохранить изображение»" : "👆 Ține degetul apăsat pe poză și alege «Salvează imaginea»");
   return (
     <>
       <button type="button" className="bilet-no-print" disabled={lucru} onClick={salveaza} style={{
@@ -332,13 +346,13 @@ export function SalveazaPoza({ locuri, locale, stil }: { locuri: PozaLoc[]; loca
           <div style={{ maxWidth: 420, margin: "0 auto", display: "grid", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
               <div style={{ flex: 1, color: "#fff", fontSize: 18, fontWeight: 800, lineHeight: 1.35 }}>
-                {ru ? "👆 Нажмите и держите палец на фото, затем выберите «Сохранить в Фото»" : "👆 Ține degetul apăsat pe poză, apoi alege «Salvează în Poze»"}
+                {indicatie}
               </div>
               <button type="button" aria-label={ru ? "Закрыть" : "Închide"} onClick={() => setArata(null)} style={{
                 width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", fontSize: 22, cursor: "pointer", flexShrink: 0,
               }}>×</button>
             </div>
-            {arata.map((u, i) => (
+            {arata.urls.map((u, i) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={i} src={u} alt={ru ? "Билет TRANSLUX" : "Bilet TRANSLUX"} style={{ width: "100%", height: "auto", borderRadius: 18, display: "block", WebkitTouchCallout: "default" }} />
             ))}

@@ -18,6 +18,18 @@ export const maxDuration = 60;
 // Primul rulaj trimite un rezumat al ofertei, ca să se vadă că monitorul merge.
 
 const CHEIE = 'concurenta:rutar';
+// Ion, 10.10.2026: «acum lucrează doar cu Bălți Chișinău și Chișinău Bălți» — restul perechilor (Orhei) nu se urmăresc.
+const URMARITE = new Set(['chisinau>balti', 'balti>chisinau']);
+const urmarita = (cheie: string) => URMARITE.has(cheie.split(' ')[0]);
+
+/** Doar perechile urmărite — și pentru starea de ieri, ca o pereche scoasă din listă să nu apară «dispărută». */
+function filtreaza(s: RutarStare): RutarStare {
+  return {
+    la: s.la,
+    curse: Object.fromEntries(Object.entries(s.curse ?? {}).filter(([k]) => urmarita(k))),
+    perechi: Object.fromEntries(Object.entries(s.perechi ?? {}).filter(([k]) => urmarita(k))),
+  };
+}
 const UA = 'Mozilla/5.0 (compatible; TRANSLUX-monitor/1.0)';
 
 async function pagina(cale: string): Promise<string> {
@@ -52,7 +64,8 @@ export async function GET(req: NextRequest) {
 
   const supabase = getSupabase();
   const { data: rand } = await supabase.from('bot_storage').select('value').eq('key', CHEIE).maybeSingle();
-  const ieri = (rand?.value ?? null) as (RutarStare & { eroare?: string }) | null;
+  const brut = (rand?.value ?? null) as (RutarStare & { eroare?: string }) | null;
+  const ieri = brut ? { ...filtreaza(brut), eroare: brut.eroare } : null;
 
   let stare: RutarStare;
   try {
@@ -61,14 +74,14 @@ export async function GET(req: NextRequest) {
     if (!curse.length) throw new Error('/schedule: nicio cursă găsită (s-a schimbat structura site-ului?)');
 
     const perechi: Record<string, RutarPereche> = {};
-    for (const cale of caiPerechi(sitemap)) {
+    for (const cale of caiPerechi(sitemap).filter((c) => urmarita(c.split('/').filter(Boolean).map((x) => x.replace(/^moldova-/, '')).join('>')))) {
       const p = parsePereche(await pagina(cale));
       // Seara pagina poate fi goală (cursele zilei au trecut) — păstrăm ce știam, perechea tot e pe site.
       const [de, spre] = cale.split('/').filter(Boolean).map((s) => s.replace(/^moldova-/, ''));
       const k = p?.cheie ?? `${de}>${spre}`;
       perechi[k] = p ?? ieri?.perechi?.[k] ?? { cheie: k, de, spre, curse: 0, pretMin: null, pretMax: null, laSofer: false };
     }
-    stare = { la: new Date().toISOString(), curse: Object.fromEntries(curse.map((c) => [c.cheie, c])), perechi };
+    stare = filtreaza({ la: new Date().toISOString(), curse: Object.fromEntries(curse.map((c) => [c.cheie, c])), perechi });
   } catch (e: any) {
     const mesaj = String(e?.message ?? e);
     // O singură alertă pe defect, nu în fiecare zi.

@@ -3,6 +3,7 @@ import { localitatiPentruPublic, type Bilet, type BileteComanda } from '@translu
 import { getSupabase } from '@/lib/supabase';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { citesteConfigBilete } from './comenzi';
+import { citestePromoConfig } from './promo-server';
 import { asambleazaComanda, COLOANE_BILET, COLOANE_COMANDA, type BiletRand, type ComandaRand, type OprireSosireRand, type RutaRand } from './bilet-asamblare';
 import { echipajeZile } from './echipaj';
 import { echipajPentruBilet, type EchipajBilet } from './echipaj-reguli';
@@ -47,6 +48,10 @@ export interface ComandaPublica {
   /** Echipajul cursei (migr. 538): după bifa dispecerului placa + prenumele (+ telefonul în fereastra plecare ± 3 h). */
   echipaj: EchipajBilet | null;
   bilete: BiletPublic[];
+  /** 544: reducerea aplicată (eticheta «RETUR −20%» / «STUDENT −20% · arată carnetul» + prețul întreg tăiat). */
+  reducere?: { tip: 'retur' | 'student'; pret_intreg: number } | null;
+  /** 544: codul care dă −20% la retur — doar pe turul plătit al perechii Bălți ⇄ Chișinău. */
+  cod_retur?: string | null;
 }
 
 const COD_RE = /^[0-9a-f]{32}$/i;
@@ -148,11 +153,16 @@ export interface ConfigPublica {
   destinatii: string[] | null;
   /** Prima zi de cursă care se vinde online (09.10: «2026-10-12»); null = orice zi. */
   curse_de_la: string | null;
+  /** 544: prima zi de cursă pe localitate, normalizată (Ion 10.10: Bălți de pe 13.10): {"balti":"2026-10-13"}. */
+  localitati_de_la: Record<string, string>;
+  /** 544: promoțiile Bălți ⇄ Chișinău (retur și student). */
+  promo: { activ: boolean; pct: number; retur_zile: number };
 }
 
 export async function configPublica(): Promise<ConfigPublica> {
-  const [cfg, { data: rute }] = await Promise.all([
+  const [cfg, promo, { data: rute }] = await Promise.all([
     citesteConfigBilete(),
+    citestePromoConfig(),
     getSupabase().from('crm_routes').select('id, bilete_online_tur, bilete_online_retur').eq('active', true)
       .or('bilete_online_tur.eq.true,bilete_online_retur.eq.true'),
   ]);
@@ -165,6 +175,8 @@ export async function configPublica(): Promise<ConfigPublica> {
     localitati: localitatiPentruPublic(cfg.localitati),
     destinatii: localitatiPentruPublic(cfg.destinatii),
     curse_de_la: cfg.curseDeLa,
+    localitati_de_la: Object.fromEntries(promo.localitatiDeLa),
+    promo: { activ: promo.activ, pct: promo.pct, retur_zile: promo.returZile },
   };
 }
 

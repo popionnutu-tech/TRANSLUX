@@ -25,15 +25,17 @@ interface BiletRand {
   id: string; comanda_id: string; cod_qr: string; nr: number; loc_nr: number | null;
   status: 'valid' | 'urcat' | 'anulat' | 'returnat'; urcat_at: string | null; urcat_de: string | null;
   trip_date: string; crm_route_id: number; going_north: boolean;
-  comanda: { passenger_name: string; from_name: string; to_name: string; departure_at: string; test: boolean; proba_fizica: boolean } | null;
+  comanda: { passenger_name: string; from_name: string; to_name: string; departure_at: string; test: boolean; proba_fizica: boolean; reducere_tip?: string | null } | null;
 }
 
 interface RezultatApi {
   cod: string; rezultat: RezultatScanare; loc_nr: number | null; nume: string | null; locuri_ramase_comanda: number | null;
   cursa_bilet: string | null; urcat_at: string | null; urcat_de_altul: boolean;
+  /** 544: bilet cu reducere de student → șoferul verifică carnetul (nu blochează urcarea). */
+  student: boolean;
 }
 
-const SEL = 'id, comanda_id, cod_qr, nr, loc_nr, status, urcat_at, urcat_de, trip_date, crm_route_id, going_north, comanda:bilete_comenzi(passenger_name, from_name, to_name, departure_at, test, proba_fizica)';
+const SEL = 'id, comanda_id, cod_qr, nr, loc_nr, status, urcat_at, urcat_de, trip_date, crm_route_id, going_north, comanda:bilete_comenzi(passenger_name, from_name, to_name, departure_at, test, proba_fizica, reducere_tip)';
 
 async function citesteBilet(db: ReturnType<typeof getSupabase>, cod: string): Promise<BiletRand | null> {
   const { data, error } = await db.from('bilete').select(SEL).eq('cod_qr', cod).maybeSingle();
@@ -113,7 +115,7 @@ export async function POST(req: NextRequest) {
       rezultate.push({
         cod: s.cod_citit, rezultat: cls.rezultat, loc_nr: b?.loc_nr ?? null, nume: b?.comanda?.passenger_name ?? null,
         locuri_ramase_comanda: ramase, cursa_bilet: b && cls.rezultat === 'alta_cursa' ? textCursaBilet(b) : null,
-        urcat_at: urcatAt, urcat_de_altul: cls.urcat_de_altul ?? false,
+        urcat_at: urcatAt, urcat_de_altul: cls.urcat_de_altul ?? false, student: b?.comanda?.reducere_tip === 'student',
       });
     }
     return NextResponse.json({ rezultate }, { headers: ANTETE });

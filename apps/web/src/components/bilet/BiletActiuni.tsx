@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { slugify } from "@/lib/seo-paths";
 
 // Partea vie a paginii biletului (ION-197): «Salvează» (tipărire / PDF din browser) și, cât comanda așteaptă plata,
 // re-încărcarea la 15 s, cel mult 3 minute — apoi butonul «Verifică» (callback-ul băncii poate întârzia).
@@ -128,4 +129,28 @@ export function suna(telefon373: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * «Cumpără returul cu −20%» (migr. 544): pe turul plătit al perechii Bălți ⇄ Chișinău. Codul de retur merge în
+ * sessionStorage (nu în URL, ca să nu ajungă în referrer/jurnale) și omul ajunge la căutarea în sens invers.
+ */
+export function CumparaReturul({ codRetur, de, spre, locale }: { codRetur: string; de: string; spre: string; locale: "ro" | "ru" }) {
+  const ru = locale === "ru";
+  const mergi = () => {
+    try { sessionStorage.setItem("tlx_cod_retur", codRetur); } catch { /* stocare blocată: codul se copiază de mână */ }
+    window.location.href = `/${locale}?dela=${encodeURIComponent(slugify(spre))}&spre=${encodeURIComponent(slugify(de))}`;
+  };
+  return (
+    <div style={{ display: "grid", gap: 8, padding: 14, borderRadius: 16, background: "#fdf3e7", border: "2px solid #d98a2b" }}>
+      <b style={{ fontSize: 16 }}>{ru ? "Обратный билет со скидкой −20%" : "Returul cu −20%"}</b>
+      <span style={{ fontSize: 13, color: "#4A3E41", lineHeight: 1.45 }}>
+        {ru ? "В течение 30 дней, в обратную сторону, на другой рейс, на то же имя и телефон. Код обратного билета:" : "În 30 de zile, în sens invers, pe altă cursă, pe același nume și telefon. Codul de retur:"}
+      </span>
+      <code style={{ fontSize: 12, wordBreak: "break-all", background: "#fff", padding: "6px 8px", borderRadius: 8 }}>{codRetur}</code>
+      <button type="button" onClick={mergi} style={{ minHeight: 48, borderRadius: 12, border: "none", background: "#9B1B30", color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+        {ru ? "Купить обратный со скидкой" : "Cumpără returul cu −20%"}
+      </button>
+    </div>
+  );
 }

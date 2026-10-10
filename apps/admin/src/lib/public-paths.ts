@@ -57,6 +57,9 @@ export const PUBLIC_EXACT = [
   '/api/resend/webhook',
   // Comanda de bilete online (ION-193): site-ul o cheamă server-la-server; se apără prin BILETE_API_KEY.
   '/api/bilete/comanda',
+  // 544: promoțiile Bălți ⇄ Chișinău — cota de preț și verificarea carnetului, apărate de BILETE_API_KEY
+  '/api/bilete/pret',
+  '/api/bilete/student/verifica',
   // Returnarea din botul Telegram (ION-244): botul (Railway) le cheamă server-la-server; se apără prin
   // BILETE_BOT_API_KEY (lib/bilete/bot-auth.ts), separată de cheia site-ului. Exacte, nu prefix.
   '/api/bilete/retur/bilete',

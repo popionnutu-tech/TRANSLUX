@@ -290,7 +290,7 @@ async function onCod(brut) {
     salveazaStarea();
     S.coada = L.adaugaInCoada(S.coada, { cheie: S.cursa.cheie, cod, moment_client: moment, offline: !online() });
     salveazaCoada();
-    arataBanda('ok', { nume: r.pasager.nume, ramase: n.deUrcat, total: n.total });
+    arataBanda('ok', { nume: r.pasager.nume, ramase: n.deUrcat, total: n.total, student: r.pasager.student === true });
     trimiteCoada();
     return;
   }
@@ -311,7 +311,7 @@ async function onCod(brut) {
     if (v === 'ok') {
       const { local } = L.aplicaRezultate(S.local, S.cursa, [rez], []);
       S.local = local; salveazaStarea();
-      arataBanda('ok', { nume: rez.nume ?? '', ramase: Number(rez.locuri_ramase_comanda ?? 0), total: Number(rez.locuri_ramase_comanda ?? 0) + 1 });
+      arataBanda('ok', { nume: rez.nume ?? '', ramase: Number(rez.locuri_ramase_comanda ?? 0), total: Number(rez.locuri_ramase_comanda ?? 0) + 1, student: rez.student === true });
       incarca(); // biletul nu era în lista noastră: o reîmprospătăm
     } else {
       arataBanda(v, { nume: rez?.nume ?? '', urcat_at: rez?.urcat_at ?? null, urcat_de_altul: Boolean(rez?.urcat_de_altul), cursa_bilet: rez?.cursa_bilet ?? '' });

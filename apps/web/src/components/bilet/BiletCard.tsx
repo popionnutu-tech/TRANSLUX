@@ -12,8 +12,8 @@ import { placaAfisata } from '@/lib/bilet-afisare';
 const RED = '#9B1B30';
 
 const TXT = {
-  ro: { biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: 'achitat', urcat: 'urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
-  ru: { biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: 'оплачено', urcat: 'посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
+  ro: { retur20: 'RETUR −20%', student20: 'STUDENT −20% · ARATĂ CARNETUL LA URCARE', biletOnline: 'BILET ONLINE', azi: 'Azi', locul: 'Locul', pret: 'Preț', achitat: 'achitat', urcat: 'urcat', proba: 'BILET DE PROBĂ — NU E VALABIL LA URCARE', sofer: 'șofer', astept: 'Mașina și șoferul apar după ce dispecerul face graficul zilei.', anulat: 'Cursa a fost anulată — sună la dispecerat +373 60 401 010.' },
+  ru: { retur20: 'ОБРАТНЫЙ −20%', student20: 'СТУДЕНТ −20% · ПОКАЖИТЕ СТУДЕНЧЕСКИЙ', biletOnline: 'ОНЛАЙН-БИЛЕТ', azi: 'Сегодня', locul: 'Место', pret: 'Цена', achitat: 'оплачено', urcat: 'посадка выполнена', proba: 'ТЕСТОВЫЙ БИЛЕТ — НЕ ДЕЙСТВИТЕЛЕН ДЛЯ ПОСАДКИ', sofer: 'водитель', astept: 'Автобус и водитель появятся, когда диспетчер составит график дня.', anulat: 'Рейс отменён — звоните диспетчеру +373 60 401 010.' },
 } as const;
 
 const nfPret = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
@@ -70,6 +70,8 @@ export function BiletCard({ comanda: c, bilet: b, locale }: { comanda: ComandaPu
     <div className="bilet-card" style={{ background: RED, borderRadius: 26, boxShadow: '0 20px 50px rgba(60,20,30,0.22)', overflow: 'hidden', fontFamily: 'var(--font-opensans), "Open Sans", system-ui, sans-serif', color: '#fff' }}>
       {/* Proba fizică (migr. 532): biletul de probă se vede de departe — nu e valabil pe o cursă reală. */}
       {c.proba && <div style={{ background: '#fff', color: '#b91c1c', textAlign: 'center', padding: '10px 14px', fontSize: 14, fontWeight: 800, letterSpacing: 0.5 }}>{tx.proba}</div>}
+      {/* 544: promoția se vede de departe; studentul arată carnetul șoferului la urcare. */}
+      {c.reducere && <div style={{ background: '#FFD45C', color: '#231A1C', textAlign: 'center', padding: '8px 14px', fontSize: 13, fontWeight: 800, letterSpacing: 0.4 }}>{c.reducere.tip === 'student' ? tx.student20 : tx.retur20}</div>}
       <div style={{ padding: '20px 22px 6px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <span aria-label="TRANSLUX" style={{ ...LOGO_STIL, backgroundColor: '#fff' }} />
@@ -105,7 +107,7 @@ export function BiletCard({ comanda: c, bilet: b, locale }: { comanda: ComandaPu
         <div className="bilet-qr" style={{ width: '100%', maxWidth: 230, opacity: urcat ? 0.3 : 1 }} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />
         <code style={{ fontSize: 13, letterSpacing: 2, fontWeight: 700, color: '#4A3E41', fontFamily: 'inherit' }}>{cod}</code>
         <span style={{ fontSize: 13, color: '#6B5B5F', textAlign: 'center' }}>
-          {c.passenger_name} · {nfPret.format(Number(c.price_per_seat))} MDL · <b style={{ color: urcat ? '#6B5B5F' : '#1B7F3B' }}>{urcat ? tx.urcat : tx.achitat}</b>
+          {c.passenger_name} · {c.reducere && <s style={{ color: '#A0939A' }}>{nfPret.format(c.reducere.pret_intreg)}</s>} {nfPret.format(Number(c.price_per_seat))} MDL · <b style={{ color: urcat ? '#6B5B5F' : '#1B7F3B' }}>{urcat ? tx.urcat : tx.achitat}</b>
         </span>
         {/* Biletul arată operatorul și codul fiscal (nota ecc.md, 07.2025). */}
         <span style={{ fontSize: 10, color: '#A0939A', textAlign: 'center' }}>{OPERATOR.brand} · {OPERATOR.name} · IDNO {OPERATOR.idno}</span>

@@ -38,6 +38,15 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/bilete/retur/admin')).toBe(false);
   });
 
+  it('promoțiile Bălți ⇄ Chișinău (544): DOAR /api/bilete/pret și /api/bilete/student/verifica, exacte', () => {
+    expect(isPublicPath('/api/bilete/pret')).toBe(true);
+    expect(isPublicPath('/api/bilete/pret/x')).toBe(false);
+    expect(isPublicPath('/api/bilete/student/verifica')).toBe(true);
+    expect(isPublicPath('/api/bilete/student')).toBe(false);
+    expect(isPublicPath('/api/bilete/student/poze')).toBe(false);
+    expect(isPublicPath('/api/bilete/student/verifica/x')).toBe(false);
+  });
+
   it('plângerea din bot (ION-252): DOAR /api/bilete/plangere, exact', () => {
     expect(isPublicPath('/api/bilete/plangere')).toBe(true);
     expect(isPublicPath('/api/bilete/plangere/')).toBe(false);

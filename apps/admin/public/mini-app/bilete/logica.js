@@ -443,7 +443,7 @@ export const T = {
     urmatoarea: 'Următoarea', ultimul: 'Ultimul', din: 'din', urcate: 'urcate',
     scaneaza: 'Scanează biletul', indreapta: 'Îndreaptă camera spre codul QR',
     simuleaza: 'Doar în mock: ce vede șoferul după scanare', simOk: 'Bilet bun', simOffline: 'Fără internet', simDeja: 'Deja urcat', simAlta: 'Altă cursă',
-    rOkT: 'Urcă', rOkUnLoc: (r) => `1 loc confirmat · mai scanează ${r}`, rOkToate: (n) => `${n} ${n === 1 ? 'loc' : 'din ' + n + ' locuri'} · gata`,
+    rStudentT: 'STUDENT — verifică carnetul', rOkT: 'Urcă', rOkUnLoc: (r) => `1 loc confirmat · mai scanează ${r}`, rOkToate: (n) => `${n} ${n === 1 ? 'loc' : 'din ' + n + ' locuri'} · gata`,
     rWarnT: 'Neconfirmat · urcă', rWarnS: 'fără internet: lasă-l să urce, se verifică când revine semnalul',
     rDejaT: 'Nu urcă · deja scanat', rDejaS: (ora) => (ora ? `scanat la ${ora}` : 'scanat mai devreme'), rDejaAltul: (ora) => `urcat în cealaltă mașină${ora ? ' la ' + ora : ''}`,
     rAltaT: 'Nu urcă · altă cursă', rAltaS: (c) => (c ? `biletul e pentru ${c}` : 'biletul e pentru altă cursă'),
@@ -469,7 +469,7 @@ export const T = {
     urmatoarea: 'Следующий', ultimul: 'Последний', din: 'из', urcate: 'сели',
     scaneaza: 'Сканировать билет', indreapta: 'Наведи камеру на QR-код',
     simuleaza: 'Только в макете: что видит водитель после сканирования', simOk: 'Билет верный', simOffline: 'Нет интернета', simDeja: 'Уже сел', simAlta: 'Другой рейс',
-    rOkT: 'Садится', rOkUnLoc: (r) => `1 место подтверждено · сканируй ещё ${r}`, rOkToate: (n) => `${n} ${n === 1 ? 'место' : 'из ' + n + ' мест'} · готово`,
+    rStudentT: 'СТУДЕНТ — проверь студенческий', rOkT: 'Садится', rOkUnLoc: (r) => `1 место подтверждено · сканируй ещё ${r}`, rOkToate: (n) => `${n} ${n === 1 ? 'место' : 'из ' + n + ' мест'} · готово`,
     rWarnT: 'Не подтверждён · садится', rWarnS: 'нет интернета: пусть садится, проверится, когда появится связь',
     rDejaT: 'Не садится · уже сканирован', rDejaS: (ora) => (ora ? `сканирован в ${ora}` : 'сканирован раньше'), rDejaAltul: (ora) => `сел в другую машину${ora ? ' в ' + ora : ''}`,
     rAltaT: 'Не садится · другой рейс', rAltaS: (c) => (c ? `билет на ${c}` : 'билет на другой рейс'),
@@ -521,6 +521,8 @@ export function textBanda(verdict, info, lang) {
     case 'ok': {
       const ramase = Number(info?.ramase ?? 0); const total = Number(info?.total ?? 1);
       const sub = ramase > 0 ? t.rOkUnLoc(ramase) : (total > 1 ? t.rOkToate(total) : `1 ${t.loc1}`);
+      // 544: bilet de student — banda galbenă «verifică carnetul»; urcarea nu se blochează.
+      if (info?.student) return { fel: 'warn', titlu: t.rStudentT, sub: nume + sub };
       return { fel: 'ok', titlu: t.rOkT, sub: nume + sub };
     }
     case 'neconfirmat': return { fel: 'warn', titlu: t.rWarnT, sub: t.rWarnS };

@@ -30,7 +30,7 @@ function bazaAdmin(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   if (!cheieSiteValida(req.headers.get('authorization'))) return NextResponse.json({ ok: false, eroare: 'neautorizat' }, { status: 401 });
 
-  let body: Partial<ComandaInput> & { ip_hash?: string; locuri_alese?: unknown };
+  let body: Partial<ComandaInput> & { ip_hash?: string; locuri_alese?: unknown; cod_retur?: unknown; student_jeton?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, eroare: 'JSON nevalid' }, { status: 400 }); }
   if (!body || typeof body !== 'object') return NextResponse.json({ ok: false, eroare: 'corp lipsă' }, { status: 400 });
 
@@ -53,6 +53,11 @@ export async function POST(req: NextRequest) {
     // ION-239: locurile alese pe hartă (retur) — `locuriAlese` sau `locuri_alese`; lipsă/gol → automat. Orice element
     // ne-număr devine NaN și cade la validare (valideazaLocuriAlese).
     locuriAlese: locuriDin(body.locuriAlese ?? body.locuri_alese),
+    // 544 (Codex r2 C1): promoțiile — fără ele aici, câmpurile s-ar pierde și s-ar plăti prețul întreg.
+    codRetur: typeof body.codRetur === 'string' && /^[0-9a-f]{64}$/.test(body.codRetur) ? body.codRetur
+      : (typeof body.cod_retur === 'string' && /^[0-9a-f]{64}$/.test(body.cod_retur) ? body.cod_retur : null),
+    studentJeton: typeof body.studentJeton === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(body.studentJeton) ? body.studentJeton
+      : (typeof body.student_jeton === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(body.student_jeton) ? body.student_jeton : null),
   };
 
   const siteUrl = (process.env.SITE_URL || 'https://translux.md').replace(/\/+$/, '');

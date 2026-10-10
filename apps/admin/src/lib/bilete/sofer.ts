@@ -20,6 +20,8 @@ export interface OprireApi { stop_order: number; nume: string; ora: string | nul
 export interface BiletApi { cod_qr: string; nr: number; loc_nr: number | null; status: 'valid' | 'urcat'; urcat_at: string | null }
 export interface PasagerApi {
   comanda: string; nume: string; telefon: string; de_la_order: number; de_la: string; pana_la: string; locuri: number; bilete: BiletApi[];
+  /** 544: reducere de student → șoferul cere carnetul la urcare. */
+  student?: boolean;
 }
 export interface CursaApi {
   cheie: string; crm_route_id: number; going_north: boolean; ruta: string; plecare: string | null; sosire: string | null;
@@ -95,7 +97,7 @@ function oraOprire(o: OprireRand, goingNorth: boolean): string | null {
 
 interface ComandaRand {
   id: string; crm_route_id: number; going_north: boolean; passenger_name: string; phone: string; from_stop_order: number;
-  from_name: string; to_name: string; seats: number;
+  from_name: string; to_name: string; seats: number; reducere_tip?: string | null;
   bilete: Array<{ cod_qr: string; nr: number; loc_nr: number | null; status: string; urcat_at: string | null }> | null;
 }
 
@@ -111,7 +113,7 @@ export async function curseCuPasageri(db: Db, driverId: string, zi: string, atri
   const [nom, rC] = await Promise.all([
     nomenclator.pentru(ids),
     db.from('bilete_comenzi')
-      .select('id, crm_route_id, going_north, passenger_name, phone, from_stop_order, from_name, to_name, seats, bilete(cod_qr, nr, loc_nr, status, urcat_at)')
+      .select('id, crm_route_id, going_north, passenger_name, phone, from_stop_order, from_name, to_name, seats, reducere_tip, bilete(cod_qr, nr, loc_nr, status, urcat_at)')
       .eq('trip_date', zi).eq('status', 'platita').eq(proba ? 'proba_fizica' : 'test', proba).in('crm_route_id', ids)
       .order('nr', { referencedTable: 'bilete', ascending: true }),
   ]);
@@ -146,7 +148,7 @@ export async function curseCuPasageri(db: Db, driverId: string, zi: string, atri
       .sort((a, b) => sens * (a.from_stop_order - b.from_stop_order) || a.passenger_name.localeCompare(b.passenger_name, 'ro'))
       .map((k) => ({
         comanda: k.id, nume: k.passenger_name, telefon: k.phone, de_la_order: k.from_stop_order, de_la: k.from_name, pana_la: k.to_name,
-        locuri: k.seats, bilete: bilete.get(k.id) ?? [],
+        locuri: k.seats, bilete: bilete.get(k.id) ?? [], student: k.reducere_tip === 'student',
       }));
     return {
       cheie: cheieCursa(zi, c.crm_route_id, c.going_north), crm_route_id: c.crm_route_id, going_north: c.going_north,

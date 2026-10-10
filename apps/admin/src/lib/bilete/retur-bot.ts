@@ -64,6 +64,15 @@ export async function cereOferta(telegramIdRaw: unknown, codRaw: unknown, cifreR
   const { count: urcate } = await db.from('bilete').select('id', { count: 'exact', head: true }).eq('comanda_id', c.id).eq('status', 'urcat');
   if ((urcate ?? 0) > 0) return { ok: true, tip: 'fara_bani', motiv: 'urcat' };
 
+  // 544: turul are un retur −20% plătit → suma depinde de alegere («doar turul» pierde reducerea, «ambele», «vina
+  // noastră»). Până la varianta din bot (deploy-bot), decide dispecerul în /bilete, cu bifele «vina noastră» /
+  // «anulează și returul»; botul nu promite o sumă pe care banca n-ar primi-o.
+  const { count: retururi } = await db.from('bilete_comenzi').select('id', { count: 'exact', head: true }).eq('comanda_tur_id', c.id).eq('status', 'platita');
+  if ((retururi ?? 0) > 0) {
+    await alerta(c.id, telegramId, 'returnare cerută pe un tur cu retur −20% plătit: dispecerul alege «doar turul» (−reducerea) sau «anulează și returul»');
+    return { ok: true, tip: 'dispecer', motiv: 'blocat' };
+  }
+
   // Cele 4 cifre: o dată pe CONT (17′); 5 greșeli → blocat + dispecerul. Verificarea și contorul stau în bază,
   // cu comanda blocată (migr. 503): cererile paralele nu ocolesc plafonul.
   if (Number(c.telegram_verificat_pentru) !== telegramId) {

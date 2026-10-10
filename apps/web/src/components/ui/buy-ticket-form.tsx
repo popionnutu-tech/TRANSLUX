@@ -12,6 +12,8 @@ import { phoneText } from "@/lib/phone";
 import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 import { BiletCursa, FOND_LISTA } from "./bilet-cursa";
+import { PromoReduceri, type ReducereAleasa } from "./promo-reduceri";
+import { perechePromo } from "@translux/db";
 
 // Formularul «Cumpără bilet» (ION-197): în fereastra rezultatelor, sub cursa aleasă. Cheia de idempotență se
 // generează la deschidere — un dublu-clic sau un «înapoi» din bancă nu face două comenzi. Prețul e informativ;
@@ -146,6 +148,11 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   };
   const atingeLoc = (nr: number) => setAlese((a) => comutaLoc(a, nr, seats, harta.ocupate));
   const hartaActiva = alegeLocuri && harta.stare === "ok";
+  // Promoțiile Bălți ⇄ Chișinău (544): panoul «Reduceri» doar pe pereche; prețul arătat vine din panou.
+  const arePromo = perechePromo(fromRo, toRo);
+  const [reducere, setReducere] = React.useState<ReducereAleasa>({ pret: null, codRetur: null, studentJeton: null, blocheazaPlata: false });
+  const pretLoc = reducere.pret ?? trip.price;
+  const numeComplet = `${camp.lastName.trim()} ${camp.firstName.trim()}`.trim();
   const locuriIncomplete = hartaActiva && alese.length !== seats;
 
   const inp: React.CSSProperties = {
@@ -185,6 +192,8 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
       <input type="hidden" name="seats" value={seats} />
       {/* Locurile alese (ION-242): câmpul există doar când harta a răspuns; fără el panoul dă locul la emitere. */}
       {hartaActiva && <input type="hidden" name="locuriAlese" value={JSON.stringify(alese)} />}
+      {reducere.codRetur && <input type="hidden" name="codRetur" value={reducere.codRetur} />}
+      {reducere.studentJeton && <input type="hidden" name="studentJeton" value={reducere.studentJeton} />}
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
 
@@ -248,6 +257,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         <label style={lbl}>{tx.email}
           <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="nume@exemplu.md" value={camp.email} onChange={scrie("email")} style={inp} />
         </label>
+        {arePromo && <PromoReduceri locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
         <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
           {tx.retur}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: "#1b6f9a", fontWeight: 600 }}>{tx.grila}</a>
         </div>
@@ -265,9 +275,9 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
               {ales && <> · {locale === "ru" ? ales.nume_ru : ales.nume_ro}</>}
               <br />{tx.loc(seats)}{hartaActiva && alese.length > 0 && <> · {alese.length === 1 ? tx.locul : tx.locurile} {listaLocuri(alese)}</>}
             </span>
-            <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{trip.price * seats} lei</span>
+            <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats} lei</span>
           </div>
-          <Trimite locale={locale} lei={trip.price * seats} blocat={locuriIncomplete} />
+          <Trimite locale={locale} lei={pretLoc * seats} blocat={locuriIncomplete || reducere.blocheazaPlata} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8A7A7D" }}>{tx.note}</span>
             <button type="button" onClick={onCancel} style={{ minHeight: 44, padding: "0 6px", border: "none", background: "none", color: "#6B5B5F", fontSize: 14, cursor: "pointer" }}>{tx.cancel}</button>

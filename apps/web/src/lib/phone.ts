@@ -1,3 +1,4 @@
+import { formateazaTelefonPasager } from "@translux/db";
 // Numerele de telefon pe translux.md: MEREU în forma internațională.
 // Ion, 23.09: «numărul de la telefon să fie întotdeauna +373 și mai departe numărul
 // fără 0, ca dacă sună peste hotare să poată automat suna». Forma «069…» merge doar
@@ -12,10 +13,11 @@ function national(raw: string | null | undefined): string | null {
   return null;
 }
 
-/** «069123456» / «37369123456» → «+373 69 123 456». Altceva rămâne cum e. */
+/** «069123456» / «37369123456» → «+373 69 123 456»; numărul străin al pasagerului («380671234567») → «+380 …». */
 export function phoneText(raw: string): string {
   const n = national(raw);
-  return n ? `+373 ${n.slice(0, 2)} ${n.slice(2, 5)} ${n.slice(5)}` : raw;
+  if (n) return `+373 ${n.slice(0, 2)} ${n.slice(2, 5)} ${n.slice(5)}`;
+  return /^\d{9,15}$/.test(String(raw ?? '')) ? formateazaTelefonPasager(String(raw)) : raw;
 }
 
 /** Linkul de apel: «tel:+37369123456» — cu «+», ca să sune și din roaming. */

@@ -1014,6 +1014,18 @@ export interface BileteComanda {
   punct_urcare_lon?: number | string | null;
   created_at: string;
   updated_at: string;
+  // 544: promoțiile Bălți ⇄ Chișinău
+  pret_intreg?: number | null;
+  reducere_tip?: 'retur' | 'student' | null;
+  reducere_pct?: number | null;
+  reducere_lei_loc?: number;
+  comanda_tur_id?: string | null;
+  student_verificare_id?: string | null;
+  promo_pereche?: boolean;
+  cod_retur?: string | null;
+  loc_cheie?: string[] | null;
+  cota_online?: number | null;
+  scazut_la_refund?: number;
 }
 
 export interface Bilet {

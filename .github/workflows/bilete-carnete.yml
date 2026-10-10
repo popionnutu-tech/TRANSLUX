@@ -1,0 +1,26 @@
+name: bilete-carnete
+
+# Curățarea zilnică a verificărilor de student (migr. 544): pozele carnetelor și numele se șterg la 90 de zile, poza
+# actului neacceptat la 30. Pe GitHub infra: Vercel Hobby are sloturile de cron ocupate. 03:30 UTC = noaptea în Chișinău,
+# după importurile tiki (21:05 / 00:30 / 01:30 UTC).
+
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  curatare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curățare carnete
+        run: |
+          code=$(curl -s -m 90 -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://central-hub-md.vercel.app/api/cron/carnete-curatare")
+          echo "carnete-curatare: HTTP $code"
+          cat /tmp/body; echo
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::carnete-curatare returned HTTP $code"
+            exit 1
+          fi

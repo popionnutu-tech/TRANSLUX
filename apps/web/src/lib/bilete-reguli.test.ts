@@ -43,6 +43,13 @@ describe('vanzareDeschisaPeSite', () => {
     expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Briceni' })).toBe(true);
     expect(vanzareDeschisaPeSite({ ...baza, cfg: lista, urcare: 'Chișinău', coborare: 'Edinet' })).toBe(true);
   });
+  it('10.10: Bălți de pe 13.10 (data pe localitate), Briceni neatins', () => {
+    const c = { ...cfg, localitati_de_la: parseazaConfig({ activ: true, localitati_de_la: { 'Bălți': '2026-10-15' } }).localitati_de_la };
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c })).toBe(false);                                   // 14.10 < 15.10
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, urcare: 'Chișinău', coborare: 'Balti', routeId: 8, goingNorth: true, time: '16:00', pornireRuta: '16:00' })).toBe(false);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, urcare: 'Briceni' })).toBe(true);
+    expect(vanzareDeschisaPeSite({ ...baza, cfg: c, tripDate: '2026-10-15', time: '07:10' })).toBe(true);
+  });
   it('09.10: doar cursele din 12.10 încolo, vânzarea deschisă de acum', () => {
     const c = { ...cfg, curse_de_la: parseazaConfig({ activ: true, curse_de_la: '2026-10-12' }).curse_de_la };
     expect(vanzareDeschisaPeSite({ ...baza, cfg: c, tripDate: '2026-10-11' })).toBe(false);
@@ -61,7 +68,7 @@ describe('vanzareDeschisaPeSite', () => {
 describe('parseazaConfig', () => {
   it('răspuns valid → config; rute fără id valid cad', () => {
     const c = parseazaConfig({ ok: true, activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: 'da' }, { id: 'x', tur: true, retur: true }] });
-    expect(c).toEqual({ activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: false }], localitati: TOATE_LOCALITATILE, destinatii: TOATE_LOCALITATILE, curse_de_la: null });
+    expect(c).toEqual({ activ: true, inchidere_tur_min: 15, inchidere_retur_min: 90, rute: [{ id: 2, tur: true, retur: false }], localitati: TOATE_LOCALITATILE, destinatii: TOATE_LOCALITATILE, curse_de_la: null, localitati_de_la: {}, promo: { activ: false, pct: 20, retur_zile: 30 } });
   });
   it('ION-264: localitati — lipsă/null = toate, listă = doar ele, formă stricată = nimic', () => {
     expect(parseazaConfig({ activ: true }).localitati).toEqual(TOATE_LOCALITATILE);
@@ -82,7 +89,7 @@ describe('normalizeazaTelefon', () => {
     expect(normalizeazaTelefon('+373 69 123 456')).toBe('37369123456');
     expect(normalizeazaTelefon('69123456')).toBe('37369123456');
     expect(normalizeazaTelefon('0691234')).toBeNull();
-    expect(normalizeazaTelefon('+40 721 000 000')).toBeNull();
+    expect(normalizeazaTelefon('+40 721 000 000')).toBe('40721000000'); // Ion, 10.10: și alte țări, cu prefix
   });
 });
 
@@ -154,5 +161,13 @@ describe('punctele de urcare (ION-198)', () => {
 
   it('linkul spre hartă', () => {
     expect(linkHarta({ lat: 48.354, lon: 27.1 })).toBe('https://www.google.com/maps/search/?api=1&query=48.354,27.1');
+  });
+});
+
+describe('normalizeazaTelefon — numere străine (Ion, 10.10)', () => {
+  it('+380 și alte țări cu prefix; Moldova implicită', () => {
+    expect(normalizeazaTelefon('+380 67 123 4567')).toBe('380671234567');
+    expect(normalizeazaTelefon('069 123 456')).toBe('37369123456');
+    expect(normalizeazaTelefon('067 123 45 67')).toBeNull();
   });
 });

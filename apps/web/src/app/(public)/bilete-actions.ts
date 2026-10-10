@@ -3,7 +3,7 @@
 import { createHash } from 'crypto';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { comandaBilet, locuriCursa } from '@/lib/bilete-api';
+import { comandaBilet, locuriCursa, pretCuReducere, type RaspunsPret } from '@/lib/bilete-api';
 import { emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, urlPlataSigur } from '@/lib/bilete-reguli';
 import { mesajLocOcupat, parseazaLocuriAlese, type LocuriCursa } from '@/lib/locuri';
 
@@ -56,7 +56,7 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
   if (fd.get('punctObligatoriu') === '1' && punctUrcareId == null) return eroare(ru ? 'Выберите, где вы сядете в автобус.' : 'Alege unde urci în autobuz.');
 
   if (!nume) return eroare(ru ? 'Введите фамилию и имя (не короче 2 букв).' : 'Scrie numele și prenumele (cel puțin 2 litere fiecare).');
-  if (!telefon) return eroare(ru ? 'Введите молдавский номер: 069 123 456.' : 'Scrie un număr moldovenesc: 069 123 456.');
+  if (!telefon) return eroare(ru ? 'Введите номер: 069 123 456, или с кодом страны: +380 …' : 'Scrie numărul: 069 123 456, sau cu prefixul țării: +380 …');
   if (email === 'invalid') return eroare(ru ? 'Проверьте e-mail или оставьте поле пустым.' : 'Verifică e-mailul sau lasă câmpul gol.');
   if (!Number.isInteger(seats) || seats < 1 || seats > 4) return eroare(ru ? 'От 1 до 4 мест.' : 'Între 1 și 4 locuri.');
   if (fd.get('consent') !== 'on') return eroare(ru ? 'Нужно принять условия продажи и политику конфиденциальности.' : 'E nevoie să accepți condițiile de vânzare și politica de confidențialitate.');
@@ -101,6 +101,9 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     // ION-249: din mini app-ul Telegram vine initData-ul contului (câmp ascuns); panoul îl verifică — aici doar se trimite.
     telegramInitData: String(fd.get('tgInitData') ?? '').slice(0, 4096) || null,
     locuriAlese: locuri.locuri,
+    // 544: promoțiile Bălți ⇄ Chișinău — panoul le verifică și recalculează prețul; aici doar formatul.
+    codRetur: /^[0-9a-f]{64}$/.test(String(fd.get('codRetur') ?? '')) ? String(fd.get('codRetur')) : null,
+    studentJeton: /^[A-Za-z0-9_-]{20,64}$/.test(String(fd.get('studentJeton') ?? '')) ? String(fd.get('studentJeton')) : null,
   });
   if (!r.ok) {
     // ION-242: locurile s-au luat între două reîncărcări ale hărții → spunem care și formularul reîncarcă harta.
@@ -117,4 +120,21 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     return eroare(mesajEroareComanda("necunoscut", 500, locale));
   }
   redirect(r.checkoutUrl); // aruncă NEXT_REDIRECT — rămâne în afara oricărui try/catch
+}
+
+/**
+ * Prețul cu reducerea cerută (migr. 544), pentru formular: codul de retur sau jetonul de student. Export din
+ * 'use server' = acțiune apelabilă de oricine; nu are secret, panoul răspunde același text la cod greșit și la altă
+ * persoană, iar comanda recalculează totul.
+ */
+export async function pretBilet(a: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; seats: number; phone: string; passengerName: string; codRetur?: string | null; studentJeton?: string | null }): Promise<RaspunsPret | null> {
+  if (!a || typeof a.tripDate !== 'string' || !DATA_RE.test(a.tripDate) || !Number.isInteger(a.crmRouteId) || a.crmRouteId <= 0) return null;
+  const tel = normalizeazaTelefon(String(a.phone ?? ''));
+  return pretCuReducere({
+    tripDate: a.tripDate, crmRouteId: a.crmRouteId, goingNorth: a.goingNorth === true,
+    fromRo: String(a.fromRo ?? '').slice(0, 80), toRo: String(a.toRo ?? '').slice(0, 80),
+    seats: Math.max(1, Math.min(4, Number(a.seats) || 1)), phone: tel ?? '', passengerName: String(a.passengerName ?? '').slice(0, 80),
+    codRetur: typeof a.codRetur === 'string' ? a.codRetur.slice(0, 64) : null,
+    studentJeton: typeof a.studentJeton === 'string' ? a.studentJeton.slice(0, 64) : null,
+  });
 }

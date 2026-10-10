@@ -14,6 +14,7 @@ export interface ComandaRand {
   /** Comandă de probă (test_admin sau pagina de probă, migr. 532) → biletul poartă «BILET DE PROBĂ». */
   test?: boolean | null;
   proba_fizica?: boolean | null;
+  reducere_tip?: 'retur' | 'student' | null; pret_intreg?: number | string | null; cod_retur?: string | null;
   punct_urcare_nume_ro?: string | null; punct_urcare_nume_ru?: string | null; punct_urcare_lat?: number | string | null; punct_urcare_lon?: number | string | null;
 }
 export interface BiletRand { nr: number; loc_nr?: number | null; cod_qr: string; status: BiletPublic['status']; urcat_at: string | null }
@@ -21,7 +22,7 @@ export interface RutaRand { id: number; dest_from_ro: string; dest_from_ru: stri
 export interface OprireSosireRand { hour_from_chisinau: string | null; hour_from_nord: string | null }
 
 /** Coloanele de citit din bilete_comenzi pentru asamblare (aceleași la o comandă și pe lot). */
-export const COLOANE_COMANDA = 'cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, to_stop_order, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon, test, proba_fizica';
+export const COLOANE_COMANDA = 'cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, to_stop_order, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon, test, proba_fizica, reducere_tip, pret_intreg, cod_retur';
 export const COLOANE_BILET = 'nr, loc_nr, cod_qr, status, urcat_at';
 
 /** ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii; «7:05» → «07:05»; altfel null. */
@@ -64,6 +65,8 @@ export async function asambleazaComanda(c: ComandaRand, bilete: BiletRand[], rut
       lon: Number(c.punct_urcare_lon),
     } : null,
     proba: c.test === true,
+    reducere: c.reducere_tip && c.pret_intreg != null ? { tip: c.reducere_tip, pret_intreg: Number(c.pret_intreg) } : null,
+    cod_retur: c.status === 'platita' && c.cod_retur ? c.cod_retur : null,
     echipaj,
     bilete: bileteCuQr,
   };

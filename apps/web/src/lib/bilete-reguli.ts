@@ -5,7 +5,7 @@
  */
 import {
   calculeazaDepartureAt, chisinauInstantIso, cursaInLocalitatileVanzarii, localitatiDinValoare, NICIO_LOCALITATE,
-  vanzareDeschisa, type LocalitatiVanzare,
+  normalizeazaLocalitate, normalizeazaTelefonPasager, vanzareDeschisa, type LocalitatiVanzare,
 } from '@translux/db';
 
 export interface ConfigBilete {
@@ -20,14 +20,25 @@ export interface ConfigBilete {
   destinatii: LocalitatiVanzare;
   /** Prima zi de cursă vândută online (09.10: «2026-10-12»); null = orice zi. */
   curse_de_la: string | null;
+  /** 544: prima zi de cursă pe localitate (cheie normalizată), ex. {"balti":"2026-10-13"}. */
+  localitati_de_la?: Record<string, string>;
+  /** 544: promoțiile Bălți ⇄ Chișinău. */
+  promo?: { activ: boolean; pct: number; retur_zile: number };
 }
 
-export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE, destinatii: NICIO_LOCALITATE, curse_de_la: null };
+export const CONFIG_INCHIS: ConfigBilete = { activ: false, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [], localitati: NICIO_LOCALITATE, destinatii: NICIO_LOCALITATE, curse_de_la: null, localitati_de_la: {}, promo: { activ: false, pct: 20, retur_zile: 30 } };
 
 /**
  * Răspunsul panoului → configurație; orice formă neașteptată → vânzare închisă. `localitati` lipsă (panoul de dinainte
  * de ION-264) sau null = toate; o formă stricată = nicio localitate.
  */
+function dateDeStart(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [k, d] of Object.entries(v as Record<string, unknown>)) if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) out[normalizeazaLocalitate(k)] = d;
+  return out;
+}
+
 export function parseazaConfig(j: unknown): ConfigBilete {
   if (!j || typeof j !== 'object') return CONFIG_INCHIS;
   const o = j as Record<string, unknown>;
@@ -44,6 +55,10 @@ export function parseazaConfig(j: unknown): ConfigBilete {
     localitati: localitatiDinValoare(o.localitati).regula,
     destinatii: localitatiDinValoare(o.destinatii).regula,
     curse_de_la: typeof o.curse_de_la === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.curse_de_la) ? o.curse_de_la : null,
+    localitati_de_la: dateDeStart(o.localitati_de_la),
+    promo: o.promo && typeof o.promo === 'object'
+      ? { activ: (o.promo as Record<string, unknown>).activ === true, pct: Number((o.promo as Record<string, unknown>).pct) || 20, retur_zile: Number((o.promo as Record<string, unknown>).retur_zile) || 30 }
+      : { activ: false, pct: 20, retur_zile: 30 },
   };
 }
 
@@ -70,6 +85,11 @@ export function vanzareDeschisaPeSite(a: {
 }): boolean {
   if (!a.cfg.activ || !a.soferPeZi) return false;
   if (a.cfg.curse_de_la && a.tripDate < a.cfg.curse_de_la) return false;
+  // Ion, 10.10.2026: «lansăm de pe 13.10 vânzări online Bălți–Chișinău» — data de start pe localitate (ca în panou).
+  for (const nume of [a.urcare, a.coborare]) {
+    const de = a.cfg.localitati_de_la?.[normalizeazaLocalitate(nume)];
+    if (de && a.tripDate < de) return false;
+  }
   if (!cursaInLocalitatileVanzarii(a.cfg.localitati, a.urcare, a.coborare, a.cfg.destinatii)) return false;
   const r = a.cfg.rute.find((x) => x.id === a.routeId);
   if (!r || !(a.goingNorth ? r.retur : r.tur)) return false;
@@ -82,13 +102,13 @@ export function vanzareDeschisaPeSite(a: {
   });
 }
 
-/** «069 123 456» / «+373 69123456» / «37369123456» → «37369123456»; altceva → null. */
+/**
+ * «069 123 456» / «+373 69123456» / «37369123456» → «37369123456»; un număr străin cu prefix («+380 67 123 4567») →
+ * «380671234567» (Ion, 10.10.2026: «pot fi și bilete din Ucraina cu +380 sau altă țară, dar de bază e MD»);
+ * altceva → null. Aceeași regulă ca pe panou (@translux/db normalizeazaTelefonPasager).
+ */
 export function normalizeazaTelefon(raw: string): string | null {
-  const d = String(raw ?? '').replace(/\D/g, '');
-  if (/^373\d{8}$/.test(d)) return d;
-  if (/^0\d{8}$/.test(d)) return `373${d.slice(1)}`;
-  if (/^\d{8}$/.test(d)) return `373${d}`;
-  return null;
+  return normalizeazaTelefonPasager(raw);
 }
 
 export type CodEroareComanda = 'validare' | 'inchis' | 'idempotenta' | 'in_lucru' | 'plafon' | 'maib' | 'config' | 'necunoscut';

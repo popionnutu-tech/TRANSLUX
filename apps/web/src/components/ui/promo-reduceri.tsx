@@ -1,0 +1,173 @@
+"use client";
+
+import * as React from "react";
+import { pretBilet } from "@/app/(public)/bilete-actions";
+
+// Promoțiile online Bălți ⇄ Chișinău (Ion, 10.10.2026; migr. 544): −20% la retur (cu codul de retur de pe biletul tur)
+// sau −20% pentru student (carnet + pașaport/buletin verificate de AI). Nu se cumulează. Prețul arătat vine din panou
+// (pretBilet); comanda îl recalculează oricum.
+
+const RED = "#9B1B30";
+export const CHEIE_COD_RETUR = "tlx_cod_retur";
+
+const TXT = {
+  ro: {
+    titlu: "Reduceri −20%", nimic: "Fără reducere", retur: "Am bilet tur (cumpăr returul)", student: "Sunt student (universitate sau colegiu)",
+    cod: "Codul de retur de pe biletul tur", aplica: "Aplică",
+    studentNota: "Fotografiază carnetul de student și pașaportul sau buletinul (poze reale, nu capturi de ecran). Numele trebuie să fie același ca în formular. Reducerea e pentru un singur loc; arăți carnetul șoferului la urcare.",
+    carnet: "Carnetul de student", act: "Pașaportul sau buletinul", alege: "Fă poza",
+    acord: "Sunt de acord ca TRANSLUX să prelucreze pozele actelor pentru verificarea reducerii (inclusiv compararea fețelor, prin serviciul Anthropic). Poza actului se șterge după verificare, restul în 90 de zile.",
+    verifica: "Verifică", seVerifica: "Se verifică…", ok: "Carnet verificat: −20%", unLoc: "Reducerea de student e pentru 1 loc.",
+    neclar: "Poza nu se citește bine. Fă o poză mai clară, la lumină, fără reflexii.",
+    respins: "Carnetul nu a trecut verificarea. Se poate cumpăra la prețul întreg.", refuzat: "Prea multe încercări azi. Încearcă mâine.",
+    eroare: "Verificarea nu merge acum. Se poate cumpăra la prețul întreg.", completeaza: "Completează întâi numele, prenumele și telefonul.",
+    pret: (p: number, i: number) => `${p} lei în loc de ${i} lei pe loc`,
+  },
+  ru: {
+    titlu: "Скидки −20%", nimic: "Без скидки", retur: "У меня есть билет туда (покупаю обратный)", student: "Я студент (университет или колледж)",
+    cod: "Код обратного билета с билета туда", aplica: "Применить",
+    studentNota: "Сфотографируйте студенческий билет и паспорт или удостоверение (реальные фото, не скриншоты). Имя должно совпадать с формой. Скидка — на одно место; студенческий покажите водителю при посадке.",
+    carnet: "Студенческий билет", act: "Паспорт или удостоверение", alege: "Сделать фото",
+    acord: "Я согласен(на), что TRANSLUX обработает фото документов для проверки скидки (включая сравнение лиц, через сервис Anthropic). Фото документа удаляется после проверки, остальное — через 90 дней.",
+    verifica: "Проверить", seVerifica: "Проверяем…", ok: "Студенческий проверен: −20%", unLoc: "Студенческая скидка — на 1 место.",
+    neclar: "Фото плохо читается. Сделайте более чёткое фото, при свете, без бликов.",
+    respins: "Студенческий не прошёл проверку. Можно купить по полной цене.", refuzat: "Слишком много попыток сегодня. Попробуйте завтра.",
+    eroare: "Проверка сейчас не работает. Можно купить по полной цене.", completeaza: "Сначала заполните фамилию, имя и телефон.",
+    pret: (p: number, i: number) => `${p} лей вместо ${i} лей за место`,
+  },
+} as const;
+
+/** Poza din cameră → JPEG ≤ 1600 px, ≤ 700 KB, orientată după EXIF (createImageBitmap), în base64 fără prefix. */
+async function laJpeg(f: File): Promise<string> {
+  const bmp = await createImageBitmap(f, { imageOrientation: "from-image" } as ImageBitmapOptions);
+  const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+  for (const q of [0.85, 0.75, 0.65, 0.55]) {
+    const url = c.toDataURL("image/jpeg", q);
+    const b64 = url.slice(url.indexOf(",") + 1);
+    if (b64.length * 0.75 <= 700_000) return b64;
+  }
+  throw new Error("prea_mare");
+}
+
+export interface ReducereAleasa { pret: number | null; codRetur: string | null; studentJeton: string | null; blocheazaPlata: boolean }
+
+export function PromoReduceri(p: {
+  locale: "ro" | "ru"; trip: { trip_date: string; crm_route_id: number; going_north: boolean; price: number };
+  fromRo: string; toRo: string; seats: number; nume: string; telefon: string; onChange: (r: ReducereAleasa) => void;
+}) {
+  const tx = TXT[p.locale];
+  const [mod, setMod] = React.useState<"nimic" | "retur" | "student">("nimic");
+  const [cod, setCod] = React.useState("");
+  const [jeton, setJeton] = React.useState<string | null>(null);
+  const [mesaj, setMesaj] = React.useState<string | null>(null);
+  const [pret, setPret] = React.useState<number | null>(null);
+  const [lucru, setLucru] = React.useState(false);
+  const [poze, setPoze] = React.useState<{ carnet: File | null; act: File | null }>({ carnet: null, act: null });
+  const [acord, setAcord] = React.useState(false);
+
+  // Codul pus de butonul «Cumpără returul cu −20%» de pe biletul tur (sessionStorage, nu URL: nu ajunge în referrer).
+  React.useEffect(() => {
+    try {
+      const c = sessionStorage.getItem(CHEIE_COD_RETUR);
+      if (c && /^[0-9a-f]{64}$/.test(c)) { setCod(c); setMod("retur"); }
+    } catch { /* stocare blocată */ }
+  }, []);
+
+  const { onChange } = p;
+  React.useEffect(() => {
+    const activ = mod === "retur" ? (pret != null ? cod : null) : null;
+    const st = mod === "student" && p.seats === 1 ? jeton : null;
+    onChange({ pret: (activ || st) ? pret : null, codRetur: activ, studentJeton: st, blocheazaPlata: lucru });
+  }, [mod, pret, cod, jeton, lucru, p.seats, onChange]);
+
+  const cere = React.useCallback(async (a: { codRetur?: string | null; studentJeton?: string | null }) => {
+    const r = await pretBilet({
+      tripDate: p.trip.trip_date, crmRouteId: p.trip.crm_route_id, goingNorth: p.trip.going_north, fromRo: p.fromRo, toRo: p.toRo,
+      seats: p.seats, phone: p.telefon, passengerName: p.nume, ...a,
+    }).catch(() => null);
+    if (r && r.reducere) { setPret(r.pret); setMesaj(null); return true; }
+    setPret(null); setMesaj(r?.mesaj ?? tx.eroare); return false;
+  }, [p.trip, p.fromRo, p.toRo, p.seats, p.telefon, p.nume, tx.eroare]);
+
+  // Schimbarea numărului de locuri / a numelui reface cota (codul de retur e legat de persoană și de locuri).
+  React.useEffect(() => {
+    if (mod === "retur" && cod && p.nume && p.telefon) void cere({ codRetur: cod });
+    if (mod === "student" && jeton) { if (p.seats === 1) void cere({ studentJeton: jeton }); else { setPret(null); setMesaj(tx.unLoc); } }
+  }, [p.seats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const aplicaCod = async () => {
+    if (!p.nume || !p.telefon) { setMesaj(tx.completeaza); return; }
+    setLucru(true); await cere({ codRetur: cod.trim().toLowerCase() }); setLucru(false);
+  };
+
+  const verifica = async () => {
+    if (!p.nume || !p.telefon) { setMesaj(tx.completeaza); return; }
+    if (!poze.carnet || !poze.act || !acord) return;
+    setLucru(true); setMesaj(null);
+    try {
+      const [carnet, act] = await Promise.all([laJpeg(poze.carnet), laJpeg(poze.act)]);
+      const r = await fetch("/api/bilete/student", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passengerName: p.nume, phone: p.telefon, carnet, act, consimtamant: true }),
+      });
+      const j = await r.json().catch(() => null);
+      if (j?.verdict === "accept" && typeof j.jeton === "string") {
+        setJeton(j.jeton);
+        if (p.seats !== 1) { setMesaj(tx.unLoc); setPret(null); } else await cere({ studentJeton: j.jeton });
+      } else {
+        setJeton(null); setPret(null);
+        setMesaj(j?.verdict === "poza_neclara" ? tx.neclar : j?.verdict === "respins" ? tx.respins : j?.verdict === "refuzat" ? tx.refuzat : tx.eroare);
+      }
+    } catch { setMesaj(tx.neclar); }
+    setLucru(false);
+  };
+
+  const opt = (v: typeof mod, t: string) => (
+    <label style={{ display: "flex", gap: 10, alignItems: "center", minHeight: 44, fontSize: 15, cursor: "pointer" }}>
+      <input type="radio" name="promoMod" checked={mod === v} onChange={() => { setMod(v); setPret(null); setMesaj(null); }} style={{ accentColor: RED, width: 20, height: 20, margin: 0 }} />
+      {t}
+    </label>
+  );
+  const btn: React.CSSProperties = { minHeight: 44, padding: "0 14px", borderRadius: 10, border: `1.5px solid ${RED}`, background: "#fff", color: RED, fontWeight: 700, fontSize: 15, cursor: "pointer" };
+  const fisier = (k: "carnet" | "act", t: string) => (
+    <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 700, color: "#6B5B5F" }}>{t}
+      <input type="file" accept="image/*" capture="environment" onChange={(e) => setPoze((x) => ({ ...x, [k]: e.target.files?.[0] ?? null }))} style={{ fontSize: 14 }} />
+    </label>
+  );
+
+  return (
+    <fieldset style={{ border: "1.5px solid #E2D6D9", borderRadius: 12, padding: "10px 12px", margin: 0, display: "grid", gap: 4, minWidth: 0 }}>
+      <legend style={{ fontSize: 15, fontWeight: 800, padding: "0 6px" }}>{tx.titlu}</legend>
+      {opt("nimic", tx.nimic)}
+      {opt("retur", tx.retur)}
+      {mod === "retur" && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <label style={{ flex: 1, minWidth: 180, fontSize: 13, fontWeight: 700, color: "#6B5B5F" }}>{tx.cod}
+            <input value={cod} onChange={(e) => { setCod(e.target.value); setPret(null); }} autoComplete="off" spellCheck={false} maxLength={64}
+              style={{ width: "100%", height: 44, padding: "0 10px", borderRadius: 10, border: "1.5px solid #E2D6D9", fontSize: 14, boxSizing: "border-box", marginTop: 4, fontFamily: "monospace" }} />
+          </label>
+          <button type="button" disabled={lucru || !cod} onClick={aplicaCod} style={btn}>{tx.aplica}</button>
+        </div>
+      )}
+      {opt("student", tx.student)}
+      {mod === "student" && !jeton && (
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={{ fontSize: 13, color: "#4A3E41", lineHeight: 1.45 }}>{tx.studentNota}</div>
+          {fisier("carnet", tx.carnet)}
+          {fisier("act", tx.act)}
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "#4A3E41", lineHeight: 1.4 }}>
+            <input type="checkbox" checked={acord} onChange={(e) => setAcord(e.target.checked)} style={{ accentColor: RED, width: 20, height: 20, margin: 0, flexShrink: 0 }} />
+            <span>{tx.acord}</span>
+          </label>
+          <button type="button" disabled={lucru || !poze.carnet || !poze.act || !acord} onClick={verifica} style={btn}>{lucru ? tx.seVerifica : tx.verifica}</button>
+        </div>
+      )}
+      {mod === "student" && jeton && pret != null && <div style={{ fontSize: 14, fontWeight: 700, color: "#2b6b3a" }}>{tx.ok}</div>}
+      {pret != null && <div aria-live="polite" style={{ fontSize: 14, fontWeight: 700, color: "#2b6b3a" }}>{tx.pret(pret, p.trip.price)}</div>}
+      {mesaj && <div role="status" style={{ fontSize: 14, color: RED, fontWeight: 600 }}>{mesaj}</div>}
+    </fieldset>
+  );
+}

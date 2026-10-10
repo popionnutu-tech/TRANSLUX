@@ -1,7 +1,7 @@
 import 'server-only';
 import {
   buildReturAssignmentMap, buildTurAssignmentMap, calculeazaCurse, cursaAreLocalitateCuPlafon, cursaInLocalitatileVanzarii,
-  incarcaCurse, normalizeDriverPhone, parseazaDestinatii, parseazaLocalitatiVanzare, parseazaPlafoaneLocalitati, parseTimeLabel, PhoneError,
+  incarcaCurse, normalizeazaTelefonPasager, parseazaDestinatii, parseazaLocalitatiVanzare, parseazaPlafoaneLocalitati, parseTimeLabel,
   pretVandabilOnline, SUMA_MINIMA_PLATA_MDL, verificaPlafonLocalitati, type BileteComanda, type ComandaPentruPlafon,
   type CursaCuPret, type LocalitatiVanzare, type PlafoaneLocalitati,
 } from '@translux/db';
@@ -13,6 +13,8 @@ import { calculeazaDepartureAt, cursaDupaDataDeStart, vanzareDeschisa } from './
 import { localitateaPunctului, puncteActive } from './puncte';
 import { alegePunct, punctePentru } from './puncte-reguli';
 import { anuntaBotul } from './anunta-botul';
+import { calculeazaPromo, citestePromoConfig, cotaCursei, localitateNeinceputa, type MotivFaraReducere } from './promo-server';
+import { hashJeton } from './student-ai';
 
 // Comanda de bilete online (ION-193, pasul 4 din planul ION-190): validare → preț din @translux/db (același ca pe
 // site) → rând în bilete_comenzi (plafoanele sunt în bază) → O SINGURĂ sesiune maib pe comandă → maib_checkouts.
@@ -57,6 +59,10 @@ export interface ComandaInput {
    * trimite: locul se dă automat la emitere. Lipsă sau gol → atribuire automată și pe retur.
    */
   locuriAlese?: number[] | null;
+  /** Promoția retur −20% (migr. 544): codul de retur al turului (64 hex), din pagina biletului tur. */
+  codRetur?: string | null;
+  /** Promoția student −20% (migr. 544): jetonul primit după verificarea AI a carnetului. */
+  studentJeton?: string | null;
 }
 
 /** Prețul unui loc pe pagina de probă fizică (Ion, 08.10.2026: «pui să fie biletul 10 lei ieftin»); = minimul plății maib. */
@@ -157,11 +163,9 @@ function valideaza(input: ComandaInput): { phone: string; name: string; lang: 'r
   if (!Number.isInteger(input.crmRouteId) || input.crmRouteId <= 0) throw new ComandaError('validare', 'ruta nevalidă');
   const name = (input.passengerName ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
   if (name.length < 2) throw new ComandaError('validare', 'numele lipsește');
-  let phone: string;
-  try { phone = normalizeDriverPhone(input.phone); } catch (e) {
-    if (e instanceof PhoneError) throw new ComandaError('validare', 'telefonul nu e valid (+373 …)');
-    throw e;
-  }
+  // Ion, 10.10.2026: «pot fi și bilete din Ucraina cu +380 sau altă țară, dar de bază e MD».
+  const phone = normalizeazaTelefonPasager(input.phone);
+  if (!phone) throw new ComandaError('validare', 'telefonul nu e valid (069 123 456 sau cu prefixul țării, +380 …)');
   const email = (input.email ?? '').trim().toLowerCase() || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new ComandaError('validare', 'e-mailul nu e valid');
   const lang = input.lang === 'ru' ? 'ru' : 'ro';
@@ -301,6 +305,35 @@ function cheileComenzii(c: Pick<BileteComanda, 'trip_date' | 'crm_route_id' | 'g
   return [c.trip_date, c.crm_route_id, c.going_north, c.seats, c.phone].join('|');
 }
 
+/** Turul din codul de retur și verificarea din jeton, cum le-a trimis clientul (pentru reluare), sau null. */
+async function idPromoDinIntrare(input: ComandaInput): Promise<{ turId: string | null; verificareId: string | null }> {
+  const db = getSupabase();
+  let turId: string | null = null, verificareId: string | null = null;
+  if (input.codRetur && /^[0-9a-f]{64}$/.test(input.codRetur)) {
+    const { data } = await db.from('bilete_comenzi').select('id').eq('cod_retur', input.codRetur).maybeSingle();
+    turId = (data as { id: string } | null)?.id ?? null;
+  }
+  if (input.studentJeton && /^[A-Za-z0-9_-]{20,64}$/.test(input.studentJeton)) {
+    const { data } = await db.from('bilete_studenti_verificari').select('id').eq('jeton_hash', hashJeton(input.studentJeton)).maybeSingle();
+    verificareId = (data as { id: string } | null)?.id ?? null;
+  }
+  return { turId, verificareId };
+}
+
+/** Mesajul pentru client când reducerea cerută nu se aplică (același text la cod greșit și la altă persoană). */
+export function mesajFaraReducere(motiv: MotivFaraReducere | undefined): string {
+  switch (motiv) {
+    case 'cod_retur': return 'reducerea la retur nu se aplică: codul nu e valabil pentru această cursă (sens opus, altă cursă decât turul, aceeași persoană, în 30 de zile)';
+    case 'student': return 'reducerea de student nu se aplică: verificarea carnetului a expirat sau e pe alt nume/telefon; refă verificarea';
+    case 'student_locuri': return 'reducerea de student e pentru un singur loc pe bilet';
+    case 'sofer': return 'promoțiile nu se aplică pe acest număr de telefon';
+    case 'pret_mic': return 'la acest preț reducerea nu se aplică';
+    case 'promo_inchis': return 'promoțiile online nu sunt deschise acum';
+    case 'nu_e_pereche': return 'promoțiile sunt doar pe Bălți ⇄ Chișinău';
+    default: return 'reducerea nu se aplică';
+  }
+}
+
 function descriereDin(c: BileteComanda): string {
   return `Bilet ${c.from_name} → ${c.to_name}, ${c.trip_date} ${chisinauTimeOf(c.departure_at)}, ${c.seats} loc.`.slice(0, 125);
 }
@@ -329,12 +362,19 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (cheileComenzii(comanda) !== cheileComenzii({ trip_date: input.tripDate, crm_route_id: input.crmRouteId, going_north: input.goingNorth, seats: input.seats, phone: v.phone })) {
       throw new ComandaError('idempotenta', 'aceeași cheie, alt conținut');
     }
+    // 544 (BLA-3/N11): reluarea compară INTRAREA promoției (turul din cod, verificarea din jeton), nu reducerea calculată;
+    // jetonul deja legat de această comandă nu e motiv de refuz.
+    const promoIntrare = await idPromoDinIntrare(input);
+    if ((comanda.comanda_tur_id ?? null) !== promoIntrare.turId || (comanda.student_verificare_id ?? null) !== promoIntrare.verificareId) {
+      throw new ComandaError('idempotenta', 'aceeași cheie, altă reducere');
+    }
     return await asiguraSesiunea(comanda, opt);
   }
 
   // 2. Vânzare nouă: cele patru citiri sunt independente → în paralel; erorile în ordinea de mai jos.
-  const [cfg, directie, cursa, sofer] = await Promise.all([
+  const [cfg, promoCfg, directie, cursa, sofer] = await Promise.all([
     citesteConfigBilete(),
+    citestePromoConfig(),
     opt.mod === 'public' ? directiaDeschisa(input.crmRouteId, input.goingNorth) : Promise.resolve(true),
     gasesteCursa(input),
     stareSoferCursa(input.tripDate, input.crmRouteId, input.goingNorth),
@@ -347,7 +387,12 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     if (!directie) throw new ComandaError('inchis', 'vânzarea online nu e deschisă pe această cursă');
   }
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
-  if (opt.mod === 'public') verificaLocalitateaVanzarii(cfg.localitati, cursa, cfg.destinatii);
+  if (opt.mod === 'public') {
+    verificaLocalitateaVanzarii(cfg.localitati, cursa, cfg.destinatii);
+    // Ion, 10.10.2026: «lansăm de pe 13.10 vânzări online Bălți–Chișinău» — data de start pe localitate.
+    const deLa = localitateNeinceputa(promoCfg, cursa.fromNameRo, cursa.toNameRo, input.tripDate);
+    if (deLa) throw new ComandaError('inchis', `pe această direcție online se vând biletele pentru cursele din ${deLa.split('-').reverse().join('.')} încolo`);
+  }
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
   if (opt.mod !== 'proba' && !pretVandabilOnline(cursa.trip.price)) throw new ComandaError('validare', `biletul costă sub ${SUMA_MINIMA_PLATA_MDL} lei; se cumpără la șofer`);
   // Ion, 09.10: «vânzarea e posibilă fără grafic, graficul ulterior doar dă date adiționale» — fără grafic pe zi se vinde;
@@ -366,7 +411,17 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   if (opt.mod === 'public') await verificaPlafonulLocalitatii(cfg.plafoaneLocalitati, cursa, input);
 
   // Proba fizică (Ion, 08.10: «pui să fie biletul 10 lei»): prețul forțat; totalul se socotește după, deci amount = total.
-  const pricePerSeat = opt.mod === 'proba' ? PRET_PROBA : cursa.trip.price;
+  // Promoțiile Bălți ⇄ Chișinău (544): reducerea doar la public / test_admin; cerută dar neaplicabilă → refuz cu motivul
+  // (clientul a văzut cota și nu trebuie să plătească alt preț decât a crezut).
+  const promo = await calculeazaPromo({
+    mod: opt.mod, test: opt.mod !== 'public', phone: v.phone, passengerName: v.name, urcare: cursa.fromNameRo, coborare: cursa.toNameRo,
+    goingNorth: input.goingNorth, crmRouteId: input.crmRouteId, tripDate: input.tripDate, departureAt, seats: input.seats,
+    pret: cursa.trip.price, codRetur: input.codRetur ?? null, studentJeton: input.studentJeton ?? null,
+  }, promoCfg);
+  if ((input.codRetur || input.studentJeton) && !promo.reducere) throw new ComandaError('validare', mesajFaraReducere(promo.motiv));
+  const cota = cotaCursei(cfg.plafoaneLocalitati, promoCfg, { urcare: cursa.fromNameRo, coborare: cursa.toNameRo, goingNorth: input.goingNorth, departureAt });
+
+  const pricePerSeat = opt.mod === 'proba' ? PRET_PROBA : promo.pret;
   const total = Number((pricePerSeat * input.seats).toFixed(2));
 
   // Punctul de urcare (ION-198): din bază, după numele canonic al opririi; copia nume/coordonate o face serverul.
@@ -410,6 +465,16 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       punct_urcare_lon: punct?.lon ?? null,
       // ION-239: locurile alese (retur) — verificate în funcție, sub lacătul cursei, împreună cu INSERT-ul
       locuri_alese: locuriAlese,
+      // 544: promoția (reverificată în funcție, sub lacăt) și cota online a cursei
+      pret_intreg: promo.reducere ? promo.pretIntreg : null,
+      reducere_tip: promo.reducere?.tip ?? null,
+      reducere_pct: promo.reducere?.pct ?? null,
+      comanda_tur_id: promo.reducere?.turId ?? null,
+      student_verificare_id: promo.reducere?.verificareId ?? null,
+      nume_pasager_cheie: promo.reducere?.numeCheie ?? null,
+      promo_pereche: promo.promoPereche,
+      loc_cheie: cota.chei,
+      cota_online: cota.cota,
     },
   });
   if (error) {
@@ -421,6 +486,15 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       // Excepția din funcție anulează orice INSERT din ea — alerta se scrie de aici.
       await db.from('bilete_alerte').insert({ tip: 'plafon_atins', detalii: 'plafonul global de comenzi deschise (50 / 30 min) a fost atins' });
     }
+    const cotaPlina = /COTA_PLINA:(\d+)/.exec(error.message);
+    if (cotaPlina) {
+      const r = Number(cotaPlina[1]);
+      throw new ComandaError('inchis', r > 0 ? `pe această cursă online mai sunt doar ${r} locuri` : 'locurile online pe această cursă s-au terminat; biletul se ia de la șofer');
+    }
+    if (/RETUR_(TUR_NEVALID|TERMEN|FOLOSIT)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('cod_retur'));
+    if (/STUDENT_UN_LOC/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student_locuri'));
+    if (/STUDENT_(VERIFICARE|JETON_FOLOSIT|PLAFON)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student'));
+    if (/PROMO_SOFER/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('sofer'));
     if (/PLAFON_PROBA/.test(error.message)) throw new ComandaError('plafon', 's-au făcut deja 10 comenzi de probă azi');
     if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
@@ -576,4 +650,42 @@ export function statusPentru(e: ComandaError): number {
     case 'plafon': return 429;
     case 'maib': return 503;
   }
+}
+
+export interface CotaPret {
+  pretIntreg: number;
+  pret: number;
+  reducere: 'retur' | 'student' | null;
+  /** Perechea are promoții (site-ul arată panoul «Reduceri»). */
+  promoPereche: boolean;
+  promoActiv: boolean;
+  /** Textul pentru client când reducerea cerută nu se aplică (același la cod greșit și la altă persoană). */
+  mesaj: string | null;
+}
+
+/**
+ * Cota de preț pentru site (POST /api/bilete/pret, migr. 544): prețul întreg, prețul cu reducerea cerută și de ce nu se
+ * aplică. Nu creează nimic; comanda recalculează totul pe server și în bază, sub lacăt.
+ */
+export async function cotaPret(input: Pick<ComandaInput, 'tripDate' | 'crmRouteId' | 'goingNorth' | 'fromRo' | 'toRo' | 'seats' | 'phone' | 'passengerName' | 'codRetur' | 'studentJeton'>): Promise<CotaPret> {
+  const [promoCfg, cursa] = await Promise.all([citestePromoConfig(), gasesteCursa(input as ComandaInput)]);
+  if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
+  const pret = cursa.trip.price;
+  const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);
+  const cerut = Boolean(input.codRetur || input.studentJeton);
+  let phone = '';
+  if (cerut) {
+    const p = normalizeazaTelefonPasager(input.phone);
+    if (!p) return { pretIntreg: pret, pret, reducere: null, promoPereche: false, promoActiv: promoCfg.activ, mesaj: 'scrie întâi telefonul (069 123 456 sau cu prefixul țării)' };
+    phone = p;
+  }
+  const promo = await calculeazaPromo({
+    mod: 'public', test: false, phone, passengerName: (input.passengerName ?? '').trim(), urcare: cursa.fromNameRo, coborare: cursa.toNameRo,
+    goingNorth: input.goingNorth, crmRouteId: input.crmRouteId, tripDate: input.tripDate, departureAt, seats: input.seats,
+    pret, codRetur: input.codRetur ?? null, studentJeton: input.studentJeton ?? null,
+  }, promoCfg);
+  return {
+    pretIntreg: pret, pret: promo.pret, reducere: promo.reducere?.tip ?? null, promoPereche: promo.promoPereche, promoActiv: promoCfg.activ,
+    mesaj: cerut && !promo.reducere ? mesajFaraReducere(promo.motiv) : null,
+  };
 }

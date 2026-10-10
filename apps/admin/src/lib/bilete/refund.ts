@@ -49,6 +49,12 @@ export async function anuleazaSiReturneaza(
     suma?: number;
     /** ION-244: momentul validării ofertei în bază — «acum» pentru plasa de timp (fără a doua comparație pe alt ceas). */
     acumMs?: number;
+    /** 544: anularea e din vina noastră (cursă anulată, greșeala firmei) → turul nu pierde reducerea dată returului. */
+    vinaNoastra?: boolean;
+    /** 544: anulează și returul cu reducere legat de acest tur (fiecare cu grila lui, fără scădere). */
+    siReturul?: boolean;
+    /** 544: suma după grilă pentru returul legat, când `siReturul` (absentă = integral). */
+    sumaRetur?: number;
   },
 ): Promise<RezultatAnulare> {
   const db = getSupabase();
@@ -82,18 +88,51 @@ export async function anuleazaSiReturneaza(
     }
   }
 
-  // 1. Anularea, atomic, în bază (refuză dacă vreun bilet e urcat).
-  const { data: c1, error: e1 } = await db.rpc('bilete_anuleaza', { p_id: comandaId, p_sursa: opt.sursa, p_motiv: motiv });
+  // 1. Anularea, atomic, în bază (refuză dacă vreun bilet e urcat). 544: suma refund-ului se fixează în aceeași
+  // tranzacție — turul cu un retur redus plătit pierde reducerea dată returului («doar turul»), afară de «vina noastră»
+  // (sursa «sistem» = cursă anulată de firmă); «siReturul» anulează și returul, fiecare cu grila lui.
+  const grila = opt.suma ?? Number(inainte.total);
+  const { data: rez, error: e1 } = await db.rpc('bilete_anuleaza', {
+    p_id: comandaId, p_sursa: opt.sursa, p_motiv: motiv, p_grila: grila,
+    p_vina_noastra: opt.vinaNoastra ?? opt.sursa === 'sistem', p_si_returul: opt.siReturul ?? false, p_grila_retur: opt.siReturul ? (opt.sumaRetur ?? null) : null,
+  });
   if (e1) {
-    if (/BILET_URCAT/.test(e1.message)) throw new ComandaError('inchis', 'un bilet din comandă e deja scanat la urcare; nu se mai returnează');
+    if (/BILET_URCAT|RETUR_URCAT/.test(e1.message)) throw new ComandaError('inchis', 'un bilet din comandă (sau din returul legat) e deja scanat la urcare; nu se mai returnează');
     if (/STARE_/.test(e1.message)) throw new ComandaError('validare', 'comanda nu e într-o stare care se poate anula');
+    if (/GRILA/.test(e1.message)) throw new ComandaError('validare', 'suma returnării nu e validă');
     throw new Error(`bilete_anuleaza: ${e1.message}`);
   }
+  const randuri = (Array.isArray(rez) ? rez : []) as Array<{ id: string; suma: number | null; scazut?: number }>;
+  const { data: c1, error: eC } = await db.from('bilete_comenzi').select('*').eq('id', comandaId).single();
+  if (eC) throw new Error(`bilete_comenzi: ${eC.message}`);
   const comanda = c1 as BileteComanda;
+  const sumaTur = Number(randuri[0]?.suma ?? grila);
+  // Returul anulat împreună cu turul: banii lui pe sesiunea lui (fără compensări între sesiuni).
+  for (const r of randuri.slice(1)) {
+    const { data: cr } = await db.from('bilete_comenzi').select('*').eq('id', r.id).single();
+    if (cr) await returneazaBanii(cr as BileteComanda, `${motiv} (returul legat)`, Number(r.suma ?? 0)).catch(async (e: unknown) => {
+      await db.from('bilete_alerte').insert({ comanda_id: r.id, tip: 'refund_necunoscut', detalii: `returul legat: ${e instanceof Error ? e.message : String(e)}` });
+    });
+  }
   if (opt.sursa === 'admin' && Date.parse(inainte.departure_at) < Date.now()) {
     await db.from('bilete_alerte').insert({ comanda_id: comandaId, tip: 'refund_pe_zi_confirmata', detalii: `refund de admin după plecarea cursei (${inainte.departure_at}): ${motiv}` });
   }
 
+  return returneazaBanii(comanda, motiv, sumaTur, opt.sursa === 'admin' || opt.sursa === 'sistem' ? undefined : opt.suma);
+}
+
+/**
+ * Pașii 2–3 pentru o comandă deja anulată: revendicarea refund-ului, banca, iar la refuz reactivarea. `suma` = suma
+ * fixată de bilete_anuleaza; `sumaCeruta` = suma ofertei botului (pentru reluare). 0 lei → nimic de trimis la bancă.
+ */
+async function returneazaBanii(comanda: BileteComanda, motiv: string, suma: number, sumaCeruta?: number): Promise<RezultatAnulare> {
+  const db = getSupabase();
+  const comandaId = comanda.id;
+  void sumaCeruta;
+  if (!(suma > 0)) {
+    await db.from('bilete_comenzi').update({ refund_finalizat_la: new Date().toISOString() }).eq('id', comandaId).is('refund_finalizat_la', null);
+    return { comanda, refund: 'fara_plata' };
+  }
   // 2. Banii. Fără sesiune/plată (platita_fara_bilet fără legătură) → nu există ce returna automat.
   if (!comanda.checkout_id) {
     await db.from('bilete_alerte').insert({ comanda_id: comandaId, tip: 'refund_necunoscut', detalii: 'comanda anulată n-are sesiune maib legată; refund de mână' });
@@ -107,7 +146,7 @@ export async function anuleazaSiReturneaza(
   if (rev.eroare) throw new Error(`revendicare refund: ${rev.eroare}`);
   if (!rev.ok) return { comanda, refund: 'necunoscut' }; // altcineva îl are în lucru chiar acum
 
-  const r = await executaRefund({ checkout_id: ck.checkout_id, payment_id: ck.payment_id, amount: Number(ck.amount) }, motiv, opt.suma);
+  const r = await executaRefund({ checkout_id: ck.checkout_id, payment_id: ck.payment_id, amount: Number(ck.amount) }, motiv, suma < Number(ck.amount) ? suma : undefined);
   if (r.fel === 'creat') return { comanda, refund: 'creat', refundId: r.refundId };
   if (r.fel === 'necunoscut') {
     await db.from('bilete_alerte').insert({ comanda_id: comandaId, tip: 'refund_necunoscut', detalii: r.motiv });

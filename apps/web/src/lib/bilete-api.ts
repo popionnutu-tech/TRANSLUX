@@ -85,6 +85,10 @@ export interface ComandaBiletInput {
   locuriAlese: number[] | null;
   /** ION-249: cumpărat din mini app-ul Telegram — initData-ul contului; panoul îl verifică și leagă comanda de cont. */
   telegramInitData?: string | null;
+  /** 544: promoția retur −20% — codul de retur al turului (din pagina biletului tur). */
+  codRetur?: string | null;
+  /** 544: promoția student −20% — jetonul primit după verificarea carnetului. */
+  studentJeton?: string | null;
 }
 
 export type RaspunsComanda =
@@ -154,6 +158,9 @@ export interface ComandaPublica {
   proba?: boolean;
   /** Echipajul cursei (migr. 538): după bifa dispecerului placa + prenumele șoferului (+ telefonul cu 3 h înainte de plecare). */
   echipaj?: { stare: 'astept' | 'anulat' | 'gata'; placa: string | null; sofer: string | null; telefon: string | null } | null;
+  /** 544: reducerea aplicată și codul de retur (doar pe turul plătit al perechii Bălți ⇄ Chișinău). */
+  reducere?: { tip: 'retur' | 'student'; pret_intreg: number } | null;
+  cod_retur?: string | null;
   bilete: BiletPublic[];
 }
 
@@ -208,4 +215,47 @@ export async function bileteleClientuluiTelegram(initData: string): Promise<Rasp
     console.warn('[bilete] biletele clientului indisponibile:', e instanceof Error ? e.message : e);
     return { ok: false, eroare: 'indisponibil' };
   }
+}
+
+// ── Promoțiile Bălți ⇄ Chișinău (migr. 544) ───────────────────────────────────────────────────────────────────────
+
+export interface IntrarePret {
+  tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; seats: number;
+  phone: string; passengerName: string; codRetur?: string | null; studentJeton?: string | null;
+}
+export interface RaspunsPret { pretIntreg: number; pret: number; reducere: 'retur' | 'student' | null; mesaj: string | null }
+
+/** Cota de preț a panoului (nu creează nimic); null = indisponibilă → formularul arată prețul întreg. */
+export async function pretCuReducere(input: IntrarePret): Promise<RaspunsPret | null> {
+  const cheie = process.env.BILETE_API_KEY;
+  if (!cheie) return null;
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/pret`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cheie}` },
+      body: JSON.stringify(input), signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store',
+    });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j?.ok) return null;
+    return { pretIntreg: Number(j.pretIntreg), pret: Number(j.pret), reducere: j.reducere === 'retur' || j.reducere === 'student' ? j.reducere : null, mesaj: typeof j.mesaj === 'string' ? j.mesaj : null };
+  } catch { return null; }
+}
+
+export type RaspunsCarnet =
+  | { verdict: 'accept'; jeton: string; expiraLa: string }
+  | { verdict: 'poza_neclara' | 'respins' | 'refuzat' | 'eroare'; motiv: string };
+
+/** Verificarea carnetului la panou (cele două JPEG-uri în base64). */
+export async function verificaCarnetLaPanou(corp: { passengerName: string; phone: string; ipHash: string; carnet: string; act: string; consimtamant: true }): Promise<RaspunsCarnet> {
+  const cheie = process.env.BILETE_API_KEY;
+  if (!cheie) return { verdict: 'eroare', motiv: 'config' };
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/student/verifica`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cheie}` },
+      body: JSON.stringify(corp), signal: AbortSignal.timeout(55_000), cache: 'no-store',
+    });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j?.ok) return { verdict: 'eroare', motiv: String(j?.eroare ?? `HTTP ${r.status}`) };
+    if (j.verdict === 'accept' && typeof j.jeton === 'string') return { verdict: 'accept', jeton: j.jeton, expiraLa: String(j.expiraLa) };
+    return { verdict: ['poza_neclara', 'respins', 'refuzat'].includes(j.verdict) ? j.verdict : 'eroare', motiv: String(j.motiv ?? '') };
+  } catch { return { verdict: 'eroare', motiv: 'timeout' }; }
 }

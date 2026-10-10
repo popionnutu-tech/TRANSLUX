@@ -267,10 +267,11 @@ export async function stareSoferCursa(tripDate: string, crmRouteId: number, goin
     if (error) throw new Error(`daily_assignments: ${error.message}`);
     return (count ?? 0) > 0 ? 'lipsa' : 'fara_grafic';
   }
-  const { data, error } = await db.from('drivers').select('telegram_id, active').eq('id', id).maybeSingle();
+  // C8 (10.10): ca public_drivers_view.bilete_online (543) — șoferul de test nu e «legat».
+  const { data, error } = await db.from('drivers').select('telegram_id, active, is_test').eq('id', id).maybeSingle();
   if (error) throw new Error(`drivers: ${error.message}`);
-  const d = data as { telegram_id: number | null; active: boolean } | null;
-  return d?.telegram_id != null && d.active ? 'legat' : 'nelegat';
+  const d = data as { telegram_id: number | null; active: boolean; is_test: boolean | null } | null;
+  return d?.telegram_id != null && d.active && !d.is_test ? 'legat' : 'nelegat';
 }
 
 /** ION-264: cursa se vinde online doar cu urcare sau coborâre într-o localitate din listă. Aruncă ComandaError('inchis'). */

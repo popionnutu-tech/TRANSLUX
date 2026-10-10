@@ -38,8 +38,12 @@ export function pasageriText(n: number, locale: 'ro' | 'ru'): string {
  * Politica cheilor (Codex r2 C4, Claude r3 S1): alegerea schimbată → chei noi pentru AMBELE bilete și înlocuirea încercării
  * de dinainte; alegerea neschimbată → aceleași chei (reluarea recuperează sesiunea băncii), afară de `idempotenta`, când
  * serverul refuză cheia veche → chei noi cu înlocuire.
+ * 551: un refuz clar al panoului (plafon, validare, cursă închisă, loc ocupat) → tot chei noi: turul creat înainte de un retur
+ * refuzat e expirat de server, iar aceeași cheie l-ar relua expirat. Aceleași chei rămân doar când banca sau rețeaua n-au
+ * răspuns (maib, in_lucru, fără cod), ca reluarea să recupereze sesiunea.
  */
 export function politicaChei(a: { alegereSchimbata: boolean; codEroare?: string | null }): { chei: 'aceleasi' | 'noi'; inlocuieste: boolean } {
-  if (a.alegereSchimbata || a.codEroare === 'idempotenta') return { chei: 'noi', inlocuieste: true };
+  if (a.alegereSchimbata) return { chei: 'noi', inlocuieste: true };
+  if (a.codEroare && a.codEroare !== 'maib' && a.codEroare !== 'in_lucru') return { chei: 'noi', inlocuieste: true };
   return { chei: 'aceleasi', inlocuieste: false };
 }

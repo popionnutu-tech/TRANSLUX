@@ -386,8 +386,23 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
 
   // Tur-retur: eroarea spune la care bilet (plan tur-retur, B1): «la tur: …» / «la retur: …».
   const tur = await cuEticheta(input.retur ? 'la tur' : null, () => creeazaRand(input, opt, v, locuriAlese, null));
-  if (input.retur) await cuEticheta('la retur', () => asiguraReturPachet(tur, input, opt));
+  if (input.retur) {
+    try { await cuEticheta('la retur', () => asiguraReturPachet(tur, input, opt)); } catch (e) {
+      // 551 (Ion, 10.10: «pe viitor să nu mai fie»): turul abia creat, fără retur și fără bancă, nu rămâne agățat cu locul
+      // ales — altfel harta i-l arată omului ca ocupat și următoarea încercare cere «încă 1 loc».
+      await expiraTurFaraRetur(tur.id);
+      throw e;
+    }
+  }
   return await asiguraSesiunea(tur, opt);
+}
+
+/** Turul nou al unui tur-retur al cărui retur n-a putut fi creat: expirat, cât încă n-a ajuns la bancă. */
+async function expiraTurFaraRetur(turId: string): Promise<void> {
+  const { error } = await getSupabase().from('bilete_comenzi')
+    .update({ status: 'expirata', creare_in_curs_la: null, updated_at: new Date().toISOString() })
+    .eq('id', turId).eq('status', 'noua').is('checkout_id', null);
+  if (error) console.error('[bilete] turul fără retur nu s-a expirat', turId, error.message);
 }
 
 async function cuEticheta<T>(eticheta: string | null, f: () => Promise<T>): Promise<T> {
@@ -595,7 +610,7 @@ async function creeazaRand(
     if (/STUDENT_(VERIFICARE|JETON_FOLOSIT|PLAFON)/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere('student'));
     if (/PROMO_SOFER/.test(error.message)) throw new ComandaError('validare', mesajFaraReducere(input.studentJeton ? 'student' : 'cod_retur'));
     if (/PLAFON_PROBA/.test(error.message)) throw new ComandaError('plafon', 's-au făcut deja 10 comenzi de probă azi');
-    if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi; încearcă peste câteva minute');
+    if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi neplătite pe acest număr; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
   }
   return rand as BileteComanda;

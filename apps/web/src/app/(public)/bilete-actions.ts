@@ -31,6 +31,8 @@ const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** Mesajul tur-retur: textul panoului (RO), cu un prefix RU când pagina e în rusă și fraza clară pentru cheia refuzată. */
 function textTurRetur(eroareApi: string, cod: string | undefined, ru: boolean): string {
   if (cod === 'idempotenta') return ru ? 'Выбор изменился — нажмите «Оплатить» ещё раз.' : 'Alegerea s-a schimbat — apasă din nou «Plătește».';
+  // 551: pagina rusă nu mai arată textul românesc al plafonului (captura lui Ion, 10.10).
+  if (cod === 'plafon') return ru ? 'Слишком много неоплаченных заказов на этот номер. Попробуйте через несколько минут.' : 'Prea multe comenzi neplătite pe acest număr. Încearcă peste câteva minute.';
   const t = eroareApi.charAt(0).toUpperCase() + eroareApi.slice(1);
   return ru ? `Не получилось: ${t}.` : `${t}.`;
 }

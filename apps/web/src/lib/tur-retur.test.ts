@@ -42,4 +42,9 @@ describe('politicaChei', () => {
   it('cheia refuzată → chei noi', () => {
     expect(politicaChei({ alegereSchimbata: false, codEroare: 'idempotenta' })).toEqual({ chei: 'noi', inlocuieste: true });
   });
+  it('551: refuz clar (plafon «la retur», validare, loc ocupat) → chei noi; fără cod (rețea) → aceleași', () => {
+    for (const c of ['plafon', 'validare', 'inchis', 'loc_ocupat']) expect(politicaChei({ alegereSchimbata: false, codEroare: c })).toEqual({ chei: 'noi', inlocuieste: true });
+    expect(politicaChei({ alegereSchimbata: false, codEroare: null })).toEqual({ chei: 'aceleasi', inlocuieste: false });
+    expect(politicaChei({ alegereSchimbata: false })).toEqual({ chei: 'aceleasi', inlocuieste: false });
+  });
 });

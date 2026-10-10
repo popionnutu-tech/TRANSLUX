@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { clasificaComanda, clasificaPlata, deciziaSesiune, inFereastraFaraSofer, ordineRotatie, rezervareExpirata, sesiuneDeInchis, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { alertaSesiuneNeinchisa, clasificaComanda, clasificaPlata, deciziaSesiune, INCHIDERE_PRAG, inFereastraFaraSofer, ORA_LIPSA_PRAG, oraExecutarii, ordineRotatie, rezervareExpirata, sesiuneDeInchis, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
 
 const now = Date.parse('2026-10-14T10:00:00+03:00');
 const veche = new Date(now - VARSTA_MIN_MS - 1000).toISOString();
@@ -122,5 +124,54 @@ describe('clasificaPlata (portul SQL 560): ora execuției la bancă, nu ora call
   });
   it('revalidarea (cota, returul pe tur anulat, studentul) → același motiv, tot cu bani înapoi', () => {
     expect(clasificaPlata({ ...baza, executatLa: '2026-10-14T10:10:00+03:00', revalidare: 'cota_depasita' })).toBe('cota_depasita');
+  });
+});
+
+// Revizia 10.10.
+describe('M3: ora execuției lipsă nu blochează banii pe veci', () => {
+  const exec = '2026-10-14T07:01:02.2640194+00:00';
+  const compl = '2026-10-14T07:01:05Z';
+  it('executedAt câștigă mereu, fără să numere și fără alertă', () => {
+    expect(oraExecutarii({ executedAt: exec, completedAt: compl, lipsaInainte: 7 })).toEqual({ ora: '2026-10-14T07:01:02.264Z', sursa: 'executedAt', lipsa: 7, alerta: false });
+  });
+  it('lipsă: 1, 2 → nimic (nu se clasifică); a 3-a → ora finalizării de la bancă + alertă', () => {
+    expect(ORA_LIPSA_PRAG).toBe(3);
+    expect(oraExecutarii({ executedAt: null, completedAt: compl, lipsaInainte: 0 })).toEqual({ ora: null, sursa: null, lipsa: 1, alerta: false });
+    expect(oraExecutarii({ executedAt: undefined, completedAt: compl, lipsaInainte: 1 })).toEqual({ ora: null, sursa: null, lipsa: 2, alerta: false });
+    expect(oraExecutarii({ executedAt: 'nu-e-data', completedAt: compl, lipsaInainte: 2 })).toEqual({ ora: '2026-10-14T07:01:05.000Z', sursa: 'completedAt', lipsa: 3, alerta: true });
+  });
+  it('fără completedAt: tot nu se clasifică (niciodată now()), dar alerta pleacă', () => {
+    const r = oraExecutarii({ executedAt: null, completedAt: null, lipsaInainte: 5 });
+    expect(r.ora).toBeNull();
+    expect(r.alerta).toBe(true);
+  });
+});
+
+describe('M4: sesiunea care nu se închide', () => {
+  it('alertă de la a 3-a încercare fără efect (deduplicată pe comandă în bază)', () => {
+    expect(INCHIDERE_PRAG).toBe(3);
+    expect([1, 2].map(alertaSesiuneNeinchisa)).toEqual([false, false]);
+    expect([3, 4].map(alertaSesiuneNeinchisa)).toEqual([true, true]);
+  });
+  it('impacare.ts numără cancel-ul fără efect și alertează pe tipul «sesiune_neinchisa»; 560 permite tipul', () => {
+    const src = readFileSync(path.join(__dirname, 'impacare.ts'), 'utf8');
+    expect(src).toMatch(/if \(d === 'asteapta'\) await sesiuneNeinchisa\(comandaId, checkoutId\)/);
+    expect(src).toContain("'sesiune_neinchisa'");
+    const m560 = readFileSync(path.join(__dirname, '../../../../../packages/db/migrations/560_bilete_plata_tarzie_bani_inapoi.sql'), 'utf8');
+    expect(m560).toContain("'ora_plata_lipsa', 'sesiune_neinchisa'");
+  });
+});
+
+describe('L3: rotația — ora verificării se scrie ÎNAINTEA băncii', () => {
+  const src = readFileSync(path.join(__dirname, 'impacare.ts'), 'utf8');
+  it('pasul A: marcheazaVerificata înaintea findCheckoutByOrderId; B: înaintea inchideSesiunea; fără «finally»', () => {
+    const a = src.indexOf('await marcheazaVerificata(c.id);');
+    expect(a).toBeGreaterThan(0);
+    expect(a).toBeLessThan(src.indexOf('await findCheckoutByOrderId(c.id)'));
+    const b = src.indexOf('await marcheazaVerificata(c.id); // L3');
+    expect(b).toBeGreaterThan(0);
+    expect(b).toBeLessThan(src.indexOf('await inchideSesiunea(c.id, c.checkout_id, sesiuneDeInchis'));
+    expect(src).not.toMatch(/finally \{\s*await marcheazaVerificata/);
+    expect(src.indexOf("update({ updated_at: new Date().toISOString() }).eq('checkout_id', c.checkout_id); // L3")).toBeLessThan(src.indexOf('await inchideSesiunea(c.id, c.checkout_id, true)'));
   });
 });

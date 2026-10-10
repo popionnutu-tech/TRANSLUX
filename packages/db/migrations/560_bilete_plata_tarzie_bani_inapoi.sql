@@ -29,6 +29,25 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Revizia 10.10 (M3): ora execuției lipsă nu are voie să blocheze banii pe veci. Împăcarea numără citirile fără ea; după
+-- 3 (impacare-reguli.ts: ORA_LIPSA_PRAG) se folosește ora finalizării plății de la bancă (getCheckout.completedAt) și pleacă
+-- O alertă «ora_plata_lipsa». Niciodată now().
+ALTER TABLE maib_checkouts ADD COLUMN IF NOT EXISTS executat_la_lipsa int NOT NULL DEFAULT 0;
+ALTER TABLE maib_checkouts ADD COLUMN IF NOT EXISTS executat_la_sursa text;
+COMMENT ON COLUMN maib_checkouts.executat_la_lipsa IS 'Citiri ale plății Completed fără ora execuției (560, M3); la 3 → executat_la din completedAt.';
+COMMENT ON COLUMN maib_checkouts.executat_la_sursa IS 'De unde e executat_la: callback / executedAt / completedAt (rezerva M3).';
+
+-- Revizia 10.10 (M4): încercările de închidere a sesiunii (cancelCheckout) fără efect; la 3 → o alertă «sesiune_neinchisa»
+-- pe comandă, iar împăcarea continuă să încerce, în rotație.
+ALTER TABLE bilete_comenzi ADD COLUMN IF NOT EXISTS inchidere_esuata int NOT NULL DEFAULT 0;
+COMMENT ON COLUMN bilete_comenzi.inchidere_esuata IS 'cancelCheckout fără efect pe sesiunea comenzii (560, M4); alertă o dată la 3.';
+
+ALTER TABLE bilete_alerte DROP CONSTRAINT IF EXISTS bilete_alerte_tip_check;
+ALTER TABLE bilete_alerte ADD CONSTRAINT bilete_alerte_tip_check CHECK (tip = ANY (ARRAY['platita_fara_bilet', 'suma_nepotrivita',
+  'refund_necunoscut', 'refund_respins', 'cursa_fara_sofer', 'urcat_pe_anulat', 'creare_esuata', 'plafon_atins', 'refund_pe_zi_confirmata',
+  'email_esuat', 'fara_loc', 'loc_schimbat', 'retur_cerere', 'sofer_nelegat', 'retur_tur_anulat', 'cota_depasita', 'plafon_student',
+  'ai_eroare', 'plafon_ai', 'ora_plata_lipsa', 'sesiune_neinchisa']));
+
 ALTER TABLE bilete_comenzi ADD COLUMN IF NOT EXISTS impacare_verificata_la timestamptz;
 COMMENT ON COLUMN bilete_comenzi.impacare_verificata_la IS 'Ultima verificare a sesiunii maib de către împăcare (560): rotația pasului B, scrisă și la eroare.';
 CREATE INDEX IF NOT EXISTS bilete_comenzi_deschise_rotatie_idx ON bilete_comenzi (impacare_verificata_la NULLS FIRST, created_at)
@@ -161,7 +180,14 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'COMANDA_INEXISTENTA' USING ERRCODE = 'P0001'; END IF;
   IF c.status <> 'platita_fara_bilet' THEN RAISE EXCEPTION 'STARE_%', upper(c.status) USING ERRCODE = 'P0001'; END IF;
   -- 560: banii plății sunt deja în drum înapoi (intenția 558) → nu se emit bilete peste ei. O intenție refuzată de bancă
-  -- (blocată) nu oprește emiterea: comanda redevine valabilă, iar intenția devine «anulata» (nu se mai datorează nimic).
+  -- nu oprește emiterea: comanda redevine valabilă, iar intenția devine «anulata» (nu se mai datorează nimic). «blocata»
+  -- (Manual / refund străin) oprește: banii pot fi în drum.
+  -- Revizia 10.10 (M1): rândurile intențiilor (ale comenzii și ale perechii din pachet) se blochează ÎNAINTE de
+  -- verificare, în aceeași ordine ca reactivarea (perechea → global → comanda → intențiile); revendicarea ia și ea perechea
+  -- întâi, deci un «refuzata → revendicata → POST» nu se mai poate strecura între verificare și emitere.
+  PERFORM 1 FROM bilete_refund_intentii
+   WHERE comenzi && (ARRAY[p_id, c.comanda_tur_id] || coalesce((SELECT array_agg(id) FROM bilete_comenzi WHERE comanda_tur_id = p_id AND in_pachet), '{}'))
+   ORDER BY id FOR UPDATE;
   IF EXISTS (SELECT 1 FROM bilete_refund_intentii WHERE comenzi && ARRAY[p_id] AND stare NOT IN ('anulata', 'refuzata')) THEN
     RAISE EXCEPTION 'REFUND_IN_CURS' USING ERRCODE = 'P0001';
   END IF;
@@ -342,6 +368,21 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN IF SQLERRM <> 'REFUND_IN_CURS' THEN RAISE; END IF; END;
   BEGIN PERFORM bilete_anuleaza(s.id, 'admin', 'probă', 150, false, false, NULL); RAISE EXCEPTION 'P560: returnat a doua oară';
   EXCEPTION WHEN OTHERS THEN IF SQLERRM <> 'REFUND_IN_CURS' THEN RAISE; END IF; END;
+  -- M2: banii în drum înapoi → bani_inapoi pe comandă
+  IF NOT (SELECT bani_inapoi FROM bilete_comenzi WHERE id = s.id) THEN RAISE EXCEPTION 'P560 M2: bani_inapoi la plata târzie'; END IF;
+  -- M1: intenția refuzată, revendicată din nou (refuzata → revendicata, înaintea POST-ului) → emiterea nu mai trece
+  UPDATE bilete_refund_intentii SET stare = 'refuzata', urmatoarea_la = now() - interval '1 second' WHERE id = i.id;
+  i := bilete_refund_revendica(i.id, 60);
+  IF i.stare <> 'revendicata' THEN RAISE EXCEPTION 'P560 M1: revendicarea după refuz (%)', i.stare; END IF;
+  BEGIN PERFORM bilete_emite_fara_bilet(s.id); RAISE EXCEPTION 'P560 M1: emis peste o trimitere în curs';
+  EXCEPTION WHEN OTHERS THEN IF SQLERRM <> 'REFUND_IN_CURS' THEN RAISE; END IF; END;
+  -- emiterea după un refuz rămas refuz: intenția devine «anulata», bani_inapoi cade, biletul se emite
+  UPDATE bilete_refund_intentii SET stare = 'refuzata', revendicare_id = NULL, revendicata_pana = NULL WHERE id = i.id;
+  n := bilete_emite_fara_bilet(s.id);
+  SELECT * INTO i FROM bilete_refund_intentii WHERE id = i.id;
+  IF n <> 1 OR i.stare <> 'anulata' OR (SELECT bani_inapoi FROM bilete_comenzi WHERE id = s.id) THEN RAISE EXCEPTION 'P560: emiterea după refuz (% %)', n, i.stare; END IF;
+  -- tipurile noi de alertă (M3, M4)
+  INSERT INTO bilete_alerte (comanda_id, tip, detalii) VALUES (s.id, 'ora_plata_lipsa', 'probă'), (s.id, 'sesiune_neinchisa', 'probă');
 
   -- 4. comanda expirată, plătită înainte de plecare, cu locuri libere → biletul se emite
   s := bilete_creeaza_comanda(base || jsonb_build_object('idempotency_key', gen_random_uuid(), 'trip_date', '2031-09-03', 'crm_route_id', rb,

@@ -97,3 +97,31 @@ export function clasificaPlata(p: {
   if ((p.status === 'expirata' || exec > Date.parse(p.createdAt) + VARSTA_MIN_MS) && p.locuriLibere < p.seats) return 'loc_vandut';
   return p.revalidare ?? 'emite';
 }
+
+// ── Revizia 10.10: M3 (ora execuției lipsă), M4 (sesiunea care nu se închide) ────────────────────────────────────────
+
+/** M3: după atâtea citiri ale plății fără ora execuției, se folosește ora finalizării de la bancă (completedAt). */
+export const ORA_LIPSA_PRAG = 3;
+/** M4: după atâtea cancelCheckout fără efect pe o comandă, o alertă (împăcarea continuă să încerce). */
+export const INCHIDERE_PRAG = 3;
+
+const valida = (t: string | null | undefined): t is string => typeof t === 'string' && Number.isFinite(Date.parse(t));
+
+/**
+ * M3: ora după care se judecă plata (bilete_marcheaza_platita). `executedAt` de la bancă câștigă mereu. Lipsă: se numără
+ * citirile; la ORA_LIPSA_PRAG se ia ora finalizării plății de la bancă (getCheckout.completedAt) și pleacă o alertă.
+ * NICIODATĂ ora curentă: fără completedAt nu se clasifică nimic (blocat și vizibil, cu alertă).
+ */
+export function oraExecutarii(a: { executedAt: string | null | undefined; completedAt: string | null | undefined; lipsaInainte: number }):
+  { ora: string | null; sursa: 'executedAt' | 'completedAt' | null; lipsa: number; alerta: boolean } {
+  if (valida(a.executedAt)) return { ora: new Date(Date.parse(a.executedAt)).toISOString(), sursa: 'executedAt', lipsa: a.lipsaInainte, alerta: false };
+  const lipsa = a.lipsaInainte + 1;
+  if (lipsa < ORA_LIPSA_PRAG) return { ora: null, sursa: null, lipsa, alerta: false };
+  if (valida(a.completedAt)) return { ora: new Date(Date.parse(a.completedAt)).toISOString(), sursa: 'completedAt', lipsa, alerta: true };
+  return { ora: null, sursa: null, lipsa, alerta: true };
+}
+
+/** M4: alerta «sesiunea nu se închide» — o dată, când încercările fără efect ajung la prag. */
+export function alertaSesiuneNeinchisa(incercariFaraEfect: number): boolean {
+  return incercariFaraEfect >= INCHIDERE_PRAG;
+}

@@ -2,6 +2,7 @@ import 'server-only';
 import { getSupabase } from '@/lib/supabase';
 import { anuntaBotul } from '@/lib/bilete/anunta-botul';
 import { getCheckout, getPayment, stareEgala, MaibError } from '@/lib/maib/client';
+import { oraExecutarii } from '@/lib/bilete/impacare-reguli';
 
 // Sincronizarea unei sesiuni maib cu baza, FĂRĂ revalidatePath: o cheamă și pagina /plati la
 // randare (întoarcerea de la maib), unde Next interzice revalidarea («revalidatePath during render»,
@@ -28,6 +29,21 @@ export async function randDupaCheckoutSauOrder(ref: string): Promise<MaibCheckou
   return (data as MaibCheckoutRow | null) ?? null;
 }
 
+/** M3: o alertă pe comandă (deduplicată pe comandă + tip) când ora execuției lipsește după toate citirile. */
+async function alertaOraLipsa(rand: MaibCheckoutRow, ora: string | null): Promise<void> {
+  const db = getSupabase();
+  const { data: c } = await db.from('bilete_comenzi').select('id').eq('checkout_id', rand.checkout_id).maybeSingle();
+  const comandaId = (c?.id as string | undefined) ?? (/^[0-9a-f-]{36}$/i.test(rand.order_id) ? rand.order_id : null);
+  if (!comandaId) return;
+  const { data: deja } = await db.from('bilete_alerte').select('id').eq('comanda_id', comandaId).eq('tip', 'ora_plata_lipsa').limit(1);
+  if (deja && deja.length) return;
+  await db.from('bilete_alerte').insert({
+    comanda_id: comandaId, tip: 'ora_plata_lipsa',
+    detalii: ora ? `banca n-a dat ora execuției plății după 3 citiri; plata se judecă după ora finalizării (${ora})`
+      : 'banca n-a dat nici ora execuției, nici ora finalizării plății; plata nu se clasifică — comanda rămâne neatinsă și vizibilă',
+  });
+}
+
 /** Citește starea de la maib și o scrie în rând (callback-ul poate întârzia sau lipsi). */
 export async function sincronizeazaStare(ref: string): Promise<SincronizareRezultat> {
   const rand = await randDupaCheckoutSauOrder(ref);
@@ -52,7 +68,18 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
       if (!executat && !rand.executat_la && (stareEgala(p.status, 'Executed') || stareEgala(p.status, 'PartiallyRefunded') || stareEgala(p.status, 'Refunded'))) {
         executat = (await getPayment(p.paymentId).catch(() => null))?.executedAt ?? null;
       }
-      if (executat && Number.isFinite(Date.parse(executat))) upd.executat_la = new Date(Date.parse(executat)).toISOString();
+      if (rand.executat_la) {
+        if (executat && Number.isFinite(Date.parse(executat))) upd.executat_la = new Date(Date.parse(executat)).toISOString();
+      } else if (stareEgala(c.status, 'Completed') && stareEgala(p.status, 'Executed')) {
+        // Revizia 10.10 (M3): ora lipsă nu blochează banii pe veci — după 3 citiri, ora finalizării plății (completedAt),
+        // cu O alertă; niciodată ora curentă.
+        const o = oraExecutarii({ executedAt: executat, completedAt: c.completedAt ?? null, lipsaInainte: Number(rand.executat_la_lipsa ?? 0) });
+        if (o.ora) { upd.executat_la = o.ora; upd.executat_la_sursa = o.sursa; }
+        if (o.sursa !== 'executedAt') upd.executat_la_lipsa = o.lipsa;
+        if (o.alerta) await alertaOraLipsa(rand, o.ora);
+      } else if (executat && Number.isFinite(Date.parse(executat))) {
+        upd.executat_la = new Date(Date.parse(executat)).toISOString();
+      }
     }
     // Condiția e în UPDATE (Codex X7, runda 2): dacă NU scriem Completed, nu atingem un rând devenit Completed între
     // timp (callback-ul). Dacă rândul a fost sărit, îl recitim și raportăm starea lui reală.

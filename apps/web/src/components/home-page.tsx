@@ -164,6 +164,21 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
   const openLater = () => {
     if (direction()) setCalendarOpen(!calendarOpen);
   };
+  // Ofertele de pe prima pagină (Ion, 10.10.2026: «separat meniu între destinații populare și căutare, pe prima pagină,
+  // deodată cum s-a deschis site-ul pe mobile»): un card pune Chișinău → Bălți în bară; «Tur-retur» comută și pe tur-retur.
+  const [notaStudent, setNotaStudent] = useState(false);
+  const alegeOferta = (tip: 'tur-retur' | 'student') => {
+    const pune = (ref: React.RefObject<HTMLSelectElement | null>, slug: string) => {
+      const o = ref.current ? [...ref.current.options].find((x) => x.value && slugify(x.value) === slug) : undefined;
+      if (o && ref.current) ref.current.value = o.value;
+    };
+    if (!fromRef.current?.value || !toRef.current?.value || !perechePromo(fromRef.current.value, toRef.current.value)) {
+      pune(fromRef, 'chisinau'); pune(toRef, 'balti');
+    }
+    setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
+    setCuRetur(tip === 'tur-retur'); setDataRetur(null); setNotaStudent(tip === 'student');
+    fromRef.current?.closest('.hero-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   const verificaPerechea = () => setEsteBalti(perechePromo(fromRef.current?.value || '', toRef.current?.value || ''));
   /** Ziua aleasă în calendar (doar turul; tur-returul are câmpurile lui sub bară). */
   const alegeZi = (d: Date) => {
@@ -482,6 +497,46 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               </div>
             )}
           </div>
+
+          {/* Ofertele Bălți ⇄ Chișinău: între căutare și «Destinații populare», compacte ca să se vadă din primul ecran pe telefon. */}
+          {!telegram && (
+            <div className="of-wrap" aria-label={locale === 'ru' ? 'Скидки Бельцы ⇄ Кишинёв' : 'Reduceri Bălți ⇄ Chișinău'}>
+              <div className="of-cap">{locale === 'ru' ? 'Скидки · Бельцы ⇄ Кишинёв' : 'Reduceri · Bălți ⇄ Chișinău'}</div>
+              <div className="of-grid">
+                <button type="button" className="of-card tr" onClick={() => alegeOferta('tur-retur')}>
+                  <b>−20%</b>
+                  <span>{locale === 'ru' ? 'Туда-обратно' : 'Tur-retur'}</span>
+                  <small>{locale === 'ru' ? 'скидка на обратный, одна оплата' : 'la retur, o singură plată'}</small>
+                </button>
+                <button type="button" className="of-card st" onClick={() => alegeOferta('student')}>
+                  <b>−20%</b>
+                  <span>{locale === 'ru' ? 'Студентам' : 'Studenți'}</span>
+                  <small>{locale === 'ru' ? 'по студенческому, одно место' : 'cu carnetul, un loc'}</small>
+                </button>
+              </div>
+              {notaStudent && (
+                <p className="of-nota">{locale === 'ru'
+                  ? 'Выберите день и рейс, а при покупке отметьте «Я студент» и сфотографируйте студенческий и паспорт.'
+                  : 'Alege ziua și cursa, iar la cumpărare bifează «Sunt student» și fotografiază carnetul și buletinul.'}</p>
+              )}
+              <style>{`
+.of-wrap{width:100%;max-width:720px;margin-top:14px;display:flex;flex-direction:column;gap:8px;font-family:var(--font-opensans),Open Sans,sans-serif}
+.of-cap{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#9B1B30;opacity:.8;text-align:center}
+.of-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.of-card{all:unset;box-sizing:border-box;cursor:pointer;border-radius:18px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(155,27,48,.12);box-shadow:0 6px 18px rgba(155,27,48,.07);transition:transform .15s,box-shadow .15s}
+.of-card:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(155,27,48,.12)}
+.of-card:focus-visible{outline:2px solid #9B1B30;outline-offset:2px}
+.of-card b{grid-row:1/3;font-size:24px;font-weight:800;line-height:1;padding:8px 9px;border-radius:12px}
+.of-card.tr b{background:#FDF3E1;color:#B7791F}
+.of-card.st b{background:#EAF1F9;color:#2E5A88}
+.of-card span{font-size:15px;font-weight:800;color:#231A1C;align-self:end}
+.of-card small{font-size:12px;color:#7A6A6E;align-self:start;line-height:1.3}
+.of-nota{margin:0;font-size:13px;color:#2E5A88;background:rgba(234,241,249,.9);border-radius:12px;padding:9px 12px;text-align:center}
+@media (max-width:420px){.of-card{grid-template-columns:1fr;grid-template-rows:auto;row-gap:2px;padding:11px 12px}.of-card b{grid-row:auto;justify-self:start;font-size:20px;padding:5px 8px;margin-bottom:4px}}
+@media (prefers-reduced-motion:reduce){.of-card{transition:none}}
+`}</style>
+            </div>
+          )}
 
           {/* Popular routes card — nu în mini app-ul Telegram (Ion: «doar motorul de căutare, nimic altul») */}
           {!telegram && <div className="routes-card" style={{

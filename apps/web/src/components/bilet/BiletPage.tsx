@@ -5,6 +5,7 @@ import { linkHarta } from '@/lib/bilete-reguli';
 import { AsteaptaPlata, EcranCompletTelegram, ReturDupaTur, SalveazaBilet } from './BiletActiuni';
 import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 import { BILET_CARD_CSS, BiletCard, bileteDeAratat, numeRuta } from './BiletCard';
+import LogoTranslux from '../logo-translux';
 
 // Pagina biletului (ION-197): /ro/bilet/<cod>, /ru/bilet/<cod>. Codul din link e secretul comenzii (128 de biți);
 // pagina nu se indexează, nu se cache-uiește, nu trimite referrer (next.config) și nu intră în page_views.
@@ -80,11 +81,7 @@ export async function BiletPage({ cod, locale, plataNu, doar = false }: { cod: s
       `}</style>
       {!doar && <header className="site-header bilet-no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px' }}>
         <a href={`/${locale}`} aria-label="TRANSLUX">
-          <span style={{
-            display: 'inline-block', height: 30, aspectRatio: '1318/192', backgroundColor: RED,
-            WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
-            maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
-          }} />
+          <LogoTranslux height={30} />
         </a>
       </header>}
 

@@ -44,6 +44,7 @@ import type { HomeOptions, HomePopular } from '@/lib/home-props';
 import { searchTrips, type TripResult } from '@/app/(public)/actions';
 import { perechePromo } from '@translux/db';
 import type { ContactPrecompletat } from '@/lib/telegram-client';
+import LogoTranslux from './logo-translux';
 
 interface HomePageProps {
   locale: Locale;
@@ -233,14 +234,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
         {!telegram && <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
           {/* Legăturile interne prin next/link (ION-203): navigare pe client, cu prefetch; tel: și externele rămân <a>. */}
           <Link href={homePath(locale)} aria-label="TRANSLUX">
-            <span className="site-logo" style={{
-              display: 'inline-block', height: 36, aspectRatio: '1318/192',
-              backgroundColor: '#9B1B30',
-              WebkitMaskImage: 'url(/translux-logo-red.png)',
-              WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
-              maskImage: 'url(/translux-logo-red.png)',
-              maskSize: 'contain', maskRepeat: 'no-repeat',
-            }} />
+            <LogoTranslux className="site-logo" height={36} />
           </Link>
 
           {/* Limba: sus, în antet (ION-39) — colțul de jos e al asistentului */}
@@ -475,15 +469,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
             flexWrap: 'wrap', gap: 20,
           }}>
             <div>
-              <span style={{
-                display: 'inline-block', height: 20, aspectRatio: '1318/192',
-                backgroundColor: '#9B1B30',
-                WebkitMaskImage: 'url(/translux-logo-red.png)',
-                WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
-                maskImage: 'url(/translux-logo-red.png)',
-                maskSize: 'contain', maskRepeat: 'no-repeat',
-                opacity: 0.6,
-              }} />
+              <LogoTranslux height={20} style={{ opacity: 0.6 }} />
               <p style={{ fontSize: 13, color: '#555', margin: '6px 0 2px' }}>
                 <a href="tel:+37360401010" style={{ color: '#555', textDecoration: 'none' }}>+373 60 401 010</a>
               </p>

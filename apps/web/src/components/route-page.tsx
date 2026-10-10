@@ -6,6 +6,7 @@ import type { Locale } from '@/lib/i18n';
 import { OPERATOR } from '@/components/legal/legal-content';
 import { getRoutePairs, getRouteTimetable, type RoutePair, type RouteTimetable } from '@/lib/route-pages';
 import { homePath, jsonLd, majorBySlug, parsePair, routePath, SITE_URL, type MajorLocality } from '@/lib/seo';
+import LogoTranslux from './logo-translux';
 
 /**
  * Pagina de direcție (ION-153): «Autobuz Chișinău – Briceni: orar și preț».
@@ -176,12 +177,7 @@ function PageHeader({ locale, from, to }: { locale: Locale; from: MajorLocality;
   return (
     <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
       <Link href={homePath(locale)} aria-label="TRANSLUX">
-        <span style={{
-          display: 'inline-block', height: 30, aspectRatio: '1318/192',
-          backgroundColor: '#9B1B30',
-          WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
-          maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
-        }} />
+        <LogoTranslux height={30} />
       </Link>
       <Link href={routePath(otherLocale, from.slug, to.slug)} className="legal-lang" hrefLang={otherLocale}>
         {otherLocale.toUpperCase()}

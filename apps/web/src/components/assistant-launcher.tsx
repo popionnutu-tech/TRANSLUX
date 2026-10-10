@@ -32,7 +32,7 @@ export const LAUNCHER_CSS = `
 `;
 
 /** Butoanele căutării pe care asistentul nu are voie să le acopere (Ion, 10.10.2026: «Asistent face overlap»). */
-const NU_ACOPERI = '.tr-cauta, .hero-actions, .tr-pax, .tr-card, .tr-seg';
+const NU_ACOPERI = '.tr-cauta, .hero-actions, .tr-pax, .tr-card, .tr-seg, .of-card, .of-mai-mult, .gb-link';
 
 type Dreptunghi = { left: number; right: number; top: number; bottom: number };
 const seIntersecteaza = (a: Dreptunghi, b: Dreptunghi) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;

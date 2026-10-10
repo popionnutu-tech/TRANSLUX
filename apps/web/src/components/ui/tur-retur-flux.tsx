@@ -36,6 +36,7 @@ const TXT = {
     acord: "Am citit și accept", conditii: "condițiile de vânzare", si: "și", politica: "politica de confidențialitate",
     platesti: "O singură plată", total: "Total", plateste: (l: number) => `Plătește ${l} lei cu cardul`, seDeschide: "Se deschide pagina băncii…",
     mai: (n: number, unde: string) => `Alege încă ${n === 1 ? "1 loc" : `${n} locuri`} la ${unde} ↑`, faraRed: "Returul nu are reducere la acest preț — alege altă cursă.",
+    maiTarziu: "Derulează în jos — curse mai târziu",
     dupa: "După plată primești ambele bilete cu cod QR.", unde: "Unde urci în autobuz",
   },
   ru: {
@@ -51,6 +52,7 @@ const TXT = {
     acord: "Я прочитал(а) и принимаю", conditii: "условия продажи", si: "и", politica: "политику конфиденциальности",
     platesti: "Одна оплата", total: "Итого", plateste: (l: number) => `Оплатить ${l} лей картой`, seDeschide: "Открываем страницу банка…",
     mai: (n: number, unde: string) => `Выберите ещё ${n} мест${n === 1 ? "о" : "а"}: ${unde.toLowerCase()} ↑`, faraRed: "На этот рейс скидка не применяется — выберите другой.",
+    maiTarziu: "Листайте вниз — более поздние рейсы",
     dupa: "После оплаты вы получите оба билета с QR-кодом.", unde: "Где вы сядете в автобус",
   },
 } as const;
@@ -408,6 +410,15 @@ export function TurReturFlux({ from, to, fromRo, toRo, tripsTur, dataRetur: ziRe
           )}
         </div>
 
+        {/* Liniuța și îndemnul unde lista se estompează (Ion, 10.10: «să fie liniuța unde devine transparent și un cuvânt
+            în română sau rusă ca omul să dea mai în jos scroll pentru ore mai târziu»). Apăsat, derulează un ecran. */}
+        {maiJos && listaPas && (
+          <button type="button" className="trf-indiciu" onClick={() => refCorp.current?.scrollBy({ top: refCorp.current.clientHeight * 0.75, behavior: "smooth" })}>
+            <span className="trf-indiciu-linie" aria-hidden="true" />
+            <span className="trf-indiciu-text">{tx.maiTarziu} <span aria-hidden="true">↓</span></span>
+          </button>
+        )}
+
         {calendar && (
           <div className="trf-cal" onClick={() => setCalendar(false)}>
             <div className="trf-cal-cutie" role="dialog" aria-modal="true" aria-label={tx.cand} onClick={(e) => e.stopPropagation()}>
@@ -453,6 +464,9 @@ const CSS = `
 .trf-progres span.on{background:${RED}}
 .trf-rotund{width:40px;height:40px;flex:none;border-radius:50%;border:none;background:#F4EEEF;color:#6B5B5F;font-size:19px;cursor:pointer}
 .trf-corp{flex:1;min-height:0;overflow-y:auto;background:var(--trf-fond)}
+.trf-indiciu{all:unset;position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px 14px;cursor:pointer;z-index:2}
+.trf-indiciu-linie{width:100%;height:1.5px;background:linear-gradient(90deg,transparent,rgba(155,27,48,.45) 20%,rgba(155,27,48,.45) 80%,transparent)}
+.trf-indiciu-text{font-size:14px;font-weight:800;color:${RED};background:rgba(255,255,255,.92);border:1px solid var(--trf-linie);border-radius:999px;padding:7px 14px;box-shadow:0 4px 14px rgba(60,20,30,.12)}
 .trf-corp.umbra{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.12));mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.12))}
 .trf-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px 14px 22px}
 .trf-ales{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin:14px 14px 0;padding:10px 14px;border-radius:14px;background:#fff;border:1px solid var(--trf-linie);font-size:14px;cursor:pointer}

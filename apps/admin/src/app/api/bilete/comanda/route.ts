@@ -24,7 +24,7 @@ function returDin(v: unknown): ComandaInput['retur'] {
   const o = v as Record<string, unknown>;
   const zi = String(o.tripDate ?? ''), cheie = String(o.idempotencyKey ?? '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(zi) || !/^[0-9a-f-]{36}$/i.test(cheie) || !Number.isInteger(Number(o.crmRouteId))) return null;
-  return { tripDate: zi, crmRouteId: Number(o.crmRouteId), goingNorth: o.goingNorth === true, fromRo: String(o.fromRo ?? '').slice(0, 80), toRo: String(o.toRo ?? '').slice(0, 80), idempotencyKey: cheie };
+  return { tripDate: zi, crmRouteId: Number(o.crmRouteId), goingNorth: o.goingNorth === true, fromRo: String(o.fromRo ?? '').slice(0, 80), toRo: String(o.toRo ?? '').slice(0, 80), idempotencyKey: cheie, locuriAlese: locuriDin(o.locuriAlese) };
 }
 
 function bazaAdmin(req: NextRequest): string {

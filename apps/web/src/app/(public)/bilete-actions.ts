@@ -71,6 +71,10 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
       : (ru ? 'Выбор мест повреждён, выберите заново.' : 'Alegerea locurilor s-a stricat, alege din nou.'));
   }
 
+  // Locurile returului (tur-retur, doar când returul pleacă din Chișinău); fără câmp = harta n-a răspuns → automat.
+  const locuriRetur = parseazaLocuriAlese(fd.get('returLocuri'), seats, fd.get('returGoingNorth') === 'true');
+  if (!locuriRetur.ok) return eroare(ru ? `Выберите на схеме места обратного рейса (${seats}).` : `Alege pe hartă locurile la retur (${seats}).`);
+
   // Amprenta IP pentru plafonul panoului: sare proprie, obligatorie (fără ea nu trimitem o amprentă slabă).
   const sare = process.env.BILETE_IP_SALT;
   if (!sare) {
@@ -107,7 +111,8 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     // 548: tur-retur într-o singură plată (Ion, 10.10: «totul trebuie să fie achitare într-o pagină»).
     retur: DATA_RE.test(String(fd.get('returTripDate') ?? '')) && UUID_RE.test(String(fd.get('returKey') ?? '')) && Number.isInteger(Number(fd.get('returCrmRouteId')))
       ? { tripDate: String(fd.get('returTripDate')), crmRouteId: Number(fd.get('returCrmRouteId')), goingNorth: fd.get('returGoingNorth') === 'true',
-          fromRo: String(fd.get('returFromRo') ?? '').slice(0, 80), toRo: String(fd.get('returToRo') ?? '').slice(0, 80), idempotencyKey: String(fd.get('returKey')) }
+          fromRo: String(fd.get('returFromRo') ?? '').slice(0, 80), toRo: String(fd.get('returToRo') ?? '').slice(0, 80), idempotencyKey: String(fd.get('returKey')),
+          locuriAlese: locuriRetur.ok ? locuriRetur.locuri : null }
       : null,
   });
   if (!r.ok) {

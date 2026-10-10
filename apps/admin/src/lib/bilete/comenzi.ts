@@ -68,7 +68,7 @@ export interface ComandaInput {
    * 548 (Ion, 10.10.2026: «totul trebuie să fie achitare într-o pagină»): returul Bălți ⇄ Chișinău cumpărat cu turul, plătit
    * în aceeași sesiune (−20%); aceeași persoană și aceleași locuri ca turul.
    */
-  retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string } | null;
+  retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string; locuriAlese?: number[] | null } | null;
 }
 
 /** Prețul unui loc pe pagina de probă fizică (Ion, 08.10.2026: «pui să fie biletul 10 lei ieftin»); = minimul plății maib. */
@@ -419,7 +419,9 @@ async function asiguraReturPachet(tur: BileteComanda, input: ComandaInput, opt: 
     idempotencyKey: String(r.idempotencyKey ?? ''), locuriAlese: null, punctUrcareId: null, codRetur: null, studentJeton: null, retur: null,
   };
   if (!/^[0-9a-f-]{36}$/i.test(returInput.idempotencyKey) || returInput.idempotencyKey === input.idempotencyKey) throw new ComandaError('validare', 'cheia returului lipsește');
-  return creeazaRand(returInput, opt, v, null, { tur, pct: promoCfg.pct });
+  // Locurile returului pe hartă (doar spre nord, din Chișinău) — Ion, 10.10: «apoi locul din Chișinău».
+  const locuriRetur = valideazaLocuriAlese(r.locuriAlese ?? null, tur.seats, returInput.goingNorth);
+  return creeazaRand({ ...returInput, locuriAlese: locuriRetur }, opt, v, locuriRetur, { tur, pct: promoCfg.pct });
 }
 
 /** Rândul unei comenzi noi (tur sau retur din pachet), cu toate verificările vânzării; fără sesiunea de plată. */

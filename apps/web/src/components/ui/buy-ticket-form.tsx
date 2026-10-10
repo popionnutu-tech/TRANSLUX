@@ -13,8 +13,8 @@ import type { ContactPrecompletat } from "@/lib/telegram-client";
 import { SeatMap } from "./seat-map";
 import { BiletCursa, FOND_LISTA } from "./bilet-cursa";
 import { PromoReduceri, type ReducereAleasa } from "./promo-reduceri";
-import { AdaugaRetur, CHEIE_PLAN_RETUR, type ReturAles } from "./adauga-retur";
-import { perechePromo } from "@translux/db";
+import type { ReturAles } from "./adauga-retur";
+import { aplicaReducere, perechePromo } from "@translux/db";
 
 // Formularul «Cumpără bilet» (ION-197): în fereastra rezultatelor, sub cursa aleasă. Cheia de idempotență se
 // generează la deschidere — un dublu-clic sau un «înapoi» din bancă nu face două comenzi. Prețul e informativ;
@@ -91,8 +91,10 @@ function campuriInitiale(contact: ContactPrecompletat | null) {
   return { lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" };
 }
 
-export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null, dataRetur = null }: {
-  trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null; dataRetur?: string | null;
+export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null, returFix = null }: {
+  trip: TripResult; fromRo: string; toRo: string; locale: "ro" | "ru"; onCancel: () => void; contact?: ContactPrecompletat | null;
+  /** Tur-retur ales pe pași (bara de căutare → tur → retur): cursa de retur, plătită în aceeași sesiune. */
+  returFix?: TripResult | null;
 }) {
   const tx = TXT[locale];
   const [key, setKey] = React.useState(uuid);
@@ -155,7 +157,28 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const pretLoc = reducere.pret ?? trip.price;
   const numeComplet = `${camp.lastName.trim()} ${camp.firstName.trim()}`.trim();
   // 547: returul ales acum se plătește imediat după tur (pagina biletului); planul stă în sessionStorage.
-  const [retur, setRetur] = React.useState<ReturAles | null>(null);
+  const pretRetur = returFix ? aplicaReducere(returFix.price, 20) : null;
+  const retur: ReturAles | null = returFix && pretRetur != null ? { trip: returFix, pret: pretRetur } : null;
+  // Harta locurilor la retur, când returul pleacă din Chișinău (spre nord).
+  const hartaRetur = returFix?.going_north === true;
+  const [hr, setHr] = React.useState<Harta>({ stare: "incarca", ocupate: [] });
+  const [aleseRetur, setAleseRetur] = React.useState<number[]>([]);
+  React.useEffect(() => {
+    if (!hartaRetur || !returFix) return;
+    let viu = true;
+    const incarca = async () => {
+      const r = await locuriCursei(returFix.crm_route_id, returFix.trip_date, true).catch(() => null);
+      if (!viu) return;
+      if (!r) { setHr((h) => (h.stare === "ok" ? h : { stare: "indisponibila", ocupate: [] })); return; }
+      setHr({ stare: "ok", ocupate: r.ocupate });
+      setAleseRetur((a) => potrivesteAlese(a, seats, r.ocupate).alese);
+    };
+    void incarca();
+    const t = setInterval(incarca, REINCARCA_HARTA_MS);
+    return () => { viu = false; clearInterval(t); };
+  }, [hartaRetur, returFix, seats]);
+  const hartaReturActiva = hartaRetur && hr.stare === "ok";
+  const locuriReturIncomplete = hartaReturActiva && aleseRetur.length !== seats;
   const [cheieRetur, setCheieRetur] = React.useState(uuid);
   // Altă alegere de retur = altă comandă (altă sumă la bancă): chei noi, ca o încercare veche să nu fie refolosită.
   const alegereRetur = retur ? `${retur.trip.trip_date}|${retur.trip.crm_route_id}|${retur.trip.time}` : "";
@@ -214,6 +237,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         <input type="hidden" name="returFromRo" value={toRo} />
         <input type="hidden" name="returToRo" value={fromRo} />
         <input type="hidden" name="returKey" value={cheieRetur} />
+        {hartaReturActiva && <input type="hidden" name="returLocuri" value={JSON.stringify(aleseRetur)} />}
       </>}
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
@@ -231,6 +255,24 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             {harta.stare === "indisponibila" && <div style={{ fontSize: 14, color: "#555", padding: "10px 12px", borderRadius: 12, background: "#fff" }}>{tx.hartaIndisponibila}</div>}
             {harta.stare === "ok" && <HartaInFormular ocupate={harta.ocupate} alese={alese} onToggle={atingeLoc} locale={locale} />}
           </fieldset>
+        )}
+        {/* Tur-retur: rezumatul returului și, dacă pleacă din Chișinău, harta lui. */}
+        {retur && (
+          <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#231A1C" }}>{locale === "ru" ? "Обратно" : "Retur"} · {toRo} → {fromRo}</div>
+            <BiletCursa trip={{ ...retur.trip, originalPrice: retur.trip.price, price: retur.pret }} locale={locale} cotor="ales" fond={FOND_LISTA} />
+            {hartaRetur && (
+              <fieldset style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: 8, minWidth: 0 }}>
+                <legend style={{ width: "100%", padding: 0, marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: "#231A1C" }}>{locale === "ru" ? "Место на обратном рейсе" : "Locul la retur"}</span>
+                  {hr.stare === "ok" && <span style={{ fontSize: 13, fontWeight: 700, color: locuriReturIncomplete ? RED : "#2b6b3a" }}>{tx.contor(aleseRetur.length, seats)}</span>}
+                </legend>
+                {hr.stare === "incarca" && <div style={{ fontSize: 14, color: "#666" }}>{tx.hartaIncarca}</div>}
+                {hr.stare === "indisponibila" && <div style={{ fontSize: 14, color: "#555", padding: "10px 12px", borderRadius: 12, background: "#fff" }}>{tx.hartaIndisponibila}</div>}
+                {hr.stare === "ok" && <HartaInFormular ocupate={hr.ocupate} alese={aleseRetur} onToggle={(nr) => setAleseRetur((a) => comutaLoc(a, nr, seats, hr.ocupate))} locale={locale} />}
+              </fieldset>
+            )}
+          </div>
         )}
       </div>
 
@@ -278,8 +320,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
         <label style={lbl}>{tx.email}
           <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="nume@exemplu.md" value={camp.email} onChange={scrie("email")} style={inp} />
         </label>
-        {arePromo && <AdaugaRetur trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} pct={20} zile={30} onChange={setRetur} ziInitiala={dataRetur} />}
-        {arePromo && <PromoReduceri faraStudent={Boolean(retur) || Boolean(dataRetur)} locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
+        {arePromo && <PromoReduceri faraStudent={Boolean(retur)} locale={locale} trip={trip} fromRo={fromRo} toRo={toRo} seats={seats} nume={numeComplet} telefon={camp.phone} onChange={setReducere} />}
         <div style={{ padding: "10px 12px", borderRadius: 12, background: "#eef6fb", border: "1px solid #b9d7ea", fontSize: 13, color: "#1f3a4d", lineHeight: 1.45 }}>
           {tx.retur}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: "#1b6f9a", fontWeight: 600 }}>{tx.grila}</a>
         </div>
@@ -301,7 +342,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
             <span style={{ fontSize: 24, fontWeight: 800, whiteSpace: "nowrap" }}>{reducere.pret != null && <s style={{ fontSize: 15, fontWeight: 600, color: "#8A7A7D", marginRight: 6 }}>{trip.price * seats}</s>}{pretLoc * seats + (retur ? retur.pret * seats : 0)} lei</span>
           </div>
           {retur && <div style={{ fontSize: 13, color: "#2b6b3a", fontWeight: 700 }}>{locale === "ru" ? `Туда ${pretLoc * seats} + обратно ${retur.pret * seats} лей (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time}) — одна оплата` : `Tur ${pretLoc * seats} + retur ${retur.pret * seats} lei (${retur.trip.trip_date.split("-").reverse().join(".")}, ${retur.trip.time}) — o singură plată`}</div>}
-          <Trimite locale={locale} lei={pretLoc * seats + (retur ? retur.pret * seats : 0)} blocat={locuriIncomplete || reducere.blocheazaPlata} />
+          <Trimite locale={locale} lei={pretLoc * seats + (retur ? retur.pret * seats : 0)} blocat={locuriIncomplete || locuriReturIncomplete || reducere.blocheazaPlata} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: "#8A7A7D" }}>{tx.note}</span>
             <button type="button" onClick={onCancel} style={{ minHeight: 44, padding: "0 6px", border: "none", background: "none", color: "#6B5B5F", fontSize: 14, cursor: "pointer" }}>{tx.cancel}</button>

@@ -90,7 +90,7 @@ export interface ComandaBiletInput {
   /** 546: promoția student −20% — jetonul primit după verificarea carnetului. */
   studentJeton?: string | null;
   /** 548: returul din tur-retur, plătit în aceeași sesiune cu turul. */
-  retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string } | null;
+  retur?: { tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string; idempotencyKey: string; locuriAlese?: number[] | null } | null;
 }
 
 export type RaspunsComanda =

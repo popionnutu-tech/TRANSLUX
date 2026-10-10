@@ -269,7 +269,7 @@ async function trateazaComanda(bot: BotSocial, api: Api, msg: Message, cmd: stri
         `<b>${escapeHtml(topic.nume)}</b> · profil ${escapeHtml(topic.upload_post_user)} · ${topic.platforme.map((p) => NUME_PLATFORMA[p]).join(', ')}${topic.activ ? '' : ' · ⏸ oprit'}`,
         `Ore: ${topic.ore.join(', ')} (+${topic.decalaj_min} min), cel mult ${topic.max_pe_zi} pe zi`,
         `Bloggeri: ${(bloggeri ?? []).map((b) => escapeHtml(String(b.nume ?? '?'))).join(', ') || 'niciunul'}`,
-        `Publicare: ${publicareReala() ? 'reală' : '🧪 în probă (lipsesc cheile)'}`,
+        `Publicare: ${publicareReala(topic.bot) ? 'reală' : '🧪 în probă (lipsesc cheile)'}`,
         '',
         coada?.length ? '<b>Coada:</b>\n' + coada.map((c) => `• ${formatLoc(new Date(c.planificat_la as string))} — ${c.tip === 'story' ? 'story' : 'clip'}${c.stare !== 'planificat' ? ' (se publică)' : ''}`).join('\n') : 'Coada e goală.',
       ].join('\n'));
@@ -340,7 +340,7 @@ export async function primesteClip(bot: BotSocial, api: Api, msg: Message, topic
       nota_autor: nota, text_final: text, text_ai: ai, planificat_la: loc.toISOString(),
       // Destinația și modul se fixează acum (migr. 545): relegarea topicului sau cheile puse mai târziu nu le schimbă.
       upload_post_user: topic.upload_post_user, platforme, facebook_page_id: platforme.includes('facebook') ? topic.facebook_page_id : null,
-      in_proba: !publicareReala(),
+      in_proba: !publicareReala(bot),
       // C8: «neconfirmat» = nepublicabil până când mesajul cu butoane a ajuns și e salvat (mai jos).
       stare: 'neconfirmat', incercari: 0, luat_la: null, upload_request_id: null, rezultate: null, eroare: null,
       mesaj_confirmare_id: null, anulat_de: null, publicat_la: null, updated_at: new Date().toISOString(),

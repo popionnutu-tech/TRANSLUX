@@ -1,6 +1,6 @@
 // Clientul Upload-Post (plan 09.10, «API-ul Upload-Post»): un singur API publică pe TikTok, Facebook și Instagram,
 // inclusiv stories (`media_type=STORIES`). Documentația: docs.upload-post.com/api/upload-video, /api/upload-status.
-// Cheia stă doar în Railway (UPLOAD_POST_API_KEY). Calendarul e al nostru (social_posts), nu al Upload-Post: clipul
+// Cheile stau doar în Railway (UPLOAD_POST_API_KEY_TLX / _TRANSLUX, comun.ts cheieUploadPost). Calendarul e al nostru (social_posts), nu al Upload-Post: clipul
 // pleacă abia la ora lui, fără `scheduled_date`, ca Anulează / Mută să meargă până în ultimul minut.
 
 export const UPLOAD_POST_BAZA = 'https://api.upload-post.com/api';

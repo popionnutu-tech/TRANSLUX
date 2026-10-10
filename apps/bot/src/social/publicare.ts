@@ -1,6 +1,6 @@
 import { openAsBlob } from 'node:fs';
 import {
-  apiBot, db, esteAdmin, esteBlogger, escapeHtml, NUME_PLATFORMA, publicareReala, tokenBot, topicDupaId,
+  apiBot, cheieUploadPost, db, esteAdmin, esteBlogger, escapeHtml, NUME_PLATFORMA, publicareReala, tokenBot, topicDupaId,
   type Postare, type Topic,
 } from './comun.js';
 import { ClipSchimbat, descarcaClip, stergeTemporar } from './descarcare.js';
@@ -124,7 +124,7 @@ async function publicaUna(p: Postare): Promise<void> {
       + `(profilul ${escapeHtml(p.upload_post_user)}). Nu s-a publicat nimic.`);
     return;
   }
-  if (!publicareReala()) {
+  if (!publicareReala(topic.bot)) {
     // Clip primit cu publicarea reală, dar cheile au fost scoase între timp (oprirea de urgență): așteaptă, cu butoane.
     await seteaza(p.id, { stare: 'planificat', planificat_la: new Date(Date.now() + 60 * 60_000).toISOString() });
     return;
@@ -156,7 +156,7 @@ async function publicaUna(p: Postare): Promise<void> {
     // R3-2: o încercare de dinainte poate fi ajuns deja la Upload-Post — întâi se întreabă (request_id = id-ul postării),
     // nu se descarcă și nu se retrimite orbește.
     if (p.trimis_posibil) {
-      const st = await stareaPublicarii(process.env.UPLOAD_POST_API_KEY!, p.id).catch(() => null);
+      const st = await stareaPublicarii(cheieUploadPost(topic.bot)!, p.id).catch(() => null);
       if (st && (st.stare === 'gata' || st.stare === 'in_lucru')) {
         await seteazaSigur(p.id, { stare: 'trimis', upload_request_id: p.id, eroare: null });
         await scoateButoanele(p, topic);
@@ -187,7 +187,7 @@ async function publicaUna(p: Postare): Promise<void> {
     await seteazaSigur(p.id, { trimis_posibil: true });
     trimitereInceputa = true;
     await scoateButoanele(p, topic);
-    const requestId = await publica(process.env.UPLOAD_POST_API_KEY!, {
+    const requestId = await publica(cheieUploadPost(topic.bot)!, {
       user: p.upload_post_user, platforme, tip: p.tip, durataS: p.durata_s, text: p.text_final,
       facebookPageId: p.facebook_page_id, primulComentariu: topic.primul_comentariu, idPostare: p.id,
     }, video, `${p.id}.mp4`);
@@ -232,14 +232,14 @@ async function publicaUna(p: Postare): Promise<void> {
 }
 
 async function verificaTrimise(): Promise<void> {
-  const cheie = process.env.UPLOAD_POST_API_KEY;
-  if (!cheie) return;
   const { data } = await db().from('social_posts').select('*').eq('stare', 'trimis').order('luat_la').limit(20);
   for (const p of (data ?? []) as Postare[]) {
     if (!p.upload_request_id) continue;
     let topic: Topic | null;
     try { topic = await topicDupaId(p.topic_id); } catch { continue; }
     if (!topic) continue;
+    const cheie = cheieUploadPost(topic.bot);
+    if (!cheie) continue;
     const varsta = Date.now() - new Date(p.luat_la ?? p.planificat_la).getTime();
     let st;
     try { st = await stareaPublicarii(cheie, p.upload_request_id); } catch (err) { console.error('social status:', (err as Error).message); continue; }

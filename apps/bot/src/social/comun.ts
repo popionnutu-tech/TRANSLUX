@@ -105,8 +105,19 @@ export async function esteBlogger(topicId: string, telegramId: number): Promise<
 }
 
 /** Publicarea reală e pornită doar cu ambele chei; altfel calendarul merge «în probă». */
-export function publicareReala(): boolean {
-  return Boolean(process.env.UPLOAD_POST_API_KEY && Number(process.env.TELEGRAM_API_ID) && process.env.TELEGRAM_API_HASH);
+/**
+ * Cheia Upload-Post a botului (Ion, 10.10.2026: «api strict cu social media tlx» / «… translux»): grupul TLX publică
+ * cu UPLOAD_POST_API_KEY_TLX, grupul Translux cu UPLOAD_POST_API_KEY_TRANSLUX — o cheie scăpată se șterge fără s-o
+ * oprească pe cealaltă. (Ambele sunt din același cont Upload-Post: cheia nu e legată de profiluri, deci nu e o barieră
+ * între conturi.) UPLOAD_POST_API_KEY rămâne cheia comună de rezervă.
+ */
+export function cheieUploadPost(bot: BotSocial): string | null {
+  return (bot === 'tlx' ? process.env.UPLOAD_POST_API_KEY_TLX : process.env.UPLOAD_POST_API_KEY_TRANSLUX)
+    || process.env.UPLOAD_POST_API_KEY || null;
+}
+
+export function publicareReala(bot: BotSocial): boolean {
+  return Boolean(cheieUploadPost(bot) && Number(process.env.TELEGRAM_API_ID) && process.env.TELEGRAM_API_HASH);
 }
 
 export function escapeHtml(s: string): string {

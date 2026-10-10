@@ -305,6 +305,20 @@ describe('primirea clipului', () => {
   });
 });
 
+describe('cheile Upload-Post pe bot', () => {
+  it('TLX publică cu cheia TLX, Translux cu cheia Translux; cheia comună e rezerva', async () => {
+    const { cheieUploadPost } = await import('./comun.js');
+    process.env.UPLOAD_POST_API_KEY_TLX = 'cheie-tlx';
+    process.env.UPLOAD_POST_API_KEY_TRANSLUX = 'cheie-translux';
+    expect(cheieUploadPost('tlx')).toBe('cheie-tlx');
+    expect(cheieUploadPost('translux')).toBe('cheie-translux');
+    delete process.env.UPLOAD_POST_API_KEY_TLX;
+    process.env.UPLOAD_POST_API_KEY = 'comuna';
+    expect(cheieUploadPost('tlx')).toBe('comuna');
+    delete process.env.UPLOAD_POST_API_KEY_TRANSLUX;
+  });
+});
+
 describe('runda 2 Codex', () => {
   it('C7: trimiterea posibilă rămâne marcată și după o eroare ulterioară înaintea trimiterii', async () => {
     const p = post();

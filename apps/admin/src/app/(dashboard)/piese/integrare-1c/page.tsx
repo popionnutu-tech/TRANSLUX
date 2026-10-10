@@ -2,13 +2,13 @@ export const dynamic = 'force-dynamic';
 
 import { catalogForExport, offersForExport } from '@/lib/piese-ops';
 import { requirePiese1C } from '@/lib/piese-access';
-import { eliberariDeExportat } from '@/lib/piese-1c-export';
+import { eliberariDeExportat, mutariDeExportat } from '@/lib/piese-1c-export';
 import { getSupabase } from '@/lib/supabase';
 
 export default async function Integrare1CPage() {
   await requirePiese1C();
-  const [cat, offers, eliberari, acoperire] = await Promise.all([
-    catalogForExport(), offersForExport(), eliberariDeExportat(50),
+  const [cat, offers, eliberari, mutari, acoperire] = await Promise.all([
+    catalogForExport(), offersForExport(), eliberariDeExportat(50), mutariDeExportat(50),
     getSupabase().from('piese_1c_acoperire').select('*').then((r) => (r.data as any[]) || []),
   ]);
   const lei = (n: number) => Number(n).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -88,6 +88,56 @@ export default async function Integrare1CPage() {
         <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
           Documentul păstrează același identificator la fiecare descărcare: reîncărcat în 1C, se
           actualizează, nu se dublează. O eliberare returnată integral nu produce fișier — consumul net e zero.
+        </p>
+      </div>
+
+      {/* Mutările stau DUPĂ eliberări pe ecran, dar în contabilitate vin ÎNAINTE: fără ele, piesele îi
+          rămân contabilului în Magazin, iar casarea vine dintr-un depozit în care are zero — chiar
+          nepotrivirea de la proba din septembrie. */}
+      <div className="card">
+        <h2>Перемещение — mutările între depozite</h2>
+        <p className="muted">
+          Mutarea nu doar deplasează marfa: o și trece de pe un cont contabil pe altul. Recepția pune
+          totul pe «ТоварыНаСкладах»; mutarea o duce pe «ЗапасныеЧасти». Contul vine de la depozit, deci o
+          mutare inversă se postează corect de la sine.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 70 }}>Nr.</th><th style={{ width: 100 }}>Data</th>
+              <th>Din</th><th>Spre</th>
+              <th style={{ width: 70 }}>Poziții</th><th style={{ width: 110 }}>Valoarea la noi</th>
+              <th style={{ width: 200 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {mutari.map((m) => (
+              <tr key={m.id}>
+                <td>{m.id}</td>
+                <td>{m.data}</td>
+                <td>{m.din}</td>
+                <td>{m.spre ?? <span className="muted">—</span>}</td>
+                <td>{m.linii}</td>
+                <td>{m.linii ? lei(m.suma) : <span className="muted">—</span>}</td>
+                <td>
+                  {m.gata ? (
+                    <a className="btn btn-primary" style={{ padding: '3px 10px', fontSize: 12 }}
+                      href={`/api/piese/1c/perem/${m.id}`} download>
+                      ⬇ {m.trimis ? 'Descarcă din nou' : 'Descarcă pentru 1C'}
+                    </a>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12 }}>{m.motiv}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!mutari.length && <tr><td colSpan={7} className="muted">Nicio mutare încă.</td></tr>}
+          </tbody>
+        </table>
+        <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+          Valoarea de mai sus e doar informativă — în fișier nu pleacă. Costul îl calculează 1C din
+          evidența lui, cum face și la documentele proprii; la noi, până la încărcarea stocului inițial,
+          multe linii au cost zero și trimis ca atare ar duce marfa în contabilitate la valoare zero.
         </p>
       </div>
 

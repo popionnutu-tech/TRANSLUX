@@ -1,6 +1,7 @@
 import 'server-only';
 import { getSupabase } from './supabase';
 import { buildSpisanieXML, type DateSpisanie, type LinieSpisanie } from './piese-1c-spisanie';
+import { buildPeremXML, type DateMutare } from './piese-1c-perem';
 
 // Pregătește documentul 1C pentru o eliberare. Citește, VERIFICĂ, apoi compune.
 //
@@ -101,6 +102,85 @@ export async function pregatesteSpisanie(docId: number): Promise<
     ok: true,
     xml: buildSpisanieXML(date, new Date().toISOString().slice(0, 19), reguli?.reguli ?? null),
     nume: `spisanie-${docId}.xml`,
+    linii: randuri.length,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// Mutările între depozite — documentul «Перемещение».
+
+export type RandMutare = {
+  id: number; data: string; din: string; spre: string | null;
+  linii: number; suma: number; gata: boolean; motiv: string | null; trimis: boolean;
+};
+
+export async function mutariDeExportat(limita = 100): Promise<RandMutare[]> {
+  const { data, error } = await getSupabase().rpc('piese_1c_mutari', { p_limita: limita });
+  if (error) throw new Error(error.message);
+  return (data as RandMutare[]) || [];
+}
+
+export async function pregatesteMutare(docId: number): Promise<
+  { ok: true; xml: string; nume: string; linii: number } | { ok: false; lipsuri: Lipsa[] }
+> {
+  const sb = getSupabase();
+
+  const doc = check(await sb.from('piese_stock_documents')
+    .select('id, doc_type, created_at, warehouse_id, to_warehouse_id')
+    .eq('id', docId).maybeSingle()) as {
+      id: number; doc_type: string; created_at: string;
+      warehouse_id: number; to_warehouse_id: number | null } | null;
+  if (!doc) throw new Error('Documentul nu există.');
+  if (doc.doc_type !== 'TRANSFER') throw new Error('Doar mutările se trimit ca «Перемещение».');
+  // Mutarea NU folosește `invoice_date`: nu are factură fiscală, e o deplasare internă. Data e ziua în
+  // care marfa a plecat din depozit.
+
+  const [sursa, dest, linii] = await Promise.all([
+    sb.from('piese_warehouses').select('name, guid_1c, cont_1c').eq('id', doc.warehouse_id).maybeSingle(),
+    doc.to_warehouse_id
+      ? sb.from('piese_warehouses').select('name, guid_1c, cont_1c').eq('id', doc.to_warehouse_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    sb.rpc('piese_1c_mutare_linii', { p_doc: docId }),
+  ]);
+  type Dep = { name: string; guid_1c: string | null; cont_1c: string | null };
+  const a = check(sursa) as Dep | null;
+  const b = check(dest) as Dep | null;
+  const randuri = (check(linii) as { part_id: number; part_name: string; qty: number; guid_1c: string | null }[]) || [];
+
+  const lipsuri: Lipsa[] = [];
+  if (!doc.to_warehouse_id) lipsuri.push({ ce: 'Destinație', detaliu: 'documentul nu are depozit de sosire' });
+  for (const [et, d] of [['Depozit de plecare', a], ['Depozit de sosire', b]] as [string, Dep | null][]) {
+    if (!d) continue;
+    if (!d.guid_1c) lipsuri.push({ ce: et, detaliu: `„${d.name}" nu e legat de 1C` });
+    // Contul e la fel de obligatoriu ca GUID-ul: fără el nu știm pe ce cont contabil intră marfa, iar o
+    // presupunere ar posta tăcut pe contul greșit.
+    else if (!d.cont_1c) lipsuri.push({ ce: et, detaliu: `„${d.name}" nu are cont contabil 1C` });
+  }
+  for (const l of randuri) if (!l.guid_1c) lipsuri.push({ ce: 'Piesă', detaliu: l.part_name });
+
+  if (!lipsuri.length && !randuri.length) {
+    return { ok: false, lipsuri: [{ ce: 'Nimic de trimis', detaliu: 'mutarea se anulează pe sine — net zero' }] };
+  }
+  if (lipsuri.length) return { ok: false, lipsuri };
+
+  const docGuid = check(await sb.rpc('piese_1c_doc_guid', { p_doc: docId })) as unknown as string;
+
+  const date: DateMutare = {
+    docGuid,
+    data: String(doc.created_at).slice(0, 10),
+    sursaGuid: a!.guid_1c!, sursaCont: a!.cont_1c!,
+    destGuid: b!.guid_1c!, destCont: b!.cont_1c!,
+    // Costul nu pleacă deloc — îl calculează 1C. Motivele, pe larg, în `piese-1c-perem.ts`.
+    linii: randuri.map((l) => ({ partGuid: l.guid_1c!, qty: Number(l.qty) })),
+  };
+
+  const reguli = check(await sb.from('piese_1c_config').select('reguli').eq('id', 1).maybeSingle()) as
+    { reguli: string | null } | null;
+
+  return {
+    ok: true,
+    xml: buildPeremXML(date, new Date().toISOString().slice(0, 19), reguli?.reguli ?? null),
+    nume: `perem-${docId}.xml`,
     linii: randuri.length,
   };
 }
